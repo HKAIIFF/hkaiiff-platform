@@ -12,6 +12,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           createOnLogin: 'users-without-wallets',
           requireUserPasswordOnCreate: false,
         },
+        externalWallets: {
+          walletConnect: { enabled: true },
+        },
         supportedChains: [{
           id: 101,
           name: 'Solana',
