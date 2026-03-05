@@ -112,8 +112,12 @@ export default function UploadPage() {
       setUploadStatus('SECURE CHANNEL ESTABLISHED. UPLOADING MEDIA...');
 
       // 2. 初始化 OSS 客戶端
+      const ossRegion =
+        stsData.Region ||
+        process.env.NEXT_PUBLIC_ALIYUN_REGION ||
+        'oss-ap-southeast-1';
       const client = new OSS({
-        region: stsData.Region,
+        region: ossRegion,
         accessKeyId: stsData.AccessKeyId,
         accessKeySecret: stsData.AccessKeySecret,
         stsToken: stsData.SecurityToken,
@@ -166,16 +170,19 @@ export default function UploadPage() {
       }
     } catch (err: any) {
       console.error(err);
-      // 細化不同類型的錯誤提示
       const msg: string = err?.message ?? String(err);
       if (msg.toLowerCase().includes('user rejected') || msg.includes('cancelled') || err?.code === 4001) {
-        setUploadStatus('ERROR: USER REJECTED TRANSACTION IN WALLET.');
+        const errText = 'ERROR: USER REJECTED TRANSACTION IN WALLET.';
+        setUploadStatus(errText);
+        alert(errText);
       } else if (msg.toLowerCase().includes('insufficient')) {
-        setUploadStatus('ERROR: INSUFFICIENT AIF BALANCE.');
-      } else if (msg.toLowerCase().includes('phantom')) {
-        setUploadStatus(`ERROR: ${msg}`);
+        const errText = 'ERROR: INSUFFICIENT AIF BALANCE.';
+        setUploadStatus(errText);
+        alert(errText);
       } else {
-        setUploadStatus(`ERROR: ${msg}`);
+        const errText = `ERROR: ${msg}`;
+        setUploadStatus(errText);
+        alert(errText);
       }
     } finally {
       setUploadStatus((prev) => {
