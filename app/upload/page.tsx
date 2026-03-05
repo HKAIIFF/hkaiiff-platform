@@ -1,11 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { usePrivy } from '@privy-io/react-auth';
-import { useWallets as useSolanaWallets } from '@privy-io/react-auth/solana';
+import { usePrivy, useSolanaWallets } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
 import OSS from 'ali-oss';
-import bs58 from 'bs58';
 import { Connection, PublicKey, Transaction } from '@solana/web3.js';
 import { getAssociatedTokenAddress, createTransferInstruction } from '@solana/spl-token';
 
@@ -32,7 +30,8 @@ const TERMINAL_LINES = [
 
 export default function UploadPage() {
   const { user, authenticated } = usePrivy();
-  const { wallets: solanaWallets } = useSolanaWallets();
+  const { wallets } = useSolanaWallets();
+  const activeWallet = wallets[0];
   const router = useRouter();
 
   const [step, setStep] = useState<Step>(1);
@@ -111,13 +110,10 @@ export default function UploadPage() {
       if (selectedPayment === 'AIF') {
         setUploadStatus('AWAITING WALLET SIGNATURE...');
 
-        const wallet = solanaWallets[0];
-        if (!wallet) {
-          throw new Error('No Solana wallet connected. Please connect a wallet first.');
-        }
+        if (!activeWallet) throw new Error("Wallet not connected via Privy");
 
         const connection = new Connection(process.env.NEXT_PUBLIC_SOLANA_RPC_URL!, 'confirmed');
-        const fromPubkey = new PublicKey(wallet.address);
+        const fromPubkey = new PublicKey(activeWallet.address);
         const toPubkey = new PublicKey(process.env.NEXT_PUBLIC_TREASURY_WALLET!);
         const mintPubkey = new PublicKey(process.env.NEXT_PUBLIC_AIF_MINT_ADDRESS!);
 
@@ -144,16 +140,11 @@ export default function UploadPage() {
         );
 
         setUploadStatus('PLEASE APPROVE TRANSACTION IN WALLET...');
-        const serializedTx = transaction.serialize({ requireAllSignatures: false, verifySignatures: false });
-        const { signature } = await wallet.signAndSendTransaction({
-          transaction: serializedTx,
-          chain: 'solana:mainnet',
-        });
+        const signature = await activeWallet.sendTransaction(transaction, connection);
 
-        const signatureStr = bs58.encode(Buffer.from(signature));
-        setUploadStatus(`TX SUBMITTED: ${signatureStr.slice(0, 8)}... VERIFYING...`);
+        setUploadStatus(`TX SUBMITTED: ${signature.slice(0, 8)}... VERIFYING...`);
 
-        const confirmation = await connection.confirmTransaction(signatureStr, 'confirmed');
+        const confirmation = await connection.confirmTransaction(signature, 'confirmed');
         if (confirmation.value.err) {
           throw new Error('Transaction failed on-chain.');
         }

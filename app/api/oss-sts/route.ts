@@ -14,7 +14,7 @@ export async function GET() {
         {
           Action: ['oss:PutObject'],
           Effect: 'Allow',
-          Resource: [`acs:oss:::${process.env.ALIYUN_BUCKET_NAME}/*`] // 這裡修正為 acs:oss
+          Resource: [`acs:oss:*:*:${process.env.ALIYUN_BUCKET_NAME}/*`]
         }
       ],
       Version: '1'

@@ -92,16 +92,18 @@ export default function MePage() {
         upsertPayload.core_team = editCoreTeam.filter((m) => m.name.trim());
       }
 
-      const { error } = await supabase.from('profiles').upsert(upsertPayload, { onConflict: 'id' });
+      const { error } = await supabase.from('users').upsert(upsertPayload, { onConflict: 'id' });
 
       if (error) {
         console.error('❌ Profile save error:', error);
+        alert(error.message);
       } else {
         setDbProfile((prev) => prev ? { ...prev, name: editName, avatar_seed: editAvatarSeed } : prev);
         closeProfileModal();
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('❌ handleSaveProfile exception:', err);
+      alert(err?.message ?? String(err));
     } finally {
       setIsSaving(false);
     }
@@ -167,6 +169,7 @@ export default function MePage() {
   }, [authenticated, user, wallets]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchAIFBalance = async (address: string) => {
+    setIsFetchingBalance(true);
     try {
       const mintAddress = process.env.NEXT_PUBLIC_AIF_MINT_ADDRESS;
       if (!mintAddress) {
@@ -176,21 +179,23 @@ export default function MePage() {
 
       const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
       const connection = new Connection(rpcUrl, 'confirmed');
-      const walletPubKey = new PublicKey(address);
-      const mintPubKey = new PublicKey(mintAddress);
+      const mintPubkey = new PublicKey(mintAddress);
+      const ownerPubkey = new PublicKey(address);
 
-      const ataAddress = await getAssociatedTokenAddress(mintPubKey, walletPubKey);
+      const ataAddress = await getAssociatedTokenAddress(mintPubkey, ownerPubkey);
 
       try {
-        const tokenBalance = await connection.getTokenAccountBalance(ataAddress);
-        setOnChainAifBalance(tokenBalance.value.uiAmount ?? 0);
-      } catch {
-        // ATA 帳戶不存在，餘額為 0
+        const balanceInfo = await connection.getTokenAccountBalance(ataAddress);
+        setOnChainAifBalance(balanceInfo.value.uiAmount ?? 0);
+      } catch (error) {
+        console.error("ATA 餘額獲取失敗，可能無餘額", error);
         setOnChainAifBalance(0);
       }
     } catch (error) {
       console.error('AIF balance query error:', error);
       setOnChainAifBalance(0);
+    } finally {
+      setIsFetchingBalance(false);
     }
   };
 
