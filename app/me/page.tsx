@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { useI18n } from "@/app/context/I18nContext";
+import { useToast } from "@/app/context/ToastContext";
+import CyberLoading from "@/app/components/CyberLoading";
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { supabase } from "@/lib/supabase";
@@ -29,6 +31,8 @@ export default function MePage() {
   const { login, ready, authenticated, user, logout } = usePrivy();
   const { wallets } = useWallets();
   const { t } = useI18n();
+  const { showToast } = useToast();
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isFestivalOpen, setIsFestivalOpen] = useState(false);
   const [mySubmissions, setMySubmissions] = useState<any[]>([]);
   const [selectedFilm, setSelectedFilm] = useState<any | null>(null);
@@ -97,14 +101,14 @@ export default function MePage() {
 
       if (error) {
         console.error('❌ Profile save error:', error);
-        alert("更新失败: " + error.message);
+        showToast("UPDATE FAILED: " + error.message, "error");
       } else {
         setDbProfile((prev) => prev ? { ...prev, name: editName, avatar_seed: editAvatarSeed } : prev);
         closeProfileModal();
       }
     } catch (err: any) {
       console.error('❌ handleSaveProfile exception:', err);
-      alert(err?.message ?? String(err));
+      showToast("SYSTEM ERROR: " + (err?.message ?? String(err)), "error");
     } finally {
       setIsSaving(false);
     }
@@ -285,7 +289,8 @@ export default function MePage() {
 
   /* ─── AUTHENTICATED VIEW ──────────────────────────────────────────────────── */
   return (
-    <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pt-28 pb-32">
+    <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pt-28 pb-32 relative">
+      {isHistoryLoading && <CyberLoading text="LOADING PARALLEL UNIVERSE..." />}
 
       {/* ── Page Header ────────────────────────────────────────────────── */}
       <div className="sticky top-0 z-10 bg-void/95 backdrop-blur border-b border-[#222] px-6 py-4 flex items-center justify-between flex-shrink-0">
@@ -506,7 +511,10 @@ export default function MePage() {
             <div
               key={item.id}
               className="border border-[#222] bg-[#111] rounded-lg p-3 flex gap-4 items-center cursor-pointer hover:border-signal transition-colors active:scale-[0.98]"
-              onClick={() => alert('Loading parallel universe...')}
+              onClick={() => {
+                setIsHistoryLoading(true);
+                setTimeout(() => setIsHistoryLoading(false), 2000);
+              }}
             >
               <img
                 src={item.film_cover_url || item.media_url || "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=200"}

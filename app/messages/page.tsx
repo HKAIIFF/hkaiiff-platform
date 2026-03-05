@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useToast } from '@/app/context/ToastContext';
 
 type MessageType = 'render' | 'chain' | 'system' | 'lbs';
 type FilterType = 'all' | 'render' | 'chain';
@@ -73,17 +74,18 @@ const TABS: { label: string; value: FilterType }[] = [
 export default function MessagesPage() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [messages, setMessages] = useState<Message[]>(MESSAGES_DATA);
+  const { showToast } = useToast();
 
   const handleMarkAllRead = () => {
     setMessages((prev) => prev.map((m) => ({ ...m, unread: false })));
-    alert('All messages marked as read');
+    showToast('ALL MESSAGES MARKED AS READ', 'success');
   };
 
   const handleMsgClick = (id: number) => {
     setMessages((prev) =>
       prev.map((m) => (m.id === id ? { ...m, unread: false } : m))
     );
-    alert('跳轉或執行對應 Action');
+    showToast('OPENING MESSAGE THREAD...', 'info');
   };
 
   const filtered =

@@ -5,6 +5,8 @@ import { useModal } from "@/app/context/ModalContext";
 import { useI18n, LangCode } from "@/app/context/I18nContext";
 import { usePrivy } from "@privy-io/react-auth";
 import OSS from "ali-oss";
+import { useToast } from "@/app/context/ToastContext";
+import CyberLoading from "@/app/components/CyberLoading";
 
 // ─── Creator Data ─────────────────────────────────────────────────────────────
 
@@ -96,7 +98,8 @@ export default function GlobalModals() {
   const [visionFile, setVisionFile] = useState<File | null>(null);
   const [bioSeed, setBioSeed] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [isVideoLoading, setIsVideoLoading] = useState(false);
+  const { showToast } = useToast();
 
   const audioInputRef = useRef<HTMLInputElement>(null);
   const visionInputRef = useRef<HTMLInputElement>(null);
@@ -147,18 +150,13 @@ export default function GlobalModals() {
     return `https://${creds.Bucket}.${creds.Region}.aliyuncs.com/${key}`;
   }, []);
 
-  // 顯示短暫 Toast（3 秒後自動隱藏）
-  const showToast = useCallback((msg: string) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3000);
-  }, []);
 
   // INJECT & RENDER 主提交函數（功能暫時鎖定，僅顯示 ACCESS DENIED 提示）
   const submitConsoleInteract = useCallback(() => {
     const msg = lang === "zh"
       ? "ACCESS DENIED: 您未獲得邀請，暫時無法使用此功能。"
       : "ACCESS DENIED: Invite only. Feature locked.";
-    showToast(msg);
+    showToast(msg, "error");
     close();
   }, [lang, showToast, close]);
 
@@ -327,7 +325,7 @@ export default function GlobalModals() {
                 </button>
                 <button
                   className="brutal-btn secondary w-12 flex-shrink-0"
-                  onClick={() => alert("Added to Watchlist")}
+                  onClick={() => showToast("Added to Watchlist", "success")}
                 >
                   <i className="fas fa-bookmark" />
                 </button>
@@ -404,7 +402,11 @@ export default function GlobalModals() {
                     <div className="text-[10px] font-mono text-gray-500">CONTRACT</div>
                     <div
                       className="text-[10px] font-mono text-signal bg-signal/10 px-2 py-1 rounded border border-signal/30 flex items-center gap-2 cursor-pointer active:scale-95 transition-transform"
-                      onClick={() => alert("Contract address copied!")}
+                      onClick={() => {
+                        const addr = film?.info?.onChain?.contract;
+                        if (addr) navigator.clipboard.writeText(addr).catch(() => {});
+                        showToast("CONTRACT ADDRESS COPIED TO CLIPBOARD", "success");
+                      }}
                     >
                       <span className="ltr-force">{film?.info.onChain.contract ?? "..."}</span>
                       <i className="fas fa-copy text-[10px]" />
@@ -532,7 +534,7 @@ export default function GlobalModals() {
                   <div className="absolute inset-0 rounded-full border border-signal animate-ping opacity-50" />
                   <button
                     className="w-24 h-24 bg-signal text-black rounded-full text-3xl shadow-[0_0_30px_rgba(204,255,0,0.4)] active:scale-95 transition-transform"
-                    onClick={() => alert("Recording Audio...")}
+                    onClick={() => showToast("VOICE PATTERN RECORDER — COMING SOON", "info")}
                   >
                     <i className="fas fa-microphone" />
                   </button>
@@ -639,11 +641,9 @@ export default function GlobalModals() {
         </div>
       </div>
 
-      {/* ─── Toast 通知 ──────────────────────────────────────────────────────── */}
-      {toastMsg && (
-        <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[600] bg-signal text-black text-xs font-mono font-bold px-5 py-3 rounded-full shadow-[0_0_20px_rgba(204,255,0,0.5)] whitespace-nowrap animate-bounce pointer-events-none">
-          {toastMsg}
-        </div>
+      {/* ─── 视频流加载遮罩 ──────────────────────────────────────────────────── */}
+      {isVideoLoading && (
+        <CyberLoading text="LOADING DECENTRALIZED VIDEO STREAM..." />
       )}
 
       {/* ─── Play Modal (沉浸式全屏播放器) ──────────────────────────────────── */}
@@ -700,7 +700,11 @@ export default function GlobalModals() {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                alert("加载去中心化节点视频流...");
+                setIsVideoLoading(true);
+                setTimeout(() => {
+                  setIsVideoLoading(false);
+                  setActiveModal("play");
+                }, 2000);
               }}
               className="pointer-events-auto w-20 h-20 bg-signal/90 text-black rounded-full flex items-center justify-center text-3xl shadow-[0_0_40px_rgba(204,255,0,0.4)] hover:scale-110 active:scale-95 transition-all pl-2 opacity-0 group-hover:opacity-100 duration-300 backdrop-blur-md border border-white/40"
             >
@@ -897,7 +901,7 @@ export default function GlobalModals() {
                     {creatorData.portfolio.map((item) => (
                       <div
                         key={item.id}
-                        onClick={() => alert("即将跳转并打开该影片的 INFO 面板")}
+                        onClick={() => showToast("REDIRECTING — OPENING FILM INFO PANEL", "info")}
                         className="cursor-pointer bg-[#111] p-4 rounded-lg border border-[#222] hover:border-signal transition-colors flex justify-between items-center group relative overflow-hidden active:scale-[0.98] transition-transform"
                       >
                         <div className="absolute top-0 right-0 w-8 h-8 bg-signal/5 rounded-bl-full flex items-center justify-center">

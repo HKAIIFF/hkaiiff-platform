@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
 import OSS from 'ali-oss';
+import { useToast } from '@/app/context/ToastContext';
 
 type Step = 1 | 2 | 'processing';
 
@@ -29,6 +30,7 @@ const TERMINAL_LINES = [
 export default function UploadPage() {
   const { user, authenticated } = usePrivy();
   const router = useRouter();
+  const { showToast } = useToast();
 
   const [step, setStep] = useState<Step>(1);
   const [formData, setFormData] = useState({
@@ -174,15 +176,15 @@ export default function UploadPage() {
       if (msg.toLowerCase().includes('user rejected') || msg.includes('cancelled') || err?.code === 4001) {
         const errText = 'ERROR: USER REJECTED TRANSACTION IN WALLET.';
         setUploadStatus(errText);
-        alert(errText);
+        showToast(errText, 'error');
       } else if (msg.toLowerCase().includes('insufficient')) {
         const errText = 'ERROR: INSUFFICIENT AIF BALANCE.';
         setUploadStatus(errText);
-        alert(errText);
+        showToast(errText, 'error');
       } else {
         const errText = `ERROR: ${msg}`;
         setUploadStatus(errText);
-        alert(errText);
+        showToast(errText, 'error');
       }
     } finally {
       setUploadStatus((prev) => {

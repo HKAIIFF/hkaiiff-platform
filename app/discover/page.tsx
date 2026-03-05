@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from 'react';
 import { useModal } from '@/app/context/ModalContext';
+import { useToast } from '@/app/context/ToastContext';
+import CyberLoading from '@/app/components/CyberLoading';
 
 type LbsState = 'unlocked' | 'locked_geo' | 'locked_cond';
 
@@ -74,8 +76,10 @@ export default function DiscoverPage() {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [btnText, setBtnText] = useState('VERIFY LBS NODE');
   const [btnDisabled, setBtnDisabled] = useState(false);
+  const [isLbsLoading, setIsLbsLoading] = useState(false);
 
   const { setActiveModal, setLbsVideoUrl } = useModal();
+  const { showToast } = useToast();
 
   const openDetail = useCallback((film: LbsFilm, index: number) => {
     setSelectedLbs(film);
@@ -97,6 +101,8 @@ export default function DiscoverPage() {
     setBtnText('ACQUIRING GPS...');
     setBtnDisabled(true);
 
+    setIsLbsLoading(true);
+
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude: userLat, longitude: userLng } = pos.coords;
@@ -115,20 +121,24 @@ export default function DiscoverPage() {
 
           if (data.success && data.videoUrl) {
             setLbsVideoUrl(data.videoUrl);
+            setIsLbsLoading(false);
             closeDetail();
             setActiveModal('play');
           } else {
-            alert(data.error ?? 'LBS verification failed.');
+            setIsLbsLoading(false);
+            showToast(data.error ?? 'LBS VERIFICATION FAILED', 'error');
           }
         } catch {
-          alert('Network error. Please try again.');
+          setIsLbsLoading(false);
+          showToast('NETWORK ERROR — PLEASE TRY AGAIN', 'error');
         }
 
         setBtnText('VERIFY LBS NODE');
         setBtnDisabled(false);
       },
       () => {
-        alert('Location access required for LBS screening.');
+        setIsLbsLoading(false);
+        showToast('LOCATION ACCESS REQUIRED FOR LBS SCREENING', 'warning');
         setBtnText('VERIFY LBS NODE');
         setBtnDisabled(false);
       },
@@ -137,7 +147,8 @@ export default function DiscoverPage() {
   }, [selectedLbs, selectedIndex, setActiveModal, setLbsVideoUrl, closeDetail]);
 
   return (
-    <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pt-28 pb-32">
+    <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pt-28 pb-32 relative">
+      {isLbsLoading && <CyberLoading text="VERIFYING GPS LBS NODE..." />}
       {/* Header */}
       <div className="flex justify-between items-end mb-2">
         <h1 className="font-heavy text-4xl text-white">DISCOVER</h1>
