@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useModal } from '@/app/context/ModalContext';
 
 type LbsState = 'unlocked' | 'locked_geo' | 'locked_cond';
 
@@ -70,6 +71,70 @@ const LBS_FILMS: LbsFilm[] = [
 
 export default function DiscoverPage() {
   const [selectedLbs, setSelectedLbs] = useState<LbsFilm | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
+  const [btnText, setBtnText] = useState('VERIFY LBS NODE');
+  const [btnDisabled, setBtnDisabled] = useState(false);
+
+  const { setActiveModal, setLbsVideoUrl } = useModal();
+
+  const openDetail = useCallback((film: LbsFilm, index: number) => {
+    setSelectedLbs(film);
+    setSelectedIndex(index);
+    setBtnText('VERIFY LBS NODE');
+    setBtnDisabled(false);
+  }, []);
+
+  const closeDetail = useCallback(() => {
+    setSelectedLbs(null);
+    setSelectedIndex(null);
+    setBtnText('VERIFY LBS NODE');
+    setBtnDisabled(false);
+  }, []);
+
+  const executeLBS = useCallback(async () => {
+    if (!selectedLbs || selectedIndex === null) return;
+
+    setBtnText('ACQUIRING GPS...');
+    setBtnDisabled(true);
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: userLat, longitude: userLng } = pos.coords;
+
+        setBtnText('VERIFYING SMART CONTRACT...');
+
+        try {
+          const res = await fetch('/api/verify-lbs', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filmId: selectedIndex, userLat, userLng }),
+          });
+
+          const data: { success: boolean; videoUrl?: string; error?: string } =
+            await res.json();
+
+          if (data.success && data.videoUrl) {
+            setLbsVideoUrl(data.videoUrl);
+            closeDetail();
+            setActiveModal('play');
+          } else {
+            alert(data.error ?? 'LBS verification failed.');
+          }
+        } catch {
+          alert('Network error. Please try again.');
+        }
+
+        setBtnText('VERIFY LBS NODE');
+        setBtnDisabled(false);
+      },
+      () => {
+        alert('Location access required for LBS screening.');
+        setBtnText('VERIFY LBS NODE');
+        setBtnDisabled(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  }, [selectedLbs, selectedIndex, setActiveModal, setLbsVideoUrl, closeDetail]);
 
   return (
     <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pt-28 pb-32">
@@ -96,7 +161,7 @@ export default function DiscoverPage() {
           <div
             key={index}
             className={`border ${l.borderColor} rounded-xl p-[1px] bg-[#111] relative overflow-hidden group cursor-pointer shadow-lg`}
-            onClick={() => setSelectedLbs(l)}
+            onClick={() => openDetail(l, index)}
           >
             {/* Background image */}
             <div className="absolute inset-0 bg-black">
@@ -145,19 +210,119 @@ export default function DiscoverPage() {
         ))}
       </div>
 
-      {/* Selected LBS debug indicator (will be replaced by modal) */}
-      {selectedLbs && (
-        <div className="mt-4 bg-[#111] border border-[#222] rounded-xl p-4 font-mono text-[10px] text-gray-500">
-          <span className="text-signal">// SELECTED NODE: </span>
-          {selectedLbs.title}
+      {/* ─── LBS 详情 Modal（全屏上推） ─────────────────────────────────────── */}
+      <div
+        className={`fixed inset-0 z-[400] bg-[#050505] flex flex-col transition-transform duration-300 ${
+          selectedLbs ? 'translate-y-0' : 'translate-y-full'
+        }`}
+      >
+        {/* 顶部导航栏 */}
+        <div className="absolute top-0 left-0 w-full z-20 flex justify-between items-center p-4 pt-12 bg-gradient-to-b from-black to-transparent">
           <button
-            className="ml-3 text-gray-600 hover:text-gray-400 transition-colors"
-            onClick={() => setSelectedLbs(null)}
+            onClick={closeDetail}
+            className="w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform"
           >
-            [DISMISS]
+            <i className="fas fa-arrow-left" />
           </button>
+          <div className="font-mono text-[10px] text-signal tracking-widest bg-black/50 px-3 py-1.5 rounded-full backdrop-blur border border-[#333]">
+            EVENT DETAILS
+          </div>
+          <div className="w-10" />
         </div>
-      )}
+
+        {selectedLbs && (
+          <>
+            {/* 可滚动内容区 */}
+            <div className="overflow-y-auto flex-1 pb-32">
+
+              {/* 英雄图 */}
+              <div className="relative w-full h-72 bg-black">
+                <img
+                  src={selectedLbs.img}
+                  alt={selectedLbs.title}
+                  className="w-full h-full object-cover opacity-60"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent" />
+              </div>
+
+              {/* 详情内容 */}
+              <div className="px-6 -mt-12 relative z-10 space-y-6">
+
+                {/* 标题区 */}
+                <div>
+                  <div
+                    className={`inline-block text-[9px] font-mono px-2 py-1 rounded mb-2 border backdrop-blur ${selectedLbs.borderColor} ${selectedLbs.textColor} bg-black/80`}
+                  >
+                    <i className={`fas ${selectedLbs.icon} mr-1`} />
+                    {selectedLbs.stateLabel}
+                  </div>
+                  <h2 className="font-heavy text-4xl text-white leading-none drop-shadow-md mb-2">
+                    {selectedLbs.title}
+                  </h2>
+                  <div className="text-[10px] font-mono text-gray-400 ltr-force flex items-center gap-1">
+                    <i className="fas fa-crosshairs text-signal" />
+                    <span>{selectedLbs.coords}</span>
+                  </div>
+                </div>
+
+                {/* Venue + Schedule 两宫格 */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-[#111] p-4 rounded-xl border border-[#222]">
+                    <div className="text-[9px] text-gray-500 font-mono mb-1">VENUE</div>
+                    <div className="text-sm text-white font-bold">{selectedLbs.location}</div>
+                  </div>
+                  <div className="bg-[#111] p-4 rounded-xl border border-[#222]">
+                    <div className="text-[9px] text-gray-500 font-mono mb-1">SCHEDULE</div>
+                    <div className="text-sm text-white font-bold">{selectedLbs.date}</div>
+                  </div>
+                </div>
+
+                {/* Event Description */}
+                <section>
+                  <h3 className="font-heavy text-lg text-white mb-2">EVENT DESCRIPTION</h3>
+                  <p className="text-xs text-gray-300 font-mono leading-relaxed text-justify">
+                    {selectedLbs.desc}
+                  </p>
+                </section>
+
+                {/* Smart Contract Req */}
+                <section
+                  className={`bg-gradient-to-br from-[#111] to-[#0a0a0a] border border-[#333] p-4 rounded-xl relative overflow-hidden`}
+                >
+                  {/* 左侧彩色竖条 */}
+                  <div className={`absolute left-0 top-0 w-1 h-full ${selectedLbs.borderColor.replace('border-', 'bg-')}`} />
+                  <h3 className="font-heavy text-lg text-white mb-2">SMART CONTRACT REQ</h3>
+                  <p className={`text-[10px] font-mono ${selectedLbs.textColor}`}>
+                    {selectedLbs.req}
+                  </p>
+                </section>
+
+              </div>
+            </div>
+
+            {/* 底部固定按钮栏 */}
+            <div className="absolute bottom-0 left-0 w-full p-4 bg-black/90 backdrop-blur-xl border-t border-[#222] pb-safe z-20">
+              <button
+                onClick={executeLBS}
+                disabled={btnDisabled}
+                className="brutal-btn w-full text-lg disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {btnDisabled ? (
+                  <>
+                    <i className="fas fa-spinner fa-spin mr-2" />
+                    {btnText}
+                  </>
+                ) : (
+                  <>
+                    <i className="fas fa-satellite-dish mr-2" />
+                    {btnText}
+                  </>
+                )}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

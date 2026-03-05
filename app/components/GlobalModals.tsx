@@ -78,7 +78,7 @@ const CREATOR_DATA: Record<string, CreatorProfile> = {
 
 
 export default function GlobalModals() {
-  const { activeModal, setActiveModal, selectedFilm, interactTab, setInteractTab, selectedCreator } = useModal();
+  const { activeModal, setActiveModal, selectedFilm, interactTab, setInteractTab, selectedCreator, lbsVideoUrl, setLbsVideoUrl } = useModal();
   const { t, lang, setLang, langs } = useI18n();
   const { user } = usePrivy();
   const close = () => setActiveModal(null);
@@ -655,10 +655,10 @@ export default function GlobalModals() {
       >
         <div className="relative w-full h-full flex flex-col justify-between group">
 
-          {/* 背景海报 */}
+          {/* 背景海报（LBS 核验成功时优先使用 lbsVideoUrl） */}
           <img
-            src={film?.video || undefined}
-            alt={film?.title ?? ""}
+            src={lbsVideoUrl ?? film?.video ?? undefined}
+            alt={film?.title ?? "LBS EXCLUSIVE"}
             className="absolute inset-0 w-full h-full object-cover sm:object-contain opacity-80 group-hover:opacity-100 transition-opacity duration-500"
           />
 
@@ -670,7 +670,7 @@ export default function GlobalModals() {
 
             {/* 关闭（向下箭头）按钮 */}
             <button
-              onClick={() => setActiveModal(null)}
+              onClick={() => { setActiveModal(null); setLbsVideoUrl(null); }}
               className="w-10 h-10 bg-black/40 backdrop-blur-md rounded-full text-white flex items-center justify-center border border-white/10 hover:bg-white/20 active:scale-90 transition-all shadow-lg"
             >
               <i className="fas fa-chevron-down" />
@@ -714,7 +714,7 @@ export default function GlobalModals() {
             {/* 标题 + 前后跳转按钮 */}
             <div className="flex justify-between items-end mb-4">
               <h2 className="font-heavy text-3xl text-white shadow-black drop-shadow-2xl tracking-wide uppercase leading-none truncate max-w-[70%]">
-                {film?.title ?? "TITLE"}
+                {lbsVideoUrl ? "LBS EXCLUSIVE" : (film?.title ?? "TITLE")}
               </h2>
               <div className="flex gap-5 text-white/80">
                 <button className="hover:text-signal transition-colors active:scale-90">

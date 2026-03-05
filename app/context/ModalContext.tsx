@@ -14,6 +14,9 @@ interface ModalContextType {
   setInteractTab: (tab: InteractTab) => void;
   selectedCreator: string | null;
   setSelectedCreator: (creator: string | null) => void;
+  /** LBS 核验成功后注入播放器的视频/图片 URL */
+  lbsVideoUrl: string | null;
+  setLbsVideoUrl: (url: string | null) => void;
 }
 
 const ModalContext = createContext<ModalContextType>({
@@ -25,6 +28,8 @@ const ModalContext = createContext<ModalContextType>({
   setInteractTab: () => {},
   selectedCreator: null,
   setSelectedCreator: () => {},
+  lbsVideoUrl: null,
+  setLbsVideoUrl: () => {},
 });
 
 export function ModalProvider({ children }: { children: ReactNode }) {
@@ -32,10 +37,17 @@ export function ModalProvider({ children }: { children: ReactNode }) {
   const [selectedFilm, setSelectedFilm] = useState<Film | null>(null);
   const [interactTab, setInteractTab] = useState<InteractTab>("text");
   const [selectedCreator, setSelectedCreator] = useState<string | null>(null);
+  const [lbsVideoUrl, setLbsVideoUrl] = useState<string | null>(null);
 
   return (
     <ModalContext.Provider
-      value={{ activeModal, setActiveModal, selectedFilm, setSelectedFilm, interactTab, setInteractTab, selectedCreator, setSelectedCreator }}
+      value={{
+        activeModal, setActiveModal,
+        selectedFilm, setSelectedFilm,
+        interactTab, setInteractTab,
+        selectedCreator, setSelectedCreator,
+        lbsVideoUrl, setLbsVideoUrl,
+      }}
     >
       {children}
     </ModalContext.Provider>
