@@ -3,12 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
+    "@privy-io/react-auth": "^3.15.0",
+    "@solana/spl-token": "^0.4.14",
+    "@solana/web3.js": "^1.98.4",
+    "@supabase/supabase-js": "^2.98.0",
+    "ali-oss": "^6.23.0",
+    "framer-motion": "^12.34.5",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3"
