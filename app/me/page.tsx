@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { useI18n } from "@/app/context/I18nContext";
 import { Connection, PublicKey } from '@solana/web3.js';
+import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { supabase } from "@/lib/supabase";
 
 function randomSeed() {
@@ -165,58 +166,30 @@ export default function MePage() {
     }
   }, [authenticated, user, wallets]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 外科手術級替換：無敵餘額掃描器
   const fetchAIFBalance = async (address: string) => {
     try {
       const mintAddress = process.env.NEXT_PUBLIC_AIF_MINT_ADDRESS;
       if (!mintAddress) {
-        console.error("❌ 找不到 AIF 合約地址，請檢查 .env.local");
         setOnChainAifBalance(0);
         return;
       }
 
+      const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
+      const connection = new Connection(rpcUrl, 'confirmed');
       const walletPubKey = new PublicKey(address);
       const mintPubKey = new PublicKey(mintAddress);
 
-      // 準備多個免費節點，防止單一節點卡死或限流
-      const rpcEndpoints = [
-        process.env.NEXT_PUBLIC_SOLANA_RPC_URL,
-        'https://solana-rpc.publicnode.com',
-        'https://api.mainnet-beta.solana.com'
-      ].filter(Boolean) as string[];
+      const ataAddress = await getAssociatedTokenAddress(mintPubKey, walletPubKey);
 
-      for (const rpcUrl of rpcEndpoints) {
-        try {
-          console.log(`📡 嘗試通過節點查詢: ${rpcUrl}`);
-          const connection = new Connection(rpcUrl, 'confirmed');
-
-          // 最強查詢法：直接按 Mint 查詢擁有者的所有代幣帳戶 (完美兼容 Token-2022)
-          const response = await connection.getParsedTokenAccountsByOwner(walletPubKey, {
-            mint: mintPubKey,
-          });
-
-          if (response.value.length > 0) {
-            // 成功找到代幣帳戶並讀取餘額
-            const balance = response.value[0].account.data.parsed.info.tokenAmount.uiAmount || 0;
-            console.log(`✅ 查詢成功！AIF 餘額為: ${balance}`);
-            setOnChainAifBalance(balance);
-            return; // 成功後立刻退出函數
-          } else {
-            // 節點連通了，但真的沒找到代幣 (代表餘額為0)
-            console.log(`⚠️ 該錢包尚未持有 AIF 代幣`);
-            setOnChainAifBalance(0);
-            return; // 成功確認為 0，退出函數
-          }
-        } catch (error) {
-          console.warn(`⏳ 節點 ${rpcUrl} 查詢失敗，切換下一個節點...`);
-          // 繼續循環嘗試下一個節點
-        }
+      try {
+        const tokenBalance = await connection.getTokenAccountBalance(ataAddress);
+        setOnChainAifBalance(tokenBalance.value.uiAmount ?? 0);
+      } catch {
+        // ATA 帳戶不存在，餘額為 0
+        setOnChainAifBalance(0);
       }
-
-      // 如果所有節點都掛了
-      setOnChainAifBalance(0);
     } catch (error) {
-      console.error("❌ 餘額查詢嚴重錯誤:", error);
+      console.error('AIF balance query error:', error);
       setOnChainAifBalance(0);
     }
   };

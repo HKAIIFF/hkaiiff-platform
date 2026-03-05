@@ -7,6 +7,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
     <PrivyProvider
       appId={appId}
       config={{
+        loginMethods: ['email', 'wallet', 'google', 'twitter', 'discord'],
         embeddedWallets: {
           createOnLogin: 'users-without-wallets',
           requireUserPasswordOnCreate: false,
@@ -21,7 +22,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         appearance: {
           theme: 'dark',
           accentColor: '#9AFF12',
-          showWalletLoginFirst: false,
+          showWalletLoginFirst: true,
         },
       }}
     >
