@@ -11,6 +11,7 @@ type Tab = "films" | "lbs" | "users" | "broadcast";
 
 interface Film {
   id: string;
+  user_id: string | null;
   title: string;
   studio: string;
   tech_stack: string | null;
@@ -175,7 +176,7 @@ function FilmsModule({ pushToast }: { pushToast: (text: string, ok?: boolean) =>
     setLoading(true);
     const { data, error } = await supabase
       .from("films")
-      .select("id, title, studio, tech_stack, ai_ratio, status, created_at")
+      .select("id, user_id, title, studio, tech_stack, ai_ratio, status, created_at")
       .order("created_at", { ascending: false });
     if (error) pushToast("读取影片数据失败: " + error.message, false);
     else setFilms((data as Film[]) ?? []);
@@ -192,6 +193,20 @@ function FilmsModule({ pushToast }: { pushToast: (text: string, ok?: boolean) =>
     } else {
       pushToast(status === "approved" ? "影片已通过审核" : "影片已拒绝", status === "approved");
       setFilms((prev) => prev.map((f) => (f.id === id ? { ...f, status } : f)));
+
+      const film = films.find((f) => f.id === id);
+      if (film?.user_id) {
+        await supabase.from("messages").insert([{
+          user_id: film.user_id,
+          type: "system",
+          title: status === "approved"
+            ? "Official Selection: Approved"
+            : "Submission Update: Rejected",
+          content: status === "approved"
+            ? "恭喜！您的作品已通过审核，正式成为 HKAIIFF 展映作品并即将上链。Your film has been officially selected for HKAIIFF and will be minted on-chain shortly."
+            : "很遗憾，您的作品未能达到 51% AI 含量标准或存在违规，已被驳回。",
+        }]);
+      }
     }
     setProcessing(null);
   }
@@ -846,8 +861,8 @@ function BroadcastModule({ pushToast }: { pushToast: (text: string, ok?: boolean
     if (!title.trim()) { pushToast("请输入广播标题", false); return; }
     if (!content.trim()) { pushToast("请输入广播内容", false); return; }
     setSubmitting(true);
-    const { error } = await supabase.from("system_messages").insert([
-      { type: msgType, title: title.trim(), content: content.trim() },
+    const { error } = await supabase.from("messages").insert([
+      { user_id: null, type: msgType, title: title.trim(), content: content.trim() },
     ]);
     if (error) {
       pushToast("广播发射失败: " + error.message, false);
