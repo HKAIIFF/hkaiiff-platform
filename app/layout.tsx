@@ -1,9 +1,6 @@
 import type { Metadata } from "next";
-import Sidebar from "./components/Sidebar";
-import BottomNav from "./components/BottomNav";
-import MobileTopBar from "./components/MobileTopBar";
 import ClientProviders from "./components/ClientProviders";
-import GlobalModals from "./components/GlobalModals";
+import ConditionalNav from "./components/ConditionalNav";
 import Providers from "@/components/Providers";
 import "./globals.css";
 
@@ -35,17 +32,9 @@ export default function RootLayout({
       <body className="font-zh bg-void text-white antialiased">
         <Providers>
         <ClientProviders>
-          <div className="flex h-screen overflow-hidden">
-            <div className="hidden lg:flex flex-shrink-0">
-              <Sidebar />
-            </div>
-            <main className="flex-1 h-full overflow-hidden relative bg-void">
-              {children}
-            </main>
-          </div>
-          <MobileTopBar />
-          <BottomNav />
-          <GlobalModals />
+          <ConditionalNav>
+            {children}
+          </ConditionalNav>
         </ClientProviders>
         </Providers>
       </body>
