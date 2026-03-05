@@ -1,7 +1,10 @@
 "use client";
 
+import { useRef, useState, useCallback } from "react";
 import { useModal } from "@/app/context/ModalContext";
 import { useI18n, LangCode } from "@/app/context/I18nContext";
+import { usePrivy } from "@privy-io/react-auth";
+import OSS from "ali-oss";
 
 // ─── Creator Data ─────────────────────────────────────────────────────────────
 
@@ -77,6 +80,7 @@ const CREATOR_DATA: Record<string, CreatorProfile> = {
 export default function GlobalModals() {
   const { activeModal, setActiveModal, selectedFilm, interactTab, setInteractTab, selectedCreator } = useModal();
   const { t, lang, setLang, langs } = useI18n();
+  const { user } = usePrivy();
   const close = () => setActiveModal(null);
 
   const isShare    = activeModal === "share";
@@ -85,6 +89,78 @@ export default function GlobalModals() {
   const isInteract = activeModal === "interact";
   const isCreator  = activeModal === "creator";
   const isPlay     = activeModal === "play";
+
+  // ─── Interact Console 狀態 ────────────────────────────────────────────────
+  const [consoleTextInput, setConsoleTextInput] = useState("");
+  const [audioFile, setAudioFile] = useState<File | null>(null);
+  const [visionFile, setVisionFile] = useState<File | null>(null);
+  const [bioSeed, setBioSeed] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  const audioInputRef = useRef<HTMLInputElement>(null);
+  const visionInputRef = useRef<HTMLInputElement>(null);
+
+  // 當切換到 Bio Tab 時自動生成設備熵值
+  const handleTabChange = useCallback(
+    (tab: "text" | "audio" | "vision" | "bio") => {
+      setInteractTab(tab);
+      if (tab === "bio" && !bioSeed) {
+        const entropy = [
+          navigator.userAgent,
+          screen.width,
+          screen.height,
+          new Date().getTimezoneOffset(),
+          performance.now(),
+          Math.random(),
+        ].join("|");
+        // 生成簡單 FNV-1a 哈希作為 bio_seed
+        let hash = 2166136261;
+        for (let i = 0; i < entropy.length; i++) {
+          hash ^= entropy.charCodeAt(i);
+          hash = (hash * 16777619) >>> 0;
+        }
+        setBioSeed(hash.toString(16).padStart(8, "0").toUpperCase());
+      }
+    },
+    [bioSeed, setInteractTab]
+  );
+
+  // 上傳文件到阿里雲 OSS，返回公開 URL
+  const uploadToOSS = useCallback(async (file: File): Promise<string> => {
+    const stsRes = await fetch("/api/oss-sts");
+    if (!stsRes.ok) throw new Error("Failed to get OSS credentials");
+    const creds = await stsRes.json();
+
+    const client = new OSS({
+      region: creds.Region,
+      accessKeyId: creds.AccessKeyId,
+      accessKeySecret: creds.AccessKeySecret,
+      stsToken: creds.SecurityToken,
+      bucket: creds.Bucket,
+      secure: true,
+    });
+
+    const ext = file.name.split(".").pop() ?? "bin";
+    const key = `interactive/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+    await client.put(key, file);
+    return `https://${creds.Bucket}.${creds.Region}.aliyuncs.com/${key}`;
+  }, []);
+
+  // 顯示短暫 Toast（3 秒後自動隱藏）
+  const showToast = useCallback((msg: string) => {
+    setToastMsg(msg);
+    setTimeout(() => setToastMsg(null), 3000);
+  }, []);
+
+  // INJECT & RENDER 主提交函數（功能暫時鎖定，僅顯示 ACCESS DENIED 提示）
+  const submitConsoleInteract = useCallback(() => {
+    const msg = lang === "zh"
+      ? "ACCESS DENIED: 您未獲得邀請，暫時無法使用此功能。"
+      : "ACCESS DENIED: Invite only. Feature locked.";
+    showToast(msg);
+    close();
+  }, [lang, showToast, close]);
 
   const creatorData = selectedCreator ? CREATOR_DATA[selectedCreator] ?? null : null;
 
@@ -419,7 +495,7 @@ export default function GlobalModals() {
             ).map(({ key, icon, label }) => (
               <button
                 key={key}
-                onClick={() => setInteractTab(key)}
+                onClick={() => handleTabChange(key)}
                 className={`flex-1 py-3 text-[10px] font-mono border-b-2 transition-colors ${
                   interactTab === key
                     ? "border-signal text-signal"
@@ -443,6 +519,8 @@ export default function GlobalModals() {
                 <textarea
                   className="w-full flex-1 bg-[#111] border border-[#333] rounded-xl p-4 text-sm text-white focus:border-signal outline-none font-mono resize-none shadow-inner min-h-[160px]"
                   placeholder="> Enter your prompt to alter the universe..."
+                  value={consoleTextInput}
+                  onChange={(e) => setConsoleTextInput(e.target.value)}
                 />
               </div>
             )}
@@ -460,9 +538,19 @@ export default function GlobalModals() {
                   </button>
                 </div>
                 <div className="text-xs font-mono text-signal tracking-widest text-center">
-                  HOLD TO RECORD VOICE PATTERN
+                  {audioFile ? audioFile.name : "HOLD TO RECORD VOICE PATTERN"}
                 </div>
-                <button className="mt-8 text-[10px] text-gray-500 underline">
+                <input
+                  ref={audioInputRef}
+                  type="file"
+                  accept="audio/*"
+                  className="hidden"
+                  onChange={(e) => setAudioFile(e.target.files?.[0] ?? null)}
+                />
+                <button
+                  className="mt-8 text-[10px] text-gray-500 underline"
+                  onClick={() => audioInputRef.current?.click()}
+                >
                   OR UPLOAD FILE
                 </button>
               </div>
@@ -471,9 +559,28 @@ export default function GlobalModals() {
             {/* VISION — 拍照 / 上传 */}
             {interactTab === "vision" && (
               <div className="h-full flex flex-col items-center justify-center">
-                <div className="w-full aspect-video bg-[#111] border-2 border-dashed border-[#444] rounded-xl flex flex-col items-center justify-center text-gray-500 cursor-pointer hover:border-signal hover:text-signal transition-colors shadow-inner">
-                  <i className="fas fa-camera text-4xl mb-3" />
-                  <span className="text-xs font-mono">CAPTURE OR UPLOAD IMAGE</span>
+                <input
+                  ref={visionInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  className="hidden"
+                  onChange={(e) => setVisionFile(e.target.files?.[0] ?? null)}
+                />
+                <div
+                  className="w-full aspect-video bg-[#111] border-2 border-dashed border-[#444] rounded-xl flex flex-col items-center justify-center text-gray-500 cursor-pointer hover:border-signal hover:text-signal transition-colors shadow-inner"
+                  onClick={() => visionInputRef.current?.click()}
+                >
+                  {visionFile ? (
+                    <>
+                      <i className="fas fa-check-circle text-4xl mb-3 text-signal" />
+                      <span className="text-xs font-mono text-signal">{visionFile.name}</span>
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-camera text-4xl mb-3" />
+                      <span className="text-xs font-mono">CAPTURE OR UPLOAD IMAGE</span>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -498,10 +605,12 @@ export default function GlobalModals() {
                   </svg>
                 </div>
                 <div className="text-xs font-mono text-signal tracking-widest text-center">
-                  SYNCING BIO-METRICS &amp; LBS...
+                  {bioSeed ? "BIO-SEED CAPTURED" : "SYNCING BIO-METRICS & LBS..."}
                 </div>
                 <div className="text-[9px] text-gray-500 font-mono mt-2 text-center w-4/5">
-                  Uses device sensors to generate a unique entropy seed for parallel universe rendering.
+                  {bioSeed
+                    ? `SEED: 0x${bioSeed}`
+                    : "Uses device sensors to generate a unique entropy seed for parallel universe rendering."}
                 </div>
               </div>
             )}
@@ -512,16 +621,30 @@ export default function GlobalModals() {
           <div className="p-5 border-t border-[#222] bg-[#050505] shrink-0">
             <button
               className="brutal-btn w-full text-lg shadow-[0_0_20px_rgba(204,255,0,0.15)]"
-              onClick={() =>
-                alert("数据已注入 Gemini 3.1！正在渲染平行宇宙预告片...")
-              }
+              onClick={submitConsoleInteract}
+              disabled={isSubmitting}
             >
-              <i className="fas fa-bolt mr-2" /> INJECT &amp; RENDER
+              {isSubmitting ? (
+                <>
+                  <i className="fas fa-spinner fa-spin mr-2" /> INJECTING...
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-bolt mr-2" /> INJECT &amp; RENDER
+                </>
+              )}
             </button>
           </div>
 
         </div>
       </div>
+
+      {/* ─── Toast 通知 ──────────────────────────────────────────────────────── */}
+      {toastMsg && (
+        <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[600] bg-signal text-black text-xs font-mono font-bold px-5 py-3 rounded-full shadow-[0_0_20px_rgba(204,255,0,0.5)] whitespace-nowrap animate-bounce pointer-events-none">
+          {toastMsg}
+        </div>
+      )}
 
       {/* ─── Play Modal (沉浸式全屏播放器) ──────────────────────────────────── */}
       <div
