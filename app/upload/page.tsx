@@ -1,11 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { usePrivy, useSolanaWallets } from '@privy-io/react-auth';
+import { usePrivy } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
 import OSS from 'ali-oss';
-import { Connection, PublicKey, Transaction } from '@solana/web3.js';
-import { getAssociatedTokenAddress, createTransferInstruction } from '@solana/spl-token';
 
 type Step = 1 | 2 | 'processing';
 
@@ -30,8 +28,6 @@ const TERMINAL_LINES = [
 
 export default function UploadPage() {
   const { user, authenticated } = usePrivy();
-  const { wallets } = useSolanaWallets();
-  const activeWallet = wallets[0];
   const router = useRouter();
 
   const [step, setStep] = useState<Step>(1);
@@ -47,7 +43,7 @@ export default function UploadPage() {
   const [filmFile,      setFilmFile]      = useState<File | null>(null);
   const [errorMsg,      setErrorMsg]      = useState('');
   const [uploadStatus,  setUploadStatus]  = useState('');
-  const [selectedPayment, setSelectedPayment] = useState<'AIF' | 'USD'>('USD');
+  const selectedPayment: 'USD' = 'USD';
   const [terminalLines, setTerminalLines] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -105,55 +101,7 @@ export default function UploadPage() {
 
     try {
       // ==========================================
-      // 1. Solana 區塊鏈支付階段 (僅限 AIF 支付)
-      // ==========================================
-      if (selectedPayment === 'AIF') {
-        setUploadStatus('AWAITING WALLET SIGNATURE...');
-
-        if (!activeWallet) throw new Error("Wallet not connected via Privy");
-
-        const connection = new Connection(process.env.NEXT_PUBLIC_SOLANA_RPC_URL!, 'confirmed');
-        const fromPubkey = new PublicKey(activeWallet.address);
-        const toPubkey = new PublicKey(process.env.NEXT_PUBLIC_TREASURY_WALLET!);
-        const mintPubkey = new PublicKey(process.env.NEXT_PUBLIC_AIF_MINT_ADDRESS!);
-
-        setUploadStatus('CALCULATING ON-CHAIN ROUTES...');
-        const fromTokenAccount = await getAssociatedTokenAddress(mintPubkey, fromPubkey);
-        const toTokenAccount = await getAssociatedTokenAddress(mintPubkey, toPubkey);
-
-        const transaction = new Transaction();
-        const { blockhash } = await connection.getLatestBlockhash('confirmed');
-        transaction.recentBlockhash = blockhash;
-        transaction.feePayer = fromPubkey;
-
-        // AIF 代幣精度為 6 位小數
-        const AIF_DECIMALS = 6;
-        const amountInSmallestUnit = 2500 * 10 ** AIF_DECIMALS;
-
-        transaction.add(
-          createTransferInstruction(
-            fromTokenAccount,
-            toTokenAccount,
-            fromPubkey,
-            amountInSmallestUnit
-          )
-        );
-
-        setUploadStatus('PLEASE APPROVE TRANSACTION IN WALLET...');
-        const signature = await activeWallet.sendTransaction(transaction, connection);
-
-        setUploadStatus(`TX SUBMITTED: ${signature.slice(0, 8)}... VERIFYING...`);
-
-        const confirmation = await connection.confirmTransaction(signature, 'confirmed');
-        if (confirmation.value.err) {
-          throw new Error('Transaction failed on-chain.');
-        }
-
-        setUploadStatus('PAYMENT SECURED. INITIALIZING SECURE CHANNEL...');
-      }
-
-      // ==========================================
-      // 2. 阿里雲 OSS 上傳階段
+      // 阿里雲 OSS 上傳階段
       // ==========================================
 
       // 獲取臨時憑證
@@ -500,8 +448,6 @@ export default function UploadPage() {
               </div>
             </div>
 
-            <div className="text-[10px] font-mono text-gray-500 mb-3 pl-1">SELECT PAYMENT METHOD</div>
-
             {/* Not-logged-in warning */}
             {notLoggedIn && (
               <div className="bg-[#111] border border-danger/50 rounded-xl p-4 mb-4 text-center font-mono text-xs text-danger flex items-center justify-center gap-2">
@@ -510,61 +456,11 @@ export default function UploadPage() {
               </div>
             )}
 
-            {/* Payment Method Selector */}
+            {/* Payment Method Selector — hidden, direct upload mode */}
+            {/* <div className="text-[10px] font-mono text-gray-500 mb-3 pl-1">SELECT PAYMENT METHOD</div>
             <div className="grid grid-cols-1 gap-4 mb-6">
-
-              {/* Fiat */}
-              <button
-                disabled={notLoggedIn}
-                onClick={() => setSelectedPayment('USD')}
-                className={`border rounded-xl flex items-center justify-between p-5 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
-                  selectedPayment === 'USD'
-                    ? 'bg-white/10 border-white shadow-[0_0_15px_rgba(255,255,255,0.1)]'
-                    : 'bg-[#111] border-[#333] hover:border-white/50'
-                }`}
-              >
-                <div className="text-left">
-                  <span className="font-mono text-[10px] text-gray-500 block mb-1">FIAT PAYMENT</span>
-                  <span className="font-heavy text-3xl text-white">$500</span>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  {selectedPayment === 'USD' && (
-                    <i className="fas fa-check-circle text-signal text-lg" />
-                  )}
-                  <i className="fab fa-cc-visa text-4xl text-gray-600" />
-                </div>
-              </button>
-
-              {/* Crypto */}
-              <button
-                disabled={notLoggedIn}
-                onClick={() => setSelectedPayment('AIF')}
-                className={`rounded-xl flex items-center justify-between p-5 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
-                  selectedPayment === 'AIF'
-                    ? 'bg-gradient-to-r from-aif to-[#00b377] shadow-[0_10px_30px_rgba(0,229,153,0.35)]'
-                    : 'bg-gradient-to-r from-aif/30 to-[#00b377]/30 border border-aif/40 hover:from-aif/50 hover:to-[#00b377]/50'
-                }`}
-              >
-                <div className="text-left">
-                  <span className={`font-mono text-[10px] block font-bold mb-1 ${selectedPayment === 'AIF' ? 'text-black/70' : 'text-aif/80'}`}>
-                    ON-CHAIN (50% OFF)
-                  </span>
-                  <span className={`font-heavy text-3xl ${selectedPayment === 'AIF' ? 'text-black' : 'text-aif'}`}>
-                    2500 AIF
-                  </span>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  {selectedPayment === 'AIF' && (
-                    <i className="fas fa-check-circle text-black text-lg" />
-                  )}
-                  <i className="fa-brands fa-solana text-4xl text-black/80" />
-                </div>
-              </button>
-
-              <div className="text-center text-[10px] font-mono text-gray-500">
-                Wallet Balance: <span className="text-aif">14,500 AIF</span>
-              </div>
-            </div>
+              Fiat / Crypto payment UI hidden intentionally
+            </div> */}
 
             {/* Upload Status */}
             {uploadStatus && (
@@ -588,12 +484,12 @@ export default function UploadPage() {
               {isSubmitting ? (
                 <>
                   <i className="fas fa-spinner fa-spin mr-2" />
-                  MINTING TO BLOCKCHAIN...
+                  UPLOADING...
                 </>
               ) : (
                 <>
                   <i className="fas fa-bolt mr-2" />
-                  PAY &amp; MINT
+                  ⚡️ SUBMIT
                 </>
               )}
             </button>

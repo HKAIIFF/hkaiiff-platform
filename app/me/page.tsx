@@ -96,7 +96,7 @@ export default function MePage() {
 
       if (error) {
         console.error('❌ Profile save error:', error);
-        alert(error.message);
+        alert("更新失败: " + error.message);
       } else {
         setDbProfile((prev) => prev ? { ...prev, name: editName, avatar_seed: editAvatarSeed } : prev);
         closeProfileModal();
