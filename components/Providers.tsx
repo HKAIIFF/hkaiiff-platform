@@ -26,6 +26,13 @@ export default function Providers({ children }: { children: React.ReactNode }) {
           theme: 'dark',
           accentColor: '#9AFF12',
           showWalletLoginFirst: true,
+          walletList: [
+            'phantom',
+            'metamask',
+            'wallet_connect',
+            'detected_solana_wallets',
+            'detected_ethereum_wallets',
+          ],
         },
       }}
     >
