@@ -32,6 +32,7 @@ export default function MePage() {
   const [isFestivalOpen, setIsFestivalOpen] = useState(false);
   const [mySubmissions, setMySubmissions] = useState<any[]>([]);
   const [selectedFilm, setSelectedFilm] = useState<any | null>(null);
+  const [interactionHistory, setInteractionHistory] = useState<any[]>([]);
 
   const [dbProfile, setDbProfile] = useState<{
     agent_id: string; name: string; role: string; aif_balance: number; avatar_seed: string;
@@ -136,6 +137,24 @@ export default function MePage() {
           }
         } catch (err) {
           console.error('Failed to fetch films', err);
+        }
+
+        try {
+          const fetchInteractionHistory = async () => {
+            const { data, error } = await supabase
+              .from('interactive_submissions')
+              .select('*')
+              .eq('user_id', user.id)
+              .order('created_at', { ascending: false });
+            if (error) {
+              console.error('Failed to fetch interaction history', error);
+            } else {
+              setInteractionHistory(data ?? []);
+            }
+          };
+          await fetchInteractionHistory();
+        } catch (err) {
+          console.error('Failed to fetch interaction history', err);
         }
       }
     };
@@ -482,40 +501,34 @@ export default function MePage() {
         <i className="fas fa-history text-gray-500" /> INTERACTION HISTORY
       </h3>
       <div className="space-y-3 pb-4">
-        {[
-          {
-            img: "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=200",
-            title: "NEON DYNASTY (V2)",
-            tag: "Bio-Data",
-          },
-          {
-            img: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=200",
-            title: "GHOST PROTOCOL",
-            tag: "Voice Pattern",
-          },
-        ].map((item) => (
-          <div
-            key={item.title}
-            className="border border-[#222] bg-[#111] rounded-lg p-3 flex gap-4 items-center cursor-pointer
-                       hover:border-signal transition-colors active:scale-[0.98]"
-            onClick={() => {}}
-          >
-            <img
-              src={item.img}
-              alt={item.title}
-              className="w-16 h-12 object-cover rounded border border-[#333]"
-            />
-            <div className="flex-1">
-              <div className="text-sm font-bold text-white tracking-wide">{item.title}</div>
-              <div className="text-[9px] text-signal font-mono mt-1 bg-signal/10 inline-block px-1.5 py-0.5 rounded">
-                Rendered via: {item.tag}
+        {interactionHistory.length > 0 ? (
+          interactionHistory.map((item) => (
+            <div
+              key={item.id}
+              className="border border-[#222] bg-[#111] rounded-lg p-3 flex gap-4 items-center cursor-pointer hover:border-signal transition-colors active:scale-[0.98]"
+              onClick={() => alert('Loading parallel universe...')}
+            >
+              <img
+                src={item.film_cover_url || item.media_url || "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=200"}
+                alt={item.film_title || 'UNKNOWN PROTOCOL'}
+                className="w-16 h-12 object-cover rounded border border-[#333]"
+              />
+              <div className="flex-1">
+                <div className="text-sm font-bold text-white tracking-wide">{item.film_title || 'UNKNOWN PROTOCOL'}</div>
+                <div className="text-[9px] text-signal font-mono mt-1 bg-signal/10 inline-block px-1.5 py-0.5 rounded">
+                  Rendered via: {item.inject_type || 'Data'}
+                </div>
               </div>
+              <button className="text-gray-500 hover:text-white">
+                <i className="fas fa-play-circle text-2xl" />
+              </button>
             </div>
-            <button className="text-gray-500 hover:text-white">
-              <i className="fas fa-play-circle text-2xl" />
-            </button>
+          ))
+        ) : (
+          <div className="text-center text-xs text-gray-500 font-mono py-8 border border-dashed border-[#333] rounded-xl">
+            No interactions yet. Inject data to render universes.
           </div>
-        ))}
+        )}
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════
