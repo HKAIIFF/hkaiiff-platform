@@ -363,10 +363,26 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                   </td>
                   <td className="p-3">
                     <div className="flex flex-wrap gap-1">
-                      {[["預告", film?.trailer_url], ["正片", film?.feature_url], ["海報", film?.poster_url], ["版權PDF", film?.copyright_url]].map(([label, url]) => (
-                        <a key={String(label)} href={String(url ?? "#")} target="_blank" rel="noreferrer"
-                          className={`${BTN_SM} border border-gray-200 text-gray-600 hover:bg-gray-50`}>{String(label)}</a>
-                      ))}
+                      {film?.trailer_url ? (
+                        <a href={film.trailer_url} target="_blank" rel="noreferrer" className={`${BTN_SM} border border-gray-200 text-gray-600 hover:bg-gray-50`}>預告</a>
+                      ) : (
+                        <span className={`${BTN_SM} border border-gray-100 text-gray-300 cursor-default`}>預告</span>
+                      )}
+                      {film?.feature_url ? (
+                        <a href={film.feature_url} target="_blank" rel="noreferrer" className={`${BTN_SM} border border-gray-200 text-gray-600 hover:bg-gray-50`}>正片</a>
+                      ) : (
+                        <span className={`${BTN_SM} border border-gray-100 text-gray-300 cursor-default`}>正片</span>
+                      )}
+                      {film?.poster_url ? (
+                        <a href={film.poster_url} target="_blank" rel="noreferrer" className={`${BTN_SM} border border-gray-200 text-gray-600 hover:bg-gray-50`}>海報</a>
+                      ) : (
+                        <span className={`${BTN_SM} border border-gray-100 text-gray-300 cursor-default`}>海報</span>
+                      )}
+                      {film?.copyright_url ? (
+                        <a href={film.copyright_url} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline text-xs">版權文件</a>
+                      ) : (
+                        <span className="text-gray-400 text-xs">無版權文件</span>
+                      )}
                     </div>
                   </td>
                   <td className="p-3">

@@ -21,16 +21,17 @@ export async function POST(req: Request) {
     const { data: film, error: filmError } = await supabase
       .from('films')
       .insert([{
-        user_id:      creator_id,
+        user_id:       creator_id,
         title,
-        studio:       studio_name,
+        studio:        studio_name,
         tech_stack,
-        ai_ratio:     parseInt(ai_ratio),
-        description:  synopsis,
+        ai_ratio:      parseInt(ai_ratio),
+        description:   synopsis,
         poster_url,
         trailer_url,
-        feature_url:  full_film_url,
-        status:       'pending',
+        feature_url:   full_film_url,
+        copyright_url: null,
+        status:        'pending',
       }])
       .select()
       .single();
