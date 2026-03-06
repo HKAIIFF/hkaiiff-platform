@@ -452,54 +452,60 @@ export default function MePage() {
             No submissions yet. Mint your first film.
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-3">
+          <div className="flex flex-col">
             {mySubmissions.map((film) => {
-              const statusUI = getStatusUI(film.status);
+              const isApproved = film?.status === 'approved';
               return (
                 <div
                   key={film.id}
                   onClick={() => setSelectedFilm(film)}
-                  className="flex gap-4 items-center bg-[#111] border border-[#333] rounded-xl p-3
-                             cursor-pointer hover:border-signal active:scale-[0.98] transition-all
-                             shadow-[0_0_10px_rgba(0,0,0,0.5)] group"
+                  className="flex flex-row items-center gap-4 bg-[#111] border border-[#333] p-3 rounded-lg hover:border-[#CCFF00]/50 transition-colors cursor-pointer mb-3"
                 >
-                  {/* Poster */}
-                  <div className="relative shrink-0 w-16 h-20 rounded-lg overflow-hidden border border-[#333]">
-                    {film.poster_url ? (
+                  {/* 左側海報 */}
+                  <div className="w-16 h-24 bg-black rounded overflow-hidden flex-shrink-0">
+                    {film?.poster_url ? (
                       <img
                         src={film.poster_url}
-                        alt={film.title}
+                        alt={film?.title || 'FILM'}
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <div className="w-full h-full bg-[#0a0a0a] flex items-center justify-center">
+                      <div className="w-full h-full flex items-center justify-center">
                         <i className="fas fa-film text-gray-700 text-xl" />
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                   </div>
 
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="font-heavy text-sm text-white tracking-wide truncate group-hover:text-signal transition-colors mb-1">
-                      {film.title || 'UNTITLED'}
+                  {/* 右側內容 */}
+                  <div className="flex-1 min-w-0 flex flex-col gap-1">
+                    {/* 標題 */}
+                    <div className="font-heavy text-sm text-white tracking-wide truncate uppercase">
+                      {film?.title || 'UNTITLED'}
                     </div>
-                    <div className="flex items-center gap-1.5 mb-2">
-                      <div className="text-[10px] font-mono text-gray-400 bg-black border border-[#222] px-1.5 py-0.5 rounded">
-                        <i className="fas fa-robot text-signal mr-1" />
-                        AI {film.ai_ratio ?? 0}%
-                      </div>
+                    {/* 廠牌 / 核心陣容 */}
+                    <div className="text-[11px] text-gray-500 font-mono truncate">
+                      {film?.studio || film?.core_cast || dbProfile?.display_name || '—'}
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div className={`inline-flex items-center text-[10px] px-2 py-1 border rounded-sm font-mono ${statusUI.color}`}>
-                        <i className={`fas ${statusUI.icon} mr-1`} />
-                        {t('status_' + film.status)}
-                      </div>
-                      <i className="fas fa-lock text-gray-600 text-xs" />
+                    {/* 底部：日期 + 狀態 Badge */}
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-[10px] font-mono text-gray-600">
+                        {film?.created_at
+                          ? new Date(film.created_at).toLocaleDateString()
+                          : '—'}
+                      </span>
+                      {isApproved ? (
+                        <span className="text-[#CCFF00] border border-[#CCFF00] px-2 py-0.5 rounded text-[10px] font-mono">
+                          APPROVED
+                        </span>
+                      ) : (
+                        <span className="text-yellow-500 border border-yellow-500/60 px-2 py-0.5 rounded text-[10px] font-mono">
+                          PENDING
+                        </span>
+                      )}
                     </div>
                   </div>
 
-                  <i className="fas fa-chevron-right text-gray-600 group-hover:text-signal transition-colors shrink-0" />
+                  <i className="fas fa-chevron-right text-gray-600 flex-shrink-0 text-xs" />
                 </div>
               );
             })}
@@ -546,125 +552,162 @@ export default function MePage() {
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════
-          FILM INFO MODAL (READ-ONLY)
+          FILM INFO MODAL — APPROVED: 官方參賽證書 / PENDING: 審核中提示
       ═══════════════════════════════════════════════════════════════════ */}
       {selectedFilm && (
         <div
           className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
           onClick={(e) => { if (e.target === e.currentTarget) setSelectedFilm(null); }}
         >
-          <div className="relative w-full max-w-sm bg-[#080808] border border-[#333] rounded-2xl overflow-hidden
-                          shadow-[0_0_60px_rgba(204,255,0,0.1)]">
-            {/* Top accent line */}
-            <div className="absolute top-0 left-0 w-full h-0.5 bg-signal" />
-
+          <div className="relative w-full max-w-sm">
             {/* Close button */}
             <button
               onClick={() => setSelectedFilm(null)}
-              className="absolute top-4 right-4 z-10 w-9 h-9 bg-black/80 border border-[#333] rounded-full
-                         flex items-center justify-center text-gray-400 hover:text-white hover:border-signal
+              className="absolute -top-3 -right-3 z-20 w-9 h-9 bg-black border border-[#333] rounded-full
+                         flex items-center justify-center text-gray-400 hover:text-white hover:border-[#CCFF00]
                          active:scale-90 transition-all"
             >
               <i className="fas fa-times text-sm" />
             </button>
 
-            {/* Poster */}
-            <div className="relative w-full h-52 overflow-hidden bg-[#0a0a0a]">
-              {selectedFilm.poster_url ? (
-                <img
-                  src={selectedFilm.poster_url}
-                  alt={selectedFilm.title}
-                  className="w-full h-full object-cover opacity-80"
+            {selectedFilm?.status === 'approved' ? (
+              /* ── 官方參賽證書 UI ────────────────────────────────────────── */
+              <div className="relative bg-[#050505] border-2 border-[#D4AF37]/50 rounded-xl p-8 overflow-hidden shadow-2xl">
+
+                {/* 背景水印：徑向漸變 */}
+                <div
+                  className="absolute inset-0 pointer-events-none select-none"
+                  style={{
+                    background: 'radial-gradient(ellipse at 50% 40%, rgba(212,175,55,0.06) 0%, transparent 70%)',
+                  }}
                 />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <i className="fas fa-film text-5xl text-gray-700" />
-                </div>
-              )}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-black/30 to-transparent" />
-              <div className="absolute bottom-0 left-0 p-4">
-                <h2 className="font-heavy text-2xl text-white leading-tight tracking-wide drop-shadow-lg">
-                  {selectedFilm.title || 'UNTITLED'}
-                </h2>
-              </div>
-            </div>
+                {/* 頂部金色細線 */}
+                <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#D4AF37]/60 to-transparent" />
+                {/* 底部金色細線 */}
+                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#D4AF37]/40 to-transparent" />
 
-            {/* Body */}
-            <div className="p-5 space-y-4">
-              {/* Dynamic status badge */}
-              {(() => {
-                const modalStatusUI = getStatusUI(selectedFilm.status);
-                return (
-                  <>
-                    <div className={`text-xs px-2 py-1 rounded inline-flex items-center mb-4 border ${modalStatusUI.color}`}>
-                      <i className={`fas ${modalStatusUI.icon} mr-2`} />
-                      {t('status_' + selectedFilm.status)} - LOCKED
+                {/* 頂部 Header */}
+                <div className="text-center mb-6 relative z-10">
+                  <h3 className="text-[#D4AF37] font-serif text-2xl tracking-widest uppercase">
+                    Certificate of Entry
+                  </h3>
+                  <div className="text-gray-500 text-[10px] tracking-widest mt-1">
+                    HONG KONG AI INTERNATIONAL FILM FESTIVAL
+                  </div>
+                  <div className="w-16 h-0.5 bg-[#D4AF37]/40 mx-auto mt-3" />
+                </div>
+
+                {/* 證書正文 */}
+                <div className="text-gray-300 text-sm leading-relaxed text-center font-mono relative z-10 mb-6">
+                  This is to certify that the AI-Native Film
+                  <span className="text-white text-xl font-heavy block my-3 uppercase tracking-wide">
+                    {selectedFilm?.title || 'UNTITLED'}
+                  </span>
+                  submitted by{' '}
+                  <span className="text-[#CCFF00]">
+                    {selectedFilm?.studio || dbProfile?.display_name || 'Unknown Studio'}
+                  </span>
+                  <br />
+                  has been officially selected and approved by the
+                  <br />
+                  <span className="text-white font-bold">
+                    Hong Kong AI International Film Festival Jury
+                  </span>
+                  .
+                </div>
+
+                {/* 關鍵數據網格 */}
+                <div className="grid grid-cols-3 gap-2 relative z-10 mb-2">
+                  <div className="bg-black/40 border border-[#D4AF37]/20 rounded-lg p-2 text-center">
+                    <div className="text-[8px] font-mono text-gray-500 tracking-widest mb-1">AI RATIO</div>
+                    <div className="text-[#CCFF00] font-heavy text-base">
+                      {selectedFilm?.ai_ratio ?? 0}%
                     </div>
-                    {selectedFilm.status === 'rejected' && (
-                      <p className="text-red-500 text-xs mt-4 border border-red-500/50 p-2 rounded bg-red-500/10">
-                        This submission was not approved. You need to submit a new entry and pay the fee again.
+                  </div>
+                  <div className="bg-black/40 border border-[#D4AF37]/20 rounded-lg p-2 text-center">
+                    <div className="text-[8px] font-mono text-gray-500 tracking-widest mb-1">TECH STACK</div>
+                    <div className="text-white font-mono text-[9px] leading-tight">
+                      {selectedFilm?.tech_stack
+                        ? (Array.isArray(selectedFilm.tech_stack)
+                            ? selectedFilm.tech_stack[0]
+                            : selectedFilm.tech_stack.split(',')[0]?.trim())
+                        : '—'}
+                    </div>
+                  </div>
+                  <div className="bg-black/40 border border-[#D4AF37]/20 rounded-lg p-2 text-center">
+                    <div className="text-[8px] font-mono text-gray-500 tracking-widest mb-1">DATE</div>
+                    <div className="text-white font-mono text-[9px]">
+                      {selectedFilm?.created_at
+                        ? new Date(selectedFilm.created_at).toLocaleDateString()
+                        : '—'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── 官方防偽印章 (任務三) ─────────────────────────────── */}
+                <div className="absolute bottom-6 right-6 w-24 h-24 rounded-full border-[3px] border-double border-red-700/80 flex items-center justify-center transform -rotate-12 opacity-80 pointer-events-none select-none">
+                  <div className="text-center">
+                    <div className="text-red-700/80 text-[8px] font-bold tracking-widest uppercase">Official</div>
+                    <div className="text-red-700/80 text-lg font-heavy my-0.5">SELECTION</div>
+                    <div className="text-red-700/80 text-[6px] font-mono">HKAIIFF JURY</div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* ── PENDING / REJECTED 提示 ──────────────────────────────── */
+              <div className="relative bg-[#080808] border border-[#333] rounded-2xl overflow-hidden shadow-[0_0_60px_rgba(204,255,0,0.1)]">
+                <div className="absolute top-0 left-0 w-full h-0.5 bg-signal" />
+
+                {/* Poster */}
+                <div className="relative w-full h-44 overflow-hidden bg-[#0a0a0a]">
+                  {selectedFilm?.poster_url ? (
+                    <img
+                      src={selectedFilm.poster_url}
+                      alt={selectedFilm?.title || 'FILM'}
+                      className="w-full h-full object-cover opacity-60"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <i className="fas fa-film text-5xl text-gray-700" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-black/30 to-transparent" />
+                  <div className="absolute bottom-0 left-0 p-4">
+                    <h2 className="font-heavy text-xl text-white leading-tight tracking-wide drop-shadow-lg uppercase">
+                      {selectedFilm?.title || 'UNTITLED'}
+                    </h2>
+                  </div>
+                </div>
+
+                <div className="p-5 space-y-4">
+                  {selectedFilm?.status === 'rejected' ? (
+                    <div className="flex flex-col items-center gap-3 py-4 text-center">
+                      <i className="fas fa-times-circle text-red-500 text-3xl" />
+                      <div className="text-red-500 font-heavy tracking-widest text-sm">NOT SELECTED</div>
+                      <p className="text-red-400/80 text-xs font-mono leading-relaxed border border-red-500/30 bg-red-500/10 rounded-lg p-3">
+                        This submission was not approved by the jury. A new entry with separate submission fee is required.
                       </p>
-                    )}
-                  </>
-                );
-              })()}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-3 py-4 text-center">
+                      <div className="w-12 h-12 rounded-full border-2 border-yellow-500/50 flex items-center justify-center">
+                        <i className="fas fa-hourglass-half text-yellow-500 text-xl animate-pulse" />
+                      </div>
+                      <div className="text-yellow-500 font-heavy tracking-widest text-sm">UNDER REVIEW</div>
+                      <p className="text-gray-500 text-xs font-mono leading-relaxed">
+                        Your submission is being reviewed by the HKAIIFF jury. You will be notified once a decision is made.
+                      </p>
+                    </div>
+                  )}
 
-              {/* Stats row */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="bg-[#111] border border-[#222] rounded-lg p-3">
-                  <div className="text-[9px] font-mono text-gray-500 mb-1">AI RATIO</div>
-                  <div className="font-heavy text-xl text-signal">
-                    {selectedFilm.ai_ratio ?? 0}%
-                  </div>
-                </div>
-                <div className="bg-[#111] border border-[#222] rounded-lg p-3">
-                  <div className="text-[9px] font-mono text-gray-500 mb-1">STATUS</div>
-                  <div className="font-heavy text-sm text-signal tracking-widest">
-                    {(selectedFilm.status || 'PENDING').toUpperCase()}
+                  <div className="text-[9px] font-mono text-gray-700 text-center pt-1">
+                    SUBMITTED · {selectedFilm?.created_at
+                      ? new Date(selectedFilm.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+                      : '—'}
                   </div>
                 </div>
               </div>
-
-              {/* Tech Stack */}
-              {selectedFilm.tech_stack && (
-                <div className="bg-[#111] border border-[#222] rounded-lg p-3">
-                  <div className="text-[9px] font-mono text-gray-500 mb-2 flex items-center gap-1">
-                    <i className="fas fa-microchip text-signal" /> TECH STACK
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(Array.isArray(selectedFilm.tech_stack)
-                      ? selectedFilm.tech_stack
-                      : selectedFilm.tech_stack.split(',')
-                    ).map((t: string) => (
-                      <span
-                        key={t}
-                        className="text-[10px] font-mono text-signal bg-signal/10 border border-signal/20 px-2 py-0.5 rounded"
-                      >
-                        {t.trim()}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Synopsis */}
-              {selectedFilm.synopsis && (
-                <div className="bg-[#111] border border-[#222] rounded-lg p-3">
-                  <div className="text-[9px] font-mono text-gray-500 mb-2 flex items-center gap-1">
-                    <i className="fas fa-scroll text-gray-400" /> WORLD SYNOPSIS
-                  </div>
-                  <p className="text-[11px] font-mono text-gray-400 leading-relaxed">
-                    {selectedFilm.synopsis}
-                  </p>
-                </div>
-              )}
-
-              <div className="text-[9px] font-mono text-gray-700 text-center pt-1">
-                SUBMITTED · {selectedFilm.created_at
-                  ? new Date(selectedFilm.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
-                  : '—'}
-              </div>
-            </div>
+            )}
           </div>
         </div>
       )}
