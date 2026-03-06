@@ -509,7 +509,7 @@ export default function MessagesPage() {
               </>
             )}
             <div className="font-mono text-[10px] text-gray-400 mt-2 tracking-widest">
-              JULY 15–21, 2026 · HONG KONG
+              {lang === 'zh' ? '2026年7月15-21日 · 中國香港' : 'JULY 15–21, 2026 · HONG KONG'}
             </div>
           </div>
         </div>
@@ -518,9 +518,9 @@ export default function MessagesPage() {
           {/* Key Stats */}
           <div className="grid grid-cols-3 gap-3">
             {[
-              { val: "7", label: "DAYS", color: "text-signal" },
-              { val: "51%", label: "AI THRESHOLD", color: "text-white" },
-              { val: "$500", label: "ENTRY FEE", color: "text-white" },
+              { val: lang === 'zh' ? '7' : '7', label: lang === 'zh' ? '天' : 'DAYS', color: "text-signal" },
+              { val: "51%", label: lang === 'zh' ? 'AI 門檻' : 'AI THRESHOLD', color: "text-white" },
+              { val: "$500", label: lang === 'zh' ? '報名費' : 'ENTRY FEE', color: "text-white" },
             ].map((s) => (
               <div key={s.label} className="bg-[#111] border border-[#333] rounded-xl p-4 text-center">
                 <div className={`font-heavy text-2xl ${s.color}`}>{s.val}</div>
@@ -534,17 +534,18 @@ export default function MessagesPage() {
             <div className="absolute top-0 left-0 w-1 h-full bg-signal" />
             <div className="p-5 pl-6">
               <h2 className="font-heavy text-lg text-white mb-3 flex items-center gap-2">
-                <i className="fas fa-landmark text-signal" /> Historical Heritage &amp; Breakthrough
+                <i className="fas fa-landmark text-signal" />
+                {lang === 'zh' ? '歷史傳承與突破' : 'Historical Heritage & Breakthrough'}
               </h2>
               <p className="font-mono text-[11px] text-gray-400 leading-relaxed mb-3">
-                Since the birth of its first film in 1909, Hong Kong cinema has stood as a cornerstone of
-                global culture. With over a century of filmmaking tradition, the region&apos;s storytelling
-                heritage represents a unique fusion of East and West, tradition and innovation.
+                {lang === 'zh'
+                  ? '自1909年首部電影誕生以來，香港電影一直是全球文化的基石。擁有一個多世紀的電影製作傳統，該地區的故事講述遺產代表了東西方、傳統與創新的獨特融合。'
+                  : 'Since the birth of its first film in 1909, Hong Kong cinema has stood as a cornerstone of global culture. With over a century of filmmaking tradition, the region\'s storytelling heritage represents a unique fusion of East and West, tradition and innovation.'}
               </p>
               <p className="font-mono text-[11px] text-gray-400 leading-relaxed">
-                In 2025, the official registration of HKAIIFF marks a new frontier — the world&apos;s first
-                festival exclusively dedicated to AI-Native cinema, signaling that something has to change
-                in how we create and experience film.
+                {lang === 'zh'
+                  ? '香港AI國際電影節（HKAIIFF）是2024年經香港政府批復註冊的AI原生電影的國際電影節，也是全球第一個通過政府註冊的真正致力於AI原生電影的國際級平台。'
+                  : 'Registered with the Hong Kong government in 2024, the Hong Kong AI International Film Festival (HKAIIFF) is the world\'s first international platform officially dedicated to AI-Native cinema.'}
               </p>
             </div>
           </div>
@@ -554,13 +555,13 @@ export default function MessagesPage() {
             <div className="absolute top-0 left-0 w-1 h-full bg-[#00F0FF]" />
             <div className="p-5 pl-6">
               <h2 className="font-heavy text-lg text-white mb-3 flex items-center gap-2">
-                <i className="fas fa-city text-[#00F0FF]" /> Hong Kong Advantages
+                <i className="fas fa-city text-[#00F0FF]" />
+                {lang === 'zh' ? '香港優勢' : 'Hong Kong Advantages'}
               </h2>
               <p className="font-mono text-[11px] text-gray-400 leading-relaxed">
-                As an international financial hub and a region at the crossroads of global trade, Hong Kong
-                provides a unique launchpad for decentralized cinema. Its robust legal infrastructure,
-                proximity to mainland China&apos;s creative talent, and status as a Web3-friendly jurisdiction
-                make it the ideal birthplace for blockchain-powered AI film culture.
+                {lang === 'zh'
+                  ? '作為國際金融中心和全球貿易的十字路口，香港為去中心化電影提供了獨特的跳板。其健全的法律基礎設施、毗鄰中國大陸創意人才的優勢，以及作為對Web3友好的司法管轄區的地位，使其成為區塊鏈驅動的AI電影文化的理想發源地。'
+                  : 'As an international financial hub and a region at the crossroads of global trade, Hong Kong provides a unique launchpad for decentralized cinema. Its robust legal infrastructure, proximity to mainland China\'s creative talent, and status as a Web3-friendly jurisdiction make it the ideal birthplace for blockchain-powered AI film culture.'}
               </p>
             </div>
           </div>
@@ -570,21 +571,25 @@ export default function MessagesPage() {
             <div className="absolute top-0 left-0 w-1 h-full bg-[#9D00FF]" />
             <div className="p-5 pl-6">
               <h2 className="font-heavy text-lg text-white mb-3 flex items-center gap-2">
-                <i className="fas fa-balance-scale text-[#9D00FF]" /> Core Mission &amp; Standard
+                <i className="fas fa-balance-scale text-[#9D00FF]" />
+                {lang === 'zh' ? '核心使命與標準' : 'Core Mission & Standard'}
               </h2>
               <p className="font-mono text-[11px] text-gray-400 leading-relaxed mb-3">
-                As the world&apos;s premier film festival dedicated exclusively to AI-Native cinema, we champion
-                the philosophy that AI is a revolutionary medium. Qualifying submissions must exceed a 51%
-                AI contribution threshold.
+                {lang === 'zh'
+                  ? '作為全球首個專注於AI原生電影的頂級電影節，我們倡導AI是一種革命性媒介的理念。符合條件的參賽作品必須超過51%的AI貢獻閾值。'
+                  : 'As the world\'s premier film festival dedicated exclusively to AI-Native cinema, we champion the philosophy that AI is a revolutionary medium. Qualifying submissions must exceed a 51% AI contribution threshold.'}
               </p>
               <div className="bg-black border border-[#222] rounded-lg p-3 mb-3">
                 <div className="text-[10px] font-mono text-[#9D00FF] text-center leading-relaxed">
-                  AI Contribution Ratio = (AI Generation × 0.4) + (AI Assistance × 0.3) + (Innovation × 0.3)
+                  {lang === 'zh'
+                    ? 'AI貢獻率 = (AI生成 × 0.4) + (AI輔助 × 0.3) + (創新 × 0.3)'
+                    : 'AI Contribution Ratio = (AI Generation × 0.4) + (AI Assistance × 0.3) + (Innovation × 0.3)'}
                 </div>
               </div>
               <p className="font-mono text-[11px] text-gray-400 leading-relaxed">
-                Evaluation Dimensions: Artistry 35% · Tech Innovation 35% · Commercial Potential 20% ·
-                Social Impact 10%.
+                {lang === 'zh'
+                  ? '評估維度：藝術性 35% · 技術創新 35% · 商業潛力 20% · 社會影響力 10%。'
+                  : 'Evaluation Dimensions: Artistry 35% · Tech Innovation 35% · Commercial Potential 20% · Social Impact 10%.'}
               </p>
             </div>
           </div>
@@ -642,19 +647,23 @@ export default function MessagesPage() {
 
           {/* Submit CTA */}
           <div className="bg-signal rounded-xl p-5 text-center">
-            <h3 className="font-heavy text-xl text-black mb-1">READY TO SUBMIT?</h3>
+            <h3 className="font-heavy text-xl text-black mb-1">
+              {lang === 'zh' ? '準備好提交了嗎？' : 'READY TO SUBMIT?'}
+            </h3>
             <p className="text-xs text-black/70 font-mono mb-4">
-              Join the AI-Native revolution. Festival runs July 15–21, 2026.
+              {lang === 'zh'
+                ? '加入AI原生革命。電影節將於2026年7月15日至21日舉行。'
+                : 'Join the AI-Native revolution. Festival runs July 15–21, 2026.'}
             </p>
             <button
               onClick={() => setIsFestivalOpen(false)}
               className="bg-black text-signal font-heavy text-sm px-6 py-3 rounded-lg tracking-wide active:scale-95 transition-transform"
             >
-              SUBMIT YOUR FILM →
+              {lang === 'zh' ? '提交您的影片 →' : 'SUBMIT YOUR FILM →'}
             </button>
           </div>
 
-          <div className="text-[9px] font-mono text-gray-500 text-center pb-4">
+          <div className="text-[11px] font-mono font-bold text-[#CCFF00] text-center tracking-wider pb-4 drop-shadow-[0_0_8px_rgba(204,255,0,0.6)]">
             {t('msg_copyright')}
           </div>
         </div>

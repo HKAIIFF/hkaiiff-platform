@@ -109,7 +109,7 @@ const I18N: Record<LangCode, TranslationMap> = {
     msg_hkaiiff_full: "HONG KONG AI INTERNATIONAL FILM FESTIVAL",
     msg_ai_native_cinema: "AI-Native Cinema",
     msg_blockchain_powered: "Blockchain-Powered",
-    msg_copyright: "© 2026 香港人工智能國際電影節協會 Hong Kong AI International Film Festival Association. All rights reserved. Digital assets carry market risk.",
+    msg_copyright: "© 2026 香港人工智能國際電影節協會 Hong Kong AI International Film Festival Association。版權所有。",
   },
   zh: {
     nav_feed: "首映流", nav_discover: "發現", nav_msg: "消息", nav_me: "我的",
@@ -193,7 +193,7 @@ const I18N: Record<LangCode, TranslationMap> = {
     msg_hkaiiff_full: "香港人工智能國際電影節",
     msg_ai_native_cinema: "AI 原生電影",
     msg_blockchain_powered: "區塊鏈驅動",
-    msg_copyright: "© 2026 香港人工智能國際電影節協會 Hong Kong AI International Film Festival Association。版權所有。數字資產存在市場風險。",
+    msg_copyright: "© 2026 香港人工智能國際電影節協會 Hong Kong AI International Film Festival Association。版權所有。",
   },
   ja: {
     nav_feed: "フィード", nav_discover: "発見", nav_msg: "通知", nav_me: "私",
