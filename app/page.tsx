@@ -311,6 +311,25 @@ function FeedItem({
     setDrawerOpen(true);
   };
 
+  // ── 點擊 MINT TO CHAIN 按鈕（需登錄，鏈上寫入操作）────────────────────
+  const handleMintToChain = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!authenticated) {
+      showToast(
+        lang === "en"
+          ? "Please connect wallet to mint."
+          : "請先連接錢包以進行鑄造。",
+        "error"
+      );
+      login();
+      return;
+    }
+    showToast(
+      lang === "en" ? "Minting coming soon..." : "鏈上鑄造功能即將上線。",
+      "info"
+    );
+  };
+
   // ── Swipe gesture: left → show parallel universe, right → hide ───────────
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
@@ -485,7 +504,10 @@ function FeedItem({
             Rendered based on your specific hash:{" "}
             <span className="text-[#CCFF00]">{film.id.slice(0, 8)}</span>
           </p>
-          <button className="brutal-btn w-full max-w-xs mt-2 text-sm relative z-10 active:scale-95">
+          <button
+            onClick={handleMintToChain}
+            className="brutal-btn w-full max-w-xs mt-2 text-sm relative z-10 active:scale-95"
+          >
             <i className="fas fa-link mr-2" /> MINT TO CHAIN
           </button>
         </div>
