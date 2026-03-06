@@ -274,26 +274,13 @@
 
     <div id="view-messages" class="view-container bg-void px-4 pt-28 pb-32">
         <div class="flex justify-between items-end mb-4"><h1 class="font-heavy text-4xl text-white" data-i18n="msg_header">SYSTEM MESSAGES</h1><button onclick="app.markAllRead()" class="text-[10px] font-mono text-gray-500 hover:text-signal transition-colors flex items-center gap-1 active:scale-90"><i class="fas fa-check-double"></i> <span data-i18n="msg_mark_read">MARK ALL READ</span></button></div>
-        <div class="flex gap-4 border-b border-[#333] mb-6">
-            <button class="msg-tab active font-mono text-xs pb-2 border-b-2 border-signal text-white transition-colors" onclick="app.filterMessages('all', this)" data-i18n="msg_tab_all">ALL</button>
-            <button class="msg-tab font-mono text-xs pb-2 border-b-2 border-transparent text-gray-500 hover:text-gray-300 transition-colors" onclick="app.filterMessages('render', this)" data-i18n="msg_tab_render">RENDERS</button>
-            <button class="msg-tab font-mono text-xs pb-2 border-b-2 border-transparent text-gray-500 hover:text-gray-300 transition-colors" onclick="app.filterMessages('chain', this)" data-i18n="msg_tab_chain">ON-CHAIN</button>
-        </div>
-        <div id="msg-list" class="space-y-3 pb-12"></div>
-    </div>
-
-    <div id="view-me" class="view-container bg-void px-4 pt-28 pb-32">
-        <div class="flex justify-between items-end mb-6"><h1 class="font-heavy text-4xl text-white" data-i18n="nav_me">ME</h1></div>
-        
-        <div class="flex items-center gap-5 mb-6 bg-[#111] p-5 rounded-xl border border-[#333] shadow-[0_0_20px_rgba(0,0,0,0.5)]"><div class="relative"><img src="https://api.dicebear.com/7.x/bottts/svg?seed=Janus" class="w-20 h-20 bg-black rounded-full border-2 border-signal p-1"><div class="absolute bottom-0 right-0 w-6 h-6 bg-signal rounded-full border-2 border-black flex items-center justify-center text-[10px] text-black"><i class="fas fa-check"></i></div></div><div class="flex-1"><h2 class="font-heavy text-2xl text-white mb-0.5 tracking-wide">Janus J. Jiao</h2><div class="text-[9px] text-gray-400 font-mono mb-2 tracking-wider uppercase">Chairman, HKAIIFF | Founder, AIF.BOT</div><div class="text-[10px] font-mono text-gray-400 bg-black border border-[#222] px-2 py-1.5 rounded inline-flex items-center gap-2 ltr-force cursor-pointer hover:text-signal transition-colors active:scale-95" onclick="app.toast('Wallet Address Copied')"><i class="fa-brands fa-solana text-signal"></i> 0x8F3...A21C <i class="fas fa-copy text-gray-600 ml-1"></i></div></div></div>
-        <div class="bg-gradient-to-br from-[#111] to-[#0a0a0a] p-5 rounded-xl border border-[#333] shadow-lg relative overflow-hidden group mb-8"><div class="absolute top-0 right-0 w-24 h-24 bg-signal/5 rounded-bl-full transition-colors group-hover:bg-signal/10"></div><div class="text-[10px] text-gray-500 mb-2 font-mono flex items-center gap-2"><i class="fas fa-coins text-signal"></i> <span data-i18n="aif_balance">AIF BALANCE</span></div><div class="text-4xl font-heavy text-white ltr-force flex items-baseline gap-1">24,500 <span class="text-signal text-lg">AIF</span></div></div>
-
-        <!-- FESTIVAL BANNER -->
+        <!-- FESTIVAL BANNER (PINNED ANNOUNCEMENT) -->
         <div onclick="app.openFestivalPage()" class="relative w-full rounded-xl overflow-hidden cursor-pointer mb-8 group active:scale-[0.98] transition-all" style="background: linear-gradient(135deg, #050505 0%, #0a0a0a 100%); border: 1px solid #CCFF00; box-shadow: 0 0 20px rgba(204,255,0,0.1);">
             <div class="absolute inset-0 opacity-20" style="background: url('https://images.unsplash.com/photo-1478720568477-152d9b164e26?q=80&w=800') center/cover; filter: grayscale(1);"></div>
             <div class="absolute top-0 left-0 w-full h-0.5 bg-signal"></div>
             <div class="absolute bottom-0 right-0 w-24 h-24 rounded-tl-full" style="background: rgba(204,255,0,0.05);"></div>
             <div class="relative z-10 p-5">
+                <div class="text-[9px] font-mono text-signal tracking-widest mb-1 flex items-center gap-1"><i class="fas fa-thumbtack"></i> PINNED: OFFICIAL ANNOUNCEMENT</div>
                 <div class="flex items-start justify-between mb-3">
                     <div class="bg-signal text-black text-[9px] font-mono font-bold px-2 py-1 rounded tracking-widest flex items-center gap-1">
                         <i class="fas fa-circle text-[6px] animate-pulse"></i> LIVE EVENT
@@ -313,6 +300,19 @@
                 </div>
             </div>
         </div>
+        <div class="flex gap-4 border-b border-[#333] mb-6">
+            <button class="msg-tab active font-mono text-xs pb-2 border-b-2 border-signal text-white transition-colors" onclick="app.filterMessages('all', this)" data-i18n="msg_tab_all">ALL</button>
+            <button class="msg-tab font-mono text-xs pb-2 border-b-2 border-transparent text-gray-500 hover:text-gray-300 transition-colors" onclick="app.filterMessages('render', this)" data-i18n="msg_tab_render">RENDERS</button>
+            <button class="msg-tab font-mono text-xs pb-2 border-b-2 border-transparent text-gray-500 hover:text-gray-300 transition-colors" onclick="app.filterMessages('chain', this)" data-i18n="msg_tab_chain">ON-CHAIN</button>
+        </div>
+        <div id="msg-list" class="space-y-3 pb-12"></div>
+    </div>
+
+    <div id="view-me" class="view-container bg-void px-4 pt-28 pb-32">
+        <div class="flex justify-between items-end mb-6"><h1 class="font-heavy text-4xl text-white" data-i18n="nav_me">ME</h1></div>
+        
+        <div class="flex items-center gap-5 mb-6 bg-[#111] p-5 rounded-xl border border-[#333] shadow-[0_0_20px_rgba(0,0,0,0.5)]"><div class="relative"><img src="https://api.dicebear.com/7.x/bottts/svg?seed=Janus" class="w-20 h-20 bg-black rounded-full border-2 border-signal p-1"><div class="absolute bottom-0 right-0 w-6 h-6 bg-signal rounded-full border-2 border-black flex items-center justify-center text-[10px] text-black"><i class="fas fa-check"></i></div></div><div class="flex-1"><h2 class="font-heavy text-2xl text-white mb-0.5 tracking-wide">Janus J. Jiao</h2><div class="text-[9px] text-gray-400 font-mono mb-2 tracking-wider uppercase">Chairman, HKAIIFF | Founder, AIF.BOT</div><div class="text-[10px] font-mono text-gray-400 bg-black border border-[#222] px-2 py-1.5 rounded inline-flex items-center gap-2 ltr-force cursor-pointer hover:text-signal transition-colors active:scale-95" onclick="app.toast('Wallet Address Copied')"><i class="fa-brands fa-solana text-signal"></i> 0x8F3...A21C <i class="fas fa-copy text-gray-600 ml-1"></i></div></div></div>
+        <div class="bg-gradient-to-br from-[#111] to-[#0a0a0a] p-5 rounded-xl border border-[#333] shadow-lg relative overflow-hidden group mb-8"><div class="absolute top-0 right-0 w-24 h-24 bg-signal/5 rounded-bl-full transition-colors group-hover:bg-signal/10"></div><div class="text-[10px] text-gray-500 mb-2 font-mono flex items-center gap-2"><i class="fas fa-coins text-signal"></i> <span data-i18n="aif_balance">AIF BALANCE</span></div><div class="text-4xl font-heavy text-white ltr-force flex items-baseline gap-1">24,500 <span class="text-signal text-lg">AIF</span></div></div>
 
         <div class="hidden">
         <h3 class="font-heavy text-xl mb-4 border-b border-[#333] pb-2 text-white flex items-center gap-2"><i class="fas fa-robot text-gray-500"></i> <span data-i18n="my_bot">MY BOT</span></h3>
@@ -414,11 +414,11 @@
     </div>
 
     <div class="fixed bottom-0 left-0 w-full z-40 bg-black/95 backdrop-blur-xl border-t border-[#222] pb-safe pt-2 px-2 flex justify-between items-center h-[80px]">
-        <button class="nav-item active flex flex-col items-center gap-1 w-1/5 text-gray-400 hover:text-white transition-colors cursor-pointer" onclick="app.nav('feed')"><i class="fas fa-home text-xl mb-0.5"></i><span class="text-[9px] font-mono tracking-wider" data-i18n="nav_feed">FEED</span></button>
-        <button class="nav-item flex flex-col items-center gap-1 w-1/5 text-gray-400 hover:text-white transition-colors cursor-pointer" onclick="app.nav('discover')"><i class="fas fa-compass text-xl mb-0.5"></i><span class="text-[9px] font-mono tracking-wider" data-i18n="nav_discover">DISCOVER</span></button>
+        <button id="nav-feed" class="nav-item active flex flex-col items-center gap-1 w-1/5 text-gray-400 hover:text-white transition-colors cursor-pointer" onclick="app.nav('feed')"><i class="fas fa-home text-xl mb-0.5"></i><span class="text-[9px] font-mono tracking-wider" data-i18n="nav_feed">FEED</span></button>
+        <button id="nav-discover" class="nav-item flex flex-col items-center gap-1 w-1/5 text-gray-400 hover:text-white transition-colors cursor-pointer" onclick="app.nav('discover')"><i class="fas fa-compass text-xl mb-0.5"></i><span class="text-[9px] font-mono tracking-wider" data-i18n="nav_discover">DISCOVER</span></button>
         <button class="flex flex-col items-center gap-1 w-1/5 relative -top-6 group cursor-pointer" onclick="app.nav('upload'); app.resetUploadFlow();"><div class="w-14 h-14 bg-signal text-black rounded-2xl flex items-center justify-center text-2xl shadow-[0_0_20px_rgba(204,255,0,0.3)] rotate-45 group-active:scale-95 transition-all border-2 border-black"><i class="fas fa-plus -rotate-45"></i></div></button>
-        <button class="nav-item flex flex-col items-center gap-1 w-1/5 text-gray-400 hover:text-white transition-colors cursor-pointer" onclick="app.nav('messages')"><i class="fas fa-envelope text-xl mb-0.5"></i><span class="text-[9px] font-mono tracking-wider" data-i18n="nav_msg">MSG</span></button>
-        <button class="nav-item flex flex-col items-center gap-1 w-1/5 text-gray-400 hover:text-white transition-colors cursor-pointer" onclick="app.nav('me')"><i class="fas fa-user text-xl mb-0.5"></i><span class="text-[9px] font-mono tracking-wider" data-i18n="nav_me">ME</span></button>
+        <button id="nav-msg" class="nav-item flex flex-col items-center gap-1 w-1/5 text-gray-400 hover:text-white transition-colors cursor-pointer" onclick="app.nav('messages')"><i class="fas fa-envelope text-xl mb-0.5"></i><span class="text-[9px] font-mono tracking-wider" data-i18n="nav_msg">MSG</span></button>
+        <button id="nav-me" class="nav-item flex flex-col items-center gap-1 w-1/5 text-gray-400 hover:text-white transition-colors cursor-pointer" onclick="app.nav('me')"><i class="fas fa-user text-xl mb-0.5"></i><span class="text-[9px] font-mono tracking-wider" data-i18n="nav_me">ME</span></button>
     </div>
 
     <button id="globalModalClose" onclick="app.closeAllModals()" class="fixed top-8 right-4 z-[9999] bg-black/70 w-11 h-11 rounded-full flex items-center justify-center text-white backdrop-blur-md border border-white/20 shadow-2xl hidden transition-opacity duration-300 opacity-0 active:scale-90"><i class="fas fa-times text-xl"></i></button>
@@ -524,12 +524,25 @@
                 target.style.display = 'block'; setTimeout(() => { target.classList.add('active'); target.classList.remove('opacity-0'); }, 20);
                 this.currentView = view;
                 
-                document.querySelectorAll('.nav-item').forEach(el => {
-                    el.classList.remove('active', 'text-white'); el.classList.add('text-gray-400');
-                    if(el.getAttribute('onclick') && el.getAttribute('onclick').includes(`'${view}'`)) {
-                        el.classList.add('active', 'text-white'); el.classList.remove('text-gray-400');
-                    }
+                const navButtons = document.querySelectorAll('.nav-item');
+                navButtons.forEach(el => {
+                    // 清掉所有可能遺留的活躍色，統一回灰
+                    el.classList.remove('active', 'text-white', 'text-signal', 'text-[#CCFF00]');
+                    el.classList.add('text-gray-400');
                 });
+
+                const navIdMap = {
+                    feed: 'nav-feed',
+                    discover: 'nav-discover',
+                    messages: 'nav-msg',
+                    me: 'nav-me'
+                };
+
+                const activeBtn = document.getElementById(navIdMap[view]);
+                if (activeBtn) {
+                    activeBtn.classList.add('active', 'text-signal');
+                    activeBtn.classList.remove('text-gray-400', 'text-white');
+                }
             },
 
             // --- Feed ---
@@ -712,17 +725,27 @@
             // --- Messages ---
             renderMessages(filter = 'all') {
                 const c = document.getElementById('msg-list');
-                c.innerHTML = '';
-                const filtered = filter === 'all' ? MESSAGES_DATA : MESSAGES_DATA.filter(m => m.type === filter);
-                if(filtered.length === 0) {
-                    c.innerHTML = `<div class="text-center text-xs text-gray-500 font-mono py-10 border border-dashed border-[#333] rounded-xl"><span data-i18n="msg_empty">NO MESSAGES</span></div>`;
-                    this.updateUITexts(); return;
+                if (!c) return;
+
+                try {
+                    c.innerHTML = '';
+                    const sourceMessages = Array.isArray(MESSAGES_DATA) ? MESSAGES_DATA : [];
+                    const messages = filter === 'all' ? sourceMessages : sourceMessages.filter(m => m.type === filter);
+
+                    if (!messages || messages.length === 0) {
+                        c.innerHTML = `<div class="flex flex-col items-center justify-center py-20 opacity-50"><i class="fas fa-inbox text-4xl mb-3 text-gray-600"></i><div class="font-heavy text-xl text-gray-500 tracking-widest">NO MESSAGES</div><div class="font-mono text-[10px] text-gray-600 mt-2 uppercase">System inbox is empty</div></div>`;
+                        return;
+                    }
+
+                    messages.forEach(m => {
+                        const unreadDot = m.unread ? `<div class="absolute top-4 right-4 w-2 h-2 rounded-full bg-signal shadow-[0_0_8px_#CCFF00] animate-pulse"></div>` : '';
+                        c.innerHTML += `<div class="bg-[#111] border border-[#333] hover:border-signal transition-colors p-4 rounded-xl flex gap-4 relative cursor-pointer active:scale-[0.98]" onclick="app.handleMsgClick(${m.id}, '${m.action}')">${unreadDot}<div class="w-10 h-10 rounded-full border flex items-center justify-center flex-shrink-0 ${m.colorClass}"><i class="fas ${m.icon}"></i></div><div class="flex-1 pr-4"><div class="text-sm font-bold text-white mb-1 tracking-wide" data-i18n="${m.titleKey}"></div><div class="text-[10px] text-gray-400 leading-relaxed font-mono" data-i18n="${m.descKey}"></div><div class="text-[9px] text-gray-600 font-mono mt-3 uppercase" data-i18n="${m.timeKey}"></div></div></div>`;
+                    });
+                    this.updateUITexts();
+                } catch (err) {
+                    c.innerHTML = `<div class="flex flex-col items-center justify-center py-20 opacity-50"><i class="fas fa-inbox text-4xl mb-3 text-gray-600"></i><div class="font-heavy text-xl text-gray-500 tracking-widest">NO MESSAGES</div><div class="font-mono text-[10px] text-gray-600 mt-2 uppercase">System inbox is empty</div></div>`;
+                    console.error('renderMessages failed:', err);
                 }
-                filtered.forEach(m => {
-                    const unreadDot = m.unread ? `<div class="absolute top-4 right-4 w-2 h-2 rounded-full bg-signal shadow-[0_0_8px_#CCFF00] animate-pulse"></div>` : '';
-                    c.innerHTML += `<div class="bg-[#111] border border-[#333] hover:border-signal transition-colors p-4 rounded-xl flex gap-4 relative cursor-pointer active:scale-[0.98]" onclick="app.handleMsgClick(${m.id}, '${m.action}')">${unreadDot}<div class="w-10 h-10 rounded-full border flex items-center justify-center flex-shrink-0 ${m.colorClass}"><i class="fas ${m.icon}"></i></div><div class="flex-1 pr-4"><div class="text-sm font-bold text-white mb-1 tracking-wide" data-i18n="${m.titleKey}"></div><div class="text-[10px] text-gray-400 leading-relaxed font-mono" data-i18n="${m.descKey}"></div><div class="text-[9px] text-gray-600 font-mono mt-3 uppercase" data-i18n="${m.timeKey}"></div></div></div>`;
-                });
-                this.updateUITexts();
             },
             filterMessages(type, btn) {
                 document.querySelectorAll('.msg-tab').forEach(el => { el.classList.remove('border-signal', 'text-white'); el.classList.add('border-transparent', 'text-gray-500'); });
