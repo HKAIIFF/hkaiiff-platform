@@ -362,46 +362,58 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                     <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusColor(film.status)}`}>{film.status}</span>
                   </td>
                   <td className="p-3">
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-col gap-1">
                       {film?.trailer_url ? (
                         <a
                           href={film.trailer_url.startsWith("http") ? film.trailer_url : `https://${film.trailer_url}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className={`${BTN_SM} border border-gray-200 text-gray-600 hover:bg-gray-50`}
-                        >預告</a>
+                          className="text-blue-500 hover:underline text-xs block"
+                          onClick={(e) => { e.stopPropagation(); }}
+                        >
+                          觀看預告 <i className="fas fa-external-link-alt ml-1" />
+                        </a>
                       ) : (
-                        <span className={`${BTN_SM} border border-gray-100 text-gray-300 cursor-default`}>預告</span>
+                        <span className="text-gray-400 text-xs block">無預告片</span>
                       )}
                       {film?.feature_url ? (
                         <a
                           href={film.feature_url.startsWith("http") ? film.feature_url : `https://${film.feature_url}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className={`${BTN_SM} border border-gray-200 text-gray-600 hover:bg-gray-50`}
-                        >正片</a>
+                          className="text-blue-500 hover:underline text-xs block"
+                          onClick={(e) => { e.stopPropagation(); }}
+                        >
+                          觀看正片 <i className="fas fa-external-link-alt ml-1" />
+                        </a>
                       ) : (
-                        <span className={`${BTN_SM} border border-gray-100 text-gray-300 cursor-default`}>正片</span>
+                        <span className="text-gray-400 text-xs block">無正片</span>
                       )}
                       {film?.poster_url ? (
                         <a
                           href={film.poster_url.startsWith("http") ? film.poster_url : `https://${film.poster_url}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className={`${BTN_SM} border border-gray-200 text-gray-600 hover:bg-gray-50`}
-                        >海報</a>
+                          className="text-blue-500 hover:underline text-xs block"
+                          onClick={(e) => { e.stopPropagation(); }}
+                        >
+                          查看海報 <i className="fas fa-external-link-alt ml-1" />
+                        </a>
                       ) : (
-                        <span className={`${BTN_SM} border border-gray-100 text-gray-300 cursor-default`}>海報</span>
+                        <span className="text-gray-400 text-xs block">無海報</span>
                       )}
                       {film?.copyright_url ? (
                         <a
                           href={film.copyright_url.startsWith("http") ? film.copyright_url : `https://${film.copyright_url}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-blue-500 hover:underline text-xs"
-                        >版權文件</a>
+                          className="text-blue-500 hover:underline text-xs block"
+                          onClick={(e) => { e.stopPropagation(); }}
+                        >
+                          版權文件 <i className="fas fa-external-link-alt ml-1" />
+                        </a>
                       ) : (
-                        <span className="text-gray-400 text-xs">無版權文件</span>
+                        <span className="text-gray-400 text-xs block">無版權文件</span>
                       )}
                     </div>
                   </td>
