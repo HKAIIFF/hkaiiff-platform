@@ -16,9 +16,16 @@ interface Film {
   feature_url?: string | null; copyright_url?: string | null;
   status: "pending" | "approved" | "rejected"; created_at: string;
 }
+interface PrivyLinkedAccount {
+  type: string;
+  address: string;
+  chain_type?: string;
+  verified_at?: number;
+}
 interface UserRow {
-  id: string; privy_id: string | null; email: string | null;
-  wallet_address: string | null; created_at: string;
+  id: string;
+  created_at: number;
+  linked_accounts: PrivyLinkedAccount[];
 }
 interface LbsNode {
   id: string; title: string; location: string | null; lat: number | null; lng: number | null;
@@ -695,29 +702,59 @@ function DistOnlineTab({ t }: { t: T }) {
 // ────────────────────────────────────────────────────────────────────────────
 function EcoHumanTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string, ok?: boolean) => void; askConfirm: (c: ConfirmConfig) => void }) {
   const [users, setUsers] = useState<UserRow[]>([]);
-  useEffect(() => {
-    supabase.from("users").select("id,privy_id,email,wallet_address,created_at").order("created_at", { ascending: false })
-      .then(({ data }) => setUsers((data as UserRow[]) ?? []));
-  }, []);
+  const [loading, setLoading] = useState(false);
+
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/users');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to fetch');
+      setUsers(Array.isArray(data) ? data : []);
+    } catch (err: unknown) {
+      pushToast(err instanceof Error ? err.message : '拉取用戶失敗', false);
+    } finally {
+      setLoading(false);
+    }
+  }, [pushToast]);
+
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  function getEmail(u: UserRow): string {
+    const acc = u.linked_accounts.find((a) => a.type === 'email' || a.type === 'google_oauth' || a.type === 'github_oauth');
+    return acc?.address ?? '-';
+  }
+
+  function getWallet(u: UserRow): string {
+    const acc = u.linked_accounts.find((a) => a.type === 'wallet');
+    if (!acc) return '-';
+    return `${acc.address.slice(0, 8)}...${acc.address.slice(-4)}`;
+  }
+
   return (
     <div className={`${CARD} overflow-hidden`}>
+      <div className="flex justify-end p-3 border-b border-gray-100">
+        <button className={BTN_GHOST} onClick={fetchUsers}>{loading ? t.loading : t.refresh}</button>
+      </div>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[1200px] text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 font-semibold">
-              {["Privy ID", "錢包地址", "信箱", "註冊時間", "認證狀態", "累計消費 LTV", "地區", "操作"].map((h) => (
+              {["Privy DID", "錢包地址", "信箱 / OAuth", "註冊時間", "認證狀態", "累計消費 LTV", "地區", "操作"].map((h) => (
                 <th key={h} className="p-3 text-left">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {users.length === 0 && <tr><td colSpan={8} className="p-6 text-gray-400 text-center">{t.empty}</td></tr>}
+            {users.length === 0 && (
+              <tr><td colSpan={8} className="p-6 text-gray-400 text-center">{loading ? t.loading : t.empty}</td></tr>
+            )}
             {users.map((u) => (
               <tr key={u.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
-                <td className="p-3 text-xs text-gray-600 font-mono truncate max-w-[120px]">{u.privy_id ?? "-"}</td>
-                <td className="p-3 text-xs text-gray-600 font-mono">{u.wallet_address ? `${u.wallet_address.slice(0, 8)}...` : "-"}</td>
-                <td className="p-3 text-xs text-gray-600">{u.email ?? "-"}</td>
-                <td className="p-3 text-xs text-gray-600">{new Date(u.created_at).toLocaleString("zh-HK")}</td>
+                <td className="p-3 text-xs text-gray-600 font-mono truncate max-w-[120px]" title={u.id}>{u.id.replace('did:privy:', '')}</td>
+                <td className="p-3 text-xs text-gray-600 font-mono">{getWallet(u)}</td>
+                <td className="p-3 text-xs text-gray-600">{getEmail(u)}</td>
+                <td className="p-3 text-xs text-gray-600">{new Date(u.created_at * 1000).toLocaleString("zh-HK")}</td>
                 <td className="p-3"><span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">Verified</span></td>
                 <td className="p-3 text-xs text-gray-700 font-medium">${(Math.abs(u.id.length * 137) % 5000).toLocaleString()}</td>
                 <td className="p-3 text-xs text-gray-600">HK</td>
