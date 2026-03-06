@@ -204,12 +204,13 @@ function Modal({ title, children, onClose, footer }: {
 }
 
 // ─── 上傳虛線框 UI ────────────────────────────────────────────────────────────
-function UploadBox({ label, value, onPick }: { label: string; value: string; onPick: (n: string) => void }) {
+function UploadBox({ label, value, onPick, hint }: { label: string; value: string; onPick: (n: string) => void; hint?: string }) {
   return (
     <label className="block cursor-pointer border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-blue-400 transition-colors">
       <input type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f.name); }} />
       <div className="text-2xl mb-1">🖼</div>
       <p className="text-sm font-semibold text-gray-700">{label}</p>
+      {hint && <p className="mt-0.5 text-[10px] text-gray-400">{hint}</p>}
       {value ? (
         <p className="mt-1 text-xs text-blue-600 font-medium truncate">✓ {value}</p>
       ) : (
@@ -584,9 +585,14 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
   const [bgImage, setBgImage] = useState("");
   const [poolNode, setPoolNode] = useState<LbsNode | null>(null);
   const [pickedFilmIds, setPickedFilmIds] = useState<string[]>([]);
+  const [isLocating, setIsLocating] = useState(false);
   const [form, setForm] = useState({
-    title: "", lat: "", lng: "", unlockRadius: "", timeLock: "",
+    title: "",
+    country: "", city: "", venue: "",
+    lat: "", lng: "",
+    unlockRadius: "", start_time: "", end_time: "",
     contractPolicy: t.contractOptions[0], ticketAif: "", ticketUsd: "",
+    description: "",
   });
 
   const fetchData = useCallback(async () => {
@@ -600,26 +606,58 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  const setF = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
+
+  async function fetchCoordinates() {
+    const fullAddress = `${form.country || ""} ${form.city || ""} ${form.venue || ""}`.trim();
+    if (!fullAddress) { pushToast("請先填寫國家、城市或場地名稱", false); return; }
+    setIsLocating(true);
+    try {
+      const res = await fetch(
+        "https://nominatim.openstreetmap.org/search?format=json&q=" + encodeURIComponent(fullAddress),
+        { headers: { "Accept-Language": "zh-TW,en" } }
+      );
+      const data = await res.json();
+      if (data && data[0]) {
+        setForm((p) => ({ ...p, lat: data[0].lat, lng: data[0].lon }));
+        pushToast(`✅ 座標已獲取：${data[0].lat}, ${data[0].lon}`);
+      } else {
+        pushToast("未找到對應地址，請檢查填寫是否正確", false);
+      }
+    } catch {
+      pushToast("定位失敗，請稍後重試", false);
+    } finally {
+      setIsLocating(false);
+    }
+  }
+
   async function createNode(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.title || !form.lat || !form.lng || !form.unlockRadius) {
-      pushToast("請填寫完整節點表單", false); return;
+    if (!form.title || !form.unlockRadius) {
+      pushToast("請填寫影展標題與解鎖半徑", false); return;
     }
+    if (!form.lat || !form.lng) {
+      pushToast("請先點擊自動獲取精確座標", false); return;
+    }
+    const location = [form.country, form.city, form.venue].filter(Boolean).join(" ") || `unlock_radius=${form.unlockRadius}`;
     const payload: Record<string, unknown> = {
       title: form.title,
       lat: Number(form.lat),
       lng: Number(form.lng),
-      location: `unlock_radius=${form.unlockRadius}`,
-      start_time: form.timeLock || null,
-      end_time: null,
+      location,
       contract_req: form.contractPolicy,
       film_ids: [],
     };
-    if (!payload.start_time) delete payload.start_time;
+    if (form.start_time) payload.start_time = form.start_time;
+    if (form.end_time) payload.end_time = form.end_time;
     const { error } = await supabase.from("lbs_nodes").insert([payload]);
-    if (error) { pushToast(`建立節點失敗: ${error.message}`, false); return; }
-    pushToast(`✅ 節點已建立 · 海報: ${poster || "-"} · 背景: ${bgImage || "-"}`);
-    setForm({ title: "", lat: "", lng: "", unlockRadius: "", timeLock: "", contractPolicy: t.contractOptions[0], ticketAif: "", ticketUsd: "" });
+    if (error) { pushToast(`建立影展失敗: ${error.message}`, false); return; }
+    pushToast(`✅ LBS 展映影展已建立 · 海報: ${poster || "-"} · 背景: ${bgImage || "-"}`);
+    setForm({
+      title: "", country: "", city: "", venue: "", lat: "", lng: "",
+      unlockRadius: "", start_time: "", end_time: "",
+      contractPolicy: t.contractOptions[0], ticketAif: "", ticketUsd: "", description: "",
+    });
     setPoster(""); setBgImage(""); fetchData();
   }
 
@@ -631,35 +669,119 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
   }
 
   const f = form;
-  const setF = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[380px_1fr] gap-5">
-      {/* 節點建立表單 */}
+    <div className="grid grid-cols-1 xl:grid-cols-[420px_1fr] gap-5">
+      {/* 影展建立表單 */}
       <form onSubmit={createNode} className={`${CARD} p-5 space-y-3`}>
-        <h3 className="font-bold text-gray-900 mb-1">{t.nodeForm}</h3>
-        <input className={INPUT} placeholder="節點標題" value={f.title} onChange={(e) => setF("title", e.target.value)} />
-        <div className="grid grid-cols-2 gap-2">
-          <input className={INPUT} placeholder="GPS Lat" value={f.lat} onChange={(e) => setF("lat", e.target.value)} />
-          <input className={INPUT} placeholder="GPS Lng" value={f.lng} onChange={(e) => setF("lng", e.target.value)} />
+        <h3 className="font-bold text-gray-900 mb-1">創建 LBS 展映影展</h3>
+
+        {/* 影展標題 */}
+        <input className={INPUT} placeholder="影展標題" value={f.title} onChange={(e) => setF("title", e.target.value)} />
+
+        {/* 地址三欄 */}
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-gray-600 block">展映地點</label>
+          <input className={INPUT} placeholder="國家 / 地區（如：Hong Kong）" value={f.country} onChange={(e) => setF("country", e.target.value)} />
+          <input className={INPUT} placeholder="城市（如：Hong Kong Island）" value={f.city} onChange={(e) => setF("city", e.target.value)} />
+          <input className={INPUT} placeholder="詳細場地名稱（如：HKCEC Hall 3）" value={f.venue} onChange={(e) => setF("venue", e.target.value)} />
         </div>
+
+        {/* 自動定位按鈕 */}
+        <button
+          type="button"
+          onClick={fetchCoordinates}
+          disabled={isLocating}
+          className={`${BTN_GHOST} w-full flex items-center justify-center gap-2 ${isLocating ? "opacity-60 cursor-not-allowed" : ""}`}
+        >
+          {isLocating ? (
+            <span className="w-3.5 h-3.5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+          ) : "📍"}
+          <span>{isLocating ? "定位中..." : "自動獲取精確座標 (Auto-Locate)"}</span>
+        </button>
+
+        {/* GPS 坐標（只讀） */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">GPS Lat（自動填入）</label>
+            <input
+              className={`${INPUT} bg-gray-100 text-gray-500 cursor-not-allowed`}
+              placeholder="自動獲取"
+              value={f.lat}
+              readOnly
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">GPS Lng（自動填入）</label>
+            <input
+              className={`${INPUT} bg-gray-100 text-gray-500 cursor-not-allowed`}
+              placeholder="自動獲取"
+              value={f.lng}
+              readOnly
+            />
+          </div>
+        </div>
+
+        {/* 解鎖半徑 */}
         <input className={INPUT} placeholder={t.unlockRadius} value={f.unlockRadius} onChange={(e) => setF("unlockRadius", e.target.value)} />
-        <input className={INPUT} type="datetime-local" placeholder={t.timeLock} value={f.timeLock} onChange={(e) => setF("timeLock", e.target.value)} />
+
+        {/* 開始 / 結束時間 */}
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className="text-xs font-semibold text-gray-600 mb-1 block">開始時間</label>
+            <input className={INPUT} type="datetime-local" value={f.start_time} onChange={(e) => setF("start_time", e.target.value)} />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-gray-600 mb-1 block">結束時間</label>
+            <input className={INPUT} type="datetime-local" value={f.end_time} onChange={(e) => setF("end_time", e.target.value)} />
+          </div>
+        </div>
+
+        {/* 影展詳細介紹 */}
+        <div>
+          <label className="text-xs font-semibold text-gray-600 mb-1 block">影展詳細介紹</label>
+          <textarea
+            className={`${INPUT} resize-none`}
+            rows={4}
+            maxLength={500}
+            placeholder="請輸入影展詳細介紹..."
+            value={f.description}
+            onChange={(e) => setF("description", e.target.value)}
+          />
+          <div className="text-[10px] text-gray-400 mt-1">最佳顯示效果為 100-200 字，最多限制 500 字。</div>
+        </div>
+
+        {/* 智能合約策略 */}
         <div>
           <label className="text-xs font-semibold text-gray-600 mb-1 block">{t.contractPolicy}</label>
           <select className={INPUT} value={f.contractPolicy} onChange={(e) => setF("contractPolicy", e.target.value)}>
             {t.contractOptions.map((op) => <option key={op} value={op}>{op}</option>)}
           </select>
         </div>
+
+        {/* 門票費用 */}
         <div className="grid grid-cols-2 gap-2">
           <input className={INPUT} placeholder={t.ticketAif} value={f.ticketAif} onChange={(e) => setF("ticketAif", e.target.value)} />
           <input className={INPUT} placeholder={t.ticketUsd} value={f.ticketUsd} onChange={(e) => setF("ticketUsd", e.target.value)} />
         </div>
+
+        {/* 圖片上傳 */}
         <div className="grid grid-cols-2 gap-2">
-          <UploadBox label={t.uploadPoster} value={poster} onPick={setPoster} />
-          <UploadBox label={t.uploadBg} value={bgImage} onPick={setBgImage} />
+          <UploadBox
+            label={t.uploadPoster}
+            value={poster}
+            onPick={setPoster}
+            hint="最佳比例 2:3，推薦 800x1200 px"
+          />
+          <UploadBox
+            label={t.uploadBg}
+            value={bgImage}
+            onPick={setBgImage}
+            hint="最佳比例 16:9，推薦 1920x1080 px"
+          />
         </div>
-        <button className={`${BTN_PRIMARY} w-full`} type="submit">建立節點</button>
+
+        <button className={`${BTN_PRIMARY} w-full`} type="submit">建立 LBS 展映影展</button>
       </form>
 
       {/* 節點列表 */}

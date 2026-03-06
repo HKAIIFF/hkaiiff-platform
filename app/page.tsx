@@ -157,21 +157,26 @@ function FeedItem({
           playsInline
           autoPlay
           preload="none"
-          onClick={onToggleMute}
         />
 
-        {/* 漸變蒙版 */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-90" />
+        {/* 漸變蒙版 — pointer-events-none 確保不攔截按鈕點擊 */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-90 pointer-events-none" />
 
-        {/* 靜音提示圖標 */}
-        {isMuted && (
-          <div className="absolute top-16 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 bg-black/60 backdrop-blur border border-[#444] rounded-full px-3 py-1.5 pointer-events-none">
-            <i className="fas fa-volume-mute text-white text-xs" />
-            <span className="text-[9px] font-mono text-gray-300 tracking-wider">
-              TAP TO UNMUTE
-            </span>
-          </div>
-        )}
+        {/* 靜音 / 解除靜音按鈕 — 高層級，阻止事件冒泡 */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleMute();
+          }}
+          className="absolute top-6 right-6 z-[9999] p-3 bg-black/50 backdrop-blur rounded-full text-white cursor-pointer pointer-events-auto hover:bg-black/70 active:scale-90 transition-all"
+          aria-label={isMuted ? "解除靜音" : "靜音"}
+        >
+          {isMuted ? (
+            <i className="fas fa-volume-mute" />
+          ) : (
+            <i className="fas fa-volume-up" />
+          )}
+        </button>
 
         {/* ── ui-layer：嚴格對應 index.html .ui-layer ── */}
         <div className="ui-layer">
