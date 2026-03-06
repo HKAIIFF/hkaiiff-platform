@@ -92,7 +92,7 @@ function FeedItem({
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
 
-  const { setActiveModal, setSelectedFilm, setInteractTab, setSelectedCreator } =
+  const { setActiveModal, setSelectedFilm, setInteractTab, setSelectedCreator, setSelectedCreatorUserId } =
     useModal();
 
   // ── IntersectionObserver: auto-play / pause when scrolled into view ──────
@@ -191,11 +191,12 @@ function FeedItem({
                 <span className="text-[9px] text-white font-mono font-bold">{isMuted ? "UNMUTE" : "MUTED"}</span>
               </button>
 
-              {/* 按鈕 1 ── 創作者頭像 + 關注 */}
+              {/* 按鈕 1 ── 創作者頭像 */}
               <div
                 className="relative cursor-pointer mb-2 active:scale-95 transition-transform flex flex-col items-center"
                 onClick={() => {
                   setSelectedCreator(film.studio ?? film.id);
+                  setSelectedCreatorUserId(film.user_id ?? null);
                   setActiveModal("creator");
                 }}
               >
@@ -204,9 +205,6 @@ function FeedItem({
                   alt={film.studio ?? ""}
                   className="w-12 h-12 border-2 border-white rounded-full bg-black shadow-lg"
                 />
-                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-white text-black text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold shadow">
-                  +
-                </div>
               </div>
 
               {/* 按鈕 2 ── 指紋互動（interact-wrapper） */}

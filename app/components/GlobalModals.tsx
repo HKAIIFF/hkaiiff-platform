@@ -1,86 +1,41 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { useModal } from "@/app/context/ModalContext";
 import { useI18n, LangCode } from "@/app/context/I18nContext";
 import { usePrivy } from "@privy-io/react-auth";
 import OSS from "ali-oss";
 import { useToast } from "@/app/context/ToastContext";
 import CyberLoading from "@/app/components/CyberLoading";
+import { supabase } from "@/lib/supabase";
 
-// ─── Creator Data ─────────────────────────────────────────────────────────────
+// ─── Creator Data Types ───────────────────────────────────────────────────────
 
 interface TeamMember { role: string; name: string; }
-interface PortfolioItem { id: number; year: string; title: string; desc: string; }
-interface CreatorProfile {
-  heat: string;
-  works: number;
-  roi: string;
-  bio: string;
-  tech: string[];
-  team: TeamMember[];
-  portfolio: PortfolioItem[];
+
+interface DbCreatorProfile {
+  id: string;
+  display_name: string | null;
+  name: string | null;
+  agent_id: string | null;
+  avatar_seed: string | null;
+  bio: string | null;
+  tech_stack: string | null;
+  core_team: TeamMember[] | null;
 }
 
-const CREATOR_DATA: Record<string, CreatorProfile> = {
-  "NEO STUDIOS": {
-    heat: "142k", works: 4, roi: "+240%",
-    bio: "Neo Studios is a pioneering collective established in late 2024, operating at the intersection of cinematic art and decentralized infrastructure. Our core belief is that AI is not merely a tool for efficiency, but an entirely new medium that requires a shift from 'Director' to 'Conductor'. We champion the 'AI-Native' philosophy, insisting that for a work to be truly next-generation, AI contribution must exceed the 51% threshold. Visually, we are known for pioneering the 'Terminal Brutalism' aesthetic—a striking combination of Night Black, Neon Green, and Liquid Gold. Recently, we have begun integrating our film rendering pipelines directly into decentralized physical infrastructure networks (DePIN) on the Solana blockchain, allowing global 'digital humanoid' nodes to participate in real-time scene generation.",
-    tech: ["Sora v2 API", "ComfyUI", "Solana DePIN", "AIF.BOT Node"],
-    team: [
-      { role: "Chief Conductor", name: "Neo Li" },
-      { role: "Prompt Architect", name: "Sarah Chen" },
-      { role: "Smart Contract Dev", name: "0xMarco" },
-    ],
-    portfolio: [
-      { id: 1, year: "2025", title: "THE LAST TURING", desc: "Interactive pilot utilizing real-time LLM inference for dialogue." },
-      { id: 5, year: "2025", title: "SYNTHETIC DAWN", desc: "A rogue AI escapes across a DePIN network. A Cyber-Finance thriller." },
-      { id: 8, year: "2024", title: "THE VOID PROTOCOL", desc: "Deep space survival dictated by real-time audience text inputs." },
-    ],
-  },
-  "ZEN AI": {
-    heat: "88k", works: 2, roi: "+110%",
-    bio: "An Eastern aesthetics laboratory that seeks the harmony between ancient Zen philosophy and bleeding-edge machine learning. Founded by an anonymous collective of digital artists and former monks, ZEN AI focuses on 'Procedural Tranquility'. They reject the hyper-stimulation of modern media, instead using complex ControlNet parameters to guide diffusion models into generating slow, contemplative, and endlessly evolving visual mantras. Their works often require viewers to engage in specific breathing patterns or remain in specific geographic locations (LBS) to unlock the full narrative experience.",
-    tech: ["Midjourney v6", "ControlNet", "Bio-Feedback API"],
-    team: [
-      { role: "Digital Artist", name: "Master K" },
-      { role: "Audio Alchemist", name: "Ryu" },
-    ],
-    portfolio: [
-      { id: 2, year: "2025", title: "CYBER TAOISM", desc: "Digital monks compile the perfect smart contract for Nirvana." },
-      { id: 6, year: "2024", title: "ALGORITHMIC ECHOES", desc: "A mesmerizing dive into the latent space of deleted neural networks." },
-    ],
-  },
-  "HK NOIR": {
-    heat: "210k", works: 5, roi: "+500%",
-    bio: "HK NOIR is a vanguard studio dedicated to reconstructing the golden era of Hong Kong action cinema using raw computing power and algorithmic nostalgia. They have developed proprietary pipelines combining Luma Dream Machine and advanced motion capture data to synthesize high-octane martial arts sequences that obey dream-logic rather than physics. They are pioneers in 'Cyber-Finance' integration, frequently utilizing prediction markets and tokenized audience participation to dictate plot outcomes. Their latest project utilizes the Solana blockchain to dynamically mint unique endings based on collective viewer hash power.",
-    tech: ["Luma Dream Machine", "Mocap Data Parsing", "Prediction Markets"],
-    team: [
-      { role: "Conductor", name: "J.W. Protocol" },
-      { role: "Action Synthesizer", name: "Donnie_Sim" },
-    ],
-    portfolio: [
-      { id: 4, year: "2025", title: "NEON DYNASTY", desc: "Triad gang warfare using hash rate instead of guns in Kowloon." },
-      { id: 7, year: "2024", title: "KOWLOON REBOOT", desc: "Top grossing interactive action film featuring prediction market outcomes." },
-      { id: 9, year: "2024", title: "QUANTUM HEIST", desc: "Malware avatars execute a high-stakes robbery on a quantum vault." },
-    ],
-  },
-  "RED PLANET": {
-    heat: "50k", works: 1, roi: "-20%",
-    bio: "Red Planet specializes in hard sci-fi simulations built purely on predictive AI models and real-time physics engines. They strip away traditional narrative arcs in favor of terrifying, mathematically accurate probabilities.",
-    tech: ["Unreal Engine 5", "Houdini", "AI Predictors"],
-    team: [
-      { role: "Tech Artist", name: "Elon_Sim" },
-    ],
-    portfolio: [
-      { id: 3, year: "2024", title: "MARS FAILURE", desc: "A stark, predictive documentary on the collapse of Colony Prime." },
-    ],
-  },
-};
+interface DbFilm {
+  id: string;
+  title: string;
+  description: string | null;
+  synopsis: string | null;
+  poster_url: string | null;
+  created_at: string;
+}
 
 
 export default function GlobalModals() {
-  const { activeModal, setActiveModal, selectedFilm, interactTab, setInteractTab, selectedCreator, lbsVideoUrl, setLbsVideoUrl } = useModal();
+  const { activeModal, setActiveModal, selectedFilm, interactTab, setInteractTab, selectedCreator, selectedCreatorUserId, lbsVideoUrl, setLbsVideoUrl } = useModal();
   const { t, lang, setLang, langs } = useI18n();
   const { user } = usePrivy();
   const close = () => setActiveModal(null);
@@ -91,6 +46,41 @@ export default function GlobalModals() {
   const isInteract = activeModal === "interact";
   const isCreator  = activeModal === "creator";
   const isPlay     = activeModal === "play";
+
+  // ─── Creator Profile 真實數據狀態 ─────────────────────────────────────────
+  const [creatorProfile, setCreatorProfile] = useState<DbCreatorProfile | null>(null);
+  const [creatorFilms, setCreatorFilms] = useState<DbFilm[]>([]);
+  const [isCreatorLoading, setIsCreatorLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isCreator || !selectedCreatorUserId) {
+      return;
+    }
+    let cancelled = false;
+    async function fetchCreatorData() {
+      setIsCreatorLoading(true);
+      setCreatorProfile(null);
+      setCreatorFilms([]);
+      const [profileResult, filmsResult] = await Promise.all([
+        supabase
+          .from("users")
+          .select("id, display_name, name, agent_id, avatar_seed, bio, tech_stack, core_team")
+          .eq("id", selectedCreatorUserId)
+          .single(),
+        supabase
+          .from("films")
+          .select("id, title, description, synopsis, poster_url, created_at")
+          .eq("user_id", selectedCreatorUserId)
+          .order("created_at", { ascending: false }),
+      ]);
+      if (cancelled) return;
+      if (profileResult.data) setCreatorProfile(profileResult.data as DbCreatorProfile);
+      if (filmsResult.data) setCreatorFilms(filmsResult.data as DbFilm[]);
+      setIsCreatorLoading(false);
+    }
+    fetchCreatorData();
+    return () => { cancelled = true; };
+  }, [isCreator, selectedCreatorUserId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ─── Interact Console 狀態 ────────────────────────────────────────────────
   const [consoleTextInput, setConsoleTextInput] = useState("");
@@ -161,8 +151,6 @@ export default function GlobalModals() {
     showToast(msg, "error");
     close();
   }, [lang, showToast, close]);
-
-  const creatorData = selectedCreator ? CREATOR_DATA[selectedCreator] ?? null : null;
 
   const film = selectedFilm;
 
@@ -795,50 +783,64 @@ export default function GlobalModals() {
           <div className="w-10" />
         </div>
 
-        {/* 仅当 creatorData 存在时渲染内容 */}
-        {creatorData && selectedCreator && (
+        {/* 加載中骨架屏 */}
+        {isCreatorLoading && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 pt-24">
+            <div className="w-8 h-8 border-2 border-signal border-t-transparent rounded-full animate-spin" />
+            <span className="text-signal font-mono text-xs tracking-widest">LOADING PROFILE...</span>
+          </div>
+        )}
+
+        {/* 無數據兜底 */}
+        {!isCreatorLoading && !creatorProfile && isCreator && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3 pt-24">
+            <i className="fas fa-user-slash text-3xl text-gray-700" />
+            <span className="text-gray-500 font-mono text-xs tracking-widest">PROFILE DATA NOT FOUND</span>
+          </div>
+        )}
+
+        {/* 主內容：只在數據加載完成後渲染 */}
+        {!isCreatorLoading && creatorProfile && (
           <>
             {/* 顶部背景横幅 */}
             <div className="h-64 w-full flex-shrink-0 bg-gradient-to-b from-gray-800 to-black relative overflow-hidden">
-              <img
-                src="https://images.unsplash.com/photo-1555680202-c86f0e12f086?q=80&w=800"
-                className="absolute inset-0 w-full h-full object-cover opacity-40"
-                alt="studio banner"
+              <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#111] to-[#050505]" />
+              <div className="absolute inset-0 opacity-10"
+                style={{ backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(204,255,0,0.1) 2px, rgba(204,255,0,0.1) 4px)" }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/90 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent" />
             </div>
 
             {/* 内容区 */}
             <div className="px-6 -mt-16 relative z-10 pb-24">
 
-              {/* 头像 + Follow 按钮 */}
-              <div className="flex justify-between items-end mb-4">
+              {/* 头像（無 FOLLOW 按鈕） */}
+              <div className="flex items-end mb-4">
                 <img
-                  src={`https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(selectedCreator)}`}
-                  alt={selectedCreator}
-                  className="w-28 h-28 border-4 border-[#050505] rounded-full bg-black shadow-[0_0_20px_rgba(204,255,0,0.3)] relative z-20"
+                  src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(creatorProfile.avatar_seed || creatorProfile.id)}`}
+                  alt={creatorProfile.display_name ?? selectedCreator ?? "creator"}
+                  className="w-28 h-28 border-4 border-[#050505] rounded-full bg-black shadow-[0_0_20px_rgba(204,255,0,0.3)] relative z-20 p-1"
                 />
-                <button className="brutal-btn py-2 px-6 text-xs shadow-lg relative z-20 active:scale-95 transition-transform">
-                  <i className="fas fa-plus mr-2" /> FOLLOW
-                </button>
               </div>
 
               {/* 名称 */}
               <h1 className="font-heavy text-4xl text-white mb-2 flex items-center gap-2">
-                <span>{selectedCreator}</span>
+                <span>
+                  {creatorProfile.display_name ||
+                    (creatorProfile.name && creatorProfile.name !== "New Agent" ? creatorProfile.name : null) ||
+                    selectedCreator ||
+                    "ANONYMOUS"}
+                </span>
                 <i className="fas fa-check-circle text-signal text-xl" />
               </h1>
 
-              {/* 热度 / 作品数 / ROI 指标行 */}
+              {/* 作品數指標行 */}
               <div className="flex flex-wrap gap-4 text-[11px] font-mono text-gray-400 mb-6 border-b border-[#222] pb-6">
-                <span className="flex items-center gap-1 text-orange-500">
-                  <i className="fas fa-fire text-sm" /> {creatorData.heat}
-                </span>
                 <span className="flex items-center gap-1 text-gray-300">
-                  <i className="fas fa-film text-sm" /> {creatorData.works} Works
+                  <i className="fas fa-film text-sm" /> {creatorFilms.length} Film{creatorFilms.length !== 1 ? "s" : ""}
                 </span>
-                <span className="flex items-center gap-1 text-signal font-bold">
-                  <i className="fas fa-chart-line text-sm" /> {creatorData.roi}
+                <span className="flex items-center gap-1 text-signal">
+                  <i className="fas fa-robot text-sm" /> AI-NATIVE STUDIO
                 </span>
               </div>
 
@@ -851,80 +853,113 @@ export default function GlobalModals() {
                   </h3>
                   <div className="bg-[#111] p-5 rounded-xl border border-[#222]">
                     <p className="text-xs text-gray-300 font-mono leading-relaxed text-justify">
-                      {creatorData.bio}
+                      {creatorProfile.bio && creatorProfile.bio.trim()
+                        ? creatorProfile.bio
+                        : "No studio information provided. This node operates in stealth mode — its rendering pipeline and creative philosophy remain undisclosed."}
                     </p>
                   </div>
                 </section>
 
                 {/* TECH STACK */}
-                <section>
-                  <h3 className="font-heavy text-xl text-white mb-3 border-l-4 border-white pl-3">
-                    TECH STACK
-                  </h3>
-                  <div className="flex flex-wrap gap-2">
-                    {creatorData.tech.map((t) => (
-                      <span
-                        key={t}
-                        className="bg-[#111] border border-[#333] px-3 py-1.5 rounded-lg text-xs text-gray-300 font-mono"
-                      >
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                </section>
+                {creatorProfile.tech_stack && creatorProfile.tech_stack.trim() && (
+                  <section>
+                    <h3 className="font-heavy text-xl text-white mb-3 border-l-4 border-white pl-3">
+                      TECH STACK
+                    </h3>
+                    <div className="flex flex-wrap gap-2">
+                      {creatorProfile.tech_stack
+                        .split(",")
+                        .map((t) => t.trim())
+                        .filter(Boolean)
+                        .map((tech) => (
+                          <span
+                            key={tech}
+                            className="border border-[#333] px-3 py-1 rounded-full text-xs text-gray-300 font-mono bg-[#111] hover:border-signal hover:text-signal transition-colors"
+                          >
+                            {tech}
+                          </span>
+                        ))}
+                    </div>
+                  </section>
+                )}
 
                 {/* CORE TEAM */}
-                <section>
-                  <h3 className="font-heavy text-xl text-white mb-3 border-l-4 border-gray-500 pl-3">
-                    CORE TEAM
-                  </h3>
-                  <div className="space-y-3">
-                    {creatorData.team.map((member) => (
-                      <div
-                        key={member.name}
-                        className="flex items-center gap-3 bg-[#111] p-3 rounded-lg border border-[#222]"
-                      >
-                        <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center text-gray-500 border border-[#333] shrink-0">
-                          <i className="fas fa-user" />
+                {Array.isArray(creatorProfile.core_team) && creatorProfile.core_team.length > 0 && (
+                  <section>
+                    <h3 className="font-heavy text-xl text-white mb-3 border-l-4 border-gray-500 pl-3">
+                      CORE TEAM
+                    </h3>
+                    <div className="space-y-3">
+                      {creatorProfile.core_team.map((member, idx) => (
+                        <div
+                          key={`${member.name}-${idx}`}
+                          className="flex items-center gap-3 bg-[#111] p-3 rounded-lg border border-[#222]"
+                        >
+                          <img
+                            src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(member.name || String(idx))}`}
+                            alt={member.name}
+                            className="w-10 h-10 bg-black rounded-full border border-[#333] shrink-0 p-0.5"
+                          />
+                          <div>
+                            <div className="text-sm font-bold text-white">{member.name || "—"}</div>
+                            <div className="text-[10px] text-gray-500 font-mono">{member.role || "—"}</div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-sm font-bold text-white">{member.name}</div>
-                          <div className="text-[10px] text-gray-500 font-mono">{member.role}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
+                      ))}
+                    </div>
+                  </section>
+                )}
 
                 {/* TRACK RECORD */}
                 <section>
                   <h3 className="font-heavy text-xl text-white mb-3 border-l-4 border-[#00E599] pl-3">
                     TRACK RECORD
                   </h3>
-                  <div className="space-y-3">
-                    {creatorData.portfolio.map((item) => (
-                      <div
-                        key={item.id}
-                        onClick={() => showToast("REDIRECTING — OPENING FILM INFO PANEL", "info")}
-                        className="cursor-pointer bg-[#111] p-4 rounded-lg border border-[#222] hover:border-signal transition-colors flex justify-between items-center group relative overflow-hidden active:scale-[0.98] transition-transform"
-                      >
-                        <div className="absolute top-0 right-0 w-8 h-8 bg-signal/5 rounded-bl-full flex items-center justify-center">
-                          <i className="fas fa-play text-[8px] text-signal opacity-0 group-hover:opacity-100 transition-opacity ml-2 mb-2" />
-                        </div>
-                        <div className="flex-1 pr-6 relative z-10">
-                          <div className="text-sm font-heavy text-white group-hover:text-signal transition-colors">
-                            {item.title}
+                  {creatorFilms.length === 0 ? (
+                    <div className="border border-dashed border-[#222] rounded-xl py-8 text-center">
+                      <i className="fas fa-film text-2xl text-gray-700 mb-3 block" />
+                      <span className="text-[11px] font-mono text-gray-600 tracking-widest">
+                        No films submitted yet.
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {creatorFilms.map((film) => (
+                        <div
+                          key={film.id}
+                          onClick={() => showToast("REDIRECTING — OPENING FILM INFO PANEL", "info")}
+                          className="cursor-pointer bg-[#111] p-4 rounded-lg border border-[#222] hover:border-signal transition-colors flex gap-3 items-start group relative overflow-hidden active:scale-[0.98]"
+                        >
+                          <div className="absolute top-0 right-0 w-8 h-8 bg-signal/5 rounded-bl-full flex items-center justify-center">
+                            <i className="fas fa-play text-[8px] text-signal opacity-0 group-hover:opacity-100 transition-opacity ml-2 mb-2" />
                           </div>
-                          <div className="text-[10px] text-gray-400 mt-1 leading-snug">
-                            {item.desc}
+                          {/* 海報縮略圖 */}
+                          {film.poster_url ? (
+                            <img
+                              src={film.poster_url}
+                              alt={film.title}
+                              className="w-12 h-16 object-cover rounded border border-[#333] shrink-0"
+                            />
+                          ) : (
+                            <div className="w-12 h-16 bg-[#0a0a0a] border border-[#333] rounded flex items-center justify-center shrink-0">
+                              <i className="fas fa-film text-gray-700 text-sm" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0 relative z-10">
+                            <div className="text-sm font-heavy text-white group-hover:text-signal transition-colors mb-1 truncate">
+                              {film.title || "UNTITLED"}
+                            </div>
+                            <div className="text-[10px] text-gray-400 leading-snug line-clamp-2">
+                              {film.description || film.synopsis || "No description available."}
+                            </div>
+                          </div>
+                          <div className="text-xs font-mono text-gray-600 relative z-10 shrink-0 pt-0.5">
+                            {new Date(film.created_at).getFullYear()}
                           </div>
                         </div>
-                        <div className="text-xs font-mono text-gray-600 relative z-10 shrink-0">
-                          {item.year}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </section>
 
               </div>
