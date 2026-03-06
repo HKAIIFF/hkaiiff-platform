@@ -16,6 +16,7 @@ interface Film {
   feature_url?: string | null; copyright_url?: string | null;
   core_cast?: string | null; region?: string | null; lbs_royalty?: number | null;
   status: "pending" | "approved" | "rejected"; created_at: string;
+  is_parallel_universe?: boolean | null;
 }
 interface PrivyLinkedAccount {
   type: string;
@@ -297,7 +298,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
     setLoading(true);
     const { data, error } = await supabase
       .from("films")
-      .select("id,user_id,title,studio,ai_ratio,poster_url,status,created_at,trailer_url,feature_url,copyright_url,core_cast,region,lbs_royalty")
+      .select("id,user_id,title,studio,ai_ratio,poster_url,status,created_at,trailer_url,feature_url,copyright_url,core_cast,region,lbs_royalty,is_parallel_universe")
       .order("created_at", { ascending: false });
     setLoading(false);
     if (error) { pushToast(error.message, false); return; }
@@ -314,6 +315,14 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
     }
     setFilms((prev) => prev.map((f) => f.id === film.id ? { ...f, status: "approved" } : f));
     pushToast(t.nftHint);
+  }
+
+  async function toggleParallelUniverse(film: Film) {
+    const newVal = !film.is_parallel_universe;
+    const { error } = await supabase.from("films").update({ is_parallel_universe: newVal }).eq("id", film.id);
+    if (error) { pushToast(error.message, false); return; }
+    setFilms((prev) => prev.map((f) => f.id === film.id ? { ...f, is_parallel_universe: newVal } : f));
+    pushToast("平行宇宙狀態已更新");
   }
 
   async function submitReject() {
@@ -344,12 +353,13 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                 <th className="p-3 text-left">AI 51% 質檢</th>
                 <th className="p-3 text-left">狀態</th>
                 <th className="p-3 text-left">素材鏈接</th>
+                <th className="p-3 text-left">平行宇宙</th>
                 <th className="p-3 text-left">操作</th>
               </tr>
             </thead>
             <tbody>
               {films.length === 0 ? (
-                <tr><td colSpan={5} className="p-6 text-gray-400 text-center">{loading ? t.loading : t.empty}</td></tr>
+                <tr><td colSpan={6} className="p-6 text-gray-400 text-center">{loading ? t.loading : t.empty}</td></tr>
               ) : films.map((film) => (
                 <tr key={film.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
                   <td className="p-3">
@@ -428,6 +438,20 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                       ) : (
                         <span className="text-gray-400 text-xs block">無版權文件</span>
                       )}
+                    </div>
+                  </td>
+                  <td className="p-3">
+                    <div className="flex flex-col items-center gap-1">
+                      <button
+                        onClick={() => toggleParallelUniverse(film)}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${film.is_parallel_universe ? "bg-[#CCFF00]" : "bg-gray-300"}`}
+                        title={film.is_parallel_universe ? "已啟用平行宇宙" : "未啟用平行宇宙"}
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow ${film.is_parallel_universe ? "translate-x-4" : "translate-x-1"}`} />
+                      </button>
+                      <span className={`text-[10px] font-semibold ${film.is_parallel_universe ? "text-[#6b9900]" : "text-gray-400"}`}>
+                        {film.is_parallel_universe ? "ON" : "OFF"}
+                      </span>
                     </div>
                   </td>
                   <td className="p-3">

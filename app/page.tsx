@@ -2,6 +2,8 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useModal } from "@/app/context/ModalContext";
+import { useI18n } from "@/app/context/I18nContext";
+import { useToast } from "@/app/context/ToastContext";
 import type { Film } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 
@@ -19,6 +21,7 @@ interface SupabaseFilm {
   video_url?: string | null;
   user_id?: string | null;
   created_at: string;
+  is_parallel_universe?: boolean | null;
 }
 
 /** 將 SupabaseFilm 適配成 ModalContext 所需的 Film 類型 */
@@ -89,11 +92,14 @@ function FeedItem({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [showUser, setShowUser] = useState(false);
   const [isInteractOpen, setIsInteractOpen] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(9 * 60);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
 
   const { setActiveModal, setSelectedFilm, setInteractTab, setSelectedCreator, setSelectedCreatorUserId } =
     useModal();
+  const { lang } = useI18n();
+  const { showToast } = useToast();
 
   // ── IntersectionObserver: auto-play / pause when scrolled into view ──────
   useEffect(() => {
@@ -115,6 +121,43 @@ function FeedItem({
     observer.observe(video);
     return () => observer.disconnect();
   }, []);
+
+  // ── Parallel Universe countdown (only when is_parallel_universe is true) ──
+  useEffect(() => {
+    if (!film.is_parallel_universe) return;
+    if (timeLeft <= 0) return;
+    const interval = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) { clearInterval(interval); return 0; }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [film.is_parallel_universe, timeLeft]);
+
+  // ── Share handler (Web Share API with clipboard fallback) ─────────────────
+  const handleShare = async () => {
+    const shareData = {
+      title: film.title,
+      text: `Check out "${film.title}" at the Hong Kong AI International Film Festival! 香港人工智能國際電影節`,
+      url: typeof window !== "undefined" ? window.location.origin : "",
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
+        showToast(lang === "en" ? "Link copied to clipboard!" : "鏈接已複製到剪貼板！", "success");
+      }
+    } catch (err) {
+      console.log("Error sharing:", err);
+    }
+  };
+
+  // ── Parallel Universe click intercept ────────────────────────────────────
+  const handleParallelClick = () => {
+    showToast(lang === "en" ? "You are not on the invitation list." : "您不在邀請名單內。", "error");
+  };
 
   // ── Swipe gesture: left → show parallel universe, right → hide ───────────
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -207,85 +250,35 @@ function FeedItem({
                 />
               </div>
 
-              {/* 按鈕 2 ── 指紋互動（interact-wrapper） */}
-              <div
-                className="relative flex flex-col items-center justify-end w-full"
-                id={`interact-wrapper-${film.id}`}
-              >
-                {/* interact-menu：嚴格對應 index.html .interact-menu */}
-                <div
-                  className={`interact-menu no-scrollbar${isInteractOpen ? " expanded" : ""}`}
-                >
-                  <button
-                    className="interact-btn-sm"
-                    onClick={() => {
-                      setSelectedFilm(toModalFilm(film));
-                      setInteractTab("text");
-                      setActiveModal("interact");
-                    }}
-                  >
-                    <i className="fas fa-font" />
-                  </button>
-                  <button
-                    className="interact-btn-sm"
-                    onClick={() => {
-                      setSelectedFilm(toModalFilm(film));
-                      setInteractTab("audio");
-                      setActiveModal("interact");
-                    }}
-                  >
-                    <i className="fas fa-microphone" />
-                  </button>
-                  <button
-                    className="interact-btn-sm"
-                    onClick={() => {
-                      setSelectedFilm(toModalFilm(film));
-                      setInteractTab("vision");
-                      setActiveModal("interact");
-                    }}
-                  >
-                    <i className="fas fa-camera" />
-                  </button>
-                  <button
-                    className="interact-btn-sm"
-                    onClick={() => {
-                      setSelectedFilm(toModalFilm(film));
-                      setInteractTab("bio");
-                      setActiveModal("interact");
-                    }}
-                  >
-                    <i className="fas fa-map-marker-alt" />
-                  </button>
-                  <button
-                    className="interact-btn-sm"
-                    onClick={() => {
-                      setSelectedFilm(toModalFilm(film));
-                      setInteractTab("text");
-                      setActiveModal("interact");
-                    }}
-                  >
-                    <i className="fas fa-ellipsis-h" />
-                  </button>
+              {/* 按鈕 2 ── 平行宇宙指紋按鈕（僅 is_parallel_universe 為 true 時顯示）*/}
+              {film.is_parallel_universe && (
+                <div className="flex flex-col items-center relative z-20">
+                  {timeLeft === 0 ? (
+                    /* 已過期 */
+                    <button className="flex flex-col items-center gap-1 opacity-50 cursor-not-allowed">
+                      <i className="fas fa-ban text-3xl text-gray-500"></i>
+                      <span className="text-[9px] text-gray-500 font-mono font-bold mt-1 tracking-wider">EXPIRED</span>
+                    </button>
+                  ) : (
+                    /* 倒計時中 */
+                    <button
+                      onClick={handleParallelClick}
+                      className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
+                    >
+                      <div className="relative">
+                        <i className="fas fa-fingerprint text-3xl text-[#CCFF00] drop-shadow-[0_0_8px_rgba(204,255,0,0.6)]"></i>
+                      </div>
+                      <div className="text-[9px] text-black bg-[#CCFF00] px-1.5 rounded-sm font-mono font-bold mt-1 tracking-wider">
+                        {Math.floor(timeLeft / 60).toString().padStart(2, "0")}:{(timeLeft % 60).toString().padStart(2, "0")}
+                      </div>
+                    </button>
+                  )}
                 </div>
+              )}
 
-                {/* 指紋按鈕 */}
-                <div
-                  onClick={() => setIsInteractOpen(!isInteractOpen)}
-                  className="cursor-pointer flex flex-col items-center gap-1 relative z-10 active:scale-95 transition-transform"
-                >
-                  <div className="w-11 h-11 bg-black/60 backdrop-blur border border-[#CCFF00] flex items-center justify-center text-[#CCFF00] rounded-full shadow-[0_0_15px_rgba(204,255,0,0.4)]">
-                    <i className="fas fa-fingerprint text-xl" />
-                  </div>
-                  <div className="bg-black/80 px-1.5 rounded border border-[#333] text-[9px] font-mono font-bold text-[#CCFF00] flex items-center gap-1 mt-1">
-                    <i className="fas fa-clock" />
-                    <span>LIVE</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 按鈕 3 ── 轉發 (Forward) */}
+              {/* 按鈕 3 ── 轉發 (Forward) — Web Share API + clipboard fallback */}
               <div
-                onClick={() => setActiveModal("share")}
+                onClick={handleShare}
                 className="cursor-pointer flex flex-col items-center gap-1 active:scale-95 transition-transform"
               >
                 <div className="w-10 h-10 bg-black/60 backdrop-blur border border-[#444] flex items-center justify-center text-white rounded-full shadow-lg">
@@ -352,7 +345,7 @@ export default function FeedPage() {
     async function fetchFilms() {
       const { data } = await supabase
         .from("films")
-        .select("id,title,studio,tech_stack,ai_ratio,poster_url,trailer_url,feature_url,video_url,user_id,created_at")
+        .select("id,title,studio,tech_stack,ai_ratio,poster_url,trailer_url,feature_url,video_url,user_id,created_at,is_parallel_universe")
         .eq("status", "approved")
         .order("created_at", { ascending: false });
 
