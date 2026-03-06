@@ -29,7 +29,7 @@ const getStatusUI = (status: string) => {
 type TeamMember = { name: string; role: string };
 
 export default function MePage() {
-  const { login, ready, authenticated, user, logout } = usePrivy();
+  const { login, ready, authenticated, user, logout, getAccessToken } = usePrivy();
   const { createWallet } = useCreateWallet();
   const { t, lang } = useI18n();
   const { showToast } = useToast();
@@ -48,11 +48,16 @@ export default function MePage() {
     bio: string | null;
     tech_stack: string | null;
     core_team: TeamMember[] | null;
+    deposit_address: string | null;
   } | null>(null);
 
   const [onChainAifBalance, setOnChainAifBalance] = useState<number | null>(null);
   const [displaySolanaAddress, setDisplaySolanaAddress] = useState<string | null>(null);
   const [isFetchingBalance, setIsFetchingBalance] = useState(false);
+
+  // ── HD Wallet 充值地址 State ──────────────────────────────────────────────
+  const [depositAddress, setDepositAddress] = useState<string | null>(null);
+  const [isFetchingDepositAddress, setIsFetchingDepositAddress] = useState(false);
 
   // ── Top-Up Modal State ────────────────────────────────────────────────────
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
@@ -60,9 +65,9 @@ export default function MePage() {
   const [isCreatingWallet, setIsCreatingWallet] = useState(false);
 
   const handleTopUpCopy = async () => {
-    if (!displaySolanaAddress) return;
+    if (!depositAddress) return;
     try {
-      await navigator.clipboard.writeText(displaySolanaAddress);
+      await navigator.clipboard.writeText(depositAddress);
       setIsCopied(true);
       showToast(lang === 'en' ? 'Address copied!' : '地址已複製！', 'success');
       setTimeout(() => setIsCopied(false), 2000);
@@ -198,17 +203,43 @@ export default function MePage() {
           console.error('Failed to sync', err);
         }
 
-        // Step 2: 直接从 Supabase 读取完整 profile（含新字段，用 privy_id 匹配）
+        // Step 2: 直接从 Supabase 读取完整 profile（含充值地址字段）
         try {
           const { data: profileRow, error: profileError } = await supabase
             .from('users')
-            .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team')
+            .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team, deposit_address')
             .eq('id', user.id)
             .single();
           if (profileError) {
             console.error('❌ Failed to fetch profile:', profileError.message);
           } else if (profileRow) {
             setDbProfile(profileRow);
+
+            if (profileRow.deposit_address) {
+              // 已有充值地址，直接使用
+              setDepositAddress(profileRow.deposit_address);
+            } else {
+              // 靜默調用 assign API 獲取並寫入充值地址
+              setIsFetchingDepositAddress(true);
+              try {
+                const token = await getAccessToken();
+                const res = await fetch('/api/wallet/assign', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                  },
+                });
+                const assignData = await res.json();
+                if (assignData.address) {
+                  setDepositAddress(assignData.address);
+                }
+              } catch (assignErr) {
+                console.error('❌ Failed to assign deposit address:', assignErr);
+              } finally {
+                setIsFetchingDepositAddress(false);
+              }
+            }
           }
         } catch (err) {
           console.error('❌ Profile fetch exception:', err);
@@ -250,16 +281,16 @@ export default function MePage() {
   useEffect(() => {
     if (!authenticated || !user) return;
 
-    // Only use the Privy embedded wallet as the deposit address,
-    // so external wallets (Phantom, MetaMask, etc.) are never shown for top-up.
+    // Only use the Privy embedded wallet as the profile display address,
+    // so external wallets (Phantom, MetaMask, etc.) are never shown.
     const embeddedWallet = user.linkedAccounts?.find(
       (acc: any) => acc.type === 'wallet' && acc.walletClientType === 'privy'
     );
-    const depositAddress: string | null = embeddedWallet?.address ?? null;
+    const privyWalletAddress: string | null = (embeddedWallet as any)?.address ?? null;
 
-    if (depositAddress && !depositAddress.startsWith('0x')) {
-      setDisplaySolanaAddress(depositAddress);
-      fetchAIFBalance(depositAddress);
+    if (privyWalletAddress && !privyWalletAddress.startsWith('0x')) {
+      setDisplaySolanaAddress(privyWalletAddress);
+      fetchAIFBalance(privyWalletAddress);
     } else {
       setDisplaySolanaAddress(null);
       setOnChainAifBalance(0);
@@ -825,10 +856,10 @@ export default function MePage() {
 
               {/* QR Code */}
               <div className="flex flex-col items-center gap-3">
-                {displaySolanaAddress ? (
+                {depositAddress ? (
                   <div className="p-3 bg-white rounded-xl shadow-[0_0_24px_rgba(204,255,0,0.2)]">
                     <QRCode
-                      value={displaySolanaAddress}
+                      value={depositAddress}
                       size={160}
                       bgColor="#ffffff"
                       fgColor="#000000"
@@ -838,30 +869,24 @@ export default function MePage() {
                 ) : (
                   <div className="w-[186px] h-[186px] border-2 border-dashed border-signal/30 rounded-xl flex flex-col
                                   items-center justify-center gap-3 bg-signal/5 px-4">
-                    <i className="fas fa-qrcode text-4xl text-signal/40" />
-                    <button
-                      onClick={handleCreateWallet}
-                      disabled={isCreatingWallet}
-                      className="w-full py-2 px-3 rounded-lg bg-signal/20 border border-signal/60 text-signal
-                                 text-[10px] font-mono tracking-wider hover:bg-signal/30 active:scale-95
-                                 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center
-                                 justify-center gap-2"
-                    >
-                      {isCreatingWallet ? (
-                        <>
-                          <i className="fas fa-circle-notch fa-spin text-[10px]" />
-                          GENERATING...
-                        </>
-                      ) : (
-                        <>
-                          <i className="fas fa-plus-circle text-[10px]" />
-                          GENERATE DEPOSIT ADDRESS
-                        </>
-                      )}
-                    </button>
+                    {isFetchingDepositAddress ? (
+                      <>
+                        <i className="fas fa-circle-notch fa-spin text-3xl text-signal/50" />
+                        <span className="text-[10px] font-mono text-signal/60 tracking-wider text-center">
+                          GENERATING ADDRESS...
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <i className="fas fa-qrcode text-4xl text-signal/40" />
+                        <span className="text-[10px] font-mono text-gray-600 tracking-wider text-center">
+                          ADDRESS NOT READY
+                        </span>
+                      </>
+                    )}
                   </div>
                 )}
-                {displaySolanaAddress && (
+                {depositAddress && (
                   <div className="text-[9px] font-mono text-gray-500 tracking-wider">
                     SCAN WITH SOLANA WALLET
                   </div>
@@ -874,10 +899,10 @@ export default function MePage() {
                   DEPOSIT ADDRESS
                 </div>
                 <div className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl p-3 flex items-center gap-3">
-                  {displaySolanaAddress ? (
+                  {depositAddress ? (
                     <>
                       <span className="font-mono text-[11px] text-signal/90 flex-1 break-all ltr-force leading-relaxed">
-                        {displaySolanaAddress}
+                        {depositAddress}
                       </span>
                       <button
                         onClick={handleTopUpCopy}
@@ -893,26 +918,16 @@ export default function MePage() {
                       </button>
                     </>
                   ) : (
-                    <button
-                      onClick={handleCreateWallet}
-                      disabled={isCreatingWallet}
-                      className="w-full py-2 rounded-lg bg-signal/10 border border-signal/40 text-signal/80
-                                 text-[10px] font-mono tracking-wider hover:bg-signal/20 active:scale-95
-                                 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center
-                                 justify-center gap-2"
-                    >
-                      {isCreatingWallet ? (
+                    <span className="text-[11px] font-mono text-gray-600 flex-1 flex items-center gap-2">
+                      {isFetchingDepositAddress ? (
                         <>
                           <i className="fas fa-circle-notch fa-spin text-[10px]" />
-                          GENERATING DEPOSIT ADDRESS...
+                          GENERATING DEDICATED ADDRESS...
                         </>
                       ) : (
-                        <>
-                          <i className="fas fa-plus-circle text-[10px]" />
-                          GENERATE DEPOSIT ADDRESS
-                        </>
+                        'ADDRESS UNAVAILABLE'
                       )}
-                    </button>
+                    </span>
                   )}
                 </div>
               </div>
