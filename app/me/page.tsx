@@ -30,7 +30,7 @@ type TeamMember = { name: string; role: string };
 export default function MePage() {
   const { login, ready, authenticated, user, logout } = usePrivy();
   const { wallets } = useWallets();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { showToast } = useToast();
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [mySubmissions, setMySubmissions] = useState<any[]>([]);
@@ -81,6 +81,18 @@ export default function MePage() {
   function closeProfileModal() {
     setIsProfileModalOpen(false);
   }
+
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!displaySolanaAddress) return;
+    try {
+      await navigator.clipboard.writeText(displaySolanaAddress);
+      showToast(lang === 'en' ? 'Address copied to clipboard!' : '地址已複製！', 'success');
+    } catch (err) {
+      console.error('Failed to copy:', err);
+      showToast(lang === 'en' ? 'Failed to copy address' : '複製失敗', 'error');
+    }
+  };
 
   function addTeamMember() {
     setEditCoreTeam((prev) => [...prev, { name: '', role: '' }]);
@@ -391,18 +403,14 @@ export default function MePage() {
         {/* Info */}
         <div className="flex-1 min-w-0 pr-16">
           <h2 className="font-heavy text-2xl text-white mb-0.5 tracking-wide truncate">
-            {user?.id ? `Agent_${user.id.replace('did:privy:', '').substring(0, 6)}` : 'Agent_SYNCING'}
+            {dbProfile?.display_name || (user?.id ? `Agent_${user.id.replace('did:privy:', '').substring(0, 6)}` : 'Agent_SYNCING')}
           </h2>
           <div className="text-[9px] text-gray-400 font-mono mb-2 tracking-wider uppercase">
             {dbProfile ? t(`role_${dbProfile?.role || 'human'}`).toUpperCase() : '...'}
           </div>
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => {
-                if (displaySolanaAddress) {
-                  navigator.clipboard.writeText(displaySolanaAddress);
-                }
-              }}
+              onClick={handleCopy}
               className="flex items-center space-x-2 bg-[#111] border border-[#333] px-3 py-1 rounded text-xs text-gray-400 hover:text-signal transition-colors"
             >
               <i className="fa-brands fa-solana text-signal" />
