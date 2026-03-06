@@ -228,7 +228,7 @@ export default function MessagesPage() {
 
       if (error) {
         console.error('[Messages] fetch error:', error);
-        showToast('FAILED TO LOAD MESSAGES', 'error');
+        setMessages([]);
       } else {
         setMessages((data as DbMessage[]) ?? []);
       }
@@ -442,7 +442,7 @@ export default function MessagesPage() {
           <div className="flex flex-col items-center justify-center py-20 opacity-50">
             <i className="fas fa-inbox text-4xl mb-3 text-gray-600" />
             <div className="font-heavy text-xl text-gray-500 tracking-widest">NO MESSAGES</div>
-            <div className="font-mono text-[10px] text-gray-600 mt-2 uppercase">System inbox is empty</div>
+            <div className="font-mono text-[10px] text-gray-600 mt-2 uppercase">SYSTEM INBOX IS EMPTY</div>
           </div>
         ) : (
           filtered.map((msg) => (
