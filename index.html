@@ -231,7 +231,24 @@
             <h1 class="font-heavy text-4xl text-white" data-i18n="nav_discover">DISCOVER</h1>
             <div class="flex items-center gap-2 mb-2 bg-[#111] px-2 py-1 rounded border border-[#333]"><div class="w-1.5 h-1.5 rounded-full bg-signal animate-pulse"></div><span class="font-mono text-[8px] text-signal tracking-widest uppercase" data-i18n="scanning_nodes">SCANNING LBS NODES...</span></div>
         </div>
-        <p class="font-mono text-[10px] text-gray-400 mb-6 leading-relaxed border-l-2 border-[#333] pl-2" data-i18n="lbs_desc">Exclusive screenings controlled by Location-Based Services (LBS) and conditional smart contracts.</p>
+        <p class="font-mono text-[10px] text-gray-400 mb-4 leading-relaxed border-l-2 border-[#333] pl-2" data-i18n="lbs_desc">Exclusive screenings controlled by Location-Based Services (LBS) and conditional smart contracts.</p>
+        <div class="flex items-center gap-2 mb-5">
+            <div class="relative flex-1">
+                <i class="fas fa-city absolute left-2.5 top-1/2 -translate-y-1/2 text-signal text-[10px] pointer-events-none"></i>
+                <select id="lbs-filter-city" onchange="app.renderLBS()" class="w-full bg-black border border-[#333] text-signal text-xs font-mono py-2 pl-7 pr-2 rounded appearance-none outline-none focus:border-signal transition-colors cursor-pointer">
+                    <option value="all">ALL CITIES</option>
+                    <option value="Hong Kong">HONG KONG</option>
+                    <option value="Hangzhou">HANGZHOU</option>
+                </select>
+            </div>
+            <div class="relative flex-1">
+                <i class="fas fa-sort-amount-down absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] pointer-events-none"></i>
+                <select id="lbs-filter-sort" onchange="app.renderLBS()" class="w-full bg-black border border-[#333] text-gray-300 text-xs font-mono py-2 pl-7 pr-2 rounded appearance-none outline-none focus:border-signal transition-colors cursor-pointer">
+                    <option value="nearest">NEAREST</option>
+                    <option value="latest">LATEST</option>
+                </select>
+            </div>
+        </div>
         <div id="lbs-list" class="space-y-4 pb-12"></div>
     </div>
 
@@ -427,7 +444,81 @@
 
     <div id="creatorModal" class="fixed inset-0 z-[200] bg-[#050505] hidden flex flex-col transform translate-y-full transition-transform duration-300 overflow-y-auto"><div class="absolute top-0 left-0 w-full z-30 flex justify-between items-center p-4 pt-12 bg-gradient-to-b from-black to-transparent"><button onclick="app.closeModal('creatorModal')" class="w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform"><i class="fas fa-arrow-left"></i></button><div class="font-mono text-[10px] text-white tracking-widest bg-black/50 px-3 py-1.5 rounded-full backdrop-blur border border-[#333]">STUDIO PROFILE</div><div class="w-10"></div></div><div class="h-64 w-full flex-shrink-0 bg-gradient-to-b from-gray-800 to-black relative overflow-hidden"><img src="https://images.unsplash.com/photo-1555680202-c86f0e12f086?q=80&w=800" class="absolute inset-0 w-full h-full object-cover opacity-40"><div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/90 to-transparent"></div></div><div class="px-6 -mt-16 relative z-10 pb-24"><div class="flex justify-between items-end mb-4"><img id="cAvt" src="" class="w-28 h-28 border-4 border-[#050505] rounded-full bg-black shadow-[0_0_20px_rgba(204,255,0,0.3)] relative z-20"><button class="brutal-btn py-2 px-6 text-xs shadow-lg relative z-20"><i class="fas fa-plus mr-2"></i> <span data-i18n="btn_follow">FOLLOW</span></button></div><h1 class="font-heavy text-4xl text-white mb-2 flex items-center gap-2"><span id="cName">Name</span> <i class="fas fa-check-circle text-signal text-xl"></i></h1><div class="flex flex-wrap gap-4 text-[11px] font-mono text-gray-400 mb-6 border-b border-[#222] pb-6"><span id="cPop" class="flex items-center gap-1 text-orange-500"><i class="fas fa-fire text-sm"></i></span><span id="cWorks" class="flex items-center gap-1 text-gray-300"><i class="fas fa-film text-sm"></i></span><span id="cRoi" class="flex items-center gap-1 text-signal font-bold"><i class="fas fa-chart-line text-sm"></i></span></div><div class="space-y-8"><section><h3 class="font-heavy text-xl text-white mb-3 border-l-4 border-signal pl-3" data-i18n="about">ABOUT STUDIO</h3><div class="bg-[#111] p-5 rounded-xl border border-[#222]"><p class="text-xs text-gray-300 font-mono leading-relaxed text-justify" id="cBio"></p></div></section><section><h3 class="font-heavy text-xl text-white mb-3 border-l-4 border-white pl-3" data-i18n="tech_stack">TECH STACK</h3><div class="flex flex-wrap gap-2" id="cTech"></div></section><section><h3 class="font-heavy text-xl text-white mb-3 border-l-4 border-gray-500 pl-3" data-i18n="team">CORE TEAM</h3><div class="space-y-3" id="cTeam"></div></section><section><h3 class="font-heavy text-xl text-white mb-3 border-l-4 border-aif pl-3" data-i18n="portfolio">TRACK RECORD</h3><div class="space-y-3" id="cPortfolio"></div></section></div></div></div>
 
-    <div id="lbsDetailModal" class="fixed inset-0 z-[400] bg-[#050505] hidden flex flex-col transform translate-y-full transition-transform duration-300"><div class="absolute top-0 left-0 w-full z-20 flex justify-between items-center p-4 pt-12 bg-gradient-to-b from-black to-transparent"><button onclick="app.closeModal('lbsDetailModal')" class="w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform"><i class="fas fa-arrow-left"></i></button><div class="font-mono text-[10px] text-signal tracking-widest bg-black/50 px-3 py-1.5 rounded-full backdrop-blur border border-[#333]" data-i18n="event_details">EVENT DETAILS</div><div class="w-10"></div></div><div class="overflow-y-auto flex-1 pb-32"><div class="relative w-full h-72 bg-black"><img id="lbsDetailImg" src="" class="w-full h-full object-cover opacity-60"><div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent"></div></div><div class="px-6 -mt-12 relative z-10 space-y-6"><div><div id="lbsDetailState" class="inline-block text-[9px] font-mono px-2 py-1 rounded mb-2 border backdrop-blur">STATE</div><h2 id="lbsDetailTitle" class="font-heavy text-4xl text-white leading-none shadow-black drop-shadow-md mb-2">TITLE</h2><div class="text-[10px] font-mono text-gray-400 ltr-force flex items-center gap-1"><i class="fas fa-crosshairs text-signal"></i> <span id="lbsDetailCoords">Coords</span></div></div><div class="grid grid-cols-2 gap-4"><div class="bg-[#111] p-4 rounded-xl border border-[#222]"><div class="text-[9px] text-gray-500 font-mono mb-1" data-i18n="venue">VENUE</div><div class="text-sm text-white font-bold" id="lbsDetailLocation">Location</div></div><div class="bg-[#111] p-4 rounded-xl border border-[#222]"><div class="text-[9px] text-gray-500 font-mono mb-1" data-i18n="schedule">SCHEDULE</div><div class="text-sm text-white font-bold" id="lbsDetailDate">Date</div></div></div><section><h3 class="font-heavy text-lg text-white mb-2" data-i18n="event_desc">EVENT DESCRIPTION</h3><p class="text-xs text-gray-300 font-mono leading-relaxed text-justify" id="lbsDetailDesc">Desc</p></section><section class="bg-gradient-to-br from-[#111] to-[#0a0a0a] border border-[#333] p-4 rounded-xl relative overflow-hidden"><div class="absolute left-0 top-0 w-1 h-full" id="lbsDetailReqBar"></div><h3 class="font-heavy text-lg text-white mb-2" data-i18n="contract_req">SMART CONTRACT REQ</h3><p class="text-[10px] text-gray-400 font-mono" id="lbsDetailReq">Req</p></section></div></div><div class="absolute bottom-0 left-0 w-full p-4 bg-black/90 backdrop-blur-xl border-t border-[#222] pb-safe z-20"><button id="lbsDetailBtn" class="brutal-btn w-full text-lg" onclick="app.executeLBS()"><i id="lbsDetailBtnIcon" class="fas mr-2"></i> <span id="lbsDetailBtnText">VERIFY LBS NODE</span></button></div></div>
+    <div id="lbsDetailModal" class="fixed inset-0 z-[400] bg-[#050505] hidden flex flex-col transform translate-y-full transition-transform duration-300">
+        <!-- Header -->
+        <div class="absolute top-0 left-0 w-full z-20 flex justify-between items-center p-4 pt-12 bg-gradient-to-b from-black to-transparent">
+            <button onclick="app.closeModal('lbsDetailModal')" class="w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform"><i class="fas fa-arrow-left"></i></button>
+            <div class="font-mono text-[10px] text-signal tracking-widest bg-black/50 px-3 py-1.5 rounded-full backdrop-blur border border-[#333]" data-i18n="event_details">EVENT DETAILS</div>
+            <div class="w-10"></div>
+        </div>
+        <!-- Scrollable Content -->
+        <div class="overflow-y-auto flex-1 pb-10">
+            <!-- Hero Image -->
+            <div class="relative w-full h-72 bg-black">
+                <img id="lbsDetailImg" src="" class="w-full h-full object-cover opacity-60">
+                <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent"></div>
+                <!-- Unlocked glow badge on image -->
+                <div class="absolute top-4 right-4 mt-10 bg-signal/20 border border-signal/50 text-signal text-[9px] font-mono px-2 py-1 rounded-full backdrop-blur flex items-center gap-1.5">
+                    <i class="fas fa-unlock text-[8px]"></i> ZONE UNLOCKED
+                </div>
+            </div>
+            <div class="px-6 -mt-12 relative z-10 space-y-5">
+                <!-- State + Title + Coords -->
+                <div>
+                    <div id="lbsDetailState" class="inline-block text-[9px] font-mono px-2 py-1 rounded mb-2 border backdrop-blur">STATE</div>
+                    <h2 id="lbsDetailTitle" class="font-heavy text-4xl text-white leading-none shadow-black drop-shadow-md mb-3">TITLE</h2>
+                    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-mono text-gray-400 ltr-force">
+                        <span class="flex items-center gap-1"><i class="fas fa-crosshairs text-signal"></i> <span id="lbsDetailCoords">Coords</span></span>
+                        <span class="text-gray-600">·</span>
+                        <span class="flex items-center gap-1"><i class="fas fa-city text-signal"></i> <span id="lbsDetailCity" class="text-signal font-bold">City</span></span>
+                        <span class="text-gray-600">·</span>
+                        <span class="flex items-center gap-1"><i class="fas fa-location-arrow text-gray-400"></i> <span id="lbsDetailDistance" class="text-gray-300">Distance</span></span>
+                    </div>
+                </div>
+                <!-- Curator Row -->
+                <div class="flex items-center gap-3 bg-[#111] border border-[#222] rounded-xl p-3">
+                    <img id="lbsDetailCuratorAvatar" src="" class="w-11 h-11 rounded-full border-2 border-[#333] bg-black object-cover flex-shrink-0">
+                    <div class="flex-1 min-w-0">
+                        <div class="text-[9px] font-mono text-gray-500 mb-0.5 tracking-widest">CURATOR</div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span id="lbsDetailCuratorName" class="text-sm font-bold text-white">Name</span>
+                            <span id="lbsDetailCuratorBadge" class="hidden text-[8px] font-mono bg-blue-500/15 border border-blue-500/40 text-blue-400 px-1.5 py-0.5 rounded-full flex items-center gap-1"><i class="fas fa-check-circle text-[7px]"></i> OFFICIAL CURATOR</span>
+                        </div>
+                    </div>
+                    <i class="fas fa-user-tie text-gray-600 text-lg flex-shrink-0"></i>
+                </div>
+                <!-- Venue & Schedule -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="bg-[#111] p-4 rounded-xl border border-[#222]">
+                        <div class="text-[9px] text-gray-500 font-mono mb-1 tracking-widest" data-i18n="venue">VENUE</div>
+                        <div class="text-sm text-white font-bold leading-snug" id="lbsDetailLocation">Location</div>
+                    </div>
+                    <div class="bg-[#111] p-4 rounded-xl border border-[#222]">
+                        <div class="text-[9px] text-gray-500 font-mono mb-1 tracking-widest" data-i18n="schedule">SCHEDULE</div>
+                        <div class="text-sm text-white font-bold leading-snug" id="lbsDetailDate">Date</div>
+                    </div>
+                </div>
+                <!-- Event Description -->
+                <section>
+                    <h3 class="font-heavy text-lg text-white mb-2" data-i18n="event_desc">EVENT DESCRIPTION</h3>
+                    <p class="text-xs text-gray-300 font-mono leading-relaxed text-justify" id="lbsDetailDesc">Desc</p>
+                </section>
+                <!-- Official Selection Films -->
+                <section>
+                    <h3 class="font-heavy text-lg text-signal mb-3 border-l-4 border-signal pl-3 flex items-center gap-2">
+                        <i class="fas fa-film"></i> OFFICIAL SELECTION <span class="text-[10px] font-mono text-gray-500 font-normal ml-1">展映影片</span>
+                    </h3>
+                    <div id="lbsFilmsList" class="space-y-2"></div>
+                </section>
+                <!-- Smart Contract Req -->
+                <section class="bg-gradient-to-br from-[#111] to-[#0a0a0a] border border-[#333] p-4 rounded-xl relative overflow-hidden">
+                    <div class="absolute left-0 top-0 w-1 h-full" id="lbsDetailReqBar"></div>
+                    <h3 class="font-heavy text-lg text-white mb-2" data-i18n="contract_req">SMART CONTRACT REQ</h3>
+                    <p class="text-[10px] text-gray-400 font-mono" id="lbsDetailReq">Req</p>
+                </section>
+            </div>
+        </div>
+    </div>
 
     <div id="playModal" class="fixed inset-0 z-[500] bg-black hidden flex-col transition-opacity duration-300 opacity-0 select-none"><div class="relative w-full h-full flex flex-col justify-between group"><img id="playVideoMain" src="" class="absolute inset-0 w-full h-full object-cover sm:object-contain opacity-80 group-hover:opacity-100 transition-opacity duration-500"><div class="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90 opacity-100 transition-opacity duration-500"></div><div class="relative z-30 p-4 pt-12 flex justify-between items-start w-full transform translate-y-0 group-hover:translate-y-0 transition-transform duration-500"><button onclick="app.closeModal('playModal')" class="w-10 h-10 bg-black/40 backdrop-blur-md rounded-full text-white flex items-center justify-center border border-white/10 hover:bg-white/20 active:scale-90 transition-all shadow-lg"><i class="fas fa-chevron-down"></i></button><div class="flex flex-col items-end gap-2"><div class="bg-danger/20 border border-danger/50 px-3 py-1.5 rounded text-danger text-[9px] font-bold tracking-widest animate-pulse flex items-center gap-2 backdrop-blur-md shadow-[0_0_10px_rgba(255,51,51,0.2)]"><i class="fas fa-circle text-[6px]"></i> <span data-i18n="full_feature">FULL FEATURE PLAYING</span></div><div class="flex gap-2"><span class="bg-black/50 border border-[#333] px-2 py-1 rounded text-[8px] font-mono text-gray-400 backdrop-blur-sm shadow-lg"><i class="fas fa-satellite-dish text-signal mr-1"></i> ARWEAVE SYNC</span><span class="bg-black/50 border border-[#333] px-2 py-1 rounded text-[8px] font-mono text-gray-400 backdrop-blur-sm shadow-lg">4K HDR</span></div></div></div><div class="absolute inset-0 flex items-center justify-center z-20 pointer-events-none"><button onclick="event.stopPropagation(); app.toast('Streaming from decentralized nodes...')" class="pointer-events-auto w-20 h-20 bg-signal/90 text-black rounded-full flex items-center justify-center text-3xl shadow-[0_0_40px_rgba(204,255,0,0.4)] hover:scale-110 active:scale-95 transition-all pl-2 opacity-0 group-hover:opacity-100 duration-300 backdrop-blur-md border border-white/40"><i class="fas fa-play"></i></button></div><div class="relative z-30 w-full px-6 pb-10 pt-20 bg-gradient-to-t from-black to-transparent transform translate-y-0 transition-transform duration-500"><div class="flex justify-between items-end mb-4"><h2 id="playTitle" class="font-heavy text-3xl text-white shadow-black drop-shadow-2xl tracking-wide uppercase leading-none truncate max-w-[70%]">TITLE</h2><div class="flex gap-5 text-white/80"><button class="hover:text-signal transition-colors active:scale-90"><i class="fas fa-backward text-lg drop-shadow-md"></i></button><button class="hover:text-signal transition-colors active:scale-90"><i class="fas fa-forward text-lg drop-shadow-md"></i></button></div></div><div class="relative w-full h-2 group/bar cursor-pointer flex items-center"><div class="absolute left-0 w-full h-1 bg-white/20 rounded-full transition-all group-hover/bar:h-2 shadow-inner"></div><div class="absolute left-0 w-1/3 h-1 bg-signal rounded-full shadow-[0_0_10px_#CCFF00] transition-all group-hover/bar:h-2"></div><div class="absolute left-1/3 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover/bar:opacity-100 transition-opacity transform -translate-x-1/2"></div></div><div class="flex justify-between w-full text-[10px] font-mono text-gray-400 mt-2"><span class="text-signal font-bold tracking-wider drop-shadow-md">00:24:15</span><span id="playDuration" class="tracking-wider drop-shadow-md">02:15:30</span></div><div class="mt-5 flex justify-between items-center text-gray-300"><div class="flex gap-6"><button class="hover:text-white hover:scale-110 transition-all active:scale-90"><i class="fas fa-volume-up text-lg drop-shadow-md"></i></button><button class="hover:text-white hover:scale-110 transition-all active:scale-90 flex items-center gap-1.5"><i class="fas fa-closed-captioning text-lg drop-shadow-md"></i><span class="text-[8px] font-mono border border-gray-400 rounded px-1 hidden sm:block font-bold">EN</span></button><button class="hover:text-white hover:scale-110 transition-all active:scale-90"><i class="fas fa-cog text-lg drop-shadow-md"></i></button></div><div class="flex gap-6"><button class="hover:text-signal hover:scale-110 transition-all active:scale-90"><i class="fas fa-chromecast text-lg drop-shadow-md"></i></button><button class="hover:text-signal hover:scale-110 transition-all active:scale-90"><i class="fas fa-expand text-lg drop-shadow-md"></i></button></div></div></div></div></div>
 
@@ -480,9 +571,59 @@
 
         // LBS 資料庫
         const LBS_FILMS = [
-            { state: 'unlocked', stateKey: 'state_unlocked', title: "FLAGSHIP IMMERSION", location: "Apple Store, Causeway Bay", coords: "22.280°N, 114.184°E", date: "July 16, 2026 • 20:00 - 22:00", img: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800", desc: "An exclusive offline premiere at the Apple Flagship. This screening utilizes the store's spatial audio capabilities to render AIF.BOT's dynamic soundtracks in real-time.", req: "LBS matched. Node connection established.", icon: "fa-unlock", borderColor: "border-signal", textColor: "signal", duration: "01:45:00" },
-            { state: 'locked_geo', stateKey: 'state_locked_geo', title: "WEST LAKE ANOMALY", location: "West Lake, Hangzhou", coords: "30.245°N, 120.148°E", date: "July 17, 2026 • 19:30 - 21:00", img: "https://images.unsplash.com/photo-1480796927426-f609979314bd?q=80&w=800", desc: "A sprawling AR-enhanced cinematic experience across the West Lake. The film's narrative branches depend on the audience's collective movement along the Su Causeway.", req: "Smart contract requires physical presence within 500m.", icon: "fa-map-marker-alt", borderColor: "border-danger", textColor: "danger", duration: "02:10:00" },
-            { state: 'locked_cond', stateKey: 'state_locked_time', title: "THE MIDNIGHT EXPRESS", location: "Global Node", coords: "ON-CHAIN", date: "Daily • 00:00 - 02:00", img: "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?q=80&w=800", desc: "A psychological thriller that only exists in the digital ether during the witching hour. Any attempt to record or stream the content outside this window will result in corrupted hashes.", req: "Playback genesis unlocks between 00:00 - 02:00 local time.", icon: "fa-clock", borderColor: "border-honey", textColor: "honey", duration: "00:55:00" }
+            {
+                state: 'unlocked', stateKey: 'state_unlocked',
+                city: 'Hong Kong', distance: '0.8 km away',
+                title: "FLAGSHIP IMMERSION",
+                location: "Apple Store, Causeway Bay",
+                coords: "22.280°N, 114.184°E",
+                date: "July 16, 2026 • 20:00 - 22:00",
+                img: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800",
+                desc: "An exclusive offline premiere at the Apple Flagship. This screening utilizes the store's spatial audio capabilities to render AIF.BOT's dynamic soundtracks in real-time. Node-authenticated attendees receive a soulbound NFT receipt.",
+                req: "LBS matched. Node connection established.",
+                icon: "fa-unlock", borderColor: "border-signal", textColor: "signal", duration: "01:45:00",
+                curator: { name: "Neo Li", avatar: "https://api.dicebear.com/7.x/identicon/svg?seed=neoli", isCertified: true },
+                films: [
+                    { title: "THE LAST TURING", cover: "https://images.unsplash.com/photo-1620712943543-bcc4688e7485?q=80&w=400", studio: "NEO STUDIOS", duration: "01:45:00" },
+                    { title: "SYNTHETIC DAWN", cover: "https://images.unsplash.com/photo-1531746790731-6c087fecd65a?q=80&w=400", studio: "NEO STUDIOS", duration: "01:32:00" },
+                    { title: "THE VOID PROTOCOL", cover: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=400", studio: "NEO STUDIOS", duration: "01:58:00" }
+                ]
+            },
+            {
+                state: 'locked', stateKey: 'state_locked_geo',
+                city: 'Hangzhou', distance: '1,842 km away',
+                title: "WEST LAKE ANOMALY",
+                location: "West Lake, Hangzhou",
+                coords: "30.245°N, 120.148°E",
+                date: "July 17, 2026 • 19:30 - 21:00",
+                img: "https://images.unsplash.com/photo-1480796927426-f609979314bd?q=80&w=800",
+                desc: "A sprawling AR-enhanced cinematic experience across the West Lake. The film's narrative branches depend on the audience's collective movement along the Su Causeway. Haptic wristbands sync with the on-chain randomness oracle.",
+                req: "Smart contract requires physical presence within 500m of West Lake.",
+                icon: "fa-map-marker-alt", borderColor: "border-danger", textColor: "danger", duration: "02:10:00",
+                curator: { name: "Master K", avatar: "https://api.dicebear.com/7.x/identicon/svg?seed=masterK", isCertified: true },
+                films: [
+                    { title: "CYBER TAOISM", cover: "https://images.unsplash.com/photo-1515462277126-2dd0c162007a?q=80&w=400", studio: "ZEN AI", duration: "01:22:00" },
+                    { title: "ALGORITHMIC ECHOES", cover: "https://images.unsplash.com/photo-1506443432602-ac2fcd6f54e0?q=80&w=400", studio: "ZEN AI", duration: "00:58:00" }
+                ]
+            },
+            {
+                state: 'locked', stateKey: 'state_locked_time',
+                city: 'Hong Kong', distance: '12.4 km away',
+                title: "THE MIDNIGHT EXPRESS",
+                location: "Global Node",
+                coords: "ON-CHAIN",
+                date: "Daily • 00:00 - 02:00",
+                img: "https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?q=80&w=800",
+                desc: "A psychological thriller that only exists in the digital ether during the witching hour. Any attempt to record or stream the content outside this window will result in corrupted hashes and a permanent wallet blacklist.",
+                req: "Playback genesis unlocks between 00:00 - 02:00 local time only.",
+                icon: "fa-clock", borderColor: "border-honey", textColor: "honey", duration: "00:55:00",
+                curator: { name: "J.W. Protocol", avatar: "https://api.dicebear.com/7.x/identicon/svg?seed=jwprotocol", isCertified: false },
+                films: [
+                    { title: "NEON DYNASTY", cover: "https://images.unsplash.com/photo-1555680202-c86f0e12f086?q=80&w=400", studio: "HK NOIR", duration: "02:05:00" },
+                    { title: "KOWLOON REBOOT", cover: "https://images.unsplash.com/photo-1518558997970-4fc69e5aca57?q=80&w=400", studio: "HK NOIR", duration: "01:48:00" },
+                    { title: "QUANTUM HEIST", cover: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?q=80&w=400", studio: "HK NOIR", duration: "01:35:00" }
+                ]
+            }
         ];
 
         // 創作者資料庫
@@ -574,20 +715,60 @@
             renderLBS() {
                 const c = document.getElementById('lbs-list');
                 c.innerHTML = '';
-                LBS_FILMS.forEach((l, index) => {
+                const cityFilter = document.getElementById('lbs-filter-city') ? document.getElementById('lbs-filter-city').value : 'all';
+                const sortFilter = document.getElementById('lbs-filter-sort') ? document.getElementById('lbs-filter-sort').value : 'nearest';
+
+                let list = LBS_FILMS.map((l, i) => ({ ...l, _idx: i }));
+                if (cityFilter !== 'all') list = list.filter(l => l.city === cityFilter);
+                if (sortFilter === 'nearest') {
+                    list.sort((a, b) => parseFloat(a.distance) - parseFloat(b.distance));
+                } else {
+                    list.sort((a, b) => a.date.localeCompare(b.date));
+                }
+
+                if (list.length === 0) {
+                    c.innerHTML = '<div class="text-center py-16 text-gray-600 font-mono text-xs tracking-widest">// NO LBS NODES FOUND</div>';
+                    return;
+                }
+
+                list.forEach(l => {
+                    const idx = l._idx;
+                    const certBadge = l.curator.isCertified
+                        ? `<i class="fas fa-check-circle text-blue-400 text-[9px]" title="Official Curator"></i>`
+                        : `<i class="fas fa-user text-gray-500 text-[9px]"></i>`;
+                    const isUnlocked = l.state === 'unlocked';
+                    const lockOverlay = !isUnlocked
+                        ? `<div class="absolute inset-0 bg-black/30 z-20 flex items-center justify-center rounded-xl pointer-events-none"><div class="bg-black/70 border border-[#444] rounded-full w-10 h-10 flex items-center justify-center"><i class="fas fa-lock text-gray-400 text-sm"></i></div></div>`
+                        : '';
                     c.innerHTML += `
-                        <div class="border ${l.borderColor} rounded-xl p-[1px] bg-[#111] relative overflow-hidden group cursor-pointer shadow-lg" onclick="app.openLBSDetail(${index})">
+                        <div class="border ${l.borderColor} rounded-xl p-[1px] bg-[#111] relative overflow-hidden group cursor-pointer shadow-lg active:scale-[0.98] transition-transform" onclick="app.openLBSDetail(${idx})">
+                            ${lockOverlay}
                             <div class="absolute inset-0 bg-black"><img src="${l.img}" class="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700"></div>
                             <div class="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
-                            <div class="relative z-10 p-5 flex flex-col justify-between h-full min-h-[180px]">
-                                <div class="flex justify-between items-start">
-                                    <div class="bg-black/80 border ${l.borderColor} text-[9px] font-mono px-2 py-1 rounded text-${l.textColor} flex items-center gap-1.5 backdrop-blur shadow-[0_0_10px_currentColor]"><i class="fas ${l.icon}"></i> <span data-i18n="${l.stateKey}">STATE</span></div>
-                                    <div class="text-[10px] font-mono text-gray-400 bg-black/50 px-2 py-1 rounded backdrop-blur border border-[#333] ltr-force">${l.coords}</div>
+                            <div class="relative z-10 p-5 flex flex-col justify-between h-full min-h-[190px]">
+                                <div class="flex justify-between items-start gap-3">
+                                    <div class="bg-black/80 border ${l.borderColor} text-[9px] font-mono px-2 py-1 rounded text-${l.textColor} flex items-center gap-1.5 backdrop-blur flex-shrink-0"><i class="fas ${l.icon}"></i> <span data-i18n="${l.stateKey}">STATE</span></div>
+                                    <div class="flex flex-col items-end gap-1">
+                                        <div class="flex items-center gap-1 text-[9px] font-mono">
+                                            <i class="fas fa-city text-signal text-[8px]"></i>
+                                            <span class="text-signal font-bold">${l.city}</span>
+                                            <span class="text-gray-600 mx-0.5">·</span>
+                                            <i class="fas fa-location-arrow text-gray-400 text-[8px]"></i>
+                                            <span class="text-gray-300">${l.distance}</span>
+                                        </div>
+                                        <div class="text-[9px] font-mono text-gray-500 bg-black/50 px-1.5 py-0.5 rounded border border-[#333] ltr-force">${l.coords}</div>
+                                    </div>
                                 </div>
                                 <div>
                                     <h3 class="font-heavy text-white text-2xl mb-1 tracking-wide shadow-black drop-shadow-md">${l.title}</h3>
-                                    <div class="text-xs font-mono text-gray-300 mb-3 flex items-center gap-2"><i class="fas fa-map-marker-alt text-${l.textColor}"></i> ${l.location}</div>
-                                    <div class="text-[10px] text-gray-400 font-mono border-l-2 border-${l.borderColor} pl-2 leading-snug bg-black/40 py-1 pr-1 backdrop-blur rounded-r">${l.req}</div>
+                                    <div class="text-xs font-mono text-gray-300 mb-2 flex items-center gap-2"><i class="fas fa-map-marker-alt text-${l.textColor}"></i> ${l.location}</div>
+                                    <div class="flex items-center gap-2 mb-3">
+                                        <img src="${l.curator.avatar}" class="w-5 h-5 rounded-full border border-[#444] bg-[#111] object-cover flex-shrink-0">
+                                        <span class="text-[10px] font-mono text-gray-300">${l.curator.name}</span>
+                                        ${certBadge}
+                                        <span class="text-[8px] font-mono text-gray-500">${l.films.length} films</span>
+                                    </div>
+                                    <div class="text-[10px] text-gray-400 font-mono border-l-2 ${l.borderColor} pl-2 leading-snug bg-black/40 py-1 pr-1 backdrop-blur rounded-r">${l.req}</div>
                                 </div>
                             </div>
                         </div>`;
@@ -595,42 +776,63 @@
             },
             openLBSDetail(index) {
                 const l = LBS_FILMS[index];
+                if (l.state !== 'unlocked') {
+                    this.toast('🔒 ACCESS DENIED: Not within LBS range or time window.');
+                    return;
+                }
                 this.currentLBS = l;
                 document.getElementById('lbsDetailImg').src = l.img;
                 document.getElementById('lbsDetailTitle').innerText = l.title;
                 document.getElementById('lbsDetailCoords').innerText = l.coords;
+                document.getElementById('lbsDetailCity').innerText = l.city;
+                document.getElementById('lbsDetailDistance').innerText = l.distance;
                 document.getElementById('lbsDetailLocation').innerText = l.location;
                 document.getElementById('lbsDetailDate').innerText = l.date;
                 document.getElementById('lbsDetailDesc').innerText = l.desc;
                 document.getElementById('lbsDetailReq').innerText = l.req;
-                
+
                 const stateEl = document.getElementById('lbsDetailState');
                 stateEl.className = `inline-block text-[9px] font-mono px-2 py-1 rounded mb-2 border backdrop-blur text-${l.textColor} border-${l.borderColor} bg-${l.textColor}/10`;
                 stateEl.setAttribute('data-i18n', l.stateKey);
                 document.getElementById('lbsDetailReqBar').className = `absolute left-0 top-0 w-1 h-full bg-${l.textColor}`;
 
-                const btn = document.getElementById('lbsDetailBtn');
-                const btnIcon = document.getElementById('lbsDetailBtnIcon');
-                if (l.state === 'unlocked') {
-                    btn.className = "brutal-btn w-full text-lg shadow-[0_0_20px_rgba(204,255,0,0.2)]";
-                    btnIcon.className = "fas fa-play mr-2";
-                    document.getElementById('lbsDetailBtnText').innerText = "VERIFY & PLAY";
-                } else {
-                    btn.className = "brutal-btn w-full text-lg secondary disabled";
-                    btnIcon.className = `fas ${l.icon} mr-2 text-${l.textColor}`;
-                    document.getElementById('lbsDetailBtnText').innerText = "ACCESS DENIED";
-                }
+                // Curator
+                document.getElementById('lbsDetailCuratorAvatar').src = l.curator.avatar;
+                document.getElementById('lbsDetailCuratorName').innerText = l.curator.name;
+                const badge = document.getElementById('lbsDetailCuratorBadge');
+                if (l.curator.isCertified) { badge.classList.remove('hidden'); } else { badge.classList.add('hidden'); }
+
+                // Films list
+                const filmsList = document.getElementById('lbsFilmsList');
+                filmsList.innerHTML = '';
+                l.films.forEach(f => {
+                    filmsList.innerHTML += `
+                        <div class="flex items-center gap-3 bg-[#111] border border-[#222] rounded-xl p-3 cursor-pointer hover:border-signal active:scale-[0.98] transition-all group/film" onclick="app.playLBSFilm('${f.title.replace(/'/g,"\\'")}', '${f.cover}', '${f.duration}')">
+                            <img src="${f.cover}" class="w-14 h-10 object-cover rounded-lg border border-[#333] flex-shrink-0">
+                            <div class="flex-1 min-w-0">
+                                <div class="text-xs font-bold text-white truncate group-hover/film:text-signal transition-colors">${f.title}</div>
+                                <div class="text-[9px] font-mono text-gray-500 mt-0.5 flex items-center gap-1.5"><i class="fas fa-building text-[8px]"></i>${f.studio} · ${f.duration}</div>
+                            </div>
+                            <div class="w-8 h-8 rounded-full bg-signal/10 border border-signal/30 flex items-center justify-center flex-shrink-0 group-hover/film:bg-signal group-hover/film:border-signal transition-all">
+                                <i class="fas fa-play text-signal text-[10px] group-hover/film:text-black transition-colors pl-0.5"></i>
+                            </div>
+                        </div>`;
+                });
+
                 this.updateUITexts();
                 this.openModal('lbsDetailModal');
             },
+            playLBSFilm(title, cover, duration) {
+                document.getElementById('playTitle').innerText = title;
+                document.getElementById('playVideoMain').src = cover;
+                document.getElementById('playDuration').innerText = duration;
+                this.closeModal('lbsDetailModal');
+                setTimeout(() => { this.openModal('playModal'); }, 350);
+            },
             executeLBS() {
                 const l = this.currentLBS;
-                if(l.state === 'unlocked') {
-                    document.getElementById('playTitle').innerText = l.title;
-                    document.getElementById('playVideoMain').src = l.img;
-                    document.getElementById('playDuration').innerText = l.duration;
-                    this.closeModal('lbsDetailModal');
-                    setTimeout(() => { this.openModal('playModal'); }, 350);
+                if (l && l.state === 'unlocked' && l.films.length > 0) {
+                    this.playLBSFilm(l.films[0].title, l.films[0].cover, l.films[0].duration);
                 }
             },
 
