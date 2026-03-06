@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/app/context/ToastContext';
+import { useI18n } from '@/app/context/I18nContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -193,6 +194,7 @@ function MsgCard({ msg, isGlobalRead, onDelete, onRead }: MsgCardProps) {
 export default function MessagesPage() {
   const { user, ready } = usePrivy();
   const { showToast } = useToast();
+  const { t, lang } = useI18n();
 
   const [activeTab, setActiveTab] = useState<TabType>('all');
   const [messages, setMessages] = useState<DbMessage[]>([]);
@@ -407,21 +409,21 @@ export default function MessagesPage() {
 
         <div className="relative z-10">
           <div className="text-[9px] font-mono text-[#CCFF00] tracking-widest mb-2 flex items-center gap-1">
-            <i className="fas fa-thumbtack" /> PINNED: OFFICIAL ANNOUNCEMENT
+            <i className="fas fa-thumbtack" /> PINNED: {t('msg_official_announcement')}
           </div>
           <div className="inline-block bg-signal text-black px-2 py-0.5 rounded text-[10px] font-bold mb-3 animate-pulse">
             ● LIVE EVENT
           </div>
           <h2 className="text-2xl md:text-3xl font-black tracking-tighter mb-2">HKAIIFF 2026</h2>
           <p className="text-signal text-xs font-mono mb-4 tracking-widest">
-            HONG KONG AI INTERNATIONAL FILM FESTIVAL
+            {t('msg_hkaiiff_full')}
           </p>
           <div className="text-[10px] text-gray-400 font-mono flex items-center space-x-2 flex-wrap gap-y-2">
             <span>July 15-21, 2026</span>
             <span>·</span>
-            <span>AI-Native Cinema</span>
+            <span>{t('msg_ai_native_cinema')}</span>
             <span>·</span>
-            <span>Blockchain-Powered</span>
+            <span>{t('msg_blockchain_powered')}</span>
           </div>
         </div>
 
@@ -495,8 +497,17 @@ export default function MessagesPage() {
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-black/50 to-transparent" />
           <div className="absolute bottom-0 left-0 p-5">
-            <div className="font-heavy text-3xl text-white leading-none mb-1">HONG KONG AI</div>
-            <div className="font-heavy text-3xl text-signal leading-none">INTERNATIONAL FILM FESTIVAL</div>
+            {lang === 'zh' ? (
+              <>
+                <div className="font-heavy text-3xl text-white leading-none mb-1">香港人工智能</div>
+                <div className="font-heavy text-3xl text-signal leading-none">國際電影節</div>
+              </>
+            ) : (
+              <>
+                <div className="font-heavy text-3xl text-white leading-none mb-1">HONG KONG AI</div>
+                <div className="font-heavy text-3xl text-signal leading-none">INTERNATIONAL FILM FESTIVAL</div>
+              </>
+            )}
             <div className="font-mono text-[10px] text-gray-400 mt-2 tracking-widest">
               JULY 15–21, 2026 · HONG KONG
             </div>
@@ -643,10 +654,8 @@ export default function MessagesPage() {
             </button>
           </div>
 
-          <div className="text-[9px] font-mono text-gray-700 text-center pb-4">
-            © 2026 香港人工智能國際電影節協會 Hong Kong AI International Film Festival Association.
-            <br />
-            All rights reserved. Digital assets carry market risk.
+          <div className="text-[9px] font-mono text-gray-500 text-center pb-4">
+            {t('msg_copyright')}
           </div>
         </div>
       </div>

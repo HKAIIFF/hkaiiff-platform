@@ -185,9 +185,26 @@ export default function DiscoverPage() {
   const [filmsLoading, setFilmsLoading] = useState(false);
   const [cityFilter, setCityFilter] = useState<string>('all');
   const [sortOrder, setSortOrder] = useState<'nearest' | 'latest'>('nearest');
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
   const { setActiveModal, setLbsVideoUrl } = useModal();
   const { showToast } = useToast();
+
+  /* ── Watch user GPS for real-time badge update ───────────────────────── */
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+          () => {}
+        );
+      },
+      { enableHighAccuracy: true, maximumAge: 30000 }
+    );
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
 
   /* ── Fetch LBS nodes from Supabase ──────────────────────────────────── */
   useEffect(() => {
@@ -406,12 +423,30 @@ export default function DiscoverPage() {
 
                 {/* Top row: state badge + location text */}
                 <div className="flex justify-between items-start">
-                  <div
-                    className={`bg-black/80 border ${node.borderColor} text-[9px] font-mono px-2 py-1 rounded ${node.textColor} flex items-center gap-1.5 backdrop-blur shadow-[0_0_10px_currentColor]`}
-                  >
-                    <i className={`fas ${node.icon}`} />
-                    <span>{node.stateLabel}</span>
-                  </div>
+                  {node.state === 'locked_cond' ? (
+                    <div className="bg-black/80 border border-honey text-[9px] font-mono px-2 py-1 rounded text-honey flex items-center gap-1.5 backdrop-blur shadow-[0_0_10px_currentColor]">
+                      <i className="fas fa-clock" />
+                      <span>TIME-LOCKED</span>
+                    </div>
+                  ) : node.state === 'unlocked' ? (
+                    <div className="border border-[#CCFF00] text-[#CCFF00] px-2 py-1 rounded text-[10px] font-mono flex items-center gap-1.5 bg-black/80 backdrop-blur">
+                      <i className="fas fa-unlock" /> UNLOCKED
+                    </div>
+                  ) : (() => {
+                    const dist = userLocation
+                      ? Math.round(haversineMeters(userLocation.lat, userLocation.lng, node.lat, node.lng))
+                      : Infinity;
+                    const isUnlocked = userLocation !== null && dist <= (node.unlock_radius || 500);
+                    return isUnlocked ? (
+                      <div className="border border-[#CCFF00] text-[#CCFF00] px-2 py-1 rounded text-[10px] font-mono flex items-center gap-1.5 bg-black/80 backdrop-blur">
+                        <i className="fas fa-unlock" /> UNLOCKED
+                      </div>
+                    ) : (
+                      <div className="border border-red-500 text-red-500 px-2 py-1 rounded text-[10px] font-mono flex items-center gap-1.5 bg-black/80 backdrop-blur">
+                        <i className="fas fa-map-marker-alt" /> GEO-LOCKED
+                      </div>
+                    );
+                  })()}
                   <div className="flex flex-col items-end gap-1">
                     <div className="text-[10px] font-mono text-gray-300 bg-black/50 px-2 py-1 rounded backdrop-blur border border-[#333] max-w-[160px] text-right">
                       📍 {[node.country, node.city, node.venue].filter(Boolean).join(' ') || node.location}

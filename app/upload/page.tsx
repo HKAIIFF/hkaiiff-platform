@@ -243,7 +243,7 @@ export default function UploadPage() {
     <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pt-28 pb-32">
 
       {/* Page Header (desktop) */}
-      <div className="sticky top-0 z-10 bg-void/95 backdrop-blur border-b border-[#222] px-6 py-4 flex items-center justify-between flex-shrink-0">
+      <div className="z-10 bg-transparent border-b border-[#222] px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="hidden md:block">
           <h1 className="font-heavy text-2xl text-white tracking-wider leading-none flex items-center gap-2">
             <i className="fas fa-cloud-upload-alt text-signal text-xl" />
