@@ -16,8 +16,9 @@ const PROTECTED_PREFIXES = [
 /**
  * Privy 在瀏覽器端會將 auth token 存儲在名為 `privy-token` 的 Cookie 中。
  * 中間件通過檢查此 Cookie 是否存在來判斷用戶是否已登錄。
- * 注意：這是一道路由層硬攔截，防止直接輸入 URL 訪問受保護頁面。
- * 頁面組件本身也應有自己的 client-side 鑒權邏輯（如 usePrivy）作為第二道防線。
+ *
+ * 這是第一道防線（路由層硬攔截），防止未登錄用戶直接在地址欄輸入受保護 URL。
+ * 各頁面組件內的 usePrivy() 鑒權是第二道防線。
  */
 function hasPrivyToken(request: NextRequest): boolean {
   const token =
@@ -55,7 +56,6 @@ export const config = {
     "/admin/:path*",
     "/messages/:path*",
     "/creator/edit/:path*",
-    // 精確匹配無尾斜線的路徑
     "/upload",
     "/me",
     "/admin",

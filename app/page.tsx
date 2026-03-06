@@ -1,11 +1,10 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback } from "react";
-import { useSearchParams } from "next/navigation";
-import { usePrivy } from "@privy-io/react-auth";
 import { useModal } from "@/app/context/ModalContext";
 import { useI18n } from "@/app/context/I18nContext";
 import { useToast } from "@/app/context/ToastContext";
+import { usePrivy } from "@privy-io/react-auth";
 import type { Film } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 
@@ -236,11 +235,11 @@ function FeedItem({
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
 
-  const { authenticated, login } = usePrivy();
   const { setActiveModal, setSelectedFilm, setSelectedCreator, setSelectedCreatorUserId } =
     useModal();
   const { lang } = useI18n();
   const { showToast } = useToast();
+  const { authenticated, login } = usePrivy();
 
   // ── 每秒更新當前時間（驅動倒計時）────────────────────────────────────────
   useEffect(() => {
@@ -296,7 +295,7 @@ function FeedItem({
     }
   };
 
-  // ── 點擊指紋按鈕：開啟 Data Injection 抽屜（需要登錄）──────────────────
+  // ── 點擊指紋按鈕：開啟 Data Injection 抽屜（需登錄）────────────────────
   const handleParallelClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!authenticated) {
@@ -509,18 +508,15 @@ export default function FeedPage() {
   const [loading, setLoading] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
 
-  const searchParams = useSearchParams();
   const { login } = usePrivy();
   const { showToast } = useToast();
   const { lang } = useI18n();
 
-  const handleToggleMute = useCallback(() => {
-    setIsMuted((prev) => !prev);
-  }, []);
-
-  // 中間件重定向後帶有 authRequired=1，自動彈出登錄框並提示
+  // 處理 middleware 重定向後帶來的 authRequired=1 查詢參數，自動觸發登錄框
   useEffect(() => {
-    if (searchParams.get("authRequired") === "1") {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("authRequired") === "1") {
       showToast(
         lang === "en"
           ? "Please connect wallet / login first."
@@ -528,12 +524,16 @@ export default function FeedPage() {
         "error"
       );
       login();
-      // 清除 URL 中的查詢參數（不觸發重新渲染路由）
-      const url = new URL(window.location.href);
-      url.searchParams.delete("authRequired");
-      window.history.replaceState({}, "", url.toString());
+      // 清除查詢參數，避免刷新時重複觸發
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, "", cleanUrl);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleToggleMute = useCallback(() => {
+    setIsMuted((prev) => !prev);
+  }, []);
 
   useEffect(() => {
     async function fetchFilms() {
