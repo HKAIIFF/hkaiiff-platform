@@ -9,13 +9,14 @@ import { supabase } from "@/lib/supabase";
 interface SupabaseFilm {
   id: string;
   title: string;
-  synopsis: string | null;
+  studio: string | null;
+  tech_stack: string | null;
+  ai_ratio: number | null;
+  poster_url: string | null;
   trailer_url: string | null;
   feature_url: string | null;
-  poster_url: string | null;
-  creator_id: string;
-  creator_name: string | null;
-  ai_ratio: number | null;
+  video_url?: string | null;
+  user_id?: string | null;
   created_at: string;
 }
 
@@ -24,7 +25,7 @@ interface SupabaseFilm {
 function LoadingSkeleton() {
   return (
     <div
-      className="w-full flex-shrink-0 flex flex-col items-center justify-center bg-[#050505]"
+      className="w-full flex-shrink-0 flex flex-col items-center justify-center bg-black"
       style={{ height: "100dvh" }}
     >
       <div className="w-8 h-8 border-2 border-[#CCFF00] border-t-transparent rounded-full animate-spin mb-4" />
@@ -39,13 +40,10 @@ function LoadingSkeleton() {
 
 function EmptyState() {
   return (
-    <div
-      className="w-full flex-shrink-0 flex flex-col items-center justify-center bg-[#050505]"
-      style={{ height: "100dvh" }}
-    >
-      <i className="fas fa-film text-4xl text-[#333] mb-4" />
-      <span className="text-[#555] font-mono text-xs tracking-widest uppercase">
-        No Films Found
+    <div className="flex flex-col items-center justify-center h-screen bg-black">
+      <i className="fas fa-film text-4xl mb-4 text-[#333]" />
+      <span className="text-gray-500 font-mono tracking-widest">
+        NO FILMS FOUND
       </span>
     </div>
   );
@@ -57,7 +55,7 @@ function FeedItem({ film }: { film: SupabaseFilm }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const router = useRouter();
 
-  // Auto-play when 60% visible; pause + reset when out of view
+  // 移動端自動播放：進入視口時播放，離開時暫停
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -78,131 +76,117 @@ function FeedItem({ film }: { film: SupabaseFilm }) {
     return () => observer.disconnect();
   }, []);
 
-  const avatarUrl = `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(
-    film.creator_id
-  )}`;
+  const videoSrc =
+    film.trailer_url || film.feature_url || film.video_url || undefined;
 
-  const displayName = film.creator_name ?? film.creator_id;
-
+  const handleVerify = () => router.push(`/interact/${film.id}`);
+  const handleInfo = () => router.push(`/film/${film.id}`);
   const handleShare = async () => {
     const url = `${window.location.origin}/film/${film.id}`;
     if (navigator.share) {
       try {
         await navigator.share({ title: film.title, url });
       } catch {
-        // user cancelled or not supported — fall through to clipboard
+        /* fall through */
       }
     }
     try {
       await navigator.clipboard.writeText(url);
     } catch {
-      // clipboard also unavailable — silently ignore
+      /* ignore */
     }
   };
 
   return (
-    <div
-      className="relative overflow-hidden bg-black w-full flex-shrink-0"
-      style={{
-        height: "100dvh",
-        scrollSnapAlign: "start",
-        scrollSnapStop: "always",
-      }}
-    >
-      {/* ── Video layer ── */}
+    <div className="h-[100dvh] w-full snap-start relative bg-black flex-shrink-0">
+      {/* ── 第一層：視頻播放器底層 (Video Layer) ── */}
       <video
         ref={videoRef}
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ opacity: 0.75 }}
+        src={videoSrc}
         poster={film.poster_url ?? undefined}
-        src={film.trailer_url ?? film.feature_url ?? undefined}
+        className="absolute inset-0 w-full h-full object-cover opacity-[0.85]"
+        autoPlay
         loop
         muted
         playsInline
-        preload="none"
+      />
+      {/* 黑到透明漸變蒙版，保證文字清晰 */}
+      <div
+        className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 pointer-events-none"
+        aria-hidden
       />
 
-      {/* ── Gradient vignette ── */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-90" />
-
-      {/* ── UI Overlay ── */}
-      <div
-        className="absolute inset-0 z-10 flex flex-col justify-end pointer-events-none"
-        style={{ paddingBottom: "90px" }}
-      >
-        <div
-          className="flex justify-between items-end pointer-events-none"
-          style={{ padding: "0 16px 20px 16px" }}
-        >
-          {/* ── Left: creator badge + title + synopsis ── */}
-          <div
-            className="flex-1 pointer-events-auto pb-2"
-            style={{ paddingRight: "40px" }}
-          >
-            <div className="bg-white text-black text-[10px] font-bold px-2 py-1 inline-block mb-2 rounded-sm tracking-wide">
-              {displayName}
-            </div>
-            <h2 className="font-heavy text-4xl text-white drop-shadow-lg mb-2 leading-none">
-              {film.title}
-            </h2>
-            {film.synopsis && (
-              <p className="font-mono text-xs text-gray-300 drop-shadow line-clamp-2 w-full">
-                {film.synopsis}
-              </p>
-            )}
-          </div>
-
-          {/* ── Right: 4 action buttons ── */}
-          <div
-            className="flex flex-col items-center pointer-events-auto"
-            style={{ width: "60px", gap: "24px", zIndex: 20 }}
-          >
-            {/* Button 1 — Creator avatar (no follow "+" button) */}
-            <div
-              className="relative cursor-pointer active:scale-95 transition-transform flex flex-col items-center"
-              onClick={() => router.push(`/creator/${film.creator_id}`)}
-            >
-              <img
-                src={avatarUrl}
-                alt={displayName}
-                className="w-12 h-12 border-2 border-white rounded-full bg-black shadow-lg"
-              />
-            </div>
-
-            {/* Button 2 — Parallel Universe / Interact */}
-            <div
-              className="cursor-pointer flex flex-col items-center gap-1 active:scale-95 transition-transform"
-              onClick={() => router.push(`/interact/${film.id}`)}
-            >
-              <div className="w-11 h-11 bg-black/60 backdrop-blur border border-[#CCFF00] flex items-center justify-center text-[#CCFF00] rounded-full shadow-[0_0_15px_rgba(204,255,0,0.4)]">
-                <i className="fas fa-fingerprint text-xl" />
-              </div>
-              <span className="text-[9px] font-mono text-[#CCFF00]">INTERACT</span>
-            </div>
-
-            {/* Button 3 — Share / Forward */}
-            <div
-              className="cursor-pointer flex flex-col items-center gap-1 active:scale-95 transition-transform"
-              onClick={handleShare}
-            >
-              <div className="w-10 h-10 bg-black/60 backdrop-blur-sm border border-[#444] flex items-center justify-center text-white rounded-full shadow-lg">
-                <i className="fas fa-share text-sm" />
-              </div>
-              <span className="text-[9px] font-mono">FORWARD</span>
-            </div>
-
-            {/* Button 4 — Film Info */}
-            <div
-              className="cursor-pointer flex flex-col items-center gap-1 active:scale-95 transition-transform w-full"
-              onClick={() => router.push(`/film/${film.id}`)}
-            >
-              <div className="w-10 h-10 bg-black/60 backdrop-blur-sm border border-[#444] flex items-center justify-center text-white rounded-full shadow-lg">
-                <i className="fas fa-info text-sm" />
-              </div>
-              <span className="text-[9px] font-mono text-center">INFO</span>
-            </div>
-          </div>
+      {/* ── 第二層：左下角資訊欄 (Bottom Info Layer) ── */}
+      <div className="absolute left-4 bottom-[100px] right-20 z-20 flex flex-col gap-2">
+        <div className="text-[#CCFF00] font-mono text-[10px] tracking-wider uppercase">
+          @{film.studio || "ANONYMOUS"}
         </div>
+        <h2 className="text-white text-3xl font-heavy font-extrabold uppercase leading-tight">
+          {film.title}
+        </h2>
+        <div className="flex flex-wrap gap-2 mt-1">
+          <span className="bg-[#111]/80 backdrop-blur border border-[#333] text-[9px] px-2 py-1 rounded text-white font-mono">
+            AI {film.ai_ratio ?? 0}% VERIFIED
+          </span>
+          <span className="bg-[#111]/80 backdrop-blur border border-[#333] text-[9px] px-2 py-1 rounded text-gray-400 font-mono line-clamp-1 max-w-[180px]">
+            {film.tech_stack || "Secret AI Stack"}
+          </span>
+        </div>
+      </div>
+
+      {/* ── 第三層：右側交互按鈕矩陣 (Right Action Bar) ── */}
+      <div className="absolute right-4 bottom-[100px] flex flex-col items-center gap-6 z-30">
+        {/* 創作者頭像 */}
+        <div
+          className="w-11 h-11 rounded-full border-2 border-[#CCFF00] overflow-hidden bg-[#222] cursor-pointer active:scale-90 transition-transform"
+          onClick={() => film.user_id && router.push(`/creator/${film.user_id}`)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) =>
+            e.key === "Enter" &&
+            film.user_id &&
+            router.push(`/creator/${film.user_id}`)
+          }
+        >
+          <img
+            src={film.poster_url || "https://api.dicebear.com/7.x/identicon/svg?seed=anon"}
+            alt=""
+            className="w-full h-full object-cover"
+          />
+        </div>
+        {/* 指紋驗證 (Verify) */}
+        <button
+          type="button"
+          className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
+          onClick={handleVerify}
+        >
+          <i className="fas fa-fingerprint text-3xl text-white drop-shadow-md" />
+          <span className="text-[9px] text-white font-mono font-bold">
+            VERIFY
+          </span>
+        </button>
+        {/* 詳情按鈕 (Info) */}
+        <button
+          type="button"
+          className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
+          onClick={handleInfo}
+        >
+          <i className="fas fa-info-circle text-3xl text-white drop-shadow-md" />
+          <span className="text-[9px] text-white font-mono font-bold">
+            INFO
+          </span>
+        </button>
+        {/* 轉發按鈕 (Share) */}
+        <button
+          type="button"
+          className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
+          onClick={handleShare}
+        >
+          <i className="fas fa-share text-3xl text-white drop-shadow-md" />
+          <span className="text-[9px] text-white font-mono font-bold">
+            SHARE
+          </span>
+        </button>
       </div>
     </div>
   );
@@ -216,16 +200,13 @@ export default function FeedPage() {
 
   useEffect(() => {
     async function fetchFilms() {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from("films")
-        .select(
-          "id, title, synopsis, trailer_url, feature_url, poster_url, creator_id, creator_name, ai_ratio, created_at"
-        )
+        .select("*")
         .eq("status", "approved")
-        .order("created_at", { ascending: false })
-        .order("ai_ratio", { ascending: false });
+        .order("created_at", { ascending: false });
 
-      if (!error && data) {
+      if (data) {
         setFilms(data as SupabaseFilm[]);
       }
       setLoading(false);
@@ -234,23 +215,22 @@ export default function FeedPage() {
     fetchFilms();
   }, []);
 
+  if (loading) {
+    return <LoadingSkeleton />;
+  }
+
+  if (films.length === 0) {
+    return <EmptyState />;
+  }
+
   return (
     <div
-      className="no-scrollbar w-full"
-      style={{
-        height: "100dvh",
-        overflowY: "scroll",
-        scrollSnapType: "y mandatory",
-        background: "#050505",
-      }}
+      className="h-[100dvh] w-full overflow-y-scroll snap-y snap-mandatory bg-black no-scrollbar"
+      style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
     >
-      {loading ? (
-        <LoadingSkeleton />
-      ) : films.length === 0 ? (
-        <EmptyState />
-      ) : (
-        films.map((film) => <FeedItem key={film.id} film={film} />)
-      )}
+      {films.map((film) => (
+        <FeedItem key={film.id} film={film} />
+      ))}
     </div>
   );
 }
