@@ -8,6 +8,7 @@ import CyberLoading from "@/app/components/CyberLoading";
 import { Connection, PublicKey } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { supabase } from "@/lib/supabase";
+import QRCode from "react-qr-code";
 
 function randomSeed() {
   return Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -52,6 +53,22 @@ export default function MePage() {
   const [onChainAifBalance, setOnChainAifBalance] = useState<number | null>(null);
   const [displaySolanaAddress, setDisplaySolanaAddress] = useState<string | null>(null);
   const [isFetchingBalance, setIsFetchingBalance] = useState(false);
+
+  // ── Top-Up Modal State ────────────────────────────────────────────────────
+  const [isTopUpOpen, setIsTopUpOpen] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleTopUpCopy = async () => {
+    if (!displaySolanaAddress) return;
+    try {
+      await navigator.clipboard.writeText(displaySolanaAddress);
+      setIsCopied(true);
+      showToast(lang === 'en' ? 'Address copied!' : '地址已複製！', 'success');
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch {
+      showToast(lang === 'en' ? 'Failed to copy' : '複製失敗', 'error');
+    }
+  };
 
   // ── Profile Edit Modal State ──────────────────────────────────────────────
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -425,22 +442,56 @@ export default function MePage() {
         </div>
       </div>
 
-      {/* ── AIF Balance ────────────────────────────────────────────────── */}
-      <div className="bg-gradient-to-br from-[#111] to-[#0a0a0a] p-5 rounded-xl border border-[#333] shadow-lg
-                      relative overflow-hidden group mb-6">
-        <div className="absolute top-0 right-0 w-24 h-24 bg-signal/5 rounded-bl-full transition-colors group-hover:bg-signal/10" />
-        <div className="text-[10px] text-gray-500 mb-2 font-mono flex items-center gap-2">
-          <i className="fas fa-coins text-signal" /> AIF BALANCE
+      {/* ── Funding Account Panel ──────────────────────────────────────── */}
+      <div className="bg-gradient-to-br from-[#0d1a00] to-[#0a0a0a] p-5 rounded-xl border border-signal/30
+                      shadow-[0_0_20px_rgba(204,255,0,0.06)] relative overflow-hidden group mb-4">
+        {/* Corner glow */}
+        <div className="absolute top-0 right-0 w-28 h-28 bg-signal/5 rounded-bl-full transition-colors group-hover:bg-signal/10" />
+        <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-signal/60 via-signal/20 to-transparent" />
+
+        {/* Header row */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-[10px] text-signal font-mono tracking-widest flex items-center gap-2">
+            <i className="fas fa-wallet" />
+            FUNDING ACCOUNT
+          </div>
+          <button
+            onClick={() => setIsTopUpOpen(true)}
+            className="flex items-center gap-1.5 text-[10px] font-heavy tracking-widest
+                       bg-signal text-black px-3 py-1.5 rounded-lg
+                       shadow-[0_0_12px_rgba(204,255,0,0.4)]
+                       hover:shadow-[0_0_20px_rgba(204,255,0,0.6)]
+                       active:scale-95 transition-all"
+          >
+            <i className="fas fa-plus text-[9px]" />
+            TOP UP
+          </button>
         </div>
-        <div className="text-4xl font-heavy text-white ltr-force flex items-baseline gap-1">
-          {onChainAifBalance !== null ? (
-            <>
-              {onChainAifBalance.toLocaleString()}{" "}
-              <span className="text-signal text-lg">AIF</span>
-            </>
-          ) : (
-            <span className="text-2xl text-gray-500 font-mono animate-pulse">...</span>
-          )}
+
+        {/* Internal AIF Balance (from Supabase) */}
+        <div className="flex items-baseline gap-2 mb-1">
+          <span className="text-4xl font-heavy text-white ltr-force">
+            {dbProfile !== null
+              ? (dbProfile.aif_balance ?? 0).toLocaleString()
+              : <span className="text-2xl text-gray-500 animate-pulse">...</span>
+            }
+          </span>
+          <span className="text-signal text-lg font-heavy">AIF</span>
+          <span className="text-[9px] font-mono text-gray-600 ml-1">INTERNAL LEDGER</span>
+        </div>
+
+        {/* On-chain balance (secondary) */}
+        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-[#222]">
+          <i className="fa-brands fa-solana text-[#9945FF] text-[10px]" />
+          <span className="text-[10px] font-mono text-gray-500">ON-CHAIN:</span>
+          <span className="text-[10px] font-mono text-white ltr-force">
+            {isFetchingBalance
+              ? <span className="animate-pulse text-gray-600">QUERYING...</span>
+              : onChainAifBalance !== null
+                ? `${onChainAifBalance.toLocaleString()} AIF`
+                : '—'
+            }
+          </span>
         </div>
       </div>
 
@@ -716,6 +767,123 @@ export default function MePage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          TOP-UP MODAL
+      ═══════════════════════════════════════════════════════════════════ */}
+      {isTopUpOpen && (
+        <div
+          className="fixed inset-0 z-[300] bg-black/90 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setIsTopUpOpen(false); }}
+        >
+          <div className="relative w-full sm:max-w-sm bg-[#070707] border border-signal/30 sm:rounded-2xl rounded-t-2xl
+                          overflow-hidden shadow-[0_0_60px_rgba(204,255,0,0.15)] flex flex-col">
+            {/* Top accent */}
+            <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-signal via-signal/50 to-transparent" />
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#1a1a1a] flex-shrink-0">
+              <div>
+                <div className="font-heavy text-base text-white tracking-widest flex items-center gap-2">
+                  <i className="fas fa-arrow-down text-signal text-sm" />
+                  TOP UP AIF
+                </div>
+                <div className="text-[9px] font-mono text-signal/70 tracking-widest mt-0.5">
+                  DEPOSIT VIA SOLANA NETWORK
+                </div>
+              </div>
+              <button
+                onClick={() => setIsTopUpOpen(false)}
+                className="w-9 h-9 bg-[#111] border border-[#2a2a2a] rounded-full flex items-center justify-center
+                           text-gray-400 hover:text-white hover:border-signal active:scale-90 transition-all"
+              >
+                <i className="fas fa-times text-sm" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="px-5 py-5 space-y-5">
+              {/* Warning Banner */}
+              <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/40 rounded-xl px-4 py-3">
+                <i className="fas fa-exclamation-triangle text-amber-400 text-sm mt-0.5 flex-shrink-0" />
+                <p className="text-[11px] font-mono text-amber-300/90 leading-relaxed">
+                  Please send <span className="text-amber-300 font-bold">ONLY $AIF tokens</span> on the{' '}
+                  <span className="text-amber-300 font-bold">Solana network</span> to this address.
+                  Other assets will be <span className="text-red-400 font-bold">lost</span>.
+                </p>
+              </div>
+
+              {/* QR Code */}
+              <div className="flex flex-col items-center gap-3">
+                {displaySolanaAddress ? (
+                  <div className="p-3 bg-white rounded-xl shadow-[0_0_24px_rgba(204,255,0,0.2)]">
+                    <QRCode
+                      value={displaySolanaAddress}
+                      size={160}
+                      bgColor="#ffffff"
+                      fgColor="#000000"
+                      level="M"
+                    />
+                  </div>
+                ) : (
+                  <div className="w-[186px] h-[186px] border-2 border-dashed border-signal/30 rounded-xl flex flex-col
+                                  items-center justify-center gap-3 bg-signal/5">
+                    <i className="fas fa-qrcode text-4xl text-signal/40" />
+                    <span className="text-[9px] font-mono text-signal/50 tracking-wider text-center px-4">
+                      GENERATING SECURE ADDRESS...
+                    </span>
+                  </div>
+                )}
+                <div className="text-[9px] font-mono text-gray-500 tracking-wider">
+                  SCAN WITH SOLANA WALLET
+                </div>
+              </div>
+
+              {/* Address Display + Copy */}
+              <div className="space-y-2">
+                <div className="text-[9px] font-mono text-gray-600 tracking-widest">
+                  DEPOSIT ADDRESS
+                </div>
+                <div className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl p-3 flex items-center gap-3">
+                  {displaySolanaAddress ? (
+                    <>
+                      <span className="font-mono text-[11px] text-signal/90 flex-1 break-all ltr-force leading-relaxed">
+                        {displaySolanaAddress}
+                      </span>
+                      <button
+                        onClick={handleTopUpCopy}
+                        className={`flex-shrink-0 w-9 h-9 rounded-lg border flex items-center justify-center
+                                   transition-all active:scale-90
+                                   ${isCopied
+                                     ? 'bg-signal/20 border-signal text-signal shadow-[0_0_12px_rgba(204,255,0,0.3)]'
+                                     : 'bg-[#111] border-[#333] text-gray-400 hover:border-signal hover:text-signal'
+                                   }`}
+                        title="Copy address"
+                      >
+                        <i className={`fas ${isCopied ? 'fa-check' : 'fa-copy'} text-xs`} />
+                      </button>
+                    </>
+                  ) : (
+                    <span className="font-mono text-xs text-gray-600 animate-pulse tracking-wider">
+                      Generating secure address...
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-5 py-4 border-t border-[#111] bg-[#050505] flex items-center gap-2">
+              <i className="fas fa-circle-notch fa-spin text-signal/50 text-[10px] flex-shrink-0" />
+              <p className="text-[9px] font-mono text-gray-600 leading-relaxed tracking-wide">
+                Network confirmations typically take{' '}
+                <span className="text-signal/70">1-3 minutes</span>.
+                Balance will update automatically.
+              </p>
+            </div>
           </div>
         </div>
       )}
