@@ -664,6 +664,8 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
   const [approvedFilms, setApprovedFilms] = useState<Film[]>([]);
   const [poster, setPoster] = useState("");
   const [bgImage, setBgImage] = useState("");
+  const [posterUploading, setPosterUploading] = useState(false);
+  const [bgUploading, setBgUploading] = useState(false);
   const [poolNode, setPoolNode] = useState<LbsNode | null>(null);
   const [pickedFilmIds, setPickedFilmIds] = useState<string[]>([]);
   const [isLocating, setIsLocating] = useState(false);
@@ -743,6 +745,22 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
     }
   }
 
+  async function uploadLbsImage(file: File, prefix: 'poster' | 'bg'): Promise<string | null> {
+    try {
+      const ext = file.name.split('.').pop() ?? 'jpg';
+      const path = `${prefix}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('lbs-assets')
+        .upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data } = supabase.storage.from('lbs-assets').getPublicUrl(path);
+      return data.publicUrl;
+    } catch (err) {
+      pushToast(`圖片上傳失敗: ${err instanceof Error ? err.message : '未知錯誤'}`, false);
+      return null;
+    }
+  }
+
   async function createNode(e: React.FormEvent) {
     e.preventDefault();
     if (!form.title || !form.unlockRadius) {
@@ -768,9 +786,12 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
     if (form.ticketAif) payload.ticket_price_aif = Number(form.ticketAif);
     if (form.start_time) payload.start_time = form.start_time;
     if (form.end_time) payload.end_time = form.end_time;
+    if (form.description) payload.description = form.description;
+    if (poster) payload.poster_url = poster;
+    if (bgImage) payload.background_url = bgImage;
     const { error } = await supabase.from("lbs_nodes").insert([payload]);
     if (error) { pushToast(`建立影展失敗: ${error.message}`, false); return; }
-    pushToast(`✅ LBS 展映影展已建立 · 海報: ${poster || "-"} · 背景: ${bgImage || "-"}`);
+    pushToast(`✅ LBS 展映影展已建立`);
     setForm({
       title: "", country: "", city: "", venue: "", lat: "", lng: "",
       unlockRadius: "", start_time: "", end_time: "",
@@ -885,18 +906,69 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
 
         {/* 圖片上傳 */}
         <div className="grid grid-cols-2 gap-2">
-          <UploadBox
-            label={t.uploadPoster}
-            value={poster}
-            onPick={setPoster}
-            hint="最佳比例 2:3，推薦 800x1200 px"
-          />
-          <UploadBox
-            label={t.uploadBg}
-            value={bgImage}
-            onPick={setBgImage}
-            hint="最佳比例 16:9，推薦 1920x1080 px"
-          />
+          {/* 影展海報 */}
+          <label className="block cursor-pointer border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-blue-400 transition-colors">
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={posterUploading}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setPosterUploading(true);
+                const url = await uploadLbsImage(file, 'poster');
+                if (url) setPoster(url);
+                setPosterUploading(false);
+                e.target.value = '';
+              }}
+            />
+            <div className="text-2xl mb-1">🖼</div>
+            <p className="text-sm font-semibold text-gray-700">{t.uploadPoster}</p>
+            <p className="mt-0.5 text-[10px] text-gray-400">最佳比例 2:3，推薦 800x1200 px</p>
+            {posterUploading ? (
+              <p className="mt-1 text-xs text-blue-500 font-medium flex items-center justify-center gap-1">
+                <span className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin inline-block" />
+                上傳中...
+              </p>
+            ) : poster ? (
+              <p className="mt-1 text-xs text-green-600 font-medium">✓ 已上傳</p>
+            ) : (
+              <p className="mt-1 text-xs text-gray-400">拖曳或點擊上傳</p>
+            )}
+          </label>
+
+          {/* 背景圖 */}
+          <label className="block cursor-pointer border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-blue-400 transition-colors">
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              disabled={bgUploading}
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setBgUploading(true);
+                const url = await uploadLbsImage(file, 'bg');
+                if (url) setBgImage(url);
+                setBgUploading(false);
+                e.target.value = '';
+              }}
+            />
+            <div className="text-2xl mb-1">🖼</div>
+            <p className="text-sm font-semibold text-gray-700">{t.uploadBg}</p>
+            <p className="mt-0.5 text-[10px] text-gray-400">最佳比例 16:9，推薦 1920x1080 px</p>
+            {bgUploading ? (
+              <p className="mt-1 text-xs text-blue-500 font-medium flex items-center justify-center gap-1">
+                <span className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin inline-block" />
+                上傳中...
+              </p>
+            ) : bgImage ? (
+              <p className="mt-1 text-xs text-green-600 font-medium">✓ 已上傳</p>
+            ) : (
+              <p className="mt-1 text-xs text-gray-400">拖曳或點擊上傳</p>
+            )}
+          </label>
         </div>
 
         <button className={`${BTN_PRIMARY} w-full`} type="submit">建立 LBS 展映影展</button>

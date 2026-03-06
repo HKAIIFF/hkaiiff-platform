@@ -49,6 +49,8 @@ interface LbsNode {
   unlock_radius: number;
   curator: Curator;
   filmIds: string[] | null;
+  background_url: string | null;
+  poster_url: string | null;
 }
 
 /* ─── DB row shape ───────────────────────────────────────────────────────── */
@@ -73,6 +75,8 @@ interface DbLbsNode {
   curator_name: string | null;
   curator_avatar: string | null;
   curator_certified: boolean | null;
+  background_url: string | null;
+  poster_url: string | null;
 }
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
@@ -140,6 +144,8 @@ function mapDbNode(db: DbLbsNode): LbsNode {
       isCertified: true,
     },
     filmIds: db.film_ids ?? null,
+    background_url: db.background_url ?? null,
+    poster_url: db.poster_url ?? null,
   };
 }
 
@@ -400,44 +406,42 @@ export default function DiscoverPage() {
       ) : (
         /* ─── LBS Node Card List ─────────────────────────────────────────── */
         <div className="space-y-4">
-          {filteredNodes.map((node) => (
-            <div
-              key={node.id}
-              className={`border ${node.borderColor} rounded-xl p-[1px] bg-[#111] relative overflow-hidden group cursor-pointer shadow-lg`}
-              onClick={() => openDetail(node)}
-            >
-              {/* Background image */}
-              <div className="absolute inset-0 bg-black">
-                <img
-                  src={node.img}
-                  alt={node.title}
-                  className="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700"
+          {filteredNodes.map((node) => {
+            const dist = userLocation && (node.lat !== 0 || node.lng !== 0)
+              ? Math.round(haversineMeters(userLocation.lat, userLocation.lng, node.lat, node.lng))
+              : Infinity;
+            const isUnlocked = node.state === 'unlocked' ||
+              (node.state === 'locked_geo' && userLocation !== null && dist <= (node.unlock_radius || 500));
+            const bgSrc = node.background_url ?? node.img;
+            return (
+              <div
+                key={node.id}
+                className={`relative overflow-hidden rounded-xl border-2 transition-all duration-300 cursor-pointer group shadow-lg ${
+                  isUnlocked
+                    ? 'border-[#CCFF00] shadow-[0_0_15px_rgba(204,255,0,0.15)]'
+                    : 'border-red-900/50 opacity-80'
+                }`}
+                onClick={() => openDetail(node)}
+              >
+                {/* Real background image */}
+                <div
+                  className="absolute inset-0 z-0 bg-cover bg-center opacity-30 group-hover:scale-105 transition-transform duration-700"
+                  style={{ backgroundImage: bgSrc ? `url(${bgSrc})` : 'none' }}
                 />
-              </div>
+                {/* Black gradient mask for text readability */}
+                <div className="absolute inset-0 z-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent" />
 
-              {/* Gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
+                {/* Content */}
+                <div className="relative z-10 p-5 flex flex-col justify-between h-full min-h-[180px]">
 
-              {/* Content */}
-              <div className="relative z-10 p-5 flex flex-col justify-between h-full min-h-[180px]">
-
-                {/* Top row: state badge + location text */}
-                <div className="flex justify-between items-start">
-                  {node.state === 'locked_cond' ? (
-                    <div className="bg-black/80 border border-honey text-[9px] font-mono px-2 py-1 rounded text-honey flex items-center gap-1.5 backdrop-blur shadow-[0_0_10px_currentColor]">
-                      <i className="fas fa-clock" />
-                      <span>TIME-LOCKED</span>
-                    </div>
-                  ) : node.state === 'unlocked' ? (
-                    <div className="border border-[#CCFF00] text-[#CCFF00] px-2 py-1 rounded text-[10px] font-mono flex items-center gap-1.5 bg-black/80 backdrop-blur">
-                      <i className="fas fa-unlock" /> UNLOCKED
-                    </div>
-                  ) : (() => {
-                    const dist = userLocation
-                      ? Math.round(haversineMeters(userLocation.lat, userLocation.lng, node.lat, node.lng))
-                      : Infinity;
-                    const isUnlocked = userLocation !== null && dist <= (node.unlock_radius || 500);
-                    return isUnlocked ? (
+                  {/* Top row: state badge + location text */}
+                  <div className="flex justify-between items-start">
+                    {node.state === 'locked_cond' ? (
+                      <div className="bg-black/80 border border-honey text-[9px] font-mono px-2 py-1 rounded text-honey flex items-center gap-1.5 backdrop-blur shadow-[0_0_10px_currentColor]">
+                        <i className="fas fa-clock" />
+                        <span>TIME-LOCKED</span>
+                      </div>
+                    ) : isUnlocked ? (
                       <div className="border border-[#CCFF00] text-[#CCFF00] px-2 py-1 rounded text-[10px] font-mono flex items-center gap-1.5 bg-black/80 backdrop-blur">
                         <i className="fas fa-unlock" /> UNLOCKED
                       </div>
@@ -445,47 +449,50 @@ export default function DiscoverPage() {
                       <div className="border border-red-500 text-red-500 px-2 py-1 rounded text-[10px] font-mono flex items-center gap-1.5 bg-black/80 backdrop-blur">
                         <i className="fas fa-map-marker-alt" /> GEO-LOCKED
                       </div>
-                    );
-                  })()}
-                  <div className="flex flex-col items-end gap-1">
-                    <div className="text-[10px] font-mono text-gray-300 bg-black/50 px-2 py-1 rounded backdrop-blur border border-[#333] max-w-[160px] text-right">
-                      📍 {[node.country, node.city, node.venue].filter(Boolean).join(' ') || node.location}
+                    )}
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="text-[10px] font-mono text-gray-300 bg-black/50 px-2 py-1 rounded backdrop-blur border border-[#333] max-w-[160px] text-right">
+                        📍 {[node.country, node.city, node.venue].filter(Boolean).join(' ') || node.location}
+                      </div>
+                      <div className="text-[9px] font-mono text-gray-500 bg-black/50 px-2 py-0.5 rounded backdrop-blur border border-[#333] ltr-force">
+                        🎬 放映影片：{node.filmIds?.length || 0} 部
+                      </div>
                     </div>
-                    <div className="text-[9px] font-mono text-gray-500 bg-black/50 px-2 py-0.5 rounded backdrop-blur border border-[#333] ltr-force">
-                      🎬 放映影片：{node.filmIds?.length || 0} 部
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bottom row: title + location + req + curator */}
-                <div>
-                  <h3 className="font-heavy text-white text-2xl mb-1 tracking-wide drop-shadow-md">
-                    {node.title}
-                  </h3>
-                  <div className="text-xs font-mono text-gray-300 mb-3 flex items-center gap-2">
-                    <i className={`fas fa-map-marker-alt ${node.textColor}`} />
-                    {node.location}
-                  </div>
-                  <div
-                    className={`text-[10px] text-gray-400 font-mono border-l-2 ${node.borderColor} pl-2 leading-snug bg-black/40 py-1 pr-1 backdrop-blur rounded-r mb-3`}
-                  >
-                    {node.req}
                   </div>
 
-                  {/* Curator row */}
-                  <div className="flex items-center gap-2">
-                    <img
-                      src={node.curator.avatar}
-                      alt="AIF.SHOW"
-                      className="w-5 h-5 rounded-full border border-[#444] object-cover shrink-0"
-                    />
-                    <span className="text-[10px] font-mono text-gray-300 font-bold">AIF.SHOW</span>
-                    <i className="fas fa-check-circle text-blue-400 text-[10px]" />
+                  {/* Bottom row: title + location + description + req + curator */}
+                  <div>
+                    <h3 className="font-heavy text-white text-2xl mb-1 tracking-wide drop-shadow-md">
+                      {node.title}
+                    </h3>
+                    <div className="text-xs font-mono text-gray-300 mb-2 flex items-center gap-2">
+                      <i className={`fas fa-map-marker-alt ${node.textColor}`} />
+                      {node.location}
+                    </div>
+                    {node.desc && (
+                      <p className="line-clamp-2 text-xs text-gray-400 mt-2 mb-2">{node.desc}</p>
+                    )}
+                    <div
+                      className={`text-[10px] text-gray-400 font-mono border-l-2 ${node.borderColor} pl-2 leading-snug bg-black/40 py-1 pr-1 backdrop-blur rounded-r mb-3`}
+                    >
+                      {node.req}
+                    </div>
+
+                    {/* Curator row */}
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={node.curator.avatar}
+                        alt="AIF.SHOW"
+                        className="w-5 h-5 rounded-full border border-[#444] object-cover shrink-0"
+                      />
+                      <span className="text-[10px] font-mono text-gray-300 font-bold">AIF.SHOW</span>
+                      <i className="fas fa-check-circle text-blue-400 text-[10px]" />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -512,10 +519,10 @@ export default function DiscoverPage() {
         {selectedNode && (
           <div className="overflow-y-auto flex-1 pb-12">
 
-            {/* Hero image */}
+            {/* Hero image — uses background_url if available, falls back to img */}
             <div className="relative w-full h-72 bg-black">
               <img
-                src={selectedNode.img}
+                src={selectedNode.background_url ?? selectedNode.img}
                 alt={selectedNode.title}
                 className="w-full h-full object-cover opacity-60"
               />
@@ -545,6 +552,22 @@ export default function DiscoverPage() {
                   <span>{selectedNode.distance}</span>
                 </div>
               </div>
+
+              {/* Poster thumbnail (if available) */}
+              {selectedNode.poster_url && (
+                <div className="flex items-start gap-4">
+                  <img
+                    src={selectedNode.poster_url}
+                    alt={`${selectedNode.title} poster`}
+                    className="w-20 h-28 object-cover rounded-lg border border-[#333] shrink-0"
+                  />
+                  {selectedNode.desc && (
+                    <p className="text-xs text-gray-300 font-mono leading-relaxed line-clamp-5 pt-1">
+                      {selectedNode.desc}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Curator info */}
               <div className="flex items-center gap-3 bg-[#111] border border-[#222] rounded-xl p-3">
