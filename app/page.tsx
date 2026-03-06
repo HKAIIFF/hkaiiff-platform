@@ -10,7 +10,8 @@ interface SupabaseFilm {
   id: string;
   title: string;
   synopsis: string | null;
-  trailer_url: string;
+  trailer_url: string | null;
+  feature_url: string | null;
   poster_url: string | null;
   creator_id: string;
   creator_name: string | null;
@@ -114,7 +115,7 @@ function FeedItem({ film }: { film: SupabaseFilm }) {
         className="absolute inset-0 w-full h-full object-cover"
         style={{ opacity: 0.75 }}
         poster={film.poster_url ?? undefined}
-        src={film.trailer_url}
+        src={film.trailer_url ?? film.feature_url ?? undefined}
         loop
         muted
         playsInline
@@ -218,10 +219,9 @@ export default function FeedPage() {
       const { data, error } = await supabase
         .from("films")
         .select(
-          "id, title, synopsis, trailer_url, poster_url, creator_id, creator_name, ai_ratio, created_at"
+          "id, title, synopsis, trailer_url, feature_url, poster_url, creator_id, creator_name, ai_ratio, created_at"
         )
         .eq("status", "approved")
-        .not("trailer_url", "is", null)
         .order("created_at", { ascending: false })
         .order("ai_ratio", { ascending: false });
 

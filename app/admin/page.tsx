@@ -364,22 +364,42 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                   <td className="p-3">
                     <div className="flex flex-wrap gap-1">
                       {film?.trailer_url ? (
-                        <a href={film.trailer_url} target="_blank" rel="noreferrer" className={`${BTN_SM} border border-gray-200 text-gray-600 hover:bg-gray-50`}>預告</a>
+                        <a
+                          href={film.trailer_url.startsWith("http") ? film.trailer_url : `https://${film.trailer_url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`${BTN_SM} border border-gray-200 text-gray-600 hover:bg-gray-50`}
+                        >預告</a>
                       ) : (
                         <span className={`${BTN_SM} border border-gray-100 text-gray-300 cursor-default`}>預告</span>
                       )}
                       {film?.feature_url ? (
-                        <a href={film.feature_url} target="_blank" rel="noreferrer" className={`${BTN_SM} border border-gray-200 text-gray-600 hover:bg-gray-50`}>正片</a>
+                        <a
+                          href={film.feature_url.startsWith("http") ? film.feature_url : `https://${film.feature_url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`${BTN_SM} border border-gray-200 text-gray-600 hover:bg-gray-50`}
+                        >正片</a>
                       ) : (
                         <span className={`${BTN_SM} border border-gray-100 text-gray-300 cursor-default`}>正片</span>
                       )}
                       {film?.poster_url ? (
-                        <a href={film.poster_url} target="_blank" rel="noreferrer" className={`${BTN_SM} border border-gray-200 text-gray-600 hover:bg-gray-50`}>海報</a>
+                        <a
+                          href={film.poster_url.startsWith("http") ? film.poster_url : `https://${film.poster_url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`${BTN_SM} border border-gray-200 text-gray-600 hover:bg-gray-50`}
+                        >海報</a>
                       ) : (
                         <span className={`${BTN_SM} border border-gray-100 text-gray-300 cursor-default`}>海報</span>
                       )}
                       {film?.copyright_url ? (
-                        <a href={film.copyright_url} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline text-xs">版權文件</a>
+                        <a
+                          href={film.copyright_url.startsWith("http") ? film.copyright_url : `https://${film.copyright_url}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-500 hover:underline text-xs"
+                        >版權文件</a>
                       ) : (
                         <span className="text-gray-400 text-xs">無版權文件</span>
                       )}
