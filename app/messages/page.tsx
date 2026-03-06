@@ -199,6 +199,7 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [hiddenGlobalMsgs, setHiddenGlobalMsgs] = useState<string[]>([]);
   const [readGlobalMsgs, setReadGlobalMsgs] = useState<string[]>([]);
+  const [isFestivalOpen, setIsFestivalOpen] = useState(false);
 
   // ── 初始化 localStorage ──
   useEffect(() => {
@@ -391,6 +392,42 @@ export default function MessagesPage() {
         })}
       </div>
 
+      {/* ── Festival Banner (Pinned) ── */}
+      <div
+        onClick={() => setIsFestivalOpen(true)}
+        className="relative overflow-hidden rounded-xl border border-signal/30 min-h-[160px] flex flex-col justify-center p-6 md:p-8 cursor-pointer mb-5 group active:scale-[0.98] transition-all"
+        style={{ boxShadow: "0 0 20px rgba(204,255,0,0.1)" }}
+      >
+        <img
+          src="https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&q=80"
+          alt="HKAIIFF Background"
+          className="absolute inset-0 w-full h-full object-cover opacity-30 z-0"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 to-transparent z-0" />
+
+        <div className="relative z-10">
+          <div className="text-[9px] font-mono text-[#CCFF00] tracking-widest mb-2 flex items-center gap-1">
+            <i className="fas fa-thumbtack" /> PINNED: OFFICIAL ANNOUNCEMENT
+          </div>
+          <div className="inline-block bg-signal text-black px-2 py-0.5 rounded text-[10px] font-bold mb-3 animate-pulse">
+            ● LIVE EVENT
+          </div>
+          <h2 className="text-2xl md:text-3xl font-black tracking-tighter mb-2">HKAIIFF 2026</h2>
+          <p className="text-signal text-xs font-mono mb-4 tracking-widest">
+            HONG KONG AI INTERNATIONAL FILM FESTIVAL
+          </p>
+          <div className="text-[10px] text-gray-400 font-mono flex items-center space-x-2 flex-wrap gap-y-2">
+            <span>July 15-21, 2026</span>
+            <span>·</span>
+            <span>AI-Native Cinema</span>
+            <span>·</span>
+            <span>Blockchain-Powered</span>
+          </div>
+        </div>
+
+        <i className="absolute right-5 top-1/2 -translate-y-1/2 fas fa-chevron-right text-signal z-10 group-hover:translate-x-1 transition-transform" />
+      </div>
+
       {/* ── 消息列表 ── */}
       <div className="space-y-2.5">
         {loading ? (
@@ -402,13 +439,10 @@ export default function MessagesPage() {
           </>
         ) : filtered.length === 0 ? (
           // 空狀態
-          <div className="flex flex-col items-center justify-center py-20 gap-3">
-            <div className="w-12 h-12 rounded-full border border-[#222] flex items-center justify-center">
-              <i className="fas fa-inbox text-gray-700 text-lg" />
-            </div>
-            <p className="text-xs font-mono text-gray-600 tracking-widest uppercase">
-              NO MESSAGES
-            </p>
+          <div className="flex flex-col items-center justify-center py-20 opacity-50">
+            <i className="fas fa-inbox text-4xl mb-3 text-gray-600" />
+            <div className="font-heavy text-xl text-gray-500 tracking-widest">NO MESSAGES</div>
+            <div className="font-mono text-[10px] text-gray-600 mt-2 uppercase">System inbox is empty</div>
           </div>
         ) : (
           filtered.map((msg) => (
@@ -429,6 +463,193 @@ export default function MessagesPage() {
           END OF TRANSMISSIONS — {filtered.length} RECORD{filtered.length !== 1 ? 'S' : ''}
         </p>
       )}
+
+      {/* ── Festival Full-Screen Modal ── */}
+      <div
+        className={`fixed inset-0 z-[500] bg-[#050505] overflow-y-auto transition-transform duration-500 ease-out ${
+          isFestivalOpen ? "translate-y-0" : "translate-y-full pointer-events-none"
+        }`}
+        style={{ paddingBottom: 40 }}
+      >
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-10 bg-[#050505]/95 backdrop-blur border-b border-[#222] flex items-center justify-between px-4 py-4">
+          <div>
+            <div className="font-heavy text-xl text-white tracking-wider">HKAIIFF 2026</div>
+            <div className="text-[9px] font-mono text-signal tracking-widest">FESTIVAL GUIDE</div>
+          </div>
+          <button
+            onClick={() => setIsFestivalOpen(false)}
+            className="w-10 h-10 bg-[#111] border border-[#333] rounded-full flex items-center justify-center
+                       text-gray-400 hover:text-white active:scale-90 transition-all"
+          >
+            <i className="fas fa-times" />
+          </button>
+        </div>
+
+        {/* Hero */}
+        <div className="relative h-52 overflow-hidden">
+          <img
+            src="https://images.unsplash.com/photo-1478720568477-152d9b164e26?q=80&w=800"
+            alt="festival"
+            className="w-full h-full object-cover opacity-50"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-black/50 to-transparent" />
+          <div className="absolute bottom-0 left-0 p-5">
+            <div className="font-heavy text-3xl text-white leading-none mb-1">HONG KONG AI</div>
+            <div className="font-heavy text-3xl text-signal leading-none">INTERNATIONAL FILM FESTIVAL</div>
+            <div className="font-mono text-[10px] text-gray-400 mt-2 tracking-widest">
+              JULY 15–21, 2026 · HONG KONG
+            </div>
+          </div>
+        </div>
+
+        <div className="px-4 pt-2 space-y-6">
+          {/* Key Stats */}
+          <div className="grid grid-cols-3 gap-3">
+            {[
+              { val: "7", label: "DAYS", color: "text-signal" },
+              { val: "51%", label: "AI THRESHOLD", color: "text-white" },
+              { val: "$500", label: "ENTRY FEE", color: "text-white" },
+            ].map((s) => (
+              <div key={s.label} className="bg-[#111] border border-[#333] rounded-xl p-4 text-center">
+                <div className={`font-heavy text-2xl ${s.color}`}>{s.val}</div>
+                <div className="text-[9px] font-mono text-gray-500 mt-1">{s.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Historical Heritage */}
+          <div className="bg-[#111] border border-[#333] rounded-xl overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-1 h-full bg-signal" />
+            <div className="p-5 pl-6">
+              <h2 className="font-heavy text-lg text-white mb-3 flex items-center gap-2">
+                <i className="fas fa-landmark text-signal" /> Historical Heritage &amp; Breakthrough
+              </h2>
+              <p className="font-mono text-[11px] text-gray-400 leading-relaxed mb-3">
+                Since the birth of its first film in 1909, Hong Kong cinema has stood as a cornerstone of
+                global culture. With over a century of filmmaking tradition, the region&apos;s storytelling
+                heritage represents a unique fusion of East and West, tradition and innovation.
+              </p>
+              <p className="font-mono text-[11px] text-gray-400 leading-relaxed">
+                In 2025, the official registration of HKAIIFF marks a new frontier — the world&apos;s first
+                festival exclusively dedicated to AI-Native cinema, signaling that something has to change
+                in how we create and experience film.
+              </p>
+            </div>
+          </div>
+
+          {/* Hong Kong Advantages */}
+          <div className="bg-[#111] border border-[#333] rounded-xl overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-1 h-full bg-[#00F0FF]" />
+            <div className="p-5 pl-6">
+              <h2 className="font-heavy text-lg text-white mb-3 flex items-center gap-2">
+                <i className="fas fa-city text-[#00F0FF]" /> Hong Kong Advantages
+              </h2>
+              <p className="font-mono text-[11px] text-gray-400 leading-relaxed">
+                As an international financial hub and a region at the crossroads of global trade, Hong Kong
+                provides a unique launchpad for decentralized cinema. Its robust legal infrastructure,
+                proximity to mainland China&apos;s creative talent, and status as a Web3-friendly jurisdiction
+                make it the ideal birthplace for blockchain-powered AI film culture.
+              </p>
+            </div>
+          </div>
+
+          {/* Core Mission */}
+          <div className="bg-[#111] border border-[#333] rounded-xl overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-1 h-full bg-[#9D00FF]" />
+            <div className="p-5 pl-6">
+              <h2 className="font-heavy text-lg text-white mb-3 flex items-center gap-2">
+                <i className="fas fa-balance-scale text-[#9D00FF]" /> Core Mission &amp; Standard
+              </h2>
+              <p className="font-mono text-[11px] text-gray-400 leading-relaxed mb-3">
+                As the world&apos;s premier film festival dedicated exclusively to AI-Native cinema, we champion
+                the philosophy that AI is a revolutionary medium. Qualifying submissions must exceed a 51%
+                AI contribution threshold.
+              </p>
+              <div className="bg-black border border-[#222] rounded-lg p-3 mb-3">
+                <div className="text-[10px] font-mono text-[#9D00FF] text-center leading-relaxed">
+                  AI Contribution Ratio = (AI Generation × 0.4) + (AI Assistance × 0.3) + (Innovation × 0.3)
+                </div>
+              </div>
+              <p className="font-mono text-[11px] text-gray-400 leading-relaxed">
+                Evaluation Dimensions: Artistry 35% · Tech Innovation 35% · Commercial Potential 20% ·
+                Social Impact 10%.
+              </p>
+            </div>
+          </div>
+
+          {/* Global Partners */}
+          <div>
+            <h2 className="font-heavy text-lg text-white mb-4 flex items-center gap-2">
+              <i className="fas fa-network-wired text-blue-400" /> Global Cooperative Resources
+            </h2>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { name: "OpenAI / Google", sub: "Sora, GPT-4, Gemini", hover: "hover:border-blue-400" },
+                { name: "NVIDIA / Meta", sub: "GPU Compute, Llama", hover: "hover:border-signal" },
+                { name: "Solana / Polygon", sub: "Blockchain Infrastructure", hover: "hover:border-[#9D00FF]" },
+                { name: "Netflix / IMAX", sub: "Global Distribution", hover: "hover:border-red-500" },
+              ].map((p) => (
+                <div
+                  key={p.name}
+                  className={`bg-[#111] border border-[#222] p-4 rounded-xl text-center transition-colors ${p.hover}`}
+                >
+                  <div className="font-bold text-white text-sm mb-1">{p.name}</div>
+                  <div className="text-[10px] text-gray-500 font-mono">{p.sub}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Contact */}
+          <div>
+            <h2 className="font-heavy text-lg text-white mb-4 flex items-center gap-2">
+              <i className="fas fa-envelope text-gray-400" /> PARTNERSHIP &amp; CONTACT
+            </h2>
+            <div className="space-y-3">
+              {[
+                { icon: "fa-briefcase", color: "text-signal", hoverBorder: "hover:border-signal", title: "Business", email: "partnership@hkaiiff.org" },
+                { icon: "fa-globe", color: "text-[#00F0FF]", hoverBorder: "hover:border-[#00F0FF]", title: "Official Website", email: "www.hkaiiff.org" },
+                { icon: "fa-code", color: "text-[#9D00FF]", hoverBorder: "hover:border-[#9D00FF]", title: "Technology", email: "support@hkaiiff.org" },
+                { icon: "fa-bullhorn", color: "text-yellow-400", hoverBorder: "hover:border-yellow-400", title: "Media / PR", email: "media@hkaiiff.org" },
+              ].map((c) => (
+                <div
+                  key={c.email}
+                  className={`bg-[#111] border border-[#222] p-4 rounded-xl flex items-center gap-4 transition-colors active:scale-[0.98] cursor-pointer ${c.hoverBorder}`}
+                  onClick={() => navigator.clipboard.writeText(c.email)}
+                >
+                  <i className={`fas ${c.icon} ${c.color} text-xl w-8 text-center`} />
+                  <div className="flex-1">
+                    <div className="text-sm font-bold text-white mb-0.5">{c.title}</div>
+                    <div className="text-[10px] font-mono text-gray-500">{c.email}</div>
+                  </div>
+                  <i className="fas fa-copy text-gray-600" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Submit CTA */}
+          <div className="bg-signal rounded-xl p-5 text-center">
+            <h3 className="font-heavy text-xl text-black mb-1">READY TO SUBMIT?</h3>
+            <p className="text-xs text-black/70 font-mono mb-4">
+              Join the AI-Native revolution. Festival runs July 15–21, 2026.
+            </p>
+            <button
+              onClick={() => setIsFestivalOpen(false)}
+              className="bg-black text-signal font-heavy text-sm px-6 py-3 rounded-lg tracking-wide active:scale-95 transition-transform"
+            >
+              SUBMIT YOUR FILM →
+            </button>
+          </div>
+
+          <div className="text-[9px] font-mono text-gray-700 text-center pb-4">
+            © 2026 香港人工智能國際電影節協會 Hong Kong AI International Film Festival Association.
+            <br />
+            All rights reserved. Digital assets carry market risk.
+          </div>
+        </div>
+      </div>
     </main>
   );
 }
