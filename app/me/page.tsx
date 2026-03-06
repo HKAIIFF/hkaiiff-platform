@@ -38,7 +38,15 @@ export default function MePage() {
   const [interactionHistory, setInteractionHistory] = useState<any[]>([]);
 
   const [dbProfile, setDbProfile] = useState<{
-    agent_id: string; name: string; role: string; aif_balance: number; avatar_seed: string;
+    agent_id: string;
+    name: string;
+    display_name: string | null;
+    role: string;
+    aif_balance: number;
+    avatar_seed: string;
+    bio: string | null;
+    tech_stack: string | null;
+    core_team: TeamMember[] | null;
   } | null>(null);
 
   const [onChainAifBalance, setOnChainAifBalance] = useState<number | null>(null);
@@ -55,11 +63,18 @@ export default function MePage() {
   const [editCoreTeam, setEditCoreTeam] = useState<TeamMember[]>([]);
 
   function openProfileModal() {
-    setEditName(dbProfile?.name !== 'New Agent' ? dbProfile?.name ?? '' : dbProfile?.agent_id ?? '');
+    // display_name 优先，其次 name（非默认值），再用 agent_id 兜底
+    const nameValue = dbProfile?.display_name
+      || (dbProfile?.name && dbProfile.name !== 'New Agent' ? dbProfile.name : '')
+      || dbProfile?.agent_id
+      || '';
+    setEditName(nameValue);
     setEditAvatarSeed(dbProfile?.avatar_seed || user?.id || 'default');
-    setEditAboutStudio('');
-    setEditTechStack('');
-    setEditCoreTeam([]);
+    setEditAboutStudio(dbProfile?.bio || '');
+    setEditTechStack(dbProfile?.tech_stack || '');
+    setEditCoreTeam(
+      Array.isArray(dbProfile?.core_team) ? dbProfile.core_team : []
+    );
     setIsProfileModalOpen(true);
   }
 
@@ -83,26 +98,38 @@ export default function MePage() {
     if (!user?.id) return;
     setIsSaving(true);
     try {
-      const upsertPayload: Record<string, unknown> = {
-        id: user.id,
-        name: editName,
-        avatar_seed: editAvatarSeed,
-      };
+      const filteredCoreTeam = Array.isArray(editCoreTeam)
+        ? editCoreTeam.filter((m) => m.name.trim())
+        : [];
 
-      const isCreator = mySubmissions.length > 0;
-      if (isCreator) {
-        upsertPayload.about_studio = editAboutStudio;
-        upsertPayload.tech_stack = editTechStack;
-        upsertPayload.core_team = editCoreTeam.filter((m) => m.name.trim());
-      }
-
-      const { error } = await supabase.from('users').upsert(upsertPayload, { onConflict: 'id' });
+      const { error } = await supabase
+        .from('users')
+        .update({
+          display_name: editName,
+          avatar_seed: editAvatarSeed,
+          bio: editAboutStudio,
+          tech_stack: editTechStack,
+          core_team: filteredCoreTeam,
+        })
+        .eq('privy_id', user.id);
 
       if (error) {
-        console.error('❌ Profile save error:', error);
+        console.error('❌ Profile save error (full):', error);
         showToast("UPDATE FAILED: " + error.message, "error");
       } else {
-        setDbProfile((prev) => prev ? { ...prev, name: editName, avatar_seed: editAvatarSeed } : prev);
+        setDbProfile((prev) =>
+          prev
+            ? {
+                ...prev,
+                display_name: editName,
+                avatar_seed: editAvatarSeed,
+                bio: editAboutStudio,
+                tech_stack: editTechStack,
+                core_team: filteredCoreTeam,
+              }
+            : prev
+        );
+        showToast("Profile updated successfully", "success");
         closeProfileModal();
       }
     } catch (err: any) {
@@ -117,18 +144,31 @@ export default function MePage() {
   useEffect(() => {
     const syncData = async () => {
       if (authenticated && user) {
+        // Step 1: 同步基础信息（确保用户行存在）
         try {
-          const res = await fetch('/api/sync-user', {
+          await fetch('/api/sync-user', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user }),
           });
-          const data = await res.json();
-          if (!data.error) {
-            setDbProfile(data);
-          }
         } catch (err) {
           console.error('Failed to sync', err);
+        }
+
+        // Step 2: 直接从 Supabase 读取完整 profile（含新字段，用 privy_id 匹配）
+        try {
+          const { data: profileRow, error: profileError } = await supabase
+            .from('users')
+            .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team')
+            .eq('privy_id', user.id)
+            .single();
+          if (profileError) {
+            console.error('❌ Failed to fetch profile:', profileError.message);
+          } else if (profileRow) {
+            setDbProfile(profileRow);
+          }
+        } catch (err) {
+          console.error('❌ Profile fetch exception:', err);
         }
 
         try {
