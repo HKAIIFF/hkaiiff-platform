@@ -29,7 +29,8 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="font-zh bg-void text-white antialiased">
+      {/* bg/text 由 ConditionalNav 按路由分流處理：前台=bg-void/text-white，/admin=白底畫布 */}
+      <body className="font-zh antialiased">
         <Providers>
         <ClientProviders>
           <ConditionalNav>
