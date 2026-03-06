@@ -34,6 +34,8 @@ interface LbsNode {
   id: string; title: string; location: string | null; lat: number | null; lng: number | null;
   start_time: string | null; end_time: string | null; contract_req: string | null;
   film_ids: string[] | null; created_at: string;
+  country?: string | null; city?: string | null; venue?: string | null;
+  status?: string | null; radius?: number | null; ticket_price_aif?: number | null;
 }
 
 // ─── 手風琴菜單結構 ──────────────────────────────────────────────────────────
@@ -596,6 +598,8 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
   const [poolNode, setPoolNode] = useState<LbsNode | null>(null);
   const [pickedFilmIds, setPickedFilmIds] = useState<string[]>([]);
   const [isLocating, setIsLocating] = useState(false);
+  const [nodeCity, setNodeCity] = useState<string>("all");
+  const [nodeStatus, setNodeStatus] = useState<string>("all");
   const [form, setForm] = useState({
     title: "",
     country: "", city: "", venue: "",
@@ -615,6 +619,35 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  const allNodeCities = useMemo(
+    () => Array.from(new Set(nodes.map((n) => n.city).filter(Boolean) as string[])),
+    [nodes]
+  );
+
+  const filteredNodes = useMemo(() => {
+    return nodes.filter((n) => {
+      if (nodeCity !== "all" && n.city !== nodeCity) return false;
+      if (nodeStatus !== "all" && (n.status ?? "active") !== nodeStatus) return false;
+      return true;
+    });
+  }, [nodes, nodeCity, nodeStatus]);
+
+  async function toggleNodeStatus(node: LbsNode) {
+    const newStatus = (node.status ?? "active") === "active" ? "offline" : "active";
+    const { error } = await supabase.from("lbs_nodes").update({ status: newStatus }).eq("id", node.id);
+    if (error) { pushToast(error.message, false); return; }
+    setNodes((prev) => prev.map((n) => n.id === node.id ? { ...n, status: newStatus } : n));
+    pushToast(`✅ 節點狀態已切換為 ${newStatus === "active" ? "上線" : "下線"}`);
+  }
+
+  async function deleteNode(node: LbsNode) {
+    if (!window.confirm(`確認刪除節點「${node.title}」？此操作不可逆，數據將被徹底清除！`)) return;
+    const { error } = await supabase.from("lbs_nodes").delete().eq("id", node.id);
+    if (error) { pushToast(error.message, false); return; }
+    setNodes((prev) => prev.filter((n) => n.id !== node.id));
+    pushToast(`✅ 節點「${node.title}」已刪除`);
+  }
 
   const setF = (k: keyof typeof form, v: string) => setForm((p) => ({ ...p, [k]: v }));
 
@@ -657,7 +690,13 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
       location,
       contract_req: form.contractPolicy,
       film_ids: [],
+      status: 'active',
     };
+    if (form.country) payload.country = form.country;
+    if (form.city) payload.city = form.city;
+    if (form.venue) payload.venue = form.venue;
+    if (form.unlockRadius) payload.radius = Number(form.unlockRadius);
+    if (form.ticketAif) payload.ticket_price_aif = Number(form.ticketAif);
     if (form.start_time) payload.start_time = form.start_time;
     if (form.end_time) payload.end_time = form.end_time;
     const { error } = await supabase.from("lbs_nodes").insert([payload]);
@@ -796,18 +835,71 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
 
       {/* 節點列表 */}
       <div className="space-y-3">
-        {nodes.length === 0 && <div className={`${CARD} p-4 text-sm text-gray-400`}>{t.empty}</div>}
-        {nodes.map((n) => (
+        {/* 篩選器 */}
+        <div className="flex gap-2">
+          <select
+            className={INPUT}
+            value={nodeCity}
+            onChange={(e) => setNodeCity(e.target.value)}
+          >
+            <option value="all">🌍 全部城市</option>
+            {allNodeCities.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+          <select
+            className={INPUT}
+            value={nodeStatus}
+            onChange={(e) => setNodeStatus(e.target.value)}
+          >
+            <option value="all">全部狀態</option>
+            <option value="active">🟢 上線 (Active)</option>
+            <option value="offline">⚫ 下線 (Offline)</option>
+          </select>
+        </div>
+
+        {filteredNodes.length === 0 && <div className={`${CARD} p-4 text-sm text-gray-400`}>{t.empty}</div>}
+        {filteredNodes.map((n) => (
           <div key={n.id} className={`${CARD} p-4 flex items-start justify-between gap-3`}>
-            <div>
-              <p className="font-bold text-gray-900">{n.title}</p>
-              <p className="text-xs text-gray-500 mt-1">GPS: {n.lat ?? "-"}, {n.lng ?? "-"}</p>
-              <p className="text-xs text-gray-500">合約: {n.contract_req ?? "-"} · 影片: {(n.film_ids ?? []).length} 部</p>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p className="font-bold text-gray-900 truncate">{n.title}</p>
+                {n.status && (
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${n.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                    {n.status === "active" ? "🟢 上線" : "⚫ 下線"}
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                📍 {[n.country, n.city, n.venue].filter(Boolean).join(" ") || n.location || "-"}
+              </p>
+              <p className="text-xs text-gray-500">
+                🗓 {n.start_time ?? "-"} — {n.end_time ?? "-"}
+              </p>
+              <p className="text-xs text-gray-500">
+                🎟 {(n.ticket_price_aif ?? 0) > 0 ? `付費 (AIF ${n.ticket_price_aif})` : "免費"} | 🎬 影片數量: {(n.film_ids ?? []).length} 部
+              </p>
             </div>
-            <button className={`${BTN_SM} bg-indigo-600 text-white hover:bg-indigo-700 whitespace-nowrap`}
-              onClick={() => { setPoolNode(n); setPickedFilmIds(n.film_ids ?? []); }}>
-              {t.poolBtn}
-            </button>
+            <div className="flex flex-col gap-1.5 shrink-0">
+              <button
+                className={`${BTN_SM} bg-indigo-600 text-white hover:bg-indigo-700 whitespace-nowrap`}
+                onClick={() => { setPoolNode(n); setPickedFilmIds(n.film_ids ?? []); }}
+              >
+                {t.poolBtn}
+              </button>
+              <button
+                className={`${BTN_SM} whitespace-nowrap ${(n.status ?? "active") === "active" ? "border border-gray-300 text-gray-700 hover:bg-gray-50" : "bg-green-600 text-white hover:bg-green-700"}`}
+                onClick={() => toggleNodeStatus(n)}
+              >
+                {(n.status ?? "active") === "active" ? "⬇ 下線" : "⬆ 上線"}
+              </button>
+              <button
+                className={`${BTN_SM} bg-red-600 text-white hover:bg-red-700 whitespace-nowrap`}
+                onClick={() => deleteNode(n)}
+              >
+                🗑 刪除
+              </button>
+            </div>
           </div>
         ))}
       </div>

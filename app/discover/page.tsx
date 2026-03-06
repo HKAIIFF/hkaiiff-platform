@@ -40,8 +40,13 @@ interface LbsNode {
   textColor: string;
   duration: string;
   city: string;
+  country: string;
+  venue: string;
   distance: string;
   distanceKm: number;
+  lat: number;
+  lng: number;
+  unlock_radius: number;
   curator: Curator;
   filmIds: string[] | null;
 }
@@ -55,12 +60,15 @@ interface DbLbsNode {
   lat: number | null;
   lng: number | null;
   radius: number | null;
+  unlock_radius: number | null;
   date_label: string | null;
   image_url: string | null;
   state: string | null;
   description: string | null;
   smart_contract_req: string | null;
   city: string | null;
+  country: string | null;
+  venue: string | null;
   film_ids: string[] | null;
   curator_name: string | null;
   curator_avatar: string | null;
@@ -68,6 +76,16 @@ interface DbLbsNode {
 }
 
 /* ─── Helpers ────────────────────────────────────────────────────────────── */
+
+function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lng2 - lng1) * Math.PI) / 180;
+  const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 const STATE_CONFIG: Record<LbsState, { label: string; icon: string; border: string; text: string }> = {
   unlocked:    { label: 'UNLOCKED',    icon: 'fa-unlock',         border: 'border-signal', text: 'text-signal' },
@@ -106,15 +124,20 @@ function mapDbNode(db: DbLbsNode): LbsNode {
     borderColor: cfg.border,
     textColor: cfg.text,
     duration: '—',
-    city: db.city ?? 'Unknown',
+    city: db.city ?? '',
+    country: db.country ?? '',
+    venue: db.venue ?? '',
     distance: '—',
     distanceKm: 0,
+    lat: Number(db.lat ?? 0),
+    lng: Number(db.lng ?? 0),
+    unlock_radius: Number(db.unlock_radius ?? db.radius ?? 500),
     curator: {
-      name: db.curator_name ?? 'Anonymous',
+      name: 'AIF.SHOW',
       avatar:
         db.curator_avatar ??
         `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(String(db.id))}`,
-      isCertified: db.curator_certified ?? false,
+      isCertified: true,
     },
     filmIds: db.film_ids ?? null,
   };
@@ -199,10 +222,59 @@ export default function DiscoverPage() {
   /* ── Open node detail + fetch associated films ───────────────────────── */
   const openDetail = useCallback(
     async (node: LbsNode) => {
-      if (node.state !== 'unlocked') {
+      // 時間鎖節點：直接拒絕
+      if (node.state === 'locked_cond') {
+        showToast('🔒 此影展尚未開放，請在活動時間窗口內再試', 'error');
+        return;
+      }
+
+      // 有座標的節點：強制進行實時 GPS 距離驗證
+      if (node.lat !== 0 || node.lng !== 0) {
+        if (!navigator.geolocation) {
+          showToast('🔒 您的設備不支持地理定位，無法解鎖 LBS 影展', 'error');
+          return;
+        }
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+            navigator.geolocation.getCurrentPosition(resolve, reject, {
+              enableHighAccuracy: true,
+              timeout: 10000,
+              maximumAge: 0,
+            })
+          );
+          const userLat = pos.coords.latitude;
+          const userLng = pos.coords.longitude;
+          const nodeLat = Number(node.lat);
+          const nodeLng = Number(node.lng);
+          const radius = Number(node.unlock_radius) || 500;
+          const distance = Math.round(haversineMeters(userLat, userLng, nodeLat, nodeLng));
+
+          if (distance > radius) {
+            if (process.env.NODE_ENV === 'development') {
+              showToast(
+                `🔒 DEV: 距離 ${distance}m > ${radius}m | 您(${userLat.toFixed(5)},${userLng.toFixed(5)}) → 節點(${nodeLat.toFixed(5)},${nodeLng.toFixed(5)})`,
+                'error'
+              );
+            } else {
+              showToast(
+                `🔒 未在解鎖範圍內。您距離影展還有 ${distance} 米，需要進入 ${radius} 米範圍內`,
+                'error'
+              );
+            }
+            return;
+          }
+        } catch {
+          // 定位失敗時若 DB 標記非 unlocked，則拒絕進入
+          if (node.state !== 'unlocked') {
+            showToast('🔒 無法獲取您的位置，請允許位置權限後重試', 'error');
+            return;
+          }
+        }
+      } else if (node.state !== 'unlocked') {
         showToast('🔒 Location or time window requirement not met', 'error');
         return;
       }
+
       setSelectedNode(node);
       setDetailFilms([]);
 
@@ -332,7 +404,7 @@ export default function DiscoverPage() {
               {/* Content */}
               <div className="relative z-10 p-5 flex flex-col justify-between h-full min-h-[180px]">
 
-                {/* Top row: state badge + coords / city / distance */}
+                {/* Top row: state badge + location text */}
                 <div className="flex justify-between items-start">
                   <div
                     className={`bg-black/80 border ${node.borderColor} text-[9px] font-mono px-2 py-1 rounded ${node.textColor} flex items-center gap-1.5 backdrop-blur shadow-[0_0_10px_currentColor]`}
@@ -341,11 +413,11 @@ export default function DiscoverPage() {
                     <span>{node.stateLabel}</span>
                   </div>
                   <div className="flex flex-col items-end gap-1">
-                    <div className="text-[10px] font-mono text-gray-400 bg-black/50 px-2 py-1 rounded backdrop-blur border border-[#333] ltr-force">
-                      {node.coords}
+                    <div className="text-[10px] font-mono text-gray-300 bg-black/50 px-2 py-1 rounded backdrop-blur border border-[#333] max-w-[160px] text-right">
+                      📍 {[node.country, node.city, node.venue].filter(Boolean).join(' ') || node.location}
                     </div>
                     <div className="text-[9px] font-mono text-gray-500 bg-black/50 px-2 py-0.5 rounded backdrop-blur border border-[#333] ltr-force">
-                      {node.city} · {node.distance}
+                      🎬 放映影片：{node.filmIds?.length || 0} 部
                     </div>
                   </div>
                 </div>
@@ -369,13 +441,11 @@ export default function DiscoverPage() {
                   <div className="flex items-center gap-2">
                     <img
                       src={node.curator.avatar}
-                      alt={node.curator.name}
+                      alt="AIF.SHOW"
                       className="w-5 h-5 rounded-full border border-[#444] object-cover shrink-0"
                     />
-                    <span className="text-[10px] font-mono text-gray-300">{node.curator.name}</span>
-                    {node.curator.isCertified && (
-                      <i className="fas fa-certificate text-[#CCFF00] text-[9px]" />
-                    )}
+                    <span className="text-[10px] font-mono text-gray-300 font-bold">AIF.SHOW</span>
+                    <i className="fas fa-check-circle text-blue-400 text-[10px]" />
                   </div>
                 </div>
               </div>

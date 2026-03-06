@@ -162,22 +162,6 @@ function FeedItem({
         {/* 漸變蒙版 — pointer-events-none 確保不攔截按鈕點擊 */}
         <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-90 pointer-events-none" />
 
-        {/* 靜音 / 解除靜音按鈕 — 高層級，阻止事件冒泡 */}
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleMute();
-          }}
-          className="absolute top-6 right-6 z-[9999] p-3 bg-black/50 backdrop-blur rounded-full text-white cursor-pointer pointer-events-auto hover:bg-black/70 active:scale-90 transition-all"
-          aria-label={isMuted ? "解除靜音" : "靜音"}
-        >
-          {isMuted ? (
-            <i className="fas fa-volume-mute" />
-          ) : (
-            <i className="fas fa-volume-up" />
-          )}
-        </button>
-
         {/* ── ui-layer：嚴格對應 index.html .ui-layer ── */}
         <div className="ui-layer">
           <div className="ui-content">
@@ -195,8 +179,17 @@ function FeedItem({
               </p>
             </div>
 
-            {/* ── ui-right：4 個操作按鈕 ── */}
+            {/* ── ui-right：5 個操作按鈕（靜音 + 原有 4 個）── */}
             <div className="ui-right">
+
+              {/* 按鈕 0 ── 靜音 / 取消靜音 */}
+              <button
+                onClick={(e) => { e.stopPropagation(); onToggleMute(); }}
+                className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
+              >
+                <i className={"fas " + (isMuted ? "fa-volume-mute" : "fa-volume-up") + " text-3xl text-white drop-shadow-md"} />
+                <span className="text-[9px] text-white font-mono font-bold">{isMuted ? "UNMUTE" : "MUTED"}</span>
+              </button>
 
               {/* 按鈕 1 ── 創作者頭像 + 關注 */}
               <div
