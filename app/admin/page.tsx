@@ -26,6 +26,8 @@ interface UserRow {
   id: string;
   created_at: number;
   linked_accounts: PrivyLinkedAccount[];
+  wallet?: { address: string; chain_type?: string };
+  email?: { address: string };
 }
 interface LbsNode {
   id: string; title: string; location: string | null; lat: number | null; lng: number | null;
@@ -361,7 +363,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                   </td>
                   <td className="p-3">
                     <div className="flex flex-wrap gap-1">
-                      {[["預告", film.trailer_url], ["正片", film.feature_url], ["海報", film.poster_url], ["版權PDF", film.copyright_url]].map(([label, url]) => (
+                      {[["預告", film?.trailer_url], ["正片", film?.feature_url], ["海報", film?.poster_url], ["版權PDF", film?.copyright_url]].map(([label, url]) => (
                         <a key={String(label)} href={String(url ?? "#")} target="_blank" rel="noreferrer"
                           className={`${BTN_SM} border border-gray-200 text-gray-600 hover:bg-gray-50`}>{String(label)}</a>
                       ))}
@@ -552,14 +554,21 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
 
   async function createNode(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.title || !form.lat || !form.lng || !form.unlockRadius || !form.timeLock) {
+    if (!form.title || !form.lat || !form.lng || !form.unlockRadius) {
       pushToast("請填寫完整節點表單", false); return;
     }
-    const { error } = await supabase.from("lbs_nodes").insert([{
-      title: form.title, lat: Number(form.lat), lng: Number(form.lng),
-      location: `unlock_radius=${form.unlockRadius}`, start_time: form.timeLock,
-      end_time: null, contract_req: form.contractPolicy, film_ids: [],
-    }]);
+    const payload: Record<string, unknown> = {
+      title: form.title,
+      lat: Number(form.lat),
+      lng: Number(form.lng),
+      location: `unlock_radius=${form.unlockRadius}`,
+      start_time: form.timeLock || null,
+      end_time: null,
+      contract_req: form.contractPolicy,
+      film_ids: [],
+    };
+    if (!payload.start_time) delete payload.start_time;
+    const { error } = await supabase.from("lbs_nodes").insert([payload]);
     if (error) { pushToast(`建立節點失敗: ${error.message}`, false); return; }
     pushToast(`✅ 節點已建立 · 海報: ${poster || "-"} · 背景: ${bgImage || "-"}`);
     setForm({ title: "", lat: "", lng: "", unlockRadius: "", timeLock: "", contractPolicy: t.contractOptions[0], ticketAif: "", ticketUsd: "" });
@@ -720,15 +729,16 @@ function EcoHumanTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  function getEmail(u: UserRow): string {
-    const acc = u.linked_accounts.find((a) => a.type === 'email' || a.type === 'google_oauth' || a.type === 'github_oauth');
-    return acc?.address ?? '-';
-  }
-
-  function getWallet(u: UserRow): string {
-    const acc = u.linked_accounts.find((a) => a.type === 'wallet');
-    if (!acc) return '-';
-    return `${acc.address.slice(0, 8)}...${acc.address.slice(-4)}`;
+  function getBindingIdentity(u: UserRow): string {
+    // 优先使用 Privy 直接返回的 wallet/email 属性
+    const walletAddr = u.wallet?.address
+      ?? u.linked_accounts?.find((a) => a.type === 'wallet')?.address;
+    if (walletAddr) {
+      return `${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)}`;
+    }
+    const emailAddr = u.email?.address
+      ?? u.linked_accounts?.find((a) => a.type === 'email' || a.type === 'google_oauth' || a.type === 'github_oauth')?.address;
+    return emailAddr ?? '未绑定';
   }
 
   return (
@@ -737,27 +747,25 @@ function EcoHumanTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string
         <button className={BTN_GHOST} onClick={fetchUsers}>{loading ? t.loading : t.refresh}</button>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1200px] text-sm">
+        <table className="w-full min-w-[900px] text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 font-semibold">
-              {["Privy DID", "錢包地址", "信箱 / OAuth", "註冊時間", "認證狀態", "累計消費 LTV", "地區", "操作"].map((h) => (
+              {["Privy ID", "绑定身份", "注册时间", "状态", "角色", "操作"].map((h) => (
                 <th key={h} className="p-3 text-left">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {users.length === 0 && (
-              <tr><td colSpan={8} className="p-6 text-gray-400 text-center">{loading ? t.loading : t.empty}</td></tr>
+              <tr><td colSpan={6} className="p-6 text-gray-400 text-center">{loading ? t.loading : t.empty}</td></tr>
             )}
             {users.map((u) => (
               <tr key={u.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
-                <td className="p-3 text-xs text-gray-600 font-mono truncate max-w-[120px]" title={u.id}>{u.id.replace('did:privy:', '')}</td>
-                <td className="p-3 text-xs text-gray-600 font-mono">{getWallet(u)}</td>
-                <td className="p-3 text-xs text-gray-600">{getEmail(u)}</td>
-                <td className="p-3 text-xs text-gray-600">{new Date(u.created_at * 1000).toLocaleString("zh-HK")}</td>
-                <td className="p-3"><span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">Verified</span></td>
-                <td className="p-3 text-xs text-gray-700 font-medium">${(Math.abs(u.id.length * 137) % 5000).toLocaleString()}</td>
-                <td className="p-3 text-xs text-gray-600">HK</td>
+                <td className="p-3 text-xs text-gray-600 font-mono truncate max-w-[140px]" title={u.id}>{u.id.replace('did:privy:', '')}</td>
+                <td className="p-3 text-xs text-gray-600 font-mono">{getBindingIdentity(u)}</td>
+                <td className="p-3 text-xs text-gray-600">{new Date(u.created_at * 1000).toLocaleString()}</td>
+                <td className="p-3"><span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">Active</span></td>
+                <td className="p-3 text-xs text-gray-600">User</td>
                 <td className="p-3">
                   <div className="flex gap-1">
                     <button className={`${BTN_SM} bg-red-600 text-white hover:bg-red-700`} onClick={() => askConfirm({ title: t.ban, body: `確認封禁用戶？`, danger: true, onConfirm: () => pushToast("已封禁") })}>{t.ban}</button>
