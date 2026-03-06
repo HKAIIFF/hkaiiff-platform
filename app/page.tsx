@@ -1,6 +1,8 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
+import { usePrivy } from "@privy-io/react-auth";
 import { useModal } from "@/app/context/ModalContext";
 import { useI18n } from "@/app/context/I18nContext";
 import { useToast } from "@/app/context/ToastContext";
@@ -234,6 +236,7 @@ function FeedItem({
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
 
+  const { authenticated, login } = usePrivy();
   const { setActiveModal, setSelectedFilm, setSelectedCreator, setSelectedCreatorUserId } =
     useModal();
   const { lang } = useI18n();
@@ -293,9 +296,19 @@ function FeedItem({
     }
   };
 
-  // ── 點擊指紋按鈕：開啟 Data Injection 抽屜 ──────────────────────────────
+  // ── 點擊指紋按鈕：開啟 Data Injection 抽屜（需要登錄）──────────────────
   const handleParallelClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!authenticated) {
+      showToast(
+        lang === "en"
+          ? "Please connect wallet to interact."
+          : "請先登錄以進行交互。",
+        "error"
+      );
+      login();
+      return;
+    }
     setDrawerOpen(true);
   };
 
@@ -494,12 +507,33 @@ function FeedItem({
 export default function FeedPage() {
   const [films, setFilms] = useState<SupabaseFilm[]>([]);
   const [loading, setLoading] = useState(true);
-  // 任務二：靜音狀態，預設為靜音以確保移動端自動播放正常
   const [isMuted, setIsMuted] = useState(true);
+
+  const searchParams = useSearchParams();
+  const { login } = usePrivy();
+  const { showToast } = useToast();
+  const { lang } = useI18n();
 
   const handleToggleMute = useCallback(() => {
     setIsMuted((prev) => !prev);
   }, []);
+
+  // 中間件重定向後帶有 authRequired=1，自動彈出登錄框並提示
+  useEffect(() => {
+    if (searchParams.get("authRequired") === "1") {
+      showToast(
+        lang === "en"
+          ? "Please connect wallet / login first."
+          : "請先登錄或連接錢包。",
+        "error"
+      );
+      login();
+      // 清除 URL 中的查詢參數（不觸發重新渲染路由）
+      const url = new URL(window.location.href);
+      url.searchParams.delete("authRequired");
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     async function fetchFilms() {
