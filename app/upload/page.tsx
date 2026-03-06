@@ -5,6 +5,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
 import OSS from 'ali-oss';
 import { useToast } from '@/app/context/ToastContext';
+import { useI18n } from '@/app/context/I18nContext';
 
 type Step = 1 | 2 | 'processing';
 
@@ -31,6 +32,7 @@ export default function UploadPage() {
   const { user, authenticated } = usePrivy();
   const router = useRouter();
   const { showToast } = useToast();
+  const { t } = useI18n();
 
   const [step, setStep] = useState<Step>(1);
   const [formData, setFormData] = useState({
@@ -85,18 +87,57 @@ export default function UploadPage() {
       : `linear-gradient(to right, #FF3333 ${formData.aiRatio}%, #333 ${formData.aiRatio}%)`,
   };
 
+  // ── File validation handlers ──────────────────────────────────────────────
+
+  const handlePosterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      showToast(t('err_poster_size'), 'error');
+      e.target.value = '';
+      return;
+    }
+    setPosterFile(file);
+  };
+
+  const handleTrailerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    if (!file) return;
+    if (file.size > 50 * 1024 * 1024) {
+      showToast(t('err_trailer_size'), 'error');
+      e.target.value = '';
+      return;
+    }
+    setTrailerFile(file);
+  };
+
+  const handleFilmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    if (!file) return;
+    if (file.size > 1024 * 1024 * 1024) {
+      showToast(t('err_film_size'), 'error');
+      e.target.value = '';
+      return;
+    }
+    setFilmFile(file);
+  };
+
+  // ── Step navigation ───────────────────────────────────────────────────────
+
   const goToPayment = () => {
     if (formData.aiRatio < 51) {
-      setErrorMsg('AI 貢獻比例必須達到 51% 或以上 (AI ratio must be >= 51%)');
+      setErrorMsg(t('err_ai_ratio_min'));
       return;
     }
     if (!posterFile || !trailerFile || !filmFile) {
-      setErrorMsg('請上傳 海報、預告片 及 完整正片 (All media files required)');
+      setErrorMsg(t('err_media_all'));
       return;
     }
     setErrorMsg('');
     setStep(2);
   };
+
+  // ── Submit handler ────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
     if (!authenticated || !user) return;
@@ -105,18 +146,12 @@ export default function UploadPage() {
     setUploadStatus('INITIALIZING SECURE CHANNEL...');
 
     try {
-      // ==========================================
-      // 阿里雲 OSS 上傳階段
-      // ==========================================
-
-      // 獲取臨時憑證
       const stsRes = await fetch('/api/oss-sts');
       const stsData = await stsRes.json();
       if (stsData.error) throw new Error(stsData.error);
 
       setUploadStatus('SECURE CHANNEL ESTABLISHED. UPLOADING MEDIA...');
 
-      // 2. 初始化 OSS 客戶端
       const ossRegion =
         stsData.Region ||
         process.env.NEXT_PUBLIC_ALIYUN_REGION ||
@@ -130,25 +165,20 @@ export default function UploadPage() {
         secure: true,
       });
 
-      // 3. 定義文件前綴 (用 userID + 時間戳防碰撞)
       const prefix = `submissions/${user.id}/${Date.now()}`;
 
-      // 上傳海報
       setUploadStatus('UPLOADING POSTER ASSETS...');
       const posterResult = await client.multipartUpload(`${prefix}_poster_${posterFile!.name}`, posterFile!);
       const posterUrl = posterResult.res.requestUrls[0].split('?')[0];
 
-      // 上傳預告片
       setUploadStatus('UPLOADING TRAILER FILES...');
       const trailerResult = await client.multipartUpload(`${prefix}_trailer_${trailerFile!.name}`, trailerFile!);
       const trailerUrl = trailerResult.res.requestUrls[0].split('?')[0];
 
-      // 上傳正片
       setUploadStatus('UPLOADING FULL FILM (THIS MAY TAKE A WHILE)...');
       const filmResult = await client.multipartUpload(`${prefix}_film_${filmFile!.name}`, filmFile!);
       const fullFilmUrl = filmResult.res.requestUrls[0].split('?')[0];
 
-      // 4. 所有文件上傳完畢，發送真實 URL 給 Supabase 入庫
       setUploadStatus('MEDIA SECURED. MINTING DATA TO DATABASE...');
       const dbRes = await fetch('/api/upload-film', {
         method: 'POST',
@@ -180,10 +210,11 @@ export default function UploadPage() {
         setUploadStatus(errMsg);
         showToast(errMsg, 'error');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(err);
-      const msg: string = err?.message ?? String(err);
-      if (msg.toLowerCase().includes('user rejected') || msg.includes('cancelled') || err?.code === 4001) {
+      const msg: string = err instanceof Error ? err.message : String(err);
+      const code = (err as { code?: number })?.code;
+      if (msg.toLowerCase().includes('user rejected') || msg.includes('cancelled') || code === 4001) {
         const errText = 'Transaction cancelled';
         setUploadStatus(errText);
         showToast(errText, 'error');
@@ -198,26 +229,25 @@ export default function UploadPage() {
       }
     } finally {
       setUploadStatus((prev) => {
-        if (prev && prev.includes('ERROR')) {
-          setIsSubmitting(false);
-          return prev;
-        }
         setIsSubmitting(false);
-        return '';
+        return prev.includes('ERROR') ? prev : '';
       });
     }
   };
 
   const notLoggedIn = !authenticated || !user;
 
+  // ── Render ────────────────────────────────────────────────────────────────
+
   return (
     <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pt-28 pb-32">
+
       {/* Page Header (desktop) */}
       <div className="sticky top-0 z-10 bg-void/95 backdrop-blur border-b border-[#222] px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="hidden md:block">
           <h1 className="font-heavy text-2xl text-white tracking-wider leading-none flex items-center gap-2">
             <i className="fas fa-cloud-upload-alt text-signal text-xl" />
-            SUBMIT FILM
+            {t('submit_film')}
           </h1>
           <div className="text-[9px] font-mono text-signal tracking-widest mt-1">
             HKAIIFF 2026 · JULY 15–21 · AI-NATIVE SUBMISSION
@@ -232,26 +262,28 @@ export default function UploadPage() {
       <div className="flex-1 px-4 pt-6 pb-24 lg:pb-8">
         <h1 className="hidden md:flex font-heavy text-4xl mb-6 border-b border-[#333] pb-4 text-white items-center gap-3">
           <i className="fas fa-cloud-upload-alt text-signal" />
-          SUBMIT FILM
+          {t('submit_film')}
         </h1>
 
         {/* ── Step 1: Form ───────────────────────────────────── */}
         {step === 1 && (
           <div className="animate-fade-in">
+
             {/* Notice Banner */}
             <div className="bg-[#111] border border-[#333] p-4 rounded-xl mb-6 shadow-lg relative overflow-hidden">
               <div className="absolute top-0 right-0 w-1 h-full bg-signal" />
               <h3 className="font-heavy text-lg text-white mb-1 tracking-wide">HKAIIFF 2026</h3>
               <p className="text-[10px] font-mono text-gray-400 leading-relaxed">
-                Festival runs July 15-21, 2026. Submissions must adhere to the AI-Native philosophy.
+                {t('up_notice')}
               </p>
             </div>
 
             <div className="space-y-6 mb-8">
+
               {/* Project Title */}
               <div>
                 <div className="font-mono text-[10px] text-gray-500 mb-2 flex justify-between">
-                  <span>PROJECT TITLE</span>
+                  <span>{t('up_form_title')}</span>
                   <span className="text-danger">*</span>
                 </div>
                 <input
@@ -259,38 +291,38 @@ export default function UploadPage() {
                   value={formData.title}
                   onChange={e => setFormData(f => ({ ...f, title: e.target.value }))}
                   className="w-full bg-[#0a0a0a] border border-[#333] p-4 rounded-lg text-sm text-white focus:border-signal outline-none transition-colors"
-                  placeholder="e.g. NEON DYNASTY"
+                  placeholder={t('ph_title')}
                 />
               </div>
 
               {/* Conductor / Studio */}
               <div>
-                <div className="font-mono text-[10px] text-gray-500 mb-2">CONDUCTOR / STUDIO</div>
+                <div className="font-mono text-[10px] text-gray-500 mb-2">{t('up_form_studio')}</div>
                 <input
                   type="text"
                   value={formData.studio}
                   onChange={e => setFormData(f => ({ ...f, studio: e.target.value }))}
                   className="w-full bg-[#0a0a0a] border border-[#333] p-4 rounded-lg text-sm text-white focus:border-signal outline-none transition-colors"
-                  placeholder="e.g. HK NOIR"
+                  placeholder={t('ph_studio')}
                 />
               </div>
 
               {/* Tech Stack */}
               <div>
-                <div className="font-mono text-[10px] text-gray-500 mb-2">TECH STACK (COMMA SEPARATED)</div>
+                <div className="font-mono text-[10px] text-gray-500 mb-2">{t('up_form_tech_hint')}</div>
                 <input
                   type="text"
                   value={formData.techStack}
                   onChange={e => setFormData(f => ({ ...f, techStack: e.target.value }))}
                   className="w-full bg-[#0a0a0a] border border-[#333] p-4 rounded-lg text-sm text-white focus:border-signal outline-none transition-colors"
-                  placeholder="Sora, Midjourney, ComfyUI..."
+                  placeholder={t('ph_tech')}
                 />
               </div>
 
               {/* AI Contribution Ratio Slider */}
               <div className="bg-[#111] border border-[#222] p-4 rounded-xl">
                 <div className="flex justify-between items-end mb-4">
-                  <div className="font-mono text-[10px] text-gray-400">AI CONTRIBUTION RATIO</div>
+                  <div className="font-mono text-[10px] text-gray-400">{t('up_form_ai_ratio')}</div>
                   <div
                     className="font-heavy text-3xl transition-colors duration-300"
                     style={{ color: isSignal ? '#CCFF00' : '#ffffff' }}
@@ -310,50 +342,50 @@ export default function UploadPage() {
                 {!isSignal && (
                   <div className="text-[9px] font-mono text-danger mt-2 flex items-center gap-1">
                     <i className="fas fa-exclamation-triangle" />
-                    <span>Must exceed 51% to qualify as AI-Native.</span>
+                    <span>{t('ai_warn')}</span>
                   </div>
                 )}
               </div>
 
               {/* Synopsis */}
               <div>
-                <div className="font-mono text-[10px] text-gray-500 mb-2">WORLDVIEW / SYNOPSIS</div>
+                <div className="font-mono text-[10px] text-gray-500 mb-2">{t('up_form_synopsis')}</div>
                 <textarea
                   value={formData.synopsis}
                   onChange={e => setFormData(f => ({ ...f, synopsis: e.target.value }))}
                   className="w-full bg-[#0a0a0a] border border-[#333] p-4 rounded-lg text-sm text-white focus:border-signal outline-none h-28 resize-none transition-colors"
-                  placeholder="Detailed background..."
+                  placeholder={t('ph_synopsis')}
                 />
               </div>
 
               {/* Core Cast */}
               <div>
-                <div className="font-mono text-[10px] text-gray-500 mb-2">CORE CAST</div>
+                <div className="font-mono text-[10px] text-gray-500 mb-2">{t('up_core_cast')}</div>
                 <input
                   type="text"
                   value={formData.coreCast}
                   onChange={e => setFormData(f => ({ ...f, coreCast: e.target.value }))}
                   className="w-full bg-[#0a0a0a] border border-[#333] p-4 rounded-lg text-sm text-white focus:border-signal outline-none transition-colors"
-                  placeholder="e.g. Ava, Det. Li, AURA"
+                  placeholder={t('ph_cast')}
                 />
               </div>
 
               {/* Region */}
               <div>
-                <div className="font-mono text-[10px] text-gray-500 mb-2">REGION</div>
+                <div className="font-mono text-[10px] text-gray-500 mb-2">{t('up_region')}</div>
                 <input
                   type="text"
                   value={formData.region}
                   onChange={e => setFormData(f => ({ ...f, region: e.target.value }))}
                   className="w-full bg-[#0a0a0a] border border-[#333] p-4 rounded-lg text-sm text-white focus:border-signal outline-none transition-colors"
-                  placeholder="e.g. Hong Kong SAR, Asia Pacific, Global"
+                  placeholder={t('ph_region')}
                 />
               </div>
 
               {/* LBS Festival Royalty */}
               <div className="bg-[#111] border border-[#222] p-4 rounded-xl">
                 <div className="flex justify-between items-end mb-3">
-                  <div className="font-mono text-[10px] text-gray-400">LBS FESTIVAL ROYALTY</div>
+                  <div className="font-mono text-[10px] text-gray-400">{t('up_lbs_royalty')}</div>
                   <div className="font-heavy text-2xl text-signal">{formData.lbsRoyalty}%</div>
                 </div>
                 <input
@@ -363,96 +395,111 @@ export default function UploadPage() {
                   value={formData.lbsRoyalty}
                   onChange={e => setFormData(f => ({ ...f, lbsRoyalty: Math.min(50, Math.max(0, Number(e.target.value))) }))}
                   className="w-full bg-[#0a0a0a] border border-[#333] p-3 rounded-lg text-sm text-white focus:border-signal outline-none transition-colors"
-                  placeholder="e.g. 5"
+                  placeholder={t('ph_lbs_royalty')}
                 />
                 <div className="text-[9px] font-mono text-gray-500 mt-2 flex items-center gap-1.5">
                   <i className="fas fa-info-circle text-signal" />
-                  Set your royalty percentage for LBS offline screenings.
+                  {t('up_lbs_hint')}
                 </div>
               </div>
 
               {/* Assets Upload */}
               <div>
                 <div className="font-mono text-[10px] text-gray-500 mb-2 flex items-center gap-1.5">
-                  ASSETS UPLOAD (ARWEAVE / IPFS)
+                  {t('up_assets_label')}
                   <span className="text-danger">*</span>
                 </div>
                 <div className="grid grid-cols-3 gap-3">
 
                   {/* POSTER */}
-                  <label className={`border border-dashed p-4 text-center rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors h-28 ${
-                    posterFile
-                      ? 'border-signal bg-signal/5 text-signal'
-                      : 'border-[#444] bg-[#0a0a0a] hover:border-signal hover:text-signal text-gray-500'
-                  }`}>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="image/*"
-                      onChange={e => setPosterFile(e.target.files?.[0] ?? null)}
-                    />
-                    {posterFile ? (
-                      <>
-                        <i className="fas fa-check-circle mb-1.5 text-2xl" />
-                        <span className="text-[8px] font-mono leading-tight break-all line-clamp-2 text-center">{posterFile.name}</span>
-                      </>
-                    ) : (
-                      <>
-                        <i className="fas fa-image mb-2 text-2xl" />
-                        <span className="text-[9px] font-mono leading-tight">UPLOAD POSTER</span>
-                      </>
-                    )}
-                  </label>
+                  <div className="flex flex-col">
+                    <label className={`border border-dashed p-4 text-center rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors h-28 ${
+                      posterFile
+                        ? 'border-signal bg-signal/5 text-signal'
+                        : 'border-[#444] bg-[#0a0a0a] hover:border-signal hover:text-signal text-gray-500'
+                    }`}>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handlePosterChange}
+                      />
+                      {posterFile ? (
+                        <>
+                          <i className="fas fa-check-circle mb-1.5 text-2xl" />
+                          <span className="text-[8px] font-mono leading-tight break-all line-clamp-2 text-center">{posterFile.name}</span>
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-image mb-2 text-2xl" />
+                          <span className="text-[9px] font-mono leading-tight">{t('up_poster_label')}</span>
+                        </>
+                      )}
+                    </label>
+                    <div className="text-[8px] font-mono text-gray-600 mt-1.5 text-center leading-tight px-1">
+                      {t('up_poster_spec')}
+                    </div>
+                  </div>
 
                   {/* TRAILER */}
-                  <label className={`border border-dashed p-4 text-center rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors h-28 ${
-                    trailerFile
-                      ? 'border-signal bg-signal/5 text-signal'
-                      : 'border-[#444] bg-[#0a0a0a] hover:border-signal hover:text-signal text-gray-500'
-                  }`}>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="video/*"
-                      onChange={e => setTrailerFile(e.target.files?.[0] ?? null)}
-                    />
-                    {trailerFile ? (
-                      <>
-                        <i className="fas fa-check-circle mb-1.5 text-2xl" />
-                        <span className="text-[8px] font-mono leading-tight break-all line-clamp-2 text-center">{trailerFile.name}</span>
-                      </>
-                    ) : (
-                      <>
-                        <i className="fas fa-play-circle mb-2 text-2xl" />
-                        <span className="text-[9px] font-mono leading-tight">UPLOAD TRAILER</span>
-                      </>
-                    )}
-                  </label>
+                  <div className="flex flex-col">
+                    <label className={`border border-dashed p-4 text-center rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors h-28 ${
+                      trailerFile
+                        ? 'border-signal bg-signal/5 text-signal'
+                        : 'border-[#444] bg-[#0a0a0a] hover:border-signal hover:text-signal text-gray-500'
+                    }`}>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="video/mp4,video/quicktime"
+                        onChange={handleTrailerChange}
+                      />
+                      {trailerFile ? (
+                        <>
+                          <i className="fas fa-check-circle mb-1.5 text-2xl" />
+                          <span className="text-[8px] font-mono leading-tight break-all line-clamp-2 text-center">{trailerFile.name}</span>
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-play-circle mb-2 text-2xl" />
+                          <span className="text-[9px] font-mono leading-tight">{t('up_trailer_label')}</span>
+                        </>
+                      )}
+                    </label>
+                    <div className="text-[8px] font-mono text-gray-600 mt-1.5 text-center leading-tight px-1">
+                      {t('up_trailer_spec')}
+                    </div>
+                  </div>
 
                   {/* FULL FILM */}
-                  <label className={`border border-dashed p-4 text-center rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors h-28 ${
-                    filmFile
-                      ? 'border-signal bg-signal/5 text-signal'
-                      : 'border-[#444] bg-[#0a0a0a] hover:border-signal hover:text-signal text-gray-500'
-                  }`}>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept="video/*"
-                      onChange={e => setFilmFile(e.target.files?.[0] ?? null)}
-                    />
-                    {filmFile ? (
-                      <>
-                        <i className="fas fa-check-circle mb-1.5 text-2xl" />
-                        <span className="text-[8px] font-mono leading-tight break-all line-clamp-2 text-center">{filmFile.name}</span>
-                      </>
-                    ) : (
-                      <>
-                        <i className="fas fa-video mb-2 text-2xl" />
-                        <span className="text-[9px] font-mono leading-tight">UPLOAD FULL FILM</span>
-                      </>
-                    )}
-                  </label>
+                  <div className="flex flex-col">
+                    <label className={`border border-dashed p-4 text-center rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors h-28 ${
+                      filmFile
+                        ? 'border-signal bg-signal/5 text-signal'
+                        : 'border-[#444] bg-[#0a0a0a] hover:border-signal hover:text-signal text-gray-500'
+                    }`}>
+                      <input
+                        type="file"
+                        className="hidden"
+                        accept="video/mp4,video/quicktime"
+                        onChange={handleFilmChange}
+                      />
+                      {filmFile ? (
+                        <>
+                          <i className="fas fa-check-circle mb-1.5 text-2xl" />
+                          <span className="text-[8px] font-mono leading-tight break-all line-clamp-2 text-center">{filmFile.name}</span>
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-video mb-2 text-2xl" />
+                          <span className="text-[9px] font-mono leading-tight">{t('up_film_label')}</span>
+                        </>
+                      )}
+                    </label>
+                    <div className="text-[8px] font-mono text-gray-600 mt-1.5 text-center leading-tight px-1">
+                      {t('up_film_spec')}
+                    </div>
+                  </div>
 
                 </div>
               </div>
@@ -471,7 +518,7 @@ export default function UploadPage() {
               onClick={goToPayment}
               className={`brutal-btn w-full text-lg ${!formData.title.trim() ? 'disabled' : ''}`}
             >
-              PROCEED TO PAYMENT <i className="fas fa-arrow-right ml-2" />
+              {t('up_submit_btn')} <i className="fas fa-arrow-right ml-2" />
             </button>
           </div>
         )}
@@ -483,7 +530,7 @@ export default function UploadPage() {
               onClick={() => { setUploadStatus(''); setStep(1); }}
               className="text-gray-500 hover:text-white mb-6 font-mono text-xs flex items-center gap-2 active:scale-90 transition-transform"
             >
-              <i className="fas fa-arrow-left" /> BACK
+              <i className="fas fa-arrow-left" /> {t('btn_back')}
             </button>
 
             {/* Minting Summary */}
@@ -520,12 +567,6 @@ export default function UploadPage() {
               </div>
             )}
 
-            {/* Payment Method Selector — hidden, direct upload mode */}
-            {/* <div className="text-[10px] font-mono text-gray-500 mb-3 pl-1">SELECT PAYMENT METHOD</div>
-            <div className="grid grid-cols-1 gap-4 mb-6">
-              Fiat / Crypto payment UI hidden intentionally
-            </div> */}
-
             {/* Upload Status */}
             {uploadStatus && (
               <div
@@ -548,7 +589,7 @@ export default function UploadPage() {
               {isSubmitting ? (
                 <>
                   <i className="fas fa-spinner fa-spin mr-2" />
-                  UPLOADING...
+                  {t('up_uploading')}
                 </>
               ) : (
                 <>
