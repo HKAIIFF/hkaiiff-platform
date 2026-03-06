@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
+import { usePrivy, useCreateWallet } from "@privy-io/react-auth";
 import { useI18n } from "@/app/context/I18nContext";
 import { useToast } from "@/app/context/ToastContext";
 import CyberLoading from "@/app/components/CyberLoading";
@@ -30,7 +30,7 @@ type TeamMember = { name: string; role: string };
 
 export default function MePage() {
   const { login, ready, authenticated, user, logout } = usePrivy();
-  const { wallets } = useWallets();
+  const { createWallet } = useCreateWallet();
   const { t, lang } = useI18n();
   const { showToast } = useToast();
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
@@ -57,6 +57,7 @@ export default function MePage() {
   // ── Top-Up Modal State ────────────────────────────────────────────────────
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isCreatingWallet, setIsCreatingWallet] = useState(false);
 
   const handleTopUpCopy = async () => {
     if (!displaySolanaAddress) return;
@@ -67,6 +68,19 @@ export default function MePage() {
       setTimeout(() => setIsCopied(false), 2000);
     } catch {
       showToast(lang === 'en' ? 'Failed to copy' : '複製失敗', 'error');
+    }
+  };
+
+  const handleCreateWallet = async () => {
+    setIsCreatingWallet(true);
+    try {
+      await createWallet();
+      showToast(lang === 'en' ? 'Deposit address generated!' : '充值地址已生成！', 'success');
+    } catch (err) {
+      console.error('Failed to create embedded wallet:', err);
+      showToast(lang === 'en' ? 'Failed to generate address, please try again' : '生成地址失敗，請重試', 'error');
+    } finally {
+      setIsCreatingWallet(false);
     }
   };
 
@@ -236,28 +250,21 @@ export default function MePage() {
   useEffect(() => {
     if (!authenticated || !user) return;
 
-    let targetSolanaAddress: string | null = null;
+    // Only use the Privy embedded wallet as the deposit address,
+    // so external wallets (Phantom, MetaMask, etc.) are never shown for top-up.
+    const embeddedWallet = user.linkedAccounts?.find(
+      (acc: any) => acc.type === 'wallet' && acc.walletClientType === 'privy'
+    );
+    const depositAddress: string | null = embeddedWallet?.address ?? null;
 
-    const activeSolanaWallet = wallets.find((w) => w.chainType === 'solana');
-    if (activeSolanaWallet && activeSolanaWallet.address) {
-      targetSolanaAddress = activeSolanaWallet.address;
-    } else {
-      const linkedSolanaAccount = user.linkedAccounts?.find(
-        (acc: any) => acc.type === 'wallet' && acc.chainType === 'solana'
-      );
-      if (linkedSolanaAccount && linkedSolanaAccount.address) {
-        targetSolanaAddress = linkedSolanaAccount.address;
-      }
-    }
-
-    if (targetSolanaAddress && !targetSolanaAddress.startsWith('0x')) {
-      setDisplaySolanaAddress(targetSolanaAddress);
-      fetchAIFBalance(targetSolanaAddress);
+    if (depositAddress && !depositAddress.startsWith('0x')) {
+      setDisplaySolanaAddress(depositAddress);
+      fetchAIFBalance(depositAddress);
     } else {
       setDisplaySolanaAddress(null);
       setOnChainAifBalance(0);
     }
-  }, [authenticated, user, wallets]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authenticated, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchAIFBalance = async (address: string) => {
     setIsFetchingBalance(true);
@@ -830,16 +837,35 @@ export default function MePage() {
                   </div>
                 ) : (
                   <div className="w-[186px] h-[186px] border-2 border-dashed border-signal/30 rounded-xl flex flex-col
-                                  items-center justify-center gap-3 bg-signal/5">
+                                  items-center justify-center gap-3 bg-signal/5 px-4">
                     <i className="fas fa-qrcode text-4xl text-signal/40" />
-                    <span className="text-[9px] font-mono text-signal/50 tracking-wider text-center px-4">
-                      GENERATING SECURE ADDRESS...
-                    </span>
+                    <button
+                      onClick={handleCreateWallet}
+                      disabled={isCreatingWallet}
+                      className="w-full py-2 px-3 rounded-lg bg-signal/20 border border-signal/60 text-signal
+                                 text-[10px] font-mono tracking-wider hover:bg-signal/30 active:scale-95
+                                 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center
+                                 justify-center gap-2"
+                    >
+                      {isCreatingWallet ? (
+                        <>
+                          <i className="fas fa-circle-notch fa-spin text-[10px]" />
+                          GENERATING...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-plus-circle text-[10px]" />
+                          GENERATE DEPOSIT ADDRESS
+                        </>
+                      )}
+                    </button>
                   </div>
                 )}
-                <div className="text-[9px] font-mono text-gray-500 tracking-wider">
-                  SCAN WITH SOLANA WALLET
-                </div>
+                {displaySolanaAddress && (
+                  <div className="text-[9px] font-mono text-gray-500 tracking-wider">
+                    SCAN WITH SOLANA WALLET
+                  </div>
+                )}
               </div>
 
               {/* Address Display + Copy */}
@@ -867,9 +893,26 @@ export default function MePage() {
                       </button>
                     </>
                   ) : (
-                    <span className="font-mono text-xs text-gray-600 animate-pulse tracking-wider">
-                      Generating secure address...
-                    </span>
+                    <button
+                      onClick={handleCreateWallet}
+                      disabled={isCreatingWallet}
+                      className="w-full py-2 rounded-lg bg-signal/10 border border-signal/40 text-signal/80
+                                 text-[10px] font-mono tracking-wider hover:bg-signal/20 active:scale-95
+                                 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center
+                                 justify-center gap-2"
+                    >
+                      {isCreatingWallet ? (
+                        <>
+                          <i className="fas fa-circle-notch fa-spin text-[10px]" />
+                          GENERATING DEPOSIT ADDRESS...
+                        </>
+                      ) : (
+                        <>
+                          <i className="fas fa-plus-circle text-[10px]" />
+                          GENERATE DEPOSIT ADDRESS
+                        </>
+                      )}
+                    </button>
                   )}
                 </div>
               </div>
