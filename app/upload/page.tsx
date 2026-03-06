@@ -39,6 +39,9 @@ export default function UploadPage() {
     techStack: '',
     aiRatio: 0,
     synopsis: '',
+    coreCast: '',
+    region: '',
+    lbsRoyalty: 5,
   });
   const [posterFile,    setPosterFile]    = useState<File | null>(null);
   const [trailerFile,   setTrailerFile]   = useState<File | null>(null);
@@ -157,6 +160,9 @@ export default function UploadPage() {
           tech_stack:     formData.techStack,
           ai_ratio:       formData.aiRatio,
           synopsis:       formData.synopsis,
+          core_cast:      formData.coreCast,
+          region:         formData.region,
+          lbs_royalty:    formData.lbsRoyalty,
           poster_url:     posterUrl,
           trailer_url:    trailerUrl,
           full_film_url:  fullFilmUrl,
@@ -318,6 +324,51 @@ export default function UploadPage() {
                   className="w-full bg-[#0a0a0a] border border-[#333] p-4 rounded-lg text-sm text-white focus:border-signal outline-none h-28 resize-none transition-colors"
                   placeholder="Detailed background..."
                 />
+              </div>
+
+              {/* Core Cast */}
+              <div>
+                <div className="font-mono text-[10px] text-gray-500 mb-2">CORE CAST</div>
+                <input
+                  type="text"
+                  value={formData.coreCast}
+                  onChange={e => setFormData(f => ({ ...f, coreCast: e.target.value }))}
+                  className="w-full bg-[#0a0a0a] border border-[#333] p-4 rounded-lg text-sm text-white focus:border-signal outline-none transition-colors"
+                  placeholder="e.g. Ava, Det. Li, AURA"
+                />
+              </div>
+
+              {/* Region */}
+              <div>
+                <div className="font-mono text-[10px] text-gray-500 mb-2">REGION</div>
+                <input
+                  type="text"
+                  value={formData.region}
+                  onChange={e => setFormData(f => ({ ...f, region: e.target.value }))}
+                  className="w-full bg-[#0a0a0a] border border-[#333] p-4 rounded-lg text-sm text-white focus:border-signal outline-none transition-colors"
+                  placeholder="e.g. Hong Kong SAR, Asia Pacific, Global"
+                />
+              </div>
+
+              {/* LBS Festival Royalty */}
+              <div className="bg-[#111] border border-[#222] p-4 rounded-xl">
+                <div className="flex justify-between items-end mb-3">
+                  <div className="font-mono text-[10px] text-gray-400">LBS FESTIVAL ROYALTY</div>
+                  <div className="font-heavy text-2xl text-signal">{formData.lbsRoyalty}%</div>
+                </div>
+                <input
+                  type="number"
+                  min={0}
+                  max={50}
+                  value={formData.lbsRoyalty}
+                  onChange={e => setFormData(f => ({ ...f, lbsRoyalty: Math.min(50, Math.max(0, Number(e.target.value))) }))}
+                  className="w-full bg-[#0a0a0a] border border-[#333] p-3 rounded-lg text-sm text-white focus:border-signal outline-none transition-colors"
+                  placeholder="e.g. 5"
+                />
+                <div className="text-[9px] font-mono text-gray-500 mt-2 flex items-center gap-1.5">
+                  <i className="fas fa-info-circle text-signal" />
+                  Set your royalty percentage for LBS offline screenings.
+                </div>
               </div>
 
               {/* Assets Upload */}

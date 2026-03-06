@@ -26,6 +26,8 @@ export interface Film {
   video: string;
   /** Actual video stream URL (optional; poster fallback used when absent) */
   videoUrl?: string;
+  /** Full feature film URL — LBS-gated playback only */
+  feature_url?: string;
   synopsis: string;
   fullDescription: string;
   hasInteract: boolean;
@@ -34,6 +36,12 @@ export interface Film {
   hasUserVersion: boolean;
   userVideo?: string;
   userHash?: string;
+  /** Core cast from Supabase — overrides info.cast when present */
+  core_cast?: string;
+  /** Region from Supabase — overrides info.region when present */
+  region?: string;
+  /** LBS royalty percentage from Supabase */
+  lbs_royalty?: number;
   info: FilmInfo;
 }
 

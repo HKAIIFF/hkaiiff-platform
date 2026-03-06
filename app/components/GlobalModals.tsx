@@ -99,6 +99,8 @@ export default function GlobalModals() {
   const [bioSeed, setBioSeed] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isVideoLoading, setIsVideoLoading] = useState(false);
+  // LBS 解鎖狀態：暫時寫死 false，後續接入真實 LBS 核驗
+  const isLbsUnlocked = false;
   const { showToast } = useToast();
 
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -319,7 +321,15 @@ export default function GlobalModals() {
               <div className="flex gap-3">
                 <button
                   className="brutal-btn flex-1 py-3 text-sm shadow-[0_0_15px_rgba(204,255,0,0.3)]"
-                  onClick={() => setActiveModal("play")}
+                  onClick={() => {
+                    if (!isLbsUnlocked) {
+                      showToast("🔒 ACCESS DENIED: Feature film locked. You are not within a verified LBS festival node.", "error");
+                      return;
+                    }
+                    const featureUrl = film?.feature_url ?? film?.videoUrl ?? null;
+                    setLbsVideoUrl(featureUrl);
+                    setActiveModal("play");
+                  }}
                 >
                   <i className="fas fa-play mr-2" /> PLAY FILM
                 </button>
@@ -356,7 +366,7 @@ export default function GlobalModals() {
                   <i className="fas fa-users text-gray-400" /> CORE CAST
                 </div>
                 <div className="text-sm text-white font-bold leading-snug">
-                  {film?.info.cast ?? "..."}
+                  {film?.core_cast ?? film?.info?.cast ?? "..."}
                 </div>
               </div>
               <div className="bg-gradient-to-b from-[#111] to-[#0a0a0a] p-4 rounded-xl border border-[#222] shadow-md">
@@ -364,7 +374,7 @@ export default function GlobalModals() {
                   <i className="fas fa-user-astronaut text-gray-400" /> CONDUCTOR
                 </div>
                 <div className="text-sm text-white font-bold leading-snug">
-                  {film?.info.dir ?? "..."}
+                  {film?.info?.dir ?? "..."}
                 </div>
               </div>
               <div className="bg-gradient-to-b from-[#111] to-[#0a0a0a] p-4 rounded-xl border border-[#222] shadow-md">
@@ -372,7 +382,7 @@ export default function GlobalModals() {
                   <i className="fas fa-microchip text-yellow-400" /> TECH PROVIDERS
                 </div>
                 <div className="text-xs text-yellow-400 font-bold leading-snug">
-                  {film?.info.tech ?? "..."}
+                  {film?.info?.tech ?? "..."}
                 </div>
               </div>
               <div className="bg-gradient-to-b from-[#111] to-[#0a0a0a] p-4 rounded-xl border border-[#222] shadow-md">
@@ -380,7 +390,7 @@ export default function GlobalModals() {
                   <i className="fas fa-globe-asia text-blue-400" /> REGION
                 </div>
                 <div className="text-sm text-white font-bold leading-snug">
-                  {film?.info.region ?? "..."}
+                  {film?.region ?? film?.info?.region ?? "..."}
                 </div>
               </div>
             </section>
@@ -395,7 +405,7 @@ export default function GlobalModals() {
                   <div className="flex justify-between items-center border-b border-[#222] pb-3">
                     <div className="text-[10px] font-mono text-gray-500">NETWORK</div>
                     <div className="text-xs font-bold text-white flex items-center gap-1.5 bg-black px-2 py-1 rounded border border-[#333]">
-                      <i className="text-[#00E599]">◎</i> {film?.info.onChain.network ?? "Solana"}
+                      <i className="text-[#00E599]">◎</i> Solana
                     </div>
                   </div>
                   <div className="flex justify-between items-center border-b border-[#222] pb-3">
@@ -403,12 +413,11 @@ export default function GlobalModals() {
                     <div
                       className="text-[10px] font-mono text-signal bg-signal/10 px-2 py-1 rounded border border-signal/30 flex items-center gap-2 cursor-pointer active:scale-95 transition-transform"
                       onClick={() => {
-                        const addr = film?.info?.onChain?.contract;
-                        if (addr) navigator.clipboard.writeText(addr).catch(() => {});
+                        navigator.clipboard.writeText("AIF7xKm2pQw8nR3vBr9cWsY9eM7fHjKoN1pQtUvXyZa8f92").catch(() => {});
                         showToast("CONTRACT ADDRESS COPIED TO CLIPBOARD", "success");
                       }}
                     >
-                      <span className="ltr-force">{film?.info.onChain.contract ?? "..."}</span>
+                      <span className="ltr-force">AIF...8f92</span>
                       <i className="fas fa-copy text-[10px]" />
                     </div>
                   </div>
@@ -416,13 +425,15 @@ export default function GlobalModals() {
                     <div className="text-[10px] font-mono text-gray-500">STORAGE</div>
                     <div className="text-xs font-bold text-gray-300 flex items-center gap-1.5">
                       <i className="fas fa-database text-gray-500" />
-                      {film?.info.onChain.storage ?? "Arweave / IPFS"}
+                      Arweave
                     </div>
                   </div>
                   <div className="flex justify-between items-center">
-                    <div className="text-[10px] font-mono text-gray-500">CREATOR ROYALTY</div>
-                    <div className="text-sm font-heavy text-white">
-                      {film?.info.onChain.royalty ?? "..."}
+                    <div className="text-[10px] font-mono text-gray-500">LBS ROYALTY</div>
+                    <div className="text-sm font-heavy text-signal">
+                      {film?.lbs_royalty != null
+                        ? `${film.lbs_royalty}%`
+                        : (film?.info?.onChain?.royalty ?? "—")}
                     </div>
                   </div>
                 </div>
@@ -436,20 +447,13 @@ export default function GlobalModals() {
             <section className="bg-[#111] border border-red-500/30 p-5 rounded-xl relative overflow-hidden shadow-[0_0_15px_rgba(255,51,51,0.1)] mb-8">
               <div className="absolute top-0 right-0 w-1.5 h-full bg-red-500" />
               <h3 className="font-heavy text-lg text-white mb-3 flex items-center gap-2">
-                <i className="fas fa-lock text-red-500" /> PLAYBACK RESTRICTIONS
+                <i className="fas fa-lock text-red-500" /> 🔒 PLAYBACK RESTRICTIONS
               </h3>
               <ul className="text-xs font-mono text-gray-400 space-y-2.5 list-none">
-                {film?.info.limits.map((limit, i) => (
-                  <li key={i} className="flex items-start gap-2">
-                    <i className="fas fa-chevron-right text-red-500 mt-0.5 shrink-0" />
-                    {limit}
-                  </li>
-                )) ?? (
-                  <li className="flex items-start gap-2">
-                    <i className="fas fa-chevron-right text-red-500 mt-0.5 shrink-0" />
-                    —
-                  </li>
-                )}
+                <li className="flex items-start gap-2">
+                  <i className="fas fa-chevron-right text-red-500 mt-0.5 shrink-0" />
+                  Location-Based Screening Only. Valid LBS node verification required.
+                </li>
               </ul>
             </section>
 

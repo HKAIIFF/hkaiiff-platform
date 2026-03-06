@@ -6,7 +6,8 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { 
       creator_id, title, studio_name, tech_stack, ai_ratio, 
-      synopsis, poster_url, trailer_url, full_film_url, payment_method 
+      synopsis, core_cast, region, lbs_royalty,
+      poster_url, trailer_url, full_film_url, payment_method 
     } = body;
 
     // 後端二次強制校驗
@@ -27,6 +28,9 @@ export async function POST(req: Request) {
         tech_stack,
         ai_ratio:      parseInt(ai_ratio),
         description:   synopsis,
+        core_cast:     core_cast || null,
+        region:        region || null,
+        lbs_royalty:   lbs_royalty != null ? parseFloat(lbs_royalty) : null,
         poster_url,
         trailer_url,
         feature_url:   full_film_url,

@@ -14,6 +14,7 @@ interface Film {
   id: string; user_id: string | null; title: string | null; studio: string | null;
   ai_ratio: number | null; poster_url: string | null; trailer_url?: string | null;
   feature_url?: string | null; copyright_url?: string | null;
+  core_cast?: string | null; region?: string | null; lbs_royalty?: number | null;
   status: "pending" | "approved" | "rejected"; created_at: string;
 }
 interface PrivyLinkedAccount {
@@ -294,7 +295,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
     setLoading(true);
     const { data, error } = await supabase
       .from("films")
-      .select("id,user_id,title,studio,ai_ratio,poster_url,status,created_at,trailer_url,feature_url,copyright_url")
+      .select("id,user_id,title,studio,ai_ratio,poster_url,status,created_at,trailer_url,feature_url,copyright_url,core_cast,region,lbs_royalty")
       .order("created_at", { ascending: false });
     setLoading(false);
     if (error) { pushToast(error.message, false); return; }
@@ -352,6 +353,15 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                   <td className="p-3">
                     <p className="font-semibold text-gray-900">{film.title ?? "-"}</p>
                     <p className="text-xs text-gray-500">{film.studio ?? "-"}</p>
+                    {film?.core_cast && (
+                      <p className="text-[10px] text-gray-400 mt-0.5">Cast: {film.core_cast}</p>
+                    )}
+                    {film?.region && (
+                      <p className="text-[10px] text-gray-400">Region: {film.region}</p>
+                    )}
+                    {film?.lbs_royalty != null && (
+                      <p className="text-[10px] text-blue-500">LBS Royalty: {film.lbs_royalty}%</p>
+                    )}
                   </td>
                   <td className="p-3">
                     <span className={`font-bold text-sm ${(film.ai_ratio ?? 0) >= 51 ? "text-green-600" : "text-red-600"}`}>
