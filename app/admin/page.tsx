@@ -29,6 +29,9 @@ interface LbsNode {
   start_time: string | null;
   end_time: string | null;
   created_at: string;
+  description: string | null;
+  contract_req: string | null;
+  film_ids: string[] | null;
 }
 
 interface UserRecord {
@@ -401,7 +404,52 @@ function LbsModule({
     lng: "",
     start_time: "",
     end_time: "",
+    description: "",
+    contract_req: "",
   });
+
+  // Film Curation state
+  const [approvedFilms, setApprovedFilms] = useState<Film[]>([]);
+  const [curatingNode, setCuratingNode] = useState<LbsNode | null>(null);
+  const [selectedFilmIds, setSelectedFilmIds] = useState<string[]>([]);
+  const [savingCuration, setSavingCuration] = useState(false);
+
+  const fetchApprovedFilms = useCallback(async () => {
+    const { data } = await supabase
+      .from("films")
+      .select("id, user_id, title, studio, tech_stack, ai_ratio, status, created_at")
+      .eq("status", "approved")
+      .order("created_at", { ascending: false });
+    setApprovedFilms((data as Film[]) ?? []);
+  }, []);
+
+  function openCuration(node: LbsNode) {
+    setCuratingNode(node);
+    setSelectedFilmIds(node.film_ids ?? []);
+  }
+
+  function toggleFilm(filmId: string) {
+    setSelectedFilmIds((prev) =>
+      prev.includes(filmId) ? prev.filter((id) => id !== filmId) : [...prev, filmId]
+    );
+  }
+
+  async function saveCuration() {
+    if (!curatingNode) return;
+    setSavingCuration(true);
+    const { error } = await supabase
+      .from("lbs_nodes")
+      .update({ film_ids: selectedFilmIds })
+      .eq("id", curatingNode.id);
+    if (error) {
+      pushToast("保存排片失败: " + error.message, false);
+    } else {
+      pushToast(`节点「${curatingNode.title}」排片已保存`);
+      setCuratingNode(null);
+      await fetchNodes();
+    }
+    setSavingCuration(false);
+  }
 
   const fetchNodes = useCallback(async () => {
     setLoading(true);
@@ -415,6 +463,7 @@ function LbsModule({
   }, [pushToast]);
 
   useEffect(() => { fetchNodes(); }, [fetchNodes]);
+  useEffect(() => { fetchApprovedFilms(); }, [fetchApprovedFilms]);
 
   function handleDelete(node: LbsNode) {
     requestConfirm({
@@ -456,12 +505,14 @@ function LbsModule({
       lng: lngVal,
       start_time: form.start_time || null,
       end_time: form.end_time || null,
+      description: form.description.trim() || null,
+      contract_req: form.contract_req.trim() || null,
     }]);
     if (error) {
       pushToast("部署失败: " + error.message, false);
     } else {
       pushToast("新节点已成功部署");
-      setForm({ title: "", location: "", lat: "", lng: "", start_time: "", end_time: "" });
+      setForm({ title: "", location: "", lat: "", lng: "", start_time: "", end_time: "", description: "", contract_req: "" });
       await fetchNodes();
     }
     setSubmitting(false);
@@ -502,14 +553,34 @@ function LbsModule({
                 key={node.id}
                 className="border-2 border-[#1A1A1A] bg-[#050505] p-5 hover:border-[#333] transition-colors group relative"
               >
-                {/* Delete button */}
-                <button
-                  onClick={() => handleDelete(node)}
-                  className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center border-2 border-[#FF3333]/40 text-[#FF3333]/50 text-sm font-black hover:bg-[#FF3333] hover:text-white hover:border-[#FF3333] transition-all duration-150 opacity-0 group-hover:opacity-100"
-                  title="删除节点"
-                >
-                  ✕
-                </button>
+                {/* Action buttons: curation + delete */}
+                <div className="absolute top-4 right-4 flex items-center gap-2">
+                  <button
+                    onClick={() => openCuration(node)}
+                    className="px-3 py-1 text-xs font-black tracking-widest uppercase border-2 transition-all duration-150"
+                    style={{
+                      borderColor: "#CCFF00",
+                      color: "#000000",
+                      background: "#CCFF00",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background = "#CCFF00cc";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLButtonElement).style.background = "#CCFF00";
+                    }}
+                    title="排片 / 策展"
+                  >
+                    + 排片 / 策展
+                  </button>
+                  <button
+                    onClick={() => handleDelete(node)}
+                    className="w-8 h-8 flex items-center justify-center border-2 border-[#FF3333]/40 text-[#FF3333]/50 text-sm font-black hover:bg-[#FF3333] hover:text-white hover:border-[#FF3333] transition-all duration-150 opacity-0 group-hover:opacity-100"
+                    title="删除节点"
+                  >
+                    ✕
+                  </button>
+                </div>
 
                 <div className="space-y-3 pr-12">
                   {/* Title row */}
@@ -571,6 +642,14 @@ function LbsModule({
                       )}
                     </div>
                   )}
+
+                  {/* Film mount count */}
+                  <div
+                    className="text-[11px] font-mono tracking-widest pt-1"
+                    style={{ color: "#00E599" }}
+                  >
+                    {`> 挂载影片数: ${node.film_ids?.length || 0} 份正片`}
+                  </div>
                 </div>
               </div>
             ))
@@ -578,7 +657,7 @@ function LbsModule({
         </div>
 
         {/* Right: Sticky deploy form */}
-        <div className="w-80 shrink-0 sticky top-6">
+        <div className="w-80 shrink-0 sticky top-6" style={{ maxHeight: "calc(100vh - 48px)", overflowY: "auto" }}>
           <form
             onSubmit={handleSubmit}
             className="relative border-2 bg-[#000000] p-6 space-y-5"
@@ -677,6 +756,32 @@ function LbsModule({
                   className={inputCls}
                 />
               </div>
+
+              <div>
+                <label className="block text-xs text-[#555] tracking-widest uppercase mb-2">
+                  活动简介 <span className="text-[#333] font-normal normal-case text-[10px]">EVENT DESCRIPTION</span>
+                </label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                  placeholder="输入活动简介…"
+                  rows={3}
+                  className={inputCls + " resize-none"}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-[#555] tracking-widest uppercase mb-2">
+                  智能合约要求 <span className="text-[#333] font-normal normal-case text-[10px]">SMART CONTRACT REQ</span>
+                </label>
+                <textarea
+                  value={form.contract_req}
+                  onChange={(e) => setForm((p) => ({ ...p, contract_req: e.target.value }))}
+                  placeholder="输入合约参数或 ABI 要求…"
+                  rows={3}
+                  className={inputCls + " resize-none"}
+                />
+              </div>
             </div>
 
             <button
@@ -693,6 +798,165 @@ function LbsModule({
           </form>
         </div>
       </div>
+
+      {/* ── Film Curation Modal ─────────────────────────────────────────── */}
+      {curatingNode && (
+        <div className="fixed inset-0 z-[9990] flex items-center justify-center font-mono">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/90"
+            onClick={() => setCuratingNode(null)}
+            style={{ backdropFilter: "blur(8px)" }}
+          />
+
+          {/* Modal panel */}
+          <div
+            className="relative z-10 w-full max-w-3xl mx-6 flex flex-col border-2"
+            style={{
+              background: "#000000",
+              borderColor: "#333",
+              boxShadow: "0 0 80px rgba(204,255,0,0.08), 0 0 30px rgba(0,0,0,0.8)",
+              maxHeight: "90vh",
+            }}
+          >
+            {/* Corner accents */}
+            <span className="absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-[#CCFF00]/50 pointer-events-none" />
+            <span className="absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-[#CCFF00]/50 pointer-events-none" />
+            <span className="absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 border-[#CCFF00]/50 pointer-events-none" />
+            <span className="absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-[#CCFF00]/50 pointer-events-none" />
+
+            {/* Modal header */}
+            <div className="px-8 py-5 border-b border-[#1a1a1a] flex items-center justify-between shrink-0">
+              <div>
+                <div
+                  className="text-xs tracking-[0.5em] uppercase font-black mb-1"
+                  style={{ color: "#CCFF00" }}
+                >
+                  FILM CURATION
+                </div>
+                <div className="text-base font-black tracking-wide text-white">
+                  为节点{" "}
+                  <span style={{ color: "#00F0FF" }}>[{curatingNode.title}]</span>{" "}
+                  进行排片
+                </div>
+              </div>
+              <button
+                onClick={() => setCuratingNode(null)}
+                className="w-9 h-9 flex items-center justify-center border border-[#333] text-[#555] hover:border-[#FF3333] hover:text-[#FF3333] transition-all duration-150 text-lg font-black"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Film list */}
+            <div className="flex-1 overflow-y-auto px-8 py-4 space-y-0">
+              {/* Stats bar */}
+              <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[#111]">
+                <span className="text-xs text-[#444] tracking-widest uppercase">
+                  已通过审核影片：{approvedFilms.length} 部
+                </span>
+                <span className="text-[#222]">//</span>
+                <span className="text-xs tracking-widest" style={{ color: "#CCFF00" }}>
+                  已选中：{selectedFilmIds.length} 部
+                </span>
+              </div>
+
+              {approvedFilms.length === 0 ? (
+                <div className="py-16 text-center text-[#2a2a2a] text-sm tracking-widest uppercase">
+                  暂无已通过审核的影片
+                </div>
+              ) : (
+                approvedFilms.map((film) => {
+                  const isSelected = selectedFilmIds.includes(film.id);
+                  return (
+                    <div
+                      key={film.id}
+                      onClick={() => toggleFilm(film.id)}
+                      className="flex items-center gap-5 px-4 py-4 border-b border-[#0d0d0d] cursor-pointer transition-all duration-100 group"
+                      style={{
+                        background: isSelected ? "#CCFF0009" : "transparent",
+                        borderLeftWidth: "3px",
+                        borderLeftColor: isSelected ? "#CCFF00" : "transparent",
+                      }}
+                    >
+                      {/* Poster placeholder */}
+                      <div
+                        className="w-14 h-20 shrink-0 flex items-center justify-center border border-[#1a1a1a] text-[#2a2a2a] text-xs font-mono uppercase tracking-widest"
+                        style={{
+                          background: isSelected ? "#CCFF0012" : "#080808",
+                          borderColor: isSelected ? "#CCFF0040" : "#1a1a1a",
+                        }}
+                      >
+                        FILM
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div
+                          className="text-base font-black tracking-wide truncate transition-colors"
+                          style={{ color: isSelected ? "#CCFF00" : "#ccc" }}
+                        >
+                          {film.title || "—"}
+                        </div>
+                        <div className="text-sm text-[#555] truncate">{film.studio || "—"}</div>
+                        {film.ai_ratio != null && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-[#333] tracking-widest uppercase">AI</span>
+                            <span className="text-xs font-black" style={{ color: "#CCFF0070" }}>
+                              {Math.round(film.ai_ratio)}%
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Geek toggle */}
+                      <div
+                        className="w-8 h-8 shrink-0 flex items-center justify-center border-2 font-black text-sm transition-all duration-150"
+                        style={{
+                          borderColor: isSelected ? "#CCFF00" : "#333",
+                          color: isSelected ? "#000" : "#333",
+                          background: isSelected ? "#CCFF00" : "transparent",
+                          boxShadow: isSelected ? "0 0 16px #CCFF0050" : "none",
+                        }}
+                      >
+                        {isSelected ? "✓" : "+"}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Modal footer */}
+            <div className="px-8 py-5 border-t border-[#1a1a1a] flex items-center justify-between gap-4 shrink-0">
+              <div className="text-xs text-[#333] tracking-widest font-mono uppercase">
+                {`> ${selectedFilmIds.length} 份正片将挂载至此节点`}
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setCuratingNode(null)}
+                  className="px-6 py-3 border border-[#333] text-[#555] text-sm tracking-widest font-bold uppercase hover:border-[#555] hover:text-[#888] transition-all duration-150"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={saveCuration}
+                  disabled={savingCuration}
+                  className="px-8 py-3 text-sm font-black tracking-widest uppercase transition-all duration-150 disabled:opacity-40 disabled:cursor-not-allowed border-2"
+                  style={{
+                    borderColor: "#CCFF00",
+                    color: "#000000",
+                    background: savingCuration ? "#CCFF0060" : "#CCFF00",
+                    boxShadow: savingCuration ? "none" : "0 0 24px #CCFF0040",
+                  }}
+                >
+                  {savingCuration ? "保存中…" : "▶ 保存排片"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
