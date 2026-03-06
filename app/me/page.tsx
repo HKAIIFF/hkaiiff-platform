@@ -89,6 +89,38 @@ export default function MePage() {
     }
   };
 
+  const handleOpenTopUp = async () => {
+    setIsTopUpOpen(true);
+    // 已有地址，直接顯示 Modal
+    if (depositAddress) return;
+
+    // 尚無地址，調用 API 生成
+    try {
+      setIsFetchingDepositAddress(true);
+      const token = await getAccessToken();
+      const res = await fetch('/api/wallet/assign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.address) {
+          setDepositAddress(data.address);
+          setDbProfile((prev) => prev ? { ...prev, deposit_address: data.address } : prev);
+        }
+      } else {
+        showToast(lang === 'en' ? 'Failed to generate address' : '生成地址失敗', 'error');
+      }
+    } catch (error) {
+      console.error('handleOpenTopUp error:', error);
+    } finally {
+      setIsFetchingDepositAddress(false);
+    }
+  };
+
   // ── Profile Edit Modal State ──────────────────────────────────────────────
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -494,7 +526,7 @@ export default function MePage() {
             FUNDING ACCOUNT
           </div>
           <button
-            onClick={() => setIsTopUpOpen(true)}
+            onClick={handleOpenTopUp}
             className="flex items-center gap-1.5 text-[10px] font-heavy tracking-widest
                        bg-signal text-black px-3 py-1.5 rounded-lg
                        shadow-[0_0_12px_rgba(204,255,0,0.4)]
