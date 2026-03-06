@@ -111,7 +111,7 @@ export default function MePage() {
           tech_stack: editTechStack,
           core_team: filteredCoreTeam,
         })
-        .eq('privy_id', user.id);
+        .eq('id', user.id);
 
       if (error) {
         console.error('❌ Profile save error (full):', error);
@@ -160,7 +160,7 @@ export default function MePage() {
           const { data: profileRow, error: profileError } = await supabase
             .from('users')
             .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team')
-            .eq('privy_id', user.id)
+            .eq('id', user.id)
             .single();
           if (profileError) {
             console.error('❌ Failed to fetch profile:', profileError.message);
