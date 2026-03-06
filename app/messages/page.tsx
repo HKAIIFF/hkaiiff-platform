@@ -252,7 +252,7 @@ export default function MessagesPage() {
       .map((m) => m.id);
 
     if (personalIds.length === 0 && globalIds.length === 0) {
-      showToast('NO UNREAD MESSAGES', 'info');
+      showToast('No unread messages', 'info');
       return;
     }
 
@@ -265,7 +265,7 @@ export default function MessagesPage() {
         .eq('is_read', false);
 
       if (error) {
-        showToast('UPDATE FAILED', 'error');
+        showToast('Failed to mark messages as read', 'error');
         return;
       }
       setMessages((prev) =>
@@ -312,7 +312,7 @@ export default function MessagesPage() {
       // 個人消息：從數據庫刪除
       const { error } = await supabase.from('messages').delete().eq('id', id);
       if (error) {
-        showToast('DELETE FAILED', 'error');
+        showToast('Failed to delete message', 'error');
         return;
       }
       setMessages((prev) => prev.filter((m) => m.id !== id));

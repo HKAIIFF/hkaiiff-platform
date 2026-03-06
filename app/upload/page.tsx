@@ -169,7 +169,7 @@ export default function UploadPage() {
         showToast('SUBMISSION CONFIRMED. YOUR FILM IS QUEUED FOR REVIEW.', 'success');
         setStep('processing');
       } else {
-        const errMsg = `ERROR: ${data.error ?? 'DATABASE WRITE FAILED'}`;
+        const errMsg = data.error ?? 'Submission failed. Please try again.';
         console.error('Insert failed:', data.error);
         setUploadStatus(errMsg);
         showToast(errMsg, 'error');
@@ -178,15 +178,15 @@ export default function UploadPage() {
       console.error(err);
       const msg: string = err?.message ?? String(err);
       if (msg.toLowerCase().includes('user rejected') || msg.includes('cancelled') || err?.code === 4001) {
-        const errText = 'ERROR: USER REJECTED TRANSACTION IN WALLET.';
+        const errText = 'Transaction cancelled';
         setUploadStatus(errText);
         showToast(errText, 'error');
       } else if (msg.toLowerCase().includes('insufficient')) {
-        const errText = 'ERROR: INSUFFICIENT AIF BALANCE.';
+        const errText = 'Insufficient AIF balance';
         setUploadStatus(errText);
         showToast(errText, 'error');
       } else {
-        const errText = `ERROR: ${msg}`;
+        const errText = `Submission failed: ${msg}`;
         setUploadStatus(errText);
         showToast(errText, 'error');
       }

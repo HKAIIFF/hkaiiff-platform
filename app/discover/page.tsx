@@ -200,7 +200,7 @@ export default function DiscoverPage() {
   const openDetail = useCallback(
     async (node: LbsNode) => {
       if (node.state !== 'unlocked') {
-        showToast('🔒 ACCESS DENIED: Not within LBS range or time window.', 'error');
+        showToast('🔒 Location or time window requirement not met', 'error');
         return;
       }
       setSelectedNode(node);

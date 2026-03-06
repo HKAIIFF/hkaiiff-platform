@@ -66,21 +66,21 @@ function StatusBadge({ status }: { status: Film["status"] }) {
 // ─── Toast Notification ───────────────────────────────────────────────────────
 function ToastContainer({ toasts }: { toasts: Toast[] }) {
   return (
-    <div className="fixed bottom-6 right-6 z-50 space-y-2 font-mono">
+    <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[99999] flex flex-col items-center gap-2 pointer-events-none">
       {toasts.map((t) => (
         <div
           key={t.id}
-          className="flex items-center gap-3 px-4 py-3 border text-[11px] tracking-[0.2em] min-w-56"
-          style={{
-            background: "#0a0a0a",
-            borderColor: t.type === "success" ? "#CCFF00" : "#FF3333",
-            color: t.type === "success" ? "#CCFF00" : "#FF3333",
-          }}
+          className="pointer-events-auto flex items-center gap-3 px-6 py-3 rounded-full shadow-2xl text-sm font-medium text-white"
+          style={{ background: "#111", border: "1px solid #333", animation: "toastIn 0.3s ease-out" }}
         >
-          <span>{t.type === "success" ? "✓" : "✕"}</span>
+          <i
+            className={`fas ${t.type === "success" ? "fa-check-circle" : "fa-exclamation-circle"}`}
+            style={{ color: t.type === "success" ? "#CCFF00" : "#ef4444" }}
+          />
           {t.message}
         </div>
       ))}
+      <style>{`@keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
 }
@@ -111,7 +111,7 @@ export default function FilmsReviewPage() {
       .order("created_at", { ascending: false });
 
     if (error) {
-      showToast("FETCH ERROR: " + error.message, "error");
+      showToast("Failed to load films", "error");
     } else {
       setFilms((data as Film[]) ?? []);
     }
@@ -131,7 +131,7 @@ export default function FilmsReviewPage() {
       .eq("id", id);
 
     if (error) {
-      showToast("ERROR: " + error.message, "error");
+      showToast("Status update failed", "error");
     } else {
       showToast(
         `FILM ${status.toUpperCase()} SUCCESSFULLY`,

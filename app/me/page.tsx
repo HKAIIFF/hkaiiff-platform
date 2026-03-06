@@ -115,7 +115,7 @@ export default function MePage() {
 
       if (error) {
         console.error('❌ Profile save error (full):', error);
-        showToast("UPDATE FAILED: " + error.message, "error");
+        showToast("Profile update failed, please try again", "error");
       } else {
         setDbProfile((prev) =>
           prev
@@ -134,7 +134,7 @@ export default function MePage() {
       }
     } catch (err: any) {
       console.error('❌ handleSaveProfile exception:', err);
-      showToast("SYSTEM ERROR: " + (err?.message ?? String(err)), "error");
+      showToast("Something went wrong, please try again", "error");
     } finally {
       setIsSaving(false);
     }
