@@ -12,7 +12,7 @@ export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { t, lang } = useI18n();
-  const { authenticated, login } = usePrivy();
+  const { ready, authenticated, login } = usePrivy();
   const { showToast } = useToast();
 
   const NAV_ITEMS = [
@@ -27,7 +27,8 @@ export default function BottomNav() {
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
 
   const handleProtectedNav = (href: string) => {
-    if (!authenticated) {
+    // 雙重鎖：Privy 未就緒 或 未登錄，一律觸發登錄框並中斷跳轉
+    if (!ready || !authenticated) {
       showToast(
         lang === "en"
           ? "Please connect wallet / login first."

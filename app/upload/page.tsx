@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import OSS from 'ali-oss';
 import { useToast } from '@/app/context/ToastContext';
 import { useI18n } from '@/app/context/I18nContext';
+import CyberLoading from '@/app/components/CyberLoading';
 
 type Step = 1 | 2 | 'processing';
 
@@ -29,10 +30,17 @@ const TERMINAL_LINES = [
 ];
 
 export default function UploadPage() {
-  const { user, authenticated } = usePrivy();
+  const { user, authenticated, ready } = usePrivy();
   const router = useRouter();
   const { showToast } = useToast();
   const { t } = useI18n();
+
+  // ── 頁面級鑒權硬鎖 ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (ready && !authenticated) {
+      router.replace('/');
+    }
+  }, [ready, authenticated, router]);
 
   const [step, setStep] = useState<Step>(1);
   const [formData, setFormData] = useState({
@@ -238,6 +246,10 @@ export default function UploadPage() {
   const notLoggedIn = !authenticated || !user;
 
   // ── Render ────────────────────────────────────────────────────────────────
+
+  // Privy 尚未就緒時顯示 Loading，已就緒但未登錄則等待 redirect
+  if (!ready) return <CyberLoading text="AUTHENTICATING..." />;
+  if (!authenticated) return null;
 
   return (
     <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pt-28 pb-32">

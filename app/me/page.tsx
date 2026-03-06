@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { usePrivy, useCreateWallet } from "@privy-io/react-auth";
+import { useRouter } from "next/navigation";
 import { useI18n } from "@/app/context/I18nContext";
 import { useToast } from "@/app/context/ToastContext";
 import CyberLoading from "@/app/components/CyberLoading";
@@ -31,8 +32,16 @@ type TeamMember = { name: string; role: string };
 export default function MePage() {
   const { login, ready, authenticated, user, logout, getAccessToken } = usePrivy();
   const { createWallet } = useCreateWallet();
+  const router = useRouter();
   const { t, lang } = useI18n();
   const { showToast } = useToast();
+
+  // ── 頁面級鑒權硬鎖 ────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (ready && !authenticated) {
+      router.replace('/');
+    }
+  }, [ready, authenticated, router]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [mySubmissions, setMySubmissions] = useState<any[]>([]);
   const [selectedFilm, setSelectedFilm] = useState<any | null>(null);
@@ -360,70 +369,9 @@ export default function MePage() {
     }
   };
 
-  /* ─── LOGIN VIEW ─────────────────────────────────────────────────────────── */
-  if (!authenticated) {
-    return (
-      <div className="flex-1 h-full w-full bg-void min-h-screen flex items-center justify-center px-6 pt-28 pb-32">
-        <div className="w-full max-w-sm flex flex-col items-center gap-6">
-          {/* Scan-line decoration */}
-          <div className="relative w-full border border-signal/30 rounded-2xl p-8 bg-[#050505] shadow-[0_0_40px_rgba(204,255,0,0.08)] overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-0.5 bg-signal" />
-            <div className="absolute bottom-0 left-0 w-full h-0.5 bg-signal/30" />
-
-            {/* Logo */}
-            <div className="text-center mb-6">
-              <div className="font-heavy text-5xl tracking-tighter text-white mb-1">
-                HKAIIFF
-              </div>
-              <div className="text-[9px] font-mono text-signal tracking-widest">
-                Something has to change
-              </div>
-            </div>
-
-            {/* Lock icon */}
-            <div className="flex justify-center mb-6">
-              <div className="w-20 h-20 rounded-full border-2 border-signal/40 flex items-center justify-center relative">
-                <div className="absolute inset-0 rounded-full border border-signal/20 animate-ping" />
-                <i className="fas fa-lock text-3xl text-signal" />
-              </div>
-            </div>
-
-            {/* Status */}
-            <div className="text-center mb-8">
-              <div className="font-heavy text-2xl text-white tracking-[0.3em] mb-2">
-                SYSTEM LOCKED
-              </div>
-              <div className="text-[10px] font-mono text-gray-500 tracking-widest">
-                IDENTITY VERIFICATION REQUIRED
-              </div>
-            </div>
-
-            {/* Connect button */}
-            <button
-              onClick={login}
-              disabled={!ready}
-              className="w-full py-4 bg-signal text-black font-heavy text-base tracking-widest rounded-xl
-                         shadow-[0_0_30px_rgba(204,255,0,0.35)] active:scale-[0.97] transition-all
-                         hover:shadow-[0_0_40px_rgba(204,255,0,0.5)]
-                         disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none"
-            >
-              <i className="fas fa-plug mr-2" />
-              {!ready ? "LOADING SYSTEM..." : "CONNECT PRIVY IDENTITY"}
-            </button>
-
-            <div className="mt-4 text-center text-[9px] font-mono text-gray-600 tracking-widest">
-              POWERED BY PRIVY · AIF PROTOCOL
-            </div>
-          </div>
-
-          {/* Bottom hint */}
-          <div className="font-mono text-[10px] text-gray-700 text-center">
-            v0.9.1-alpha · Web3 Auth Layer Ready
-          </div>
-        </div>
-      </div>
-    );
-  }
+  /* ─── AUTH GUARD ─────────────────────────────────────────────────────────── */
+  // Privy 尚未初始化完成時，渲染空白等待 redirect；已就緒未登錄同樣清空防閃爍
+  if (!ready || !authenticated) return null;
 
   /* ─── AUTHENTICATED VIEW ──────────────────────────────────────────────────── */
   return (
