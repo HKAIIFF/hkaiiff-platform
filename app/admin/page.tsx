@@ -17,6 +17,7 @@ interface Film {
   core_cast?: string | null; region?: string | null; lbs_royalty?: number | null;
   status: "pending" | "approved" | "rejected"; created_at: string;
   is_parallel_universe?: boolean | null;
+  parallel_start_time?: string | null;
 }
 interface PrivyLinkedAccount {
   type: string;
@@ -298,7 +299,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
     setLoading(true);
     const { data, error } = await supabase
       .from("films")
-      .select("id,user_id,title,studio,ai_ratio,poster_url,status,created_at,trailer_url,feature_url,copyright_url,core_cast,region,lbs_royalty,is_parallel_universe")
+      .select("id,user_id,title,studio,ai_ratio,poster_url,status,created_at,trailer_url,feature_url,copyright_url,core_cast,region,lbs_royalty,is_parallel_universe,parallel_start_time")
       .order("created_at", { ascending: false });
     setLoading(false);
     if (error) { pushToast(error.message, false); return; }
@@ -318,11 +319,44 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
   }
 
   async function toggleParallelUniverse(film: Film) {
-    const newVal = !film.is_parallel_universe;
-    const { error } = await supabase.from("films").update({ is_parallel_universe: newVal }).eq("id", film.id);
-    if (error) { pushToast(error.message, false); return; }
-    setFilms((prev) => prev.map((f) => f.id === film.id ? { ...f, is_parallel_universe: newVal } : f));
-    pushToast("平行宇宙狀態已更新");
+    const isCurrentlyActive = !!film.parallel_start_time;
+
+    if (isCurrentlyActive) {
+      // 關閉：清除 parallel_start_time
+      const { error } = await supabase.from("films")
+        .update({ parallel_start_time: null, is_parallel_universe: false })
+        .eq("id", film.id);
+      if (error) { pushToast(error.message, false); return; }
+      setFilms((prev) => prev.map((f) =>
+        f.id === film.id ? { ...f, parallel_start_time: null, is_parallel_universe: false } : f
+      ));
+      pushToast("平行宇宙已關閉，已從排隊移除");
+    } else {
+      // 開啟：計算隊列時間
+      const { data: activeFilms } = await supabase.from("films")
+        .select("parallel_start_time")
+        .not("parallel_start_time", "is", null)
+        .order("parallel_start_time", { ascending: false })
+        .limit(1);
+
+      let newStartTime = new Date();
+      if (activeFilms && activeFilms.length > 0 && activeFilms[0].parallel_start_time) {
+        const latestStart = new Date(activeFilms[0].parallel_start_time);
+        const latestEnd = new Date(latestStart.getTime() + 9 * 60000);
+        if (latestEnd > newStartTime) {
+          newStartTime = latestEnd;
+        }
+      }
+
+      const { error } = await supabase.from("films")
+        .update({ parallel_start_time: newStartTime.toISOString(), is_parallel_universe: true })
+        .eq("id", film.id);
+      if (error) { pushToast(error.message, false); return; }
+      setFilms((prev) => prev.map((f) =>
+        f.id === film.id ? { ...f, parallel_start_time: newStartTime.toISOString(), is_parallel_universe: true } : f
+      ));
+      pushToast(`✅ 平行宇宙已加入隊列，開始時間: ${newStartTime.toLocaleTimeString()}`);
+    }
   }
 
   async function submitReject() {
@@ -444,14 +478,25 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                     <div className="flex flex-col items-center gap-1">
                       <button
                         onClick={() => toggleParallelUniverse(film)}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${film.is_parallel_universe ? "bg-[#CCFF00]" : "bg-gray-300"}`}
-                        title={film.is_parallel_universe ? "已啟用平行宇宙" : "未啟用平行宇宙"}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${film.parallel_start_time ? "bg-[#CCFF00]" : "bg-gray-300"}`}
+                        title={film.parallel_start_time ? `隊列中，開始: ${new Date(film.parallel_start_time).toLocaleTimeString()}` : "未啟用平行宇宙"}
                       >
-                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow ${film.is_parallel_universe ? "translate-x-4" : "translate-x-1"}`} />
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow ${film.parallel_start_time ? "translate-x-4" : "translate-x-1"}`} />
                       </button>
-                      <span className={`text-[10px] font-semibold ${film.is_parallel_universe ? "text-[#6b9900]" : "text-gray-400"}`}>
-                        {film.is_parallel_universe ? "ON" : "OFF"}
-                      </span>
+                      {film.parallel_start_time ? (() => {
+                        const now = new Date();
+                        const start = new Date(film.parallel_start_time);
+                        const end = new Date(start.getTime() + 9 * 60000);
+                        if (now < start) {
+                          return <span className="text-[9px] font-semibold text-amber-600 text-center leading-tight">QUEUED<br/>{start.toLocaleTimeString()}</span>;
+                        } else if (now < end) {
+                          return <span className="text-[9px] font-semibold text-[#6b9900] text-center leading-tight">LIVE</span>;
+                        } else {
+                          return <span className="text-[9px] font-semibold text-gray-400 text-center leading-tight">EXPIRED</span>;
+                        }
+                      })() : (
+                        <span className="text-[10px] font-semibold text-gray-400">OFF</span>
+                      )}
                     </div>
                   </td>
                   <td className="p-3">
