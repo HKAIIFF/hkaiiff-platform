@@ -207,17 +207,17 @@ function Modal({
   footer?: React.ReactNode;
 }) {
   return (
-    <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[9998] flex items-end sm:items-center justify-center p-4">
       <div className="absolute inset-0 bg-gray-900/30" onClick={onClose} />
-      <div className={`${CARD} relative z-10 w-full max-w-2xl`}>
-        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+      <div className={`${CARD} relative z-10 w-full max-w-2xl max-h-[90vh] overflow-hidden`}>
+        <div className="border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between">
           <h3 className="font-bold text-gray-900">{title}</h3>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
             ✕
           </button>
         </div>
-        <div className="p-6">{children}</div>
-        {footer && <div className="border-t border-gray-200 px-6 py-4">{footer}</div>}
+        <div className="p-4 sm:p-6 overflow-y-auto">{children}</div>
+        {footer && <div className="border-t border-gray-200 px-4 sm:px-6 py-4">{footer}</div>}
       </div>
     </div>
   );
@@ -233,18 +233,20 @@ function SubTabs<T extends string>({
   onChange: (v: T) => void;
 }) {
   return (
-    <div className="flex gap-1 border-b border-gray-200 mb-5">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px ${
-            tab.id === active ? "border-blue-600 text-blue-700" : "border-transparent text-gray-500 hover:text-gray-700"
-          }`}
-          onClick={() => onChange(tab.id)}
-        >
-          {tab.label}
-        </button>
-      ))}
+    <div className="mb-5 overflow-x-auto">
+      <div className="flex w-max min-w-full gap-1 border-b border-gray-200">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            className={`whitespace-nowrap px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px ${
+              tab.id === active ? "border-blue-600 text-blue-700" : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}
+            onClick={() => onChange(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -414,51 +416,55 @@ function ReviewModule({ t, pushToast }: SharedProps) {
             </button>
           </div>
           <div className={`${CARD} overflow-hidden`}>
-            <div className="grid grid-cols-[1.6fr_1fr_110px_330px_160px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
-              <div className="p-3">影片</div>
-              <div className="p-3">AI 質檢(51%)</div>
-              <div className="p-3">狀態</div>
-              <div className="p-3">素材</div>
-              <div className="p-3">操作</div>
-            </div>
-            {films.length === 0 ? (
-              <div className="p-6 text-sm text-gray-400">{loading ? t.loading : t.empty}</div>
-            ) : (
-              films.map((film) => (
-                <div key={film.id} className="grid grid-cols-[1.6fr_1fr_110px_330px_160px] border-b border-gray-100 last:border-0">
-                  <div className="p-3">
-                    <p className="font-semibold text-gray-900">{film.title ?? "-"}</p>
-                    <p className="text-xs text-gray-500">{film.studio ?? "-"}</p>
-                  </div>
-                  <div className="p-3">
-                    <p className={`font-bold ${(film.ai_ratio ?? 0) >= 51 ? "text-green-600" : "text-red-600"}`}>
-                      {Math.round(film.ai_ratio ?? 0)}%
-                    </p>
-                  </div>
-                  <div className="p-3 text-sm text-gray-700">{film.status}</div>
-                  <div className="p-3 flex flex-wrap gap-2">
-                    <a className={`${BTN} !px-2 !py-1 border border-gray-200 text-xs`} href={film.trailer_url ?? "#"} target="_blank" rel="noreferrer">預告</a>
-                    <a className={`${BTN} !px-2 !py-1 border border-gray-200 text-xs`} href={film.feature_url ?? "#"} target="_blank" rel="noreferrer">正片</a>
-                    <a className={`${BTN} !px-2 !py-1 border border-gray-200 text-xs`} href={film.poster_url ?? "#"} target="_blank" rel="noreferrer">海報</a>
-                    <a className={`${BTN} !px-2 !py-1 border border-gray-200 text-xs`} href={film.copyright_url ?? "#"} target="_blank" rel="noreferrer">版權</a>
-                  </div>
-                  <div className="p-3 flex gap-2">
-                    <button className={`${BTN} !px-3 !py-1.5 bg-green-600 text-white`} onClick={() => approveFilm(film)}>
-                      {t.approve}
-                    </button>
-                    <button
-                      className={`${BTN} !px-3 !py-1.5 bg-red-600 text-white`}
-                      onClick={() => {
-                        setRejectFilm(film);
-                        setRejectReason(t.rejectReasons[0]);
-                      }}
-                    >
-                      {t.reject}
-                    </button>
-                  </div>
+            <div className="overflow-x-auto">
+              <div className="min-w-[980px]">
+                <div className="grid grid-cols-[1.6fr_1fr_110px_330px_160px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
+                  <div className="p-3">影片</div>
+                  <div className="p-3">AI 質檢(51%)</div>
+                  <div className="p-3">狀態</div>
+                  <div className="p-3">素材</div>
+                  <div className="p-3">操作</div>
                 </div>
-              ))
-            )}
+                {films.length === 0 ? (
+                  <div className="p-6 text-sm text-gray-400">{loading ? t.loading : t.empty}</div>
+                ) : (
+                  films.map((film) => (
+                    <div key={film.id} className="grid grid-cols-[1.6fr_1fr_110px_330px_160px] border-b border-gray-100 last:border-0">
+                      <div className="p-3">
+                        <p className="font-semibold text-gray-900">{film.title ?? "-"}</p>
+                        <p className="text-xs text-gray-500">{film.studio ?? "-"}</p>
+                      </div>
+                      <div className="p-3">
+                        <p className={`font-bold ${(film.ai_ratio ?? 0) >= 51 ? "text-green-600" : "text-red-600"}`}>
+                          {Math.round(film.ai_ratio ?? 0)}%
+                        </p>
+                      </div>
+                      <div className="p-3 text-sm text-gray-700">{film.status}</div>
+                      <div className="p-3 flex flex-wrap gap-2">
+                        <a className={`${BTN} !px-2 !py-1 border border-gray-200 text-xs`} href={film.trailer_url ?? "#"} target="_blank" rel="noreferrer">預告</a>
+                        <a className={`${BTN} !px-2 !py-1 border border-gray-200 text-xs`} href={film.feature_url ?? "#"} target="_blank" rel="noreferrer">正片</a>
+                        <a className={`${BTN} !px-2 !py-1 border border-gray-200 text-xs`} href={film.poster_url ?? "#"} target="_blank" rel="noreferrer">海報</a>
+                        <a className={`${BTN} !px-2 !py-1 border border-gray-200 text-xs`} href={film.copyright_url ?? "#"} target="_blank" rel="noreferrer">版權</a>
+                      </div>
+                      <div className="p-3 flex gap-2">
+                        <button className={`${BTN} !px-3 !py-1.5 bg-green-600 text-white`} onClick={() => approveFilm(film)}>
+                          {t.approve}
+                        </button>
+                        <button
+                          className={`${BTN} !px-3 !py-1.5 bg-red-600 text-white`}
+                          onClick={() => {
+                            setRejectFilm(film);
+                            setRejectReason(t.rejectReasons[0]);
+                          }}
+                        >
+                          {t.reject}
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -647,20 +653,24 @@ function DistributionModule({ t, pushToast }: SharedProps) {
 
       {sub === "online" && (
         <div className={`${CARD} overflow-hidden`}>
-          <div className="grid grid-cols-4 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
-            <div className="p-3">ID</div>
-            <div className="p-3">Stream</div>
-            <div className="p-3">Bitrate</div>
-            <div className="p-3">Status</div>
-          </div>
-          {streams.map((s) => (
-            <div key={s.id} className="grid grid-cols-4 border-b border-gray-100 last:border-0">
-              <div className="p-3 text-gray-500">{s.id}</div>
-              <div className="p-3 text-gray-900 font-semibold">{s.title}</div>
-              <div className="p-3 text-gray-700">{s.bitrate}</div>
-              <div className="p-3 text-gray-700">{s.status}</div>
+          <div className="overflow-x-auto">
+            <div className="min-w-[640px]">
+              <div className="grid grid-cols-4 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
+                <div className="p-3">ID</div>
+                <div className="p-3">Stream</div>
+                <div className="p-3">Bitrate</div>
+                <div className="p-3">Status</div>
+              </div>
+              {streams.map((s) => (
+                <div key={s.id} className="grid grid-cols-4 border-b border-gray-100 last:border-0">
+                  <div className="p-3 text-gray-500">{s.id}</div>
+                  <div className="p-3 text-gray-900 font-semibold">{s.title}</div>
+                  <div className="p-3 text-gray-700">{s.bitrate}</div>
+                  <div className="p-3 text-gray-700">{s.status}</div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       )}
 
@@ -741,53 +751,61 @@ function EcosystemModule({ t, pushToast, askConfirm }: SharedProps) {
 
       {sub === "human" && (
         <div className={`${CARD} overflow-hidden`}>
-          <div className="grid grid-cols-[1.3fr_1.1fr_1fr_1fr_110px_120px_100px_220px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
-            {["Privy ID", "Wallet", "Email", "註冊時間", "認證", "累計消費", "地區", "操作"].map((h) => (
-              <div key={h} className="p-3">
-                {h}
+          <div className="overflow-x-auto">
+            <div className="min-w-[1200px]">
+              <div className="grid grid-cols-[1.3fr_1.1fr_1fr_1fr_110px_120px_100px_220px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
+                {["Privy ID", "Wallet", "Email", "註冊時間", "認證", "累計消費", "地區", "操作"].map((h) => (
+                  <div key={h} className="p-3">
+                    {h}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          {users.map((u) => (
-            <div key={u.id} className="grid grid-cols-[1.3fr_1.1fr_1fr_1fr_110px_120px_100px_220px] border-b border-gray-100 last:border-0">
-              <div className="p-3 text-xs text-gray-700">{u.privy_id ?? "-"}</div>
-              <div className="p-3 text-xs text-gray-700">{u.wallet_address ? `${u.wallet_address.slice(0, 8)}...` : "-"}</div>
-              <div className="p-3 text-xs text-gray-700">{u.email ?? "-"}</div>
-              <div className="p-3 text-xs text-gray-700">{new Date(u.created_at).toLocaleString("zh-HK")}</div>
-              <div className="p-3 text-xs text-green-700">Verified</div>
-              <div className="p-3 text-xs text-gray-700">$ {(Math.abs(u.id.length * 137) % 5000).toLocaleString()}</div>
-              <div className="p-3 text-xs text-gray-700">HK</div>
-              <div className="p-3 flex gap-2">
-                <button className={`${BTN} !px-2 !py-1 bg-red-600 text-white`} onClick={() => askConfirm({ title: t.ban, body: "確認封禁？", danger: true, onConfirm: () => pushToast("已封禁") })}>{t.ban}</button>
-                <button className={`${BTN} !px-2 !py-1 bg-red-600 text-white`} onClick={() => askConfirm({ title: t.forceOffline, body: "確認強制下線？", danger: true, onConfirm: () => pushToast("已強制下線") })}>{t.forceOffline}</button>
-                <button className={`${BTN} !px-2 !py-1 bg-red-600 text-white`} onClick={() => askConfirm({ title: t.clear, body: "確認清空數據？", danger: true, onConfirm: () => pushToast("已清空") })}>{t.clear}</button>
-              </div>
+              {users.map((u) => (
+                <div key={u.id} className="grid grid-cols-[1.3fr_1.1fr_1fr_1fr_110px_120px_100px_220px] border-b border-gray-100 last:border-0">
+                  <div className="p-3 text-xs text-gray-700">{u.privy_id ?? "-"}</div>
+                  <div className="p-3 text-xs text-gray-700">{u.wallet_address ? `${u.wallet_address.slice(0, 8)}...` : "-"}</div>
+                  <div className="p-3 text-xs text-gray-700">{u.email ?? "-"}</div>
+                  <div className="p-3 text-xs text-gray-700">{new Date(u.created_at).toLocaleString("zh-HK")}</div>
+                  <div className="p-3 text-xs text-green-700">Verified</div>
+                  <div className="p-3 text-xs text-gray-700">$ {(Math.abs(u.id.length * 137) % 5000).toLocaleString()}</div>
+                  <div className="p-3 text-xs text-gray-700">HK</div>
+                  <div className="p-3 flex gap-2">
+                    <button className={`${BTN} !px-2 !py-1 bg-red-600 text-white`} onClick={() => askConfirm({ title: t.ban, body: "確認封禁？", danger: true, onConfirm: () => pushToast("已封禁") })}>{t.ban}</button>
+                    <button className={`${BTN} !px-2 !py-1 bg-red-600 text-white`} onClick={() => askConfirm({ title: t.forceOffline, body: "確認強制下線？", danger: true, onConfirm: () => pushToast("已強制下線") })}>{t.forceOffline}</button>
+                    <button className={`${BTN} !px-2 !py-1 bg-red-600 text-white`} onClick={() => askConfirm({ title: t.clear, body: "確認清空數據？", danger: true, onConfirm: () => pushToast("已清空") })}>{t.clear}</button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       )}
 
       {sub === "bot" && (
         <div className={`${CARD} overflow-hidden`}>
-          <div className="grid grid-cols-[130px_1fr_1.3fr_120px_150px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
-            {["Bot ID", "歸屬人類", "裝配模塊 (Brain/Hands/Skills)", "狀態", "操作"].map((h) => (
-              <div key={h} className="p-3">
-                {h}
+          <div className="overflow-x-auto">
+            <div className="min-w-[900px]">
+              <div className="grid grid-cols-[130px_1fr_1.3fr_120px_150px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
+                {["Bot ID", "歸屬人類", "裝配模塊 (Brain/Hands/Skills)", "狀態", "操作"].map((h) => (
+                  <div key={h} className="p-3">
+                    {h}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          {bots.map((b) => (
-            <div key={b.id} className="grid grid-cols-[130px_1fr_1.3fr_120px_150px] border-b border-gray-100 last:border-0">
-              <div className="p-3 text-sm text-gray-900">{b.id}</div>
-              <div className="p-3 text-sm text-gray-700">{b.human}</div>
-              <div className="p-3 text-sm text-gray-700">{b.modules}</div>
-              <div className="p-3 text-sm text-gray-700">{b.status}</div>
-              <div className="p-3 flex gap-2">
-                <button className={`${BTN} !px-2 !py-1 border border-gray-200 text-gray-700`} onClick={() => pushToast("Bot 已休眠")}>{t.sleep}</button>
-                <button className={`${BTN} !px-2 !py-1 border border-gray-200 text-gray-700`} onClick={() => pushToast("Bot 已重置")}>{t.reset}</button>
-              </div>
+              {bots.map((b) => (
+                <div key={b.id} className="grid grid-cols-[130px_1fr_1.3fr_120px_150px] border-b border-gray-100 last:border-0">
+                  <div className="p-3 text-sm text-gray-900">{b.id}</div>
+                  <div className="p-3 text-sm text-gray-700">{b.human}</div>
+                  <div className="p-3 text-sm text-gray-700">{b.modules}</div>
+                  <div className="p-3 text-sm text-gray-700">{b.status}</div>
+                  <div className="p-3 flex gap-2">
+                    <button className={`${BTN} !px-2 !py-1 border border-gray-200 text-gray-700`} onClick={() => pushToast("Bot 已休眠")}>{t.sleep}</button>
+                    <button className={`${BTN} !px-2 !py-1 border border-gray-200 text-gray-700`} onClick={() => pushToast("Bot 已重置")}>{t.reset}</button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       )}
     </div>
@@ -821,18 +839,22 @@ function AIModule({ t, pushToast }: SharedProps) {
 
       {sub === "models" && (
         <div className={`${CARD} overflow-hidden`}>
-          <div className="grid grid-cols-3 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
-            <div className="p-3">Model</div>
-            <div className="p-3">API Config</div>
-            <div className="p-3">Consumption</div>
-          </div>
-          {models.map((m) => (
-            <div key={m.name} className="grid grid-cols-3 border-b border-gray-100 last:border-0">
-              <div className="p-3 text-sm text-gray-900">{m.name}</div>
-              <div className="p-3 text-sm text-gray-700">{m.api}</div>
-              <div className="p-3 text-sm text-gray-700">{m.usage}</div>
+          <div className="overflow-x-auto">
+            <div className="min-w-[720px]">
+              <div className="grid grid-cols-3 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
+                <div className="p-3">Model</div>
+                <div className="p-3">API Config</div>
+                <div className="p-3">Consumption</div>
+              </div>
+              {models.map((m) => (
+                <div key={m.name} className="grid grid-cols-3 border-b border-gray-100 last:border-0">
+                  <div className="p-3 text-sm text-gray-900">{m.name}</div>
+                  <div className="p-3 text-sm text-gray-700">{m.api}</div>
+                  <div className="p-3 text-sm text-gray-700">{m.usage}</div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       )}
 
@@ -891,23 +913,27 @@ function FinanceModule({ t, pushToast }: SharedProps) {
 
       {sub === "ledger" && (
         <div className={`${CARD} overflow-hidden`}>
-          <div className="grid grid-cols-4 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
-            <div className="p-3">Tx</div>
-            <div className="p-3">Type</div>
-            <div className="p-3">Fiat</div>
-            <div className="p-3">Crypto</div>
-          </div>
-          <div className="grid grid-cols-4 border-b border-gray-100">
-            <div className="p-3">TX-001</div>
-            <div className="p-3">Deposit</div>
-            <div className="p-3">$500</div>
-            <div className="p-3">2500 AIF</div>
-          </div>
-          <div className="grid grid-cols-4">
-            <div className="p-3">TX-002</div>
-            <div className="p-3">Purchase</div>
-            <div className="p-3">$220</div>
-            <div className="p-3">1100 AIF</div>
+          <div className="overflow-x-auto">
+            <div className="min-w-[640px]">
+              <div className="grid grid-cols-4 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
+                <div className="p-3">Tx</div>
+                <div className="p-3">Type</div>
+                <div className="p-3">Fiat</div>
+                <div className="p-3">Crypto</div>
+              </div>
+              <div className="grid grid-cols-4 border-b border-gray-100">
+                <div className="p-3">TX-001</div>
+                <div className="p-3">Deposit</div>
+                <div className="p-3">$500</div>
+                <div className="p-3">2500 AIF</div>
+              </div>
+              <div className="grid grid-cols-4">
+                <div className="p-3">TX-002</div>
+                <div className="p-3">Purchase</div>
+                <div className="p-3">$220</div>
+                <div className="p-3">1100 AIF</div>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -921,27 +947,31 @@ function FinanceModule({ t, pushToast }: SharedProps) {
 
       {sub === "settlement" && (
         <div className={`${CARD} overflow-hidden`}>
-          <div className="grid grid-cols-[120px_1fr_1fr_160px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
-            <div className="p-3">ID</div>
-            <div className="p-3">Role</div>
-            <div className="p-3">Amount</div>
-            <div className="p-3">Action</div>
-          </div>
-          {settlements.map((s) => (
-            <div key={s.id} className="grid grid-cols-[120px_1fr_1fr_160px] border-b border-gray-100 last:border-0">
-              <div className="p-3">{s.id}</div>
-              <div className="p-3">{s.role}</div>
-              <div className="p-3">{s.amount}</div>
-              <div className="p-3 flex gap-2">
-                <button className={`${BTN} !px-2 !py-1 bg-green-600 text-white`} onClick={() => pushToast("已批准提現")}>
-                  Approve
-                </button>
-                <button className={`${BTN} !px-2 !py-1 bg-red-600 text-white`} onClick={() => pushToast("已拒絕提現", false)}>
-                  Reject
-                </button>
+          <div className="overflow-x-auto">
+            <div className="min-w-[640px]">
+              <div className="grid grid-cols-[120px_1fr_1fr_160px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
+                <div className="p-3">ID</div>
+                <div className="p-3">Role</div>
+                <div className="p-3">Amount</div>
+                <div className="p-3">Action</div>
               </div>
+              {settlements.map((s) => (
+                <div key={s.id} className="grid grid-cols-[120px_1fr_1fr_160px] border-b border-gray-100 last:border-0">
+                  <div className="p-3">{s.id}</div>
+                  <div className="p-3">{s.role}</div>
+                  <div className="p-3">{s.amount}</div>
+                  <div className="p-3 flex gap-2">
+                    <button className={`${BTN} !px-2 !py-1 bg-green-600 text-white`} onClick={() => pushToast("已批准提現")}>
+                      Approve
+                    </button>
+                    <button className={`${BTN} !px-2 !py-1 bg-red-600 text-white`} onClick={() => pushToast("已拒絕提現", false)}>
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       )}
     </div>
@@ -1136,6 +1166,7 @@ export default function AdminPageV2() {
   const [active, setActive] = useState<MainModule>("dashboard");
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [confirmCfg, setConfirmCfg] = useState<ConfirmConfig | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const toastId = useRef(0);
   const t = DICT[lang];
 
@@ -1151,6 +1182,10 @@ export default function AdminPageV2() {
 
   const shared: SharedProps = { t, pushToast, askConfirm, lang, setLang };
 
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [active]);
+
   async function handleLogout() {
     try {
       await logout();
@@ -1162,7 +1197,7 @@ export default function AdminPageV2() {
 
   return (
     <div className="h-screen overflow-hidden flex bg-[#F4F5F7]">
-      <aside className="w-64 flex flex-col justify-between border-r border-gray-200 bg-white">
+      <aside className="hidden md:flex w-64 flex-col justify-between border-r border-gray-200 bg-white">
         <div className="min-h-0 overflow-y-auto">
           <div className="px-5 py-5 border-b border-gray-200">
             <p className="text-lg font-black text-gray-900">{t.brand}</p>
@@ -1175,7 +1210,10 @@ export default function AdminPageV2() {
                 className={`w-full text-left rounded-xl px-3 py-2 text-sm font-semibold ${
                   active === n.id ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-gray-700 hover:bg-gray-50 border border-transparent"
                 }`}
-                onClick={() => setActive(n.id)}
+                onClick={() => {
+                  setActive(n.id);
+                  setMobileMenuOpen(false);
+                }}
               >
                 {t[n.labelKey]}
               </button>
@@ -1194,20 +1232,68 @@ export default function AdminPageV2() {
         </div>
       </aside>
 
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-[1200]">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setMobileMenuOpen(false)} />
+          <aside className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-white border-r border-gray-200 flex flex-col justify-between">
+            <div className="min-h-0 overflow-y-auto">
+              <div className="px-5 py-5 border-b border-gray-200">
+                <p className="text-lg font-black text-gray-900">{t.brand}</p>
+                <p className="text-xs text-gray-500">{t.coreModules}</p>
+              </div>
+              <nav className="p-3 space-y-1">
+                {NAVS.map((n) => (
+                  <button
+                    key={n.id}
+                    className={`w-full text-left rounded-xl px-3 py-2 text-sm font-semibold ${
+                      active === n.id ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-gray-700 hover:bg-gray-50 border border-transparent"
+                    }`}
+                    onClick={() => {
+                      setActive(n.id);
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    {t[n.labelKey]}
+                  </button>
+                ))}
+              </nav>
+            </div>
+            <div className="border-t border-gray-200 p-4 space-y-3">
+              <div className="rounded-xl bg-gray-50 px-3 py-2">
+                <p className="text-xs text-gray-500">Admin</p>
+                <p className="text-sm font-semibold text-gray-900 truncate">{name}</p>
+              </div>
+              <button className={`${BTN} w-full bg-red-600 text-white`} onClick={handleLogout}>
+                {t.logout}
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 shrink-0 border-b border-gray-200 bg-white px-6 flex items-center justify-between">
-          <div className="text-sm text-gray-600">
-            {t.breadcrumbRoot} / <span className="font-bold text-gray-900">{t[NAVS.find((x) => x.id === active)?.labelKey ?? "dashboard"]}</span>
+        <header className="h-14 sm:h-16 shrink-0 border-b border-gray-200 bg-white px-4 sm:px-6 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              className="md:hidden rounded-lg border border-gray-200 px-2.5 py-1.5 text-gray-700"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open menu"
+            >
+              ☰
+            </button>
+            <div className="text-xs sm:text-sm text-gray-600 truncate">
+              {t.breadcrumbRoot} / <span className="font-bold text-gray-900">{t[NAVS.find((x) => x.id === active)?.labelKey ?? "dashboard"]}</span>
+            </div>
           </div>
           <button
-            className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+            className="rounded-lg border border-gray-200 px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 whitespace-nowrap"
             onClick={() => setLang((prev) => (prev === "zh" ? "en" : "zh"))}
           >
             繁 / EN
           </button>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6 bg-[#F4F5F7]">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 bg-[#F4F5F7]">
           {active === "dashboard" && <DashboardModule {...shared} />}
           {active === "review" && <ReviewModule {...shared} />}
           {active === "distribution" && <DistributionModule {...shared} />}
