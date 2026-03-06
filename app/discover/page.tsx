@@ -71,12 +71,22 @@ const LBS_FILMS: LbsFilm[] = [
   },
 ];
 
+interface UnlockedFilm {
+  id: string;
+  title: string;
+  studio: string;
+  poster_url: string | null;
+  video_url: string | null;
+  ai_ratio: number | null;
+}
+
 export default function DiscoverPage() {
   const [selectedLbs, setSelectedLbs] = useState<LbsFilm | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
   const [btnText, setBtnText] = useState('VERIFY LBS NODE');
   const [btnDisabled, setBtnDisabled] = useState(false);
   const [isLbsLoading, setIsLbsLoading] = useState(false);
+  const [unlockedFilms, setUnlockedFilms] = useState<UnlockedFilm[]>([]);
 
   const { setActiveModal, setLbsVideoUrl } = useModal();
   const { showToast } = useToast();
@@ -86,6 +96,7 @@ export default function DiscoverPage() {
     setSelectedIndex(index);
     setBtnText('VERIFY LBS NODE');
     setBtnDisabled(false);
+    setUnlockedFilms([]);
   }, []);
 
   const closeDetail = useCallback(() => {
@@ -93,21 +104,32 @@ export default function DiscoverPage() {
     setSelectedIndex(null);
     setBtnText('VERIFY LBS NODE');
     setBtnDisabled(false);
+    setUnlockedFilms([]);
   }, []);
+
+  const openPlayModal = useCallback(
+    (film: UnlockedFilm) => {
+      setLbsVideoUrl(film.video_url ?? film.poster_url ?? null);
+      setSelectedLbs(null);
+      setSelectedIndex(null);
+      setUnlockedFilms([]);
+      setActiveModal('play');
+    },
+    [setLbsVideoUrl, setActiveModal]
+  );
 
   const executeLBS = useCallback(async () => {
     if (!selectedLbs || selectedIndex === null) return;
 
     setBtnText('ACQUIRING GPS...');
     setBtnDisabled(true);
-
     setIsLbsLoading(true);
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude: userLat, longitude: userLng } = pos.coords;
 
-        setBtnText('VERIFYING SMART CONTRACT...');
+        setBtnText('VERIFYING GPS...');
 
         try {
           const res = await fetch('/api/verify-lbs', {
@@ -116,16 +138,14 @@ export default function DiscoverPage() {
             body: JSON.stringify({ filmId: selectedIndex, userLat, userLng }),
           });
 
-          const data: { success: boolean; videoUrl?: string; error?: string } =
+          const data: { success: boolean; films?: UnlockedFilm[]; error?: string } =
             await res.json();
 
-          if (data.success && data.videoUrl) {
-            setLbsVideoUrl(data.videoUrl);
-            setIsLbsLoading(false);
-            closeDetail();
-            setActiveModal('play');
+          setIsLbsLoading(false);
+
+          if (data.success && data.films) {
+            setUnlockedFilms(data.films);
           } else {
-            setIsLbsLoading(false);
             showToast(data.error ?? 'LBS VERIFICATION FAILED', 'error');
           }
         } catch {
@@ -144,7 +164,7 @@ export default function DiscoverPage() {
       },
       { enableHighAccuracy: true, timeout: 15000 }
     );
-  }, [selectedLbs, selectedIndex, setActiveModal, setLbsVideoUrl, closeDetail]);
+  }, [selectedLbs, selectedIndex, showToast]);
 
   return (
     <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pt-28 pb-32 relative">
@@ -221,7 +241,7 @@ export default function DiscoverPage() {
         ))}
       </div>
 
-      {/* ─── LBS 详情 Modal（全屏上推） ─────────────────────────────────────── */}
+      {/* ─── LBS 详情 Modal（全屏上推） ─────────────────────────────────────────── */}
       <div
         className={`fixed inset-0 z-[400] bg-[#050505] flex flex-col transition-transform duration-300 ${
           selectedLbs ? 'translate-y-0' : 'translate-y-full'
@@ -244,7 +264,7 @@ export default function DiscoverPage() {
         {selectedLbs && (
           <>
             {/* 可滚动内容区 */}
-            <div className="overflow-y-auto flex-1 pb-32">
+            <div className={`overflow-y-auto flex-1 ${unlockedFilms.length === 0 ? 'pb-32' : 'pb-10'}`}>
 
               {/* 英雄图 */}
               <div className="relative w-full h-72 bg-black">
@@ -308,29 +328,70 @@ export default function DiscoverPage() {
                   </p>
                 </section>
 
+                {/* ─── 放映厅影片列表（LBS 验证通过后显示） ────────────────────── */}
+                {unlockedFilms.length > 0 && (
+                  <section className="pb-4">
+                    {/* 解锁成功提示横幅 */}
+                    <div className="bg-[#CCFF00]/10 border border-[#CCFF00]/40 rounded-xl p-3 mb-4 flex items-center justify-center gap-2">
+                      <i className="fas fa-satellite-dish text-[#CCFF00] text-xs" />
+                      <span className="text-[10px] font-mono text-[#CCFF00] tracking-widest font-bold">
+                        NODE UNLOCKED: OFFICIAL SELECTION AVAILABLE
+                      </span>
+                    </div>
+
+                    {/* 影片卡片列表 */}
+                    {unlockedFilms.map((film) => (
+                      <div
+                        key={film.id}
+                        className="bg-[#111] border border-[#222] rounded-xl p-3 flex gap-4 items-center cursor-pointer hover:border-[#CCFF00] transition-colors group mb-3"
+                        onClick={() => openPlayModal(film)}
+                      >
+                        <img
+                          src={film.poster_url ?? 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200'}
+                          alt={film.title}
+                          className="w-16 h-12 object-cover rounded border border-[#333]"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-bold text-white tracking-wide group-hover:text-[#CCFF00] transition-colors truncate">
+                            {film.title}
+                          </div>
+                          <div className="text-[9px] text-gray-500 font-mono mt-1 uppercase">
+                            {film.studio} | AI: {film.ai_ratio ?? '--'}%
+                          </div>
+                        </div>
+                        <div className="w-10 h-10 rounded-full border border-[#333] flex items-center justify-center text-gray-500 group-hover:text-[#CCFF00] group-hover:border-[#CCFF00] transition-all shrink-0">
+                          <i className="fas fa-play" />
+                        </div>
+                      </div>
+                    ))}
+                  </section>
+                )}
+
               </div>
             </div>
 
-            {/* 底部固定按钮栏 */}
-            <div className="absolute bottom-0 left-0 w-full p-4 bg-black/90 backdrop-blur-xl border-t border-[#222] pb-safe z-20">
-              <button
-                onClick={executeLBS}
-                disabled={btnDisabled}
-                className="brutal-btn w-full text-lg disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {btnDisabled ? (
-                  <>
-                    <i className="fas fa-spinner fa-spin mr-2" />
-                    {btnText}
-                  </>
-                ) : (
-                  <>
-                    <i className="fas fa-satellite-dish mr-2" />
-                    {btnText}
-                  </>
-                )}
-              </button>
-            </div>
+            {/* 底部固定按钮栏（仅未解锁时显示） */}
+            {unlockedFilms.length === 0 && (
+              <div className="absolute bottom-0 left-0 w-full p-4 bg-black/90 backdrop-blur-xl border-t border-[#222] pb-safe z-20">
+                <button
+                  onClick={executeLBS}
+                  disabled={btnDisabled}
+                  className="brutal-btn w-full text-lg disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {btnDisabled ? (
+                    <>
+                      <i className="fas fa-spinner fa-spin mr-2" />
+                      {btnText}
+                    </>
+                  ) : (
+                    <>
+                      <i className="fas fa-satellite-dish mr-2" />
+                      {btnText}
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
