@@ -220,6 +220,7 @@ export default function FeedPage() {
         .select(
           "id, title, synopsis, trailer_url, poster_url, creator_id, creator_name, ai_ratio, created_at"
         )
+        .eq("status", "approved")
         .not("trailer_url", "is", null)
         .order("created_at", { ascending: false })
         .order("ai_ratio", { ascending: false });

@@ -166,7 +166,8 @@ export default function UploadPage() {
 
       const data = await dbRes.json();
       if (data.success) {
-        router.push('/me');
+        showToast('SUBMISSION CONFIRMED. YOUR FILM IS QUEUED FOR REVIEW.', 'success');
+        setStep('processing');
       } else {
         setUploadStatus(`ERROR: ${data.error}`);
       }

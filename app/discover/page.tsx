@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useModal } from '@/app/context/ModalContext';
 import { useToast } from '@/app/context/ToastContext';
+import { supabase } from '@/lib/supabase';
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
@@ -15,13 +16,16 @@ interface Curator {
 }
 
 interface LbsFilmEntry {
+  id: string;
   title: string;
   coverUrl: string;
   studio: string;
   duration: string;
+  trailerUrl: string | null;
 }
 
 interface LbsNode {
+  id: string | number;
   state: LbsState;
   stateLabel: string;
   title: string;
@@ -39,238 +43,213 @@ interface LbsNode {
   distance: string;
   distanceKm: number;
   curator: Curator;
-  films: LbsFilmEntry[];
+  filmIds: string[] | null;
 }
 
-/* ─── Mock Data ──────────────────────────────────────────────────────────── */
+/* ─── DB row shape ───────────────────────────────────────────────────────── */
 
-const LBS_NODES: LbsNode[] = [
-  {
-    state: 'unlocked',
-    stateLabel: 'UNLOCKED',
-    title: 'FLAGSHIP IMMERSION',
-    location: 'Apple Store, Causeway Bay',
-    coords: '22.280°N, 114.184°E',
-    date: 'July 16, 2026 · 20:00 - 22:00',
-    img: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800',
-    desc: "An exclusive offline premiere at the Apple Flagship. This screening utilizes the store's spatial audio capabilities to render AIF.BOT's dynamic soundtracks in real-time.",
-    req: 'LBS matched. Node connection established.',
-    icon: 'fa-unlock',
-    borderColor: 'border-signal',
-    textColor: 'text-signal',
-    duration: '01:45:00',
-    city: 'Hong Kong',
-    distance: '1.2 km away',
-    distanceKm: 1.2,
-    curator: {
-      name: 'Ada Chen',
-      avatar: 'https://images.unsplash.com/photo-1494790108755-2616b612b5cb?q=80&w=100',
-      isCertified: true,
-    },
-    films: [
-      {
-        title: 'NEURAL GHOST',
-        coverUrl: 'https://images.unsplash.com/photo-1608889175123-8ee362201f81?q=80&w=300',
-        studio: 'AIF.BOT LAB',
-        duration: '00:42:00',
-      },
-      {
-        title: 'SYNTHETIC DAWN',
-        coverUrl: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?q=80&w=300',
-        studio: 'VOID STUDIOS',
-        duration: '00:38:00',
-      },
-      {
-        title: 'ECHO PROTOCOL',
-        coverUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=300',
-        studio: 'DARK MATTER FILMS',
-        duration: '00:25:00',
-      },
-    ],
-  },
-  {
-    state: 'unlocked',
-    stateLabel: 'UNLOCKED',
-    title: 'HARBOR FREQUENCY',
-    location: 'West Kowloon Cultural District',
-    coords: '22.303°N, 114.160°E',
-    date: 'July 18, 2026 · 18:00 - 20:00',
-    img: 'https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?q=80&w=800',
-    desc: 'A site-specific sound film installation at the M+ museum forecourt. The screening adapts to real-time data from Victoria Harbour maritime traffic, blending documentary and generative AI composition.',
-    req: 'LBS matched. Node connection established.',
-    icon: 'fa-unlock',
-    borderColor: 'border-signal',
-    textColor: 'text-signal',
-    duration: '01:20:00',
-    city: 'Hong Kong',
-    distance: '500m away',
-    distanceKm: 0.5,
-    curator: {
-      name: 'Marcus Leung',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?q=80&w=100',
-      isCertified: true,
-    },
-    films: [
-      {
-        title: 'HARBOR GHOST',
-        coverUrl: 'https://images.unsplash.com/photo-1500673922987-e212871fec22?q=80&w=300',
-        studio: 'WEST KLN ARTS',
-        duration: '00:35:00',
-      },
-      {
-        title: 'FREQUENCY SEVEN',
-        coverUrl: 'https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?q=80&w=300',
-        studio: 'SIGNAL FILMS',
-        duration: '00:47:00',
-      },
-      {
-        title: 'MARITIME DATA',
-        coverUrl: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?q=80&w=300',
-        studio: 'DEEP BLUE LAB',
-        duration: '00:22:00',
-      },
-    ],
-  },
-  {
-    state: 'locked_geo',
-    stateLabel: 'GEO-LOCKED',
-    title: 'WEST LAKE ANOMALY',
-    location: 'West Lake, Hangzhou',
-    coords: '30.245°N, 120.148°E',
-    date: 'July 17, 2026 · 19:30 - 21:00',
-    img: 'https://images.unsplash.com/photo-1480796927426-f609979314bd?q=80&w=800',
-    desc: "A sprawling AR-enhanced cinematic experience across the West Lake. The film's narrative branches depend on the audience's collective movement along the Su Causeway.",
-    req: 'Smart contract requires physical presence within 500m.',
-    icon: 'fa-map-marker-alt',
-    borderColor: 'border-danger',
-    textColor: 'text-danger',
-    duration: '02:10:00',
-    city: 'Hangzhou',
-    distance: '1,243 km away',
-    distanceKm: 1243,
-    curator: {
-      name: 'Lin Wei',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?q=80&w=100',
-      isCertified: true,
-    },
-    films: [
-      {
-        title: 'RIPPLE THEORY',
-        coverUrl: 'https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?q=80&w=300',
-        studio: 'EAST DIGITAL',
-        duration: '01:10:00',
-      },
-      {
-        title: 'JADE NETWORK',
-        coverUrl: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=300',
-        studio: 'SILK ROAD FILMS',
-        duration: '00:58:00',
-      },
-    ],
-  },
-  {
-    state: 'locked_geo',
-    stateLabel: 'GEO-LOCKED',
-    title: 'SILK ROAD CIPHER',
-    location: 'Zhejiang University, Hangzhou',
-    coords: '30.309°N, 120.086°E',
-    date: 'July 19, 2026 · 21:00 - 23:00',
-    img: 'https://images.unsplash.com/photo-1564053489984-317bbd824340?q=80&w=800',
-    desc: 'An academic-exclusive screening co-presented with Zhejiang University AI Lab. Requires valid .edu proximity verification on-chain.',
-    req: 'Smart contract requires physical presence within 300m of ZJU campus.',
-    icon: 'fa-map-marker-alt',
-    borderColor: 'border-danger',
-    textColor: 'text-danger',
-    duration: '01:30:00',
-    city: 'Hangzhou',
-    distance: '1,245 km away',
-    distanceKm: 1245,
-    curator: {
-      name: 'Dr. Zhao Fang',
-      avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?q=80&w=100',
-      isCertified: true,
-    },
-    films: [
-      {
-        title: 'ALGORITHMIC CANVAS',
-        coverUrl: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?q=80&w=300',
-        studio: 'ZJU AI STUDIO',
-        duration: '00:48:00',
-      },
-    ],
-  },
-  {
-    state: 'locked_cond',
-    stateLabel: 'TIME-LOCKED',
-    title: 'THE MIDNIGHT EXPRESS',
-    location: 'Global Node',
-    coords: 'ON-CHAIN',
-    date: 'Daily · 00:00 - 02:00',
-    img: 'https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?q=80&w=800',
-    desc: 'A psychological thriller that only exists in the digital ether during the witching hour. Any attempt to record or stream the content outside this window will result in corrupted hashes.',
-    req: 'Playback genesis unlocks between 00:00 – 02:00 local time.',
-    icon: 'fa-clock',
-    borderColor: 'border-honey',
-    textColor: 'text-honey',
-    duration: '00:55:00',
-    city: 'Global',
-    distance: '0 km away',
+interface DbLbsNode {
+  id: number | string;
+  title: string | null;
+  location: string | null;
+  lat: number | null;
+  lng: number | null;
+  radius: number | null;
+  date_label: string | null;
+  image_url: string | null;
+  state: string | null;
+  description: string | null;
+  smart_contract_req: string | null;
+  city: string | null;
+  film_ids: string[] | null;
+  curator_name: string | null;
+  curator_avatar: string | null;
+  curator_certified: boolean | null;
+}
+
+/* ─── Helpers ────────────────────────────────────────────────────────────── */
+
+const STATE_CONFIG: Record<LbsState, { label: string; icon: string; border: string; text: string }> = {
+  unlocked:    { label: 'UNLOCKED',    icon: 'fa-unlock',         border: 'border-signal', text: 'text-signal' },
+  locked_geo:  { label: 'GEO-LOCKED',  icon: 'fa-map-marker-alt', border: 'border-danger', text: 'text-danger' },
+  locked_cond: { label: 'TIME-LOCKED', icon: 'fa-clock',          border: 'border-honey',  text: 'text-honey'  },
+};
+
+function resolveState(raw: string | null): LbsState {
+  if (raw === 'unlocked' || raw === 'locked_geo' || raw === 'locked_cond') return raw;
+  return 'locked_geo';
+}
+
+function mapDbNode(db: DbLbsNode): LbsNode {
+  const state = resolveState(db.state);
+  const cfg = STATE_CONFIG[state];
+
+  const lat = db.lat ?? 0;
+  const lng = db.lng ?? 0;
+  const coordStr =
+    db.lat != null && db.lng != null
+      ? `${Math.abs(lat).toFixed(3)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lng).toFixed(3)}°${lng >= 0 ? 'E' : 'W'}`
+      : 'ON-CHAIN';
+
+  return {
+    id: db.id,
+    state,
+    stateLabel: cfg.label,
+    title: db.title ?? 'UNNAMED NODE',
+    location: db.location ?? 'Location TBD',
+    coords: coordStr,
+    date: db.date_label ?? 'TBD',
+    img: db.image_url ?? 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800',
+    desc: db.description ?? '',
+    req: db.smart_contract_req ?? 'Smart contract conditions pending.',
+    icon: cfg.icon,
+    borderColor: cfg.border,
+    textColor: cfg.text,
+    duration: '—',
+    city: db.city ?? 'Unknown',
+    distance: '—',
     distanceKm: 0,
     curator: {
-      name: 'ANON_7',
-      avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=100',
-      isCertified: false,
+      name: db.curator_name ?? 'Anonymous',
+      avatar:
+        db.curator_avatar ??
+        `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(String(db.id))}`,
+      isCertified: db.curator_certified ?? false,
     },
-    films: [
-      {
-        title: 'VOID TRANSMISSION',
-        coverUrl: 'https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?q=80&w=300',
-        studio: 'NULL CORP',
-        duration: '00:55:00',
-      },
-    ],
-  },
-];
+    filmIds: db.film_ids ?? null,
+  };
+}
+
+/* ─── Loading Skeleton ───────────────────────────────────────────────────── */
+
+function NodeSkeleton() {
+  return (
+    <div className="border border-[#222] rounded-xl overflow-hidden bg-[#111] min-h-[180px] animate-pulse">
+      <div className="w-full h-full bg-[#1a1a1a]" />
+    </div>
+  );
+}
+
+/* ─── Empty State ────────────────────────────────────────────────────────── */
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 gap-5">
+      <div className="w-20 h-20 rounded-full bg-[#111] border border-[#222] flex items-center justify-center">
+        <i className="fas fa-map-marked-alt text-3xl text-[#333]" />
+      </div>
+      <div className="text-center">
+        <div className="font-heavy text-lg text-[#333] tracking-widest mb-2">NO LBS NODES</div>
+        <div className="font-mono text-[10px] text-[#2a2a2a] tracking-wider leading-relaxed max-w-xs mx-auto">
+          No screening nodes have been published yet. Check back closer to the festival dates.
+        </div>
+      </div>
+      <div className="flex items-center gap-2 bg-[#111] px-3 py-2 rounded-full border border-[#222]">
+        <div className="w-1.5 h-1.5 rounded-full bg-[#333] animate-pulse" />
+        <span className="font-mono text-[9px] text-[#444] tracking-widest">AWAITING NODE BROADCAST</span>
+      </div>
+    </div>
+  );
+}
 
 /* ─── Page Component ─────────────────────────────────────────────────────── */
 
 export default function DiscoverPage() {
+  const [nodes, setNodes] = useState<LbsNode[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState<LbsNode | null>(null);
+  const [detailFilms, setDetailFilms] = useState<LbsFilmEntry[]>([]);
+  const [filmsLoading, setFilmsLoading] = useState(false);
   const [cityFilter, setCityFilter] = useState<string>('all');
   const [sortOrder, setSortOrder] = useState<'nearest' | 'latest'>('nearest');
 
   const { setActiveModal, setLbsVideoUrl } = useModal();
   const { showToast } = useToast();
 
-  const allCities = useMemo(() => [...new Set(LBS_NODES.map((n) => n.city))], []);
+  /* ── Fetch LBS nodes from Supabase ──────────────────────────────────── */
+  useEffect(() => {
+    async function fetchNodes() {
+      try {
+        const { data, error } = await supabase.from('lbs_nodes').select('*');
+        if (error) throw error;
+        if (data && data.length > 0) {
+          setNodes((data as DbLbsNode[]).map(mapDbNode));
+        }
+      } catch (err) {
+        console.error('[Discover] Failed to fetch lbs_nodes:', err);
+        showToast('Failed to load LBS nodes. Please try again.', 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchNodes();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const allCities = useMemo(() => [...new Set(nodes.map((n) => n.city))], [nodes]);
 
   const filteredNodes = useMemo(() => {
-    const base = cityFilter === 'all' ? [...LBS_NODES] : LBS_NODES.filter((n) => n.city === cityFilter);
+    const base = cityFilter === 'all' ? [...nodes] : nodes.filter((n) => n.city === cityFilter);
     if (sortOrder === 'nearest') {
       return [...base].sort((a, b) => a.distanceKm - b.distanceKm);
     }
     return base;
-  }, [cityFilter, sortOrder]);
+  }, [nodes, cityFilter, sortOrder]);
 
+  /* ── Open node detail + fetch associated films ───────────────────────── */
   const openDetail = useCallback(
-    (node: LbsNode) => {
+    async (node: LbsNode) => {
       if (node.state !== 'unlocked') {
         showToast('🔒 ACCESS DENIED: Not within LBS range or time window.', 'error');
         return;
       }
       setSelectedNode(node);
+      setDetailFilms([]);
+
+      if (node.filmIds && node.filmIds.length > 0) {
+        setFilmsLoading(true);
+        try {
+          const { data, error } = await supabase
+            .from('films')
+            .select('id, title, poster_url, studio_name, trailer_url, ai_ratio')
+            .in('id', node.filmIds)
+            .eq('status', 'approved');
+
+          if (error) throw error;
+
+          if (data && data.length > 0) {
+            setDetailFilms(
+              data.map((f) => ({
+                id: f.id,
+                title: f.title,
+                coverUrl: f.poster_url ?? 'https://images.unsplash.com/photo-1608889175123-8ee362201f81?q=80&w=300',
+                studio: f.studio_name ?? '—',
+                duration: '—',
+                trailerUrl: f.trailer_url ?? null,
+              })),
+            );
+          }
+        } catch (err) {
+          console.error('[Discover] Failed to load node films:', err);
+        } finally {
+          setFilmsLoading(false);
+        }
+      }
     },
     [showToast],
   );
 
   const closeDetail = useCallback(() => {
     setSelectedNode(null);
+    setDetailFilms([]);
   }, []);
 
   const playFilm = useCallback(
     (film: LbsFilmEntry) => {
-      setLbsVideoUrl(film.coverUrl);
+      const playUrl = film.trailerUrl ?? film.coverUrl;
+      setLbsVideoUrl(playUrl);
       setSelectedNode(null);
+      setDetailFilms([]);
       setActiveModal('play');
     },
     [setLbsVideoUrl, setActiveModal],
@@ -283,9 +262,9 @@ export default function DiscoverPage() {
       <div className="flex justify-between items-end mb-2">
         <h1 className="font-heavy text-4xl text-white">DISCOVER</h1>
         <div className="flex items-center gap-2 mb-2 bg-[#111] px-2 py-1 rounded border border-[#333]">
-          <div className="w-1.5 h-1.5 rounded-full bg-signal animate-pulse" />
+          <div className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-honey animate-pulse' : 'bg-signal animate-pulse'}`} />
           <span className="font-mono text-[8px] text-signal tracking-widest uppercase">
-            SCANNING LBS NODES...
+            {loading ? 'LOADING NODES...' : `${nodes.length} NODES ACTIVE`}
           </span>
         </div>
       </div>
@@ -297,102 +276,113 @@ export default function DiscoverPage() {
       </p>
 
       {/* ─── Filter Toolbar ───────────────────────────────────────────────── */}
-      <div className="flex gap-3 mb-6">
-        <select
-          value={cityFilter}
-          onChange={(e) => setCityFilter(e.target.value)}
-          className="bg-black border border-[#333] text-[#CCFF00] text-xs font-mono p-2 rounded flex-1 appearance-none cursor-pointer focus:outline-none focus:border-[#CCFF00]"
-        >
-          <option value="all">All Cities</option>
-          {allCities.map((city) => (
-            <option key={city} value={city}>
-              {city}
-            </option>
-          ))}
-        </select>
-        <select
-          value={sortOrder}
-          onChange={(e) => setSortOrder(e.target.value as 'nearest' | 'latest')}
-          className="bg-black border border-[#333] text-[#CCFF00] text-xs font-mono p-2 rounded flex-1 appearance-none cursor-pointer focus:outline-none focus:border-[#CCFF00]"
-        >
-          <option value="nearest">Nearest</option>
-          <option value="latest">Latest</option>
-        </select>
-      </div>
-
-      {/* ─── LBS Node Card List ───────────────────────────────────────────── */}
-      <div className="space-y-4">
-        {filteredNodes.map((node, index) => (
-          <div
-            key={index}
-            className={`border ${node.borderColor} rounded-xl p-[1px] bg-[#111] relative overflow-hidden group cursor-pointer shadow-lg`}
-            onClick={() => openDetail(node)}
+      {!loading && nodes.length > 0 && (
+        <div className="flex gap-3 mb-6">
+          <select
+            value={cityFilter}
+            onChange={(e) => setCityFilter(e.target.value)}
+            className="bg-black border border-[#333] text-[#CCFF00] text-xs font-mono p-2 rounded flex-1 appearance-none cursor-pointer focus:outline-none focus:border-[#CCFF00]"
           >
-            {/* Background image */}
-            <div className="absolute inset-0 bg-black">
-              <img
-                src={node.img}
-                alt={node.title}
-                className="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700"
-              />
-            </div>
+            <option value="all">All Cities</option>
+            {allCities.map((city) => (
+              <option key={city} value={city}>
+                {city}
+              </option>
+            ))}
+          </select>
+          <select
+            value={sortOrder}
+            onChange={(e) => setSortOrder(e.target.value as 'nearest' | 'latest')}
+            className="bg-black border border-[#333] text-[#CCFF00] text-xs font-mono p-2 rounded flex-1 appearance-none cursor-pointer focus:outline-none focus:border-[#CCFF00]"
+          >
+            <option value="nearest">Nearest</option>
+            <option value="latest">Latest</option>
+          </select>
+        </div>
+      )}
 
-            {/* Gradient overlay */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
+      {/* ─── Content ─────────────────────────────────────────────────────── */}
+      {loading ? (
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => <NodeSkeleton key={i} />)}
+        </div>
+      ) : nodes.length === 0 ? (
+        <EmptyState />
+      ) : (
+        /* ─── LBS Node Card List ─────────────────────────────────────────── */
+        <div className="space-y-4">
+          {filteredNodes.map((node) => (
+            <div
+              key={node.id}
+              className={`border ${node.borderColor} rounded-xl p-[1px] bg-[#111] relative overflow-hidden group cursor-pointer shadow-lg`}
+              onClick={() => openDetail(node)}
+            >
+              {/* Background image */}
+              <div className="absolute inset-0 bg-black">
+                <img
+                  src={node.img}
+                  alt={node.title}
+                  className="w-full h-full object-cover opacity-40 group-hover:scale-105 transition-transform duration-700"
+                />
+              </div>
 
-            {/* Content */}
-            <div className="relative z-10 p-5 flex flex-col justify-between h-full min-h-[180px]">
+              {/* Gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent" />
 
-              {/* Top row: state badge + coords / city / distance */}
-              <div className="flex justify-between items-start">
-                <div
-                  className={`bg-black/80 border ${node.borderColor} text-[9px] font-mono px-2 py-1 rounded ${node.textColor} flex items-center gap-1.5 backdrop-blur shadow-[0_0_10px_currentColor]`}
-                >
-                  <i className={`fas ${node.icon}`} />
-                  <span>{node.stateLabel}</span>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  <div className="text-[10px] font-mono text-gray-400 bg-black/50 px-2 py-1 rounded backdrop-blur border border-[#333] ltr-force">
-                    {node.coords}
+              {/* Content */}
+              <div className="relative z-10 p-5 flex flex-col justify-between h-full min-h-[180px]">
+
+                {/* Top row: state badge + coords / city / distance */}
+                <div className="flex justify-between items-start">
+                  <div
+                    className={`bg-black/80 border ${node.borderColor} text-[9px] font-mono px-2 py-1 rounded ${node.textColor} flex items-center gap-1.5 backdrop-blur shadow-[0_0_10px_currentColor]`}
+                  >
+                    <i className={`fas ${node.icon}`} />
+                    <span>{node.stateLabel}</span>
                   </div>
-                  <div className="text-[9px] font-mono text-gray-500 bg-black/50 px-2 py-0.5 rounded backdrop-blur border border-[#333] ltr-force">
-                    {node.city} · {node.distance}
+                  <div className="flex flex-col items-end gap-1">
+                    <div className="text-[10px] font-mono text-gray-400 bg-black/50 px-2 py-1 rounded backdrop-blur border border-[#333] ltr-force">
+                      {node.coords}
+                    </div>
+                    <div className="text-[9px] font-mono text-gray-500 bg-black/50 px-2 py-0.5 rounded backdrop-blur border border-[#333] ltr-force">
+                      {node.city} · {node.distance}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom row: title + location + req + curator */}
+                <div>
+                  <h3 className="font-heavy text-white text-2xl mb-1 tracking-wide drop-shadow-md">
+                    {node.title}
+                  </h3>
+                  <div className="text-xs font-mono text-gray-300 mb-3 flex items-center gap-2">
+                    <i className={`fas fa-map-marker-alt ${node.textColor}`} />
+                    {node.location}
+                  </div>
+                  <div
+                    className={`text-[10px] text-gray-400 font-mono border-l-2 ${node.borderColor} pl-2 leading-snug bg-black/40 py-1 pr-1 backdrop-blur rounded-r mb-3`}
+                  >
+                    {node.req}
+                  </div>
+
+                  {/* Curator row */}
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={node.curator.avatar}
+                      alt={node.curator.name}
+                      className="w-5 h-5 rounded-full border border-[#444] object-cover shrink-0"
+                    />
+                    <span className="text-[10px] font-mono text-gray-300">{node.curator.name}</span>
+                    {node.curator.isCertified && (
+                      <i className="fas fa-certificate text-[#CCFF00] text-[9px]" />
+                    )}
                   </div>
                 </div>
               </div>
-
-              {/* Bottom row: title + location + req + curator */}
-              <div>
-                <h3 className="font-heavy text-white text-2xl mb-1 tracking-wide drop-shadow-md">
-                  {node.title}
-                </h3>
-                <div className="text-xs font-mono text-gray-300 mb-3 flex items-center gap-2">
-                  <i className={`fas fa-map-marker-alt ${node.textColor}`} />
-                  {node.location}
-                </div>
-                <div
-                  className={`text-[10px] text-gray-400 font-mono border-l-2 ${node.borderColor} pl-2 leading-snug bg-black/40 py-1 pr-1 backdrop-blur rounded-r mb-3`}
-                >
-                  {node.req}
-                </div>
-
-                {/* Curator row */}
-                <div className="flex items-center gap-2">
-                  <img
-                    src={node.curator.avatar}
-                    alt={node.curator.name}
-                    className="w-5 h-5 rounded-full border border-[#444] object-cover shrink-0"
-                  />
-                  <span className="text-[10px] font-mono text-gray-300">{node.curator.name}</span>
-                  {node.curator.isCertified && (
-                    <i className="fas fa-certificate text-[#CCFF00] text-[9px]" />
-                  )}
-                </div>
-              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* ─── LBS Detail Drawer (full-screen slide-up) ────────────────────── */}
       <div
@@ -486,12 +476,14 @@ export default function DiscoverPage() {
               </div>
 
               {/* Event Description */}
-              <section>
-                <h3 className="font-heavy text-lg text-white mb-2">EVENT DESCRIPTION</h3>
-                <p className="text-xs text-gray-300 font-mono leading-relaxed text-justify">
-                  {selectedNode.desc}
-                </p>
-              </section>
+              {selectedNode.desc && (
+                <section>
+                  <h3 className="font-heavy text-lg text-white mb-2">EVENT DESCRIPTION</h3>
+                  <p className="text-xs text-gray-300 font-mono leading-relaxed text-justify">
+                    {selectedNode.desc}
+                  </p>
+                </section>
+              )}
 
               {/* Official Selection film pool */}
               <section>
@@ -499,30 +491,52 @@ export default function DiscoverPage() {
                   <i className="fas fa-film text-[#CCFF00]" />
                   OFFICIAL SELECTION
                 </h3>
-                {selectedNode.films.map((film, i) => (
-                  <div
-                    key={i}
-                    className="bg-[#111] border border-[#222] rounded-xl p-3 flex gap-4 items-center cursor-pointer hover:border-[#CCFF00] transition-colors group mb-3"
-                    onClick={() => playFilm(film)}
-                  >
-                    <img
-                      src={film.coverUrl}
-                      alt={film.title}
-                      className="w-16 h-12 object-cover rounded border border-[#333] shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-bold text-white tracking-wide group-hover:text-[#CCFF00] transition-colors truncate">
-                        {film.title}
+
+                {filmsLoading ? (
+                  <div className="space-y-3">
+                    {[...Array(2)].map((_, i) => (
+                      <div key={i} className="bg-[#111] border border-[#222] rounded-xl p-3 flex gap-4 items-center animate-pulse">
+                        <div className="w-16 h-12 bg-[#1a1a1a] rounded shrink-0" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-3 bg-[#1a1a1a] rounded w-3/4" />
+                          <div className="h-2 bg-[#1a1a1a] rounded w-1/2" />
+                        </div>
                       </div>
-                      <div className="text-[9px] text-gray-500 font-mono mt-1 uppercase">
-                        {film.studio} · {film.duration}
-                      </div>
-                    </div>
-                    <div className="w-10 h-10 rounded-full border border-[#333] flex items-center justify-center text-gray-500 group-hover:text-[#CCFF00] group-hover:border-[#CCFF00] transition-all shrink-0">
-                      <i className="fas fa-play" />
-                    </div>
+                    ))}
                   </div>
-                ))}
+                ) : detailFilms.length === 0 ? (
+                  <div className="bg-[#111] border border-[#222] rounded-xl p-6 flex flex-col items-center gap-3">
+                    <i className="fas fa-film text-2xl text-[#333]" />
+                    <span className="font-mono text-[10px] text-[#444] tracking-widest">
+                      NO FILMS ASSIGNED TO THIS NODE
+                    </span>
+                  </div>
+                ) : (
+                  detailFilms.map((film) => (
+                    <div
+                      key={film.id}
+                      className="bg-[#111] border border-[#222] rounded-xl p-3 flex gap-4 items-center cursor-pointer hover:border-[#CCFF00] transition-colors group mb-3"
+                      onClick={() => playFilm(film)}
+                    >
+                      <img
+                        src={film.coverUrl}
+                        alt={film.title}
+                        className="w-16 h-12 object-cover rounded border border-[#333] shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-white tracking-wide group-hover:text-[#CCFF00] transition-colors truncate">
+                          {film.title}
+                        </div>
+                        <div className="text-[9px] text-gray-500 font-mono mt-1 uppercase">
+                          {film.studio} · {film.duration}
+                        </div>
+                      </div>
+                      <div className="w-10 h-10 rounded-full border border-[#333] flex items-center justify-center text-gray-500 group-hover:text-[#CCFF00] group-hover:border-[#CCFF00] transition-all shrink-0">
+                        <i className="fas fa-play" />
+                      </div>
+                    </div>
+                  ))
+                )}
               </section>
 
               {/* Smart Contract Req */}
