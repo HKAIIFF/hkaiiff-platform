@@ -17,14 +17,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'AI ratio must be at least 51%' }, { status: 400 });
     }
 
-    // 1. 插入影片
+    // 1. 插入影片（列名以 films 表實際 schema 為準）
     const { data: film, error: filmError } = await supabase
       .from('films')
       .insert([{
-        creator_id, title, studio_name, tech_stack, 
-        ai_ratio: parseInt(ai_ratio), synopsis, 
-        poster_url, trailer_url, full_film_url,
-        status: 'pending'
+        user_id:      creator_id,
+        title,
+        studio:       studio_name,
+        tech_stack,
+        ai_ratio:     parseInt(ai_ratio),
+        description:  synopsis,
+        poster_url,
+        trailer_url,
+        feature_url:  full_film_url,
+        status:       'pending',
       }])
       .select()
       .single();

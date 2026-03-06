@@ -169,7 +169,10 @@ export default function UploadPage() {
         showToast('SUBMISSION CONFIRMED. YOUR FILM IS QUEUED FOR REVIEW.', 'success');
         setStep('processing');
       } else {
-        setUploadStatus(`ERROR: ${data.error}`);
+        const errMsg = `ERROR: ${data.error ?? 'DATABASE WRITE FAILED'}`;
+        console.error('Insert failed:', data.error);
+        setUploadStatus(errMsg);
+        showToast(errMsg, 'error');
       }
     } catch (err: any) {
       console.error(err);
