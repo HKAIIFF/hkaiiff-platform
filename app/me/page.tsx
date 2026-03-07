@@ -379,7 +379,7 @@ export default function MePage() {
       {isHistoryLoading && <CyberLoading text="LOADING PARALLEL UNIVERSE..." />}
 
       {/* ── Page Header ────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-10 bg-void/95 backdrop-blur border-b border-[#222] px-6 py-4 flex items-center justify-between flex-shrink-0">
+      <div className="hidden md:flex sticky top-0 z-10 bg-void/95 backdrop-blur border-b border-[#222] px-6 py-4 items-center justify-between flex-shrink-0">
         <div className="hidden md:block">
           <h1 className="font-heavy text-2xl text-white tracking-wider leading-none">
             USER CENTER
@@ -462,16 +462,28 @@ export default function MePage() {
 
       {/* ── Funding Account Panel ──────────────────────────────────────── */}
       <div className="bg-gradient-to-br from-[#0d1a00] to-[#0a0a0a] p-5 rounded-xl border border-signal/30
-                      shadow-[0_0_20px_rgba(204,255,0,0.06)] relative overflow-hidden group mb-4">
+                      shadow-[0_0_20px_rgba(204,255,0,0.06)] relative overflow-hidden group mb-4 min-h-[100px] shrink-0">
         {/* Corner glow */}
         <div className="absolute top-0 right-0 w-28 h-28 bg-signal/5 rounded-bl-full transition-colors group-hover:bg-signal/10" />
         <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-signal/60 via-signal/20 to-transparent" />
 
-        {/* Header row */}
-        <div className="flex items-center justify-between mb-3">
-          <div className="text-[10px] text-signal font-mono tracking-widest flex items-center gap-2">
-            <i className="fas fa-wallet" />
-            FUNDING ACCOUNT
+        {/* Label row */}
+        <div className="text-[10px] text-signal font-mono tracking-widest flex items-center gap-2 mb-3">
+          <i className="fas fa-wallet" />
+          FUNDING ACCOUNT
+        </div>
+
+        {/* Balance + TOP UP row */}
+        <div className="flex flex-row justify-between items-center flex-wrap gap-4 mb-1">
+          <div className="flex items-baseline gap-2">
+            <span className="text-4xl font-heavy text-white ltr-force">
+              {dbProfile !== null
+                ? (dbProfile.aif_balance ?? 0).toLocaleString()
+                : <span className="text-2xl text-gray-500 animate-pulse">...</span>
+              }
+            </span>
+            <span className="text-signal text-lg font-heavy">AIF</span>
+            <span className="text-[9px] font-mono text-gray-600 ml-1">INTERNAL LEDGER</span>
           </div>
           <button
             onClick={handleOpenTopUp}
@@ -479,23 +491,11 @@ export default function MePage() {
                        bg-signal text-black px-3 py-1.5 rounded-lg
                        shadow-[0_0_12px_rgba(204,255,0,0.4)]
                        hover:shadow-[0_0_20px_rgba(204,255,0,0.6)]
-                       active:scale-95 transition-all"
+                       active:scale-95 transition-all shrink-0"
           >
             <i className="fas fa-plus text-[9px]" />
             TOP UP
           </button>
-        </div>
-
-        {/* Internal AIF Balance (from Supabase) */}
-        <div className="flex items-baseline gap-2 mb-1">
-          <span className="text-4xl font-heavy text-white ltr-force">
-            {dbProfile !== null
-              ? (dbProfile.aif_balance ?? 0).toLocaleString()
-              : <span className="text-2xl text-gray-500 animate-pulse">...</span>
-            }
-          </span>
-          <span className="text-signal text-lg font-heavy">AIF</span>
-          <span className="text-[9px] font-mono text-gray-600 ml-1">INTERNAL LEDGER</span>
         </div>
 
         {/* On-chain balance (secondary) */}
