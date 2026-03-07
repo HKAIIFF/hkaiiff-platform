@@ -4,6 +4,7 @@
  * ============================================================
  * 功能：掃描 Supabase 數據庫中所有持有 AIF 代幣的用戶充值地址，
  *       並將餘額全部歸集到官方總金庫錢包 (TREASURY_WALLET)。
+ *       若用戶 SOL 不足，自動由 Fee Payer 熱錢包墊付 Gas 費。
  *
  * 運行方式：npx ts-node scripts/sweep_aif.ts
  *
@@ -23,6 +24,7 @@ import {
   PublicKey,
   Keypair,
   LAMPORTS_PER_SOL,
+  SystemProgram,
   sendAndConfirmTransaction,
   Transaction,
 } from '@solana/web3.js';
@@ -35,6 +37,7 @@ import {
 import * as bip39 from 'bip39';
 import { derivePath } from 'ed25519-hd-key';
 import { createClient } from '@supabase/supabase-js';
+import bs58 from 'bs58';
 
 // ============================================================
 // 環境變量校驗
@@ -74,8 +77,30 @@ const TREASURY_WALLET = new PublicKey(assertEnv('TREASURY_WALLET'));
 const AIF_MINT_ADDRESS = new PublicKey(assertEnv('NEXT_PUBLIC_AIF_MINT_ADDRESS'));
 
 /**
- * 觸發 Gas 補充警告的最低 SOL 閾值（單位：SOL）。
- * Solana 轉帳交易約消耗 5,000 lamports，此處設為 0.002 SOL 以留有餘量。
+ * Fee Payer 熱錢包 Keypair（用於自動墊付 Gas 費）。
+ * 從 FEE_PAYER_PRIVATE_KEY 讀取 Base58 格式的私鑰並還原。
+ */
+const feePayerKeypair: Keypair = (() => {
+  const rawKey = assertEnv('FEE_PAYER_PRIVATE_KEY');
+  try {
+    const decoded = bs58.decode(rawKey);
+    return Keypair.fromSecretKey(decoded);
+  } catch {
+    throw new Error(
+      '[密鑰錯誤] FEE_PAYER_PRIVATE_KEY 格式無效，請確認是否為合法的 Base58 私鑰。'
+    );
+  }
+})();
+
+/**
+ * 每次墊付的固定 SOL 數量（lamports）。
+ * 包含租金豁免緩衝 + 多次交易手續費，足夠執行歸集操作。
+ */
+const RENT_AND_GAS_FEE = 0.002 * LAMPORTS_PER_SOL;
+
+/**
+ * 觸發自動墊付的 SOL 閾值（單位：SOL）。
+ * 低於此值時由 Fee Payer 自動補充。
  */
 const MINIMUM_SOL_FOR_GAS = 0.002;
 
@@ -192,26 +217,48 @@ async function processUserWallet(walletIndex: number, depositAddress: string): P
   console.log(`  💰 AIF 餘額：${aifBalance.toString()} (最小單位)`);
 
   // ----------------------------------------------------------
-  // Step 4：檢查 SOL 餘額是否足夠支付 Gas 費
+  // Step 4：檢查 SOL 餘額，不足則由 Fee Payer 自動墊付
   // ----------------------------------------------------------
   const solBalance = await connection.getBalance(userKeypair.publicKey);
   const solBalanceInSol = solBalance / LAMPORTS_PER_SOL;
 
-  if (solBalanceInSol < MINIMUM_SOL_FOR_GAS) {
-    // TODO: 未來可在此處加入官方熱錢包自動墊付 SOL 的邏輯：
-    //   1. 從官方熱錢包向 userKeypair.publicKey 轉入約 0.003 SOL
-    //   2. 等待確認後再繼續執行歸集
-    //   3. 歸集完成後可選擇性回收剩餘 SOL
-    console.warn(
-      `  ⚠️  [警告] 缺少 SOL 作為 Gas 費，無法歸集\n` +
-        `      當前 SOL 餘額：${solBalanceInSol.toFixed(6)} SOL\n` +
-        `      最低要求：${MINIMUM_SOL_FOR_GAS} SOL\n` +
-        `      地址：${depositAddress}`
+  if (solBalance < RENT_AND_GAS_FEE) {
+    console.log(
+      `  ⛽ [準備墊付] 用戶地址 SOL 不足（當前：${solBalanceInSol.toFixed(6)} SOL），` +
+        `正在從 Fee Payer 墊付 0.002 SOL...`
     );
-    return;
-  }
 
-  console.log(`  ⛽ SOL 餘額充足：${solBalanceInSol.toFixed(6)} SOL`);
+    try {
+      const fundTx = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: feePayerKeypair.publicKey,
+          toPubkey: userKeypair.publicKey,
+          lamports: RENT_AND_GAS_FEE,
+        })
+      );
+
+      const fundSig = await sendAndConfirmTransaction(
+        connection,
+        fundTx,
+        [feePayerKeypair],
+        { commitment: 'confirmed' }
+      );
+
+      console.log(
+        `  ✅ [墊付成功] 交易 Hash: ${fundSig}\n` +
+          `      查看：https://solscan.io/tx/${fundSig}`
+      );
+    } catch (fundErr) {
+      console.error(
+        `  ❌ [墊付失敗] 無法為地址 ${depositAddress} 墊付 SOL\n` +
+          `      原因：${(fundErr as Error).message}\n` +
+          `      已跳過此用戶，防止卡死。`
+      );
+      return;
+    }
+  } else {
+    console.log(`  ⛽ SOL 餘額充足：${solBalanceInSol.toFixed(6)} SOL，無需墊付`);
+  }
 
   // ----------------------------------------------------------
   // Step 5：獲取金庫的 AIF ATA 地址（歸集目標）
@@ -269,6 +316,7 @@ async function main(): Promise<void> {
   console.log(`   RPC 節點：${RPC_URL}`);
   console.log(`   金庫地址：${TREASURY_WALLET.toBase58()}`);
   console.log(`   AIF Mint：${AIF_MINT_ADDRESS.toBase58()}`);
+  console.log(`   Gas 墊付：${feePayerKeypair.publicKey.toBase58()}`);
   console.log('='.repeat(60));
 
   // ----------------------------------------------------------
