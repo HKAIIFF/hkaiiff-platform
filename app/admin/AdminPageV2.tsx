@@ -26,9 +26,10 @@ interface Film {
 
 interface UserRow {
   id: string;
-  privy_id: string | null;
   email: string | null;
   wallet_address: string | null;
+  aif_balance: number | null;
+  deposit_address: string | null;
   created_at: string;
 }
 
@@ -728,7 +729,7 @@ function EcosystemModule({ t, pushToast, askConfirm }: SharedProps) {
   useEffect(() => {
     supabase
       .from("users")
-      .select("id,privy_id,email,wallet_address,created_at")
+      .select("*")
       .order("created_at", { ascending: false })
       .then(({ data }) => setUsers((data as UserRow[]) ?? []));
   }, []);
@@ -752,23 +753,36 @@ function EcosystemModule({ t, pushToast, askConfirm }: SharedProps) {
       {sub === "human" && (
         <div className={`${CARD} overflow-hidden`}>
           <div className="overflow-x-auto">
-            <div className="min-w-[1200px]">
-              <div className="grid grid-cols-[1.3fr_1.1fr_1fr_1fr_110px_120px_100px_220px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
-                {["Privy ID", "Wallet", "Email", "註冊時間", "認證", "累計消費", "地區", "操作"].map((h) => (
+            <div className="min-w-[1100px]">
+              <div className="grid grid-cols-[2fr_1.2fr_1fr_1.5fr_1fr_220px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
+                {["錢包地址 / 郵箱", "AIF 餘額", "專屬充值地址", "註冊時間", "狀態", "操作"].map((h) => (
                   <div key={h} className="p-3">
                     {h}
                   </div>
                 ))}
               </div>
+              {users.length === 0 && (
+                <div className="p-6 text-sm text-gray-400">{t.empty}</div>
+              )}
               {users.map((u) => (
-                <div key={u.id} className="grid grid-cols-[1.3fr_1.1fr_1fr_1fr_110px_120px_100px_220px] border-b border-gray-100 last:border-0">
-                  <div className="p-3 text-xs text-gray-700">{u.privy_id ?? "-"}</div>
-                  <div className="p-3 text-xs text-gray-700">{u.wallet_address ? `${u.wallet_address.slice(0, 8)}...` : "-"}</div>
-                  <div className="p-3 text-xs text-gray-700">{u.email ?? "-"}</div>
+                <div key={u.id} className="grid grid-cols-[2fr_1.2fr_1fr_1.5fr_1fr_220px] border-b border-gray-100 last:border-0">
+                  <div className="p-3 text-xs text-gray-700">
+                    {u.wallet_address ? (
+                      <span title={u.wallet_address}>{`${u.wallet_address.slice(0, 10)}...${u.wallet_address.slice(-6)}`}</span>
+                    ) : (
+                      u.email ?? "-"
+                    )}
+                  </div>
+                  <div className="p-3 text-xs font-semibold text-blue-700">{(u.aif_balance ?? 0).toLocaleString()} AIF</div>
+                  <div className="p-3 text-xs text-gray-700">
+                    {u.deposit_address ? (
+                      <span title={u.deposit_address}>{`${u.deposit_address.slice(0, 8)}...`}</span>
+                    ) : (
+                      <span className="text-gray-400">未分配</span>
+                    )}
+                  </div>
                   <div className="p-3 text-xs text-gray-700">{new Date(u.created_at).toLocaleString("zh-HK")}</div>
-                  <div className="p-3 text-xs text-green-700">Verified</div>
-                  <div className="p-3 text-xs text-gray-700">$ {(Math.abs(u.id.length * 137) % 5000).toLocaleString()}</div>
-                  <div className="p-3 text-xs text-gray-700">HK</div>
+                  <div className="p-3 text-xs text-green-700">Active</div>
                   <div className="p-3 flex gap-2">
                     <button className={`${BTN} !px-2 !py-1 bg-red-600 text-white`} onClick={() => askConfirm({ title: t.ban, body: "確認封禁？", danger: true, onConfirm: () => pushToast("已封禁") })}>{t.ban}</button>
                     <button className={`${BTN} !px-2 !py-1 bg-red-600 text-white`} onClick={() => askConfirm({ title: t.forceOffline, body: "確認強制下線？", danger: true, onConfirm: () => pushToast("已強制下線") })}>{t.forceOffline}</button>
