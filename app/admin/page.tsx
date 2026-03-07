@@ -36,6 +36,7 @@ interface LbsNode {
   film_ids: string[] | null; created_at: string;
   country?: string | null; city?: string | null; venue?: string | null;
   status?: string | null; radius?: number | null; ticket_price_aif?: number | null;
+  poster_url?: string | null; background_url?: string | null; description?: string | null;
 }
 
 // ─── 手風琴菜單結構 ──────────────────────────────────────────────────────────
@@ -630,6 +631,16 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
   const [isLocating, setIsLocating] = useState(false);
   const [nodeCity, setNodeCity] = useState<string>("all");
   const [nodeStatus, setNodeStatus] = useState<string>("all");
+
+  // ── 編輯 Modal 狀態 ────────────────────────────────────────────────────────
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingLbsData, setEditingLbsData] = useState<LbsNode | null>(null);
+  const [editForm, setEditForm] = useState({ title: "", start_time: "", end_time: "", description: "" });
+  const [editPoster, setEditPoster] = useState("");
+  const [editBgImage, setEditBgImage] = useState("");
+  const [editPosterUploading, setEditPosterUploading] = useState(false);
+  const [editBgUploading, setEditBgUploading] = useState(false);
+
   const [form, setForm] = useState({
     title: "",
     country: "", city: "", venue: "",
@@ -764,6 +775,26 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
     const { error } = await supabase.from("lbs_nodes").update({ film_ids: pickedFilmIds }).eq("id", poolNode.id);
     if (error) { pushToast(error.message, false); return; }
     pushToast("✅ 排片池已更新"); setPoolNode(null); fetchData();
+  }
+
+  // 【絕對不能】在 payload 中包含 lat/lng 等地理位置欄位
+  async function handleUpdateLbs(e: React.FormEvent) {
+    e.preventDefault();
+    if (!editingLbsData) return;
+    const payload: Record<string, unknown> = {
+      title: editForm.title,
+      description: editForm.description || null,
+      start_time: editForm.start_time || null,
+      end_time: editForm.end_time || null,
+      poster_url: editPoster || null,
+      background_url: editBgImage || null,
+    };
+    const { error } = await supabase.from("lbs_nodes").update(payload).eq("id", editingLbsData.id);
+    if (error) { pushToast(error.message, false); return; }
+    pushToast("✅ 更新成功");
+    setIsEditModalOpen(false);
+    setEditingLbsData(null);
+    fetchData();
   }
 
   const f = form;
@@ -988,6 +1019,23 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
                 {t.poolBtn}
               </button>
               <button
+                className={`${BTN_SM} border border-blue-300 text-blue-600 hover:bg-blue-50 whitespace-nowrap`}
+                onClick={() => {
+                  setEditingLbsData(n);
+                  setEditForm({
+                    title: n.title,
+                    start_time: n.start_time ?? "",
+                    end_time: n.end_time ?? "",
+                    description: n.description ?? "",
+                  });
+                  setEditPoster(n.poster_url ?? "");
+                  setEditBgImage(n.background_url ?? "");
+                  setIsEditModalOpen(true);
+                }}
+              >
+                ✏️ 編輯
+              </button>
+              <button
                 className={`${BTN_SM} whitespace-nowrap ${(n.status ?? "active") === "active" ? "border border-gray-300 text-gray-700 hover:bg-gray-50" : "bg-green-600 text-white hover:bg-green-700"}`}
                 onClick={() => toggleNodeStatus(n)}
               >
@@ -1023,6 +1071,202 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
               </label>
             ))}
           </div>
+        </Modal>
+      )}
+
+      {/* 編輯 Modal */}
+      {isEditModalOpen && editingLbsData && (
+        <Modal
+          title={`✏️ 編輯 LBS 影展 — ${editingLbsData.title}`}
+          onClose={() => { setIsEditModalOpen(false); setEditingLbsData(null); }}
+          footer={
+            <div className="flex justify-end gap-2">
+              <button className={BTN_GHOST} onClick={() => { setIsEditModalOpen(false); setEditingLbsData(null); }}>{t.cancel}</button>
+              <button className={BTN_PRIMARY} onClick={handleUpdateLbs}>儲存更新</button>
+            </div>
+          }
+        >
+          <form onSubmit={handleUpdateLbs} className="space-y-5">
+            {/* ── 唯讀區塊：被鎖死的地理位置 ── */}
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs font-black text-gray-500 uppercase tracking-wider">🔒 地理位置（不可修改）</span>
+                <span className="text-[10px] bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full font-semibold">Locked</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">國家 / 地區</label>
+                  <input
+                    className="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-400 cursor-not-allowed"
+                    value={editingLbsData.country ?? "—"}
+                    disabled
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">城市</label>
+                  <input
+                    className="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-400 cursor-not-allowed"
+                    value={editingLbsData.city ?? "—"}
+                    disabled
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">詳細場地地址</label>
+                <input
+                  className="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-400 cursor-not-allowed"
+                  value={editingLbsData.venue ?? editingLbsData.location ?? "—"}
+                  disabled
+                />
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">GPS Lat</label>
+                  <input
+                    className="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-400 cursor-not-allowed font-mono"
+                    value={editingLbsData.lat ?? "—"}
+                    disabled
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">GPS Lng</label>
+                  <input
+                    className="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-400 cursor-not-allowed font-mono"
+                    value={editingLbsData.lng ?? "—"}
+                    disabled
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">解鎖半徑（米）</label>
+                  <input
+                    className="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-400 cursor-not-allowed"
+                    value={editingLbsData.radius != null ? `${editingLbsData.radius} m` : "—"}
+                    disabled
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* ── 可編輯區塊：營運資料 ── */}
+            <div className="space-y-3">
+              <p className="text-xs font-black text-gray-600 uppercase tracking-wider">✏️ 可修改的營運資料</p>
+
+              {/* 影展標題 */}
+              <div>
+                <label className="text-xs font-semibold text-gray-700 mb-1 block">影展標題</label>
+                <input
+                  className={INPUT}
+                  placeholder="影展標題"
+                  value={editForm.title}
+                  onChange={(e) => setEditForm((p) => ({ ...p, title: e.target.value }))}
+                  required
+                />
+              </div>
+
+              {/* 開始 / 結束時間 */}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">開始時間</label>
+                  <input
+                    className={INPUT}
+                    type="datetime-local"
+                    value={editForm.start_time}
+                    onChange={(e) => setEditForm((p) => ({ ...p, start_time: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-gray-700 mb-1 block">結束時間</label>
+                  <input
+                    className={INPUT}
+                    type="datetime-local"
+                    value={editForm.end_time}
+                    onChange={(e) => setEditForm((p) => ({ ...p, end_time: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              {/* 影展詳細介紹 */}
+              <div>
+                <label className="text-xs font-semibold text-gray-700 mb-1 block">影展詳細介紹</label>
+                <textarea
+                  className={`${INPUT} resize-none`}
+                  rows={4}
+                  maxLength={500}
+                  placeholder="請輸入影展詳細介紹..."
+                  value={editForm.description}
+                  onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
+                />
+                <div className="text-[10px] text-gray-400 mt-1">{editForm.description.length} / 500 字</div>
+              </div>
+
+              {/* 圖片上傳 */}
+              <div className="grid grid-cols-2 gap-2">
+                {/* 影展海報 */}
+                <label className="block cursor-pointer border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-blue-400 transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={editPosterUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setEditPosterUploading(true);
+                      const url = await uploadLbsImage(file, "poster");
+                      if (url) setEditPoster(url);
+                      setEditPosterUploading(false);
+                      e.target.value = "";
+                    }}
+                  />
+                  <div className="text-2xl mb-1">🖼</div>
+                  <p className="text-sm font-semibold text-gray-700">{t.uploadPoster}</p>
+                  <p className="mt-0.5 text-[10px] text-gray-400">最佳比例 2:3，推薦 800x1200 px</p>
+                  {editPosterUploading ? (
+                    <p className="mt-1 text-xs text-blue-500 font-medium flex items-center justify-center gap-1">
+                      <span className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin inline-block" />
+                      上傳中...
+                    </p>
+                  ) : editPoster ? (
+                    <p className="mt-1 text-xs text-green-600 font-medium truncate">✓ {editPoster.split("/").pop()}</p>
+                  ) : (
+                    <p className="mt-1 text-xs text-gray-400">拖曳或點擊上傳</p>
+                  )}
+                </label>
+
+                {/* 背景圖 */}
+                <label className="block cursor-pointer border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-blue-400 transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={editBgUploading}
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      setEditBgUploading(true);
+                      const url = await uploadLbsImage(file, "bg");
+                      if (url) setEditBgImage(url);
+                      setEditBgUploading(false);
+                      e.target.value = "";
+                    }}
+                  />
+                  <div className="text-2xl mb-1">🖼</div>
+                  <p className="text-sm font-semibold text-gray-700">{t.uploadBg}</p>
+                  <p className="mt-0.5 text-[10px] text-gray-400">最佳比例 16:9，推薦 1920x1080 px</p>
+                  {editBgUploading ? (
+                    <p className="mt-1 text-xs text-blue-500 font-medium flex items-center justify-center gap-1">
+                      <span className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin inline-block" />
+                      上傳中...
+                    </p>
+                  ) : editBgImage ? (
+                    <p className="mt-1 text-xs text-green-600 font-medium truncate">✓ {editBgImage.split("/").pop()}</p>
+                  ) : (
+                    <p className="mt-1 text-xs text-gray-400">拖曳或點擊上傳</p>
+                  )}
+                </label>
+              </div>
+            </div>
+          </form>
         </Modal>
       )}
     </div>
