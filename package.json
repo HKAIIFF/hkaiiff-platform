@@ -15,6 +15,7 @@
     "@privy-io/server-auth": "^1.32.5",
     "@solana/spl-token": "^0.4.14",
     "@solana/web3.js": "^1.98.4",
+    "@stripe/stripe-js": "^8.9.0",
     "@supabase/supabase-js": "^2.98.0",
     "ali-oss": "^6.23.0",
     "bip39": "^3.1.0",
@@ -24,7 +25,8 @@
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "react-qr-code": "^2.0.18"
+    "react-qr-code": "^2.0.18",
+    "stripe": "^20.4.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
