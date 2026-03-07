@@ -663,9 +663,11 @@ export default function MessagesPage() {
             </button>
           </div>
 
-          <div className="text-[11px] font-mono font-bold text-[#CCFF00] text-center tracking-wider pb-4 drop-shadow-[0_0_8px_rgba(204,255,0,0.6)]">
-            {t('msg_copyright')}
-          </div>
+          <footer className="w-full flex flex-col items-center justify-center py-10 mt-12 border-t border-white/5 gap-1.5">
+            <p className="text-[10px] text-gray-500 tracking-widest uppercase">© 2026 All Rights Reserved.</p>
+            <p className="text-[11px] text-gray-400 font-medium tracking-widest mt-1">香港人工智能國際電影節協會</p>
+            <p className="text-[9px] text-gray-600 tracking-widest uppercase">Hong Kong AI International Film Festival Association</p>
+          </footer>
         </div>
       </div>
     </main>
