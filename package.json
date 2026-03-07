@@ -6,7 +6,8 @@
     "dev": "next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "sweep": "tsx scripts/sweep_aif.ts"
   },
   "dependencies": {
     "@privy-io/node": "^0.10.1",
