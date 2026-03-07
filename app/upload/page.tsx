@@ -210,8 +210,8 @@ export default function UploadPage() {
 
       const data = await dbRes.json();
       if (data.success) {
-        showToast('SUBMISSION CONFIRMED. YOUR FILM IS QUEUED FOR REVIEW.', 'success');
-        setStep('processing');
+        showToast('MEDIA UPLOADED. PROCEEDING TO PAYMENT...', 'success');
+        router.push(`/upload/payment?filmId=${data.film.id}`);
       } else {
         const errMsg = data.error ?? 'Submission failed. Please try again.';
         console.error('Insert failed:', data.error);
