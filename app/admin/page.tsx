@@ -43,7 +43,7 @@ interface LbsNode {
 type SubMenuId =
   | "dashboard"
   | "review:films" | "review:lbs" | "review:kyc"
-  | "dist:lbs" | "dist:online"
+  | "dist:lbs" | "dist:online" | "dist:official"
   | "eco:human" | "eco:bot"
   | "ai:models" | "ai:prompts" | "ai:assembly"
   | "fin:ledger" | "fin:treasury" | "fin:settlement"
@@ -72,6 +72,7 @@ const MENU: MenuItem[] = [
     sub: [
       { id: "dist:lbs", zh: "官方LBS院線部署", en: "Official LBS Cinemas" },
       { id: "dist:online", zh: "線上首映流管理", en: "Online Premiere Streams" },
+      { id: "dist:official", zh: "官方發行", en: "Official Release" },
     ],
   },
   {
@@ -1323,6 +1324,261 @@ function DistOnlineTab({ t }: { t: T }) {
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// 模塊三‑C：官方代客發行 · VIP 綠色通道
+// ────────────────────────────────────────────────────────────────────────────
+function DistOfficialTab({ pushToast }: { pushToast: (s: string, ok?: boolean) => void }) {
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [title, setTitle] = useState("");
+  const [synopsis, setSynopsis] = useState("");
+  const [aiRatio, setAiRatio] = useState("");
+  const [videoUrl, setVideoUrl] = useState("");
+  const [mainVideoUrl, setMainVideoUrl] = useState("");
+  const [posterUrl, setPosterUrl] = useState("");
+  const [copyrightDocUrl, setCopyrightDocUrl] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    async function loadUsers() {
+      setUsersLoading(true);
+      try {
+        const res = await fetch("/api/admin/users");
+        const data = await res.json();
+        if (!res.ok) { pushToast(data.error || "獲取用戶列表失敗", false); return; }
+        setUsers(Array.isArray(data) ? data : []);
+      } catch {
+        pushToast("網絡請求失敗，無法獲取用戶列表", false);
+      } finally {
+        setUsersLoading(false);
+      }
+    }
+    loadUsers();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function resetForm() {
+    setSelectedUserId("");
+    setTitle("");
+    setSynopsis("");
+    setAiRatio("");
+    setVideoUrl("");
+    setMainVideoUrl("");
+    setPosterUrl("");
+    setCopyrightDocUrl("");
+  }
+
+  async function handleSubmit() {
+    if (!selectedUserId) { pushToast("❌ 請先選擇發行帳號", false); return; }
+    if (!title.trim()) { pushToast("❌ 影片名稱為必填", false); return; }
+    if (!videoUrl.trim()) { pushToast("❌ 預告片鏈接為必填", false); return; }
+
+    const parsedAiRatio = aiRatio !== "" ? parseFloat(aiRatio) : null;
+    if (parsedAiRatio !== null && (parsedAiRatio < 0 || parsedAiRatio > 100)) {
+      pushToast("❌ AI 含金量須介於 0 至 100 之間", false);
+      return;
+    }
+
+    setSubmitting(true);
+    const payload = {
+      user_id: selectedUserId,
+      title: title.trim(),
+      synopsis: synopsis.trim() || null,
+      ai_ratio: parsedAiRatio,
+      video_url: videoUrl.trim(),
+      main_video_url: mainVideoUrl.trim() || null,
+      poster_url: posterUrl.trim() || null,
+      copyright_doc_url: copyrightDocUrl.trim() || null,
+      status: "pending",
+      payment_status: "paid",
+      payment_method: "official_waived",
+      order_number: `OFFICIAL-${Date.now().toString().slice(-6)}`,
+    };
+
+    const { error } = await supabase.from("films").insert([payload]);
+    setSubmitting(false);
+    if (error) { pushToast(`❌ 提交失敗：${error.message}`, false); return; }
+
+    pushToast("✅ 官方發行提交成功，已進入審核池");
+    resetForm();
+  }
+
+  const FIELD_LABEL = "block text-xs font-semibold text-gray-600 mb-1";
+  const REQUIRED_STAR = <span className="text-red-500 ml-0.5">*</span>;
+
+  return (
+    <div className="space-y-5 max-w-3xl">
+      {/* 頂部 VIP 標識橫幅 */}
+      <div className="rounded-xl border border-amber-300 bg-gradient-to-r from-amber-50 to-yellow-50 p-4 flex items-start gap-3">
+        <span className="text-2xl leading-none mt-0.5">🚀</span>
+        <div>
+          <p className="font-black text-amber-900 text-sm tracking-wide">官方代客發行 · VIP 綠色通道</p>
+          <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
+            此通道僅限管理員操作。選擇指定用戶並代為填報影片資料，提交後直接進入標準審核池（支付狀態自動標記為已結清）。
+          </p>
+        </div>
+      </div>
+
+      {/* 區塊一：指定發行帳號 */}
+      <div className={`${CARD} p-5`}>
+        <h3 className="text-sm font-black text-gray-900 mb-3 flex items-center gap-2">
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black">1</span>
+          指定發行帳號
+          {REQUIRED_STAR}
+        </h3>
+        <select
+          className={INPUT}
+          value={selectedUserId}
+          onChange={(e) => setSelectedUserId(e.target.value)}
+          disabled={usersLoading}
+        >
+          <option value="">
+            {usersLoading ? "讀取用戶中…" : `— 請選擇用戶（共 ${users.length} 位）—`}
+          </option>
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.email
+                ? `${u.email}${u.wallet_address ? "  ·  " + u.wallet_address.slice(0, 8) + "…" : ""}`
+                : u.wallet_address ?? u.id}
+            </option>
+          ))}
+        </select>
+        {selectedUserId && (
+          <p className="mt-1.5 text-[11px] text-blue-600 font-mono">UID: {selectedUserId}</p>
+        )}
+      </div>
+
+      {/* 區塊二：基本資料 */}
+      <div className={`${CARD} p-5`}>
+        <h3 className="text-sm font-black text-gray-900 mb-4 flex items-center gap-2">
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black">2</span>
+          基本資料
+        </h3>
+        <div className="space-y-4">
+          <div>
+            <label className={FIELD_LABEL}>影片名稱 (Title){REQUIRED_STAR}</label>
+            <input
+              className={INPUT}
+              placeholder="輸入完整影片名稱"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              maxLength={200}
+            />
+          </div>
+          <div>
+            <label className={FIELD_LABEL}>影片簡介 (Description / Synopsis)</label>
+            <textarea
+              className={`${INPUT} h-28 resize-none`}
+              placeholder="輸入影片內容簡介（選填）"
+              value={synopsis}
+              onChange={(e) => setSynopsis(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className={FIELD_LABEL}>AI 含金量 / AI Purity (0–100)</label>
+            <div className="flex items-center gap-3">
+              <input
+                className={`${INPUT} w-32`}
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                placeholder="例：85"
+                value={aiRatio}
+                onChange={(e) => setAiRatio(e.target.value)}
+              />
+              {aiRatio !== "" && (
+                <span className={`text-sm font-bold ${parseFloat(aiRatio) >= 51 ? "text-green-600" : "text-red-500"}`}>
+                  {parseFloat(aiRatio) >= 51 ? "✓ 達標 (≥ 51%)" : "✗ 不足 (< 51%)"}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 區塊三：素材鏈接 */}
+      <div className={`${CARD} p-5`}>
+        <h3 className="text-sm font-black text-gray-900 mb-4 flex items-center gap-2">
+          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black">3</span>
+          素材鏈接
+        </h3>
+        <div className="space-y-3">
+          <div>
+            <label className={FIELD_LABEL}>
+              預告片鏈接 (Trailer URL / video_url){REQUIRED_STAR}
+            </label>
+            <input
+              className={INPUT}
+              placeholder="https://..."
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className={FIELD_LABEL}>正片鏈接 (Main Video URL)</label>
+            <input
+              className={INPUT}
+              placeholder="https://..."
+              value={mainVideoUrl}
+              onChange={(e) => setMainVideoUrl(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className={FIELD_LABEL}>海報鏈接 (Poster URL)</label>
+            <input
+              className={INPUT}
+              placeholder="https://..."
+              value={posterUrl}
+              onChange={(e) => setPosterUrl(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className={FIELD_LABEL}>版權文件鏈接 (Copyright Doc URL)</label>
+            <input
+              className={INPUT}
+              placeholder="https://..."
+              value={copyrightDocUrl}
+              onChange={(e) => setCopyrightDocUrl(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {/* 將自動注入的系統字段說明 */}
+        <div className="mt-4 rounded-lg bg-gray-50 border border-gray-200 p-3 space-y-1">
+          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">系統自動注入字段</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-gray-500 font-mono">
+            <span>status</span><span className="text-amber-600 font-semibold">→ &quot;pending&quot;</span>
+            <span>payment_status</span><span className="text-green-600 font-semibold">→ &quot;paid&quot;</span>
+            <span>payment_method</span><span className="text-blue-600 font-semibold">→ &quot;official_waived&quot;</span>
+            <span>order_number</span><span className="text-purple-600 font-semibold">→ OFFICIAL-xxxxxx</span>
+          </div>
+        </div>
+      </div>
+
+      {/* 提交按鈕 */}
+      <div className="flex items-center justify-between pt-1">
+        <button
+          className={`${BTN_GHOST} text-xs`}
+          onClick={resetForm}
+          disabled={submitting}
+        >
+          清空表單
+        </button>
+        <button
+          onClick={handleSubmit}
+          disabled={submitting || usersLoading}
+          className={`${BTN_PRIMARY} px-8 py-3 text-sm font-black tracking-widest disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
+          {submitting ? "提交中…" : "🚀 提交官方發行"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // 模塊四：矩陣生態
 // ────────────────────────────────────────────────────────────────────────────
 function EcoHumanTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string, ok?: boolean) => void; askConfirm: (c: ConfirmConfig) => void }) {
@@ -2025,6 +2281,7 @@ export default function AdminPage() {
       case "review:kyc": return <ReviewKycTab t={t} pushToast={pushToast} />;
       case "dist:lbs": return <DistLbsTab t={t} pushToast={pushToast} />;
       case "dist:online": return <DistOnlineTab t={t} />;
+      case "dist:official": return <DistOfficialTab pushToast={pushToast} />;
       case "eco:human": return <EcoHumanTab t={t} pushToast={pushToast} askConfirm={askConfirm} />;
       case "eco:bot": return <EcoBotTab t={t} pushToast={pushToast} />;
       case "ai:models": return <AiModelsTab t={t} pushToast={pushToast} />;
