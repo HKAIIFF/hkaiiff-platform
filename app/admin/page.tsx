@@ -13,11 +13,14 @@ type ConfirmConfig = { title: string; body: string; danger?: boolean; onConfirm:
 interface Film {
   id: string; user_id: string | null; title: string | null; studio: string | null;
   ai_ratio: number | null; poster_url: string | null; trailer_url?: string | null;
-  feature_url?: string | null; copyright_url?: string | null;
+  feature_url?: string | null; main_video_url?: string | null; copyright_url?: string | null;
   core_cast?: string | null; region?: string | null; lbs_royalty?: number | null;
   status: "pending" | "approved" | "rejected"; created_at: string;
   is_parallel_universe?: boolean | null;
   parallel_start_time?: string | null;
+  feed_enabled?: boolean | null;
+  feature_enabled?: boolean | null;
+  users?: { email: string | null; wallet_address: string | null } | null;
 }
 interface UserRow {
   id: string;
@@ -294,7 +297,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
     setLoading(true);
     const { data, error } = await supabase
       .from("films")
-      .select("id,user_id,title,studio,ai_ratio,poster_url,status,created_at,trailer_url,feature_url,copyright_url,core_cast,region,lbs_royalty,is_parallel_universe,parallel_start_time")
+      .select("*, users(email, wallet_address)")
       .order("created_at", { ascending: false });
     setLoading(false);
     if (error) { pushToast(error.message, false); return; }
@@ -315,43 +318,39 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
 
   async function toggleParallelUniverse(film: Film) {
     const isCurrentlyActive = !!film.parallel_start_time;
-
     if (isCurrentlyActive) {
-      // 關閉：清除 parallel_start_time
-      const { error } = await supabase.from("films")
-        .update({ parallel_start_time: null, is_parallel_universe: false })
-        .eq("id", film.id);
+      const { error } = await supabase.from("films").update({ parallel_start_time: null, is_parallel_universe: false }).eq("id", film.id);
       if (error) { pushToast(error.message, false); return; }
-      setFilms((prev) => prev.map((f) =>
-        f.id === film.id ? { ...f, parallel_start_time: null, is_parallel_universe: false } : f
-      ));
+      setFilms((prev) => prev.map((f) => f.id === film.id ? { ...f, parallel_start_time: null, is_parallel_universe: false } : f));
       pushToast("平行宇宙已關閉，已從排隊移除");
     } else {
-      // 開啟：計算隊列時間
-      const { data: activeFilms } = await supabase.from("films")
-        .select("parallel_start_time")
-        .not("parallel_start_time", "is", null)
-        .order("parallel_start_time", { ascending: false })
-        .limit(1);
-
+      const { data: activeFilms } = await supabase.from("films").select("parallel_start_time").not("parallel_start_time", "is", null).order("parallel_start_time", { ascending: false }).limit(1);
       let newStartTime = new Date();
       if (activeFilms && activeFilms.length > 0 && activeFilms[0].parallel_start_time) {
-        const latestStart = new Date(activeFilms[0].parallel_start_time);
-        const latestEnd = new Date(latestStart.getTime() + 9 * 60000);
-        if (latestEnd > newStartTime) {
-          newStartTime = latestEnd;
-        }
+        const latestEnd = new Date(new Date(activeFilms[0].parallel_start_time).getTime() + 9 * 60000);
+        if (latestEnd > newStartTime) newStartTime = latestEnd;
       }
-
-      const { error } = await supabase.from("films")
-        .update({ parallel_start_time: newStartTime.toISOString(), is_parallel_universe: true })
-        .eq("id", film.id);
+      const { error } = await supabase.from("films").update({ parallel_start_time: newStartTime.toISOString(), is_parallel_universe: true }).eq("id", film.id);
       if (error) { pushToast(error.message, false); return; }
-      setFilms((prev) => prev.map((f) =>
-        f.id === film.id ? { ...f, parallel_start_time: newStartTime.toISOString(), is_parallel_universe: true } : f
-      ));
+      setFilms((prev) => prev.map((f) => f.id === film.id ? { ...f, parallel_start_time: newStartTime.toISOString(), is_parallel_universe: true } : f));
       pushToast(`✅ 平行宇宙已加入隊列，開始時間: ${newStartTime.toLocaleTimeString()}`);
     }
+  }
+
+  async function toggleFeed(film: Film) {
+    const next = !film.feed_enabled;
+    const { error } = await supabase.from("films").update({ feed_enabled: next }).eq("id", film.id);
+    if (error) { pushToast(error.message, false); return; }
+    setFilms((prev) => prev.map((f) => f.id === film.id ? { ...f, feed_enabled: next } : f));
+    pushToast(next ? "✅ Feed 已上架" : "Feed 已下架");
+  }
+
+  async function toggleFeature(film: Film) {
+    const next = !film.feature_enabled;
+    const { error } = await supabase.from("films").update({ feature_enabled: next }).eq("id", film.id);
+    if (error) { pushToast(error.message, false); return; }
+    setFilms((prev) => prev.map((f) => f.id === film.id ? { ...f, feature_enabled: next } : f));
+    pushToast(next ? "✅ 正片已上架" : "正片已下架");
   }
 
   async function submitReject() {
@@ -368,6 +367,17 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
 
   const statusColor = (s: string) => s === "approved" ? "text-green-700 bg-green-50" : s === "rejected" ? "text-red-700 bg-red-50" : "text-amber-700 bg-amber-50";
 
+  function MiniToggle({ on, onChange, labelOn, labelOff }: { on: boolean; onChange: () => void; labelOn: string; labelOff: string }) {
+    return (
+      <div className="flex flex-col items-center gap-0.5">
+        <button onClick={onChange} className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${on ? "bg-blue-500" : "bg-gray-300"}`}>
+          <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${on ? "translate-x-4" : "translate-x-0.5"}`} />
+        </button>
+        <span className={`text-[9px] font-semibold ${on ? "text-blue-600" : "text-gray-400"}`}>{on ? labelOn : labelOff}</span>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="flex justify-end mb-3">
@@ -375,130 +385,84 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
       </div>
       <div className={`${CARD} overflow-hidden`}>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[960px] text-sm">
+          <table className="w-full min-w-[1400px]">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 font-semibold">
-                <th className="p-3 text-left">影片 / 工作室</th>
-                <th className="p-3 text-left">AI 51% 質檢</th>
-                <th className="p-3 text-left">狀態</th>
-                <th className="p-3 text-left">素材鏈接</th>
-                <th className="p-3 text-left">平行宇宙</th>
-                <th className="p-3 text-left">操作</th>
+              <tr className="bg-gray-50 border-b border-gray-200 text-[11px] text-gray-500 font-semibold">
+                <th className="px-2 py-2 text-left w-[48px]">#</th>
+                <th className="px-2 py-2 text-left">影片名稱</th>
+                <th className="px-2 py-2 text-left">用戶</th>
+                <th className="px-2 py-2 text-left w-[120px]">報名時間</th>
+                <th className="px-2 py-2 text-left w-[80px]">AI 51%</th>
+                <th className="px-2 py-2 text-left w-[120px]">資料池（正片）</th>
+                <th className="px-2 py-2 text-left w-[90px]">平行宇宙</th>
+                <th className="px-2 py-2 text-left w-[80px]">狀態</th>
+                <th className="px-2 py-2 text-left w-[110px]">審核操作</th>
+                <th className="px-2 py-2 text-center w-[68px]">Feed</th>
+                <th className="px-2 py-2 text-center w-[68px]">正片上架</th>
               </tr>
             </thead>
             <tbody>
               {films.length === 0 ? (
-                <tr><td colSpan={6} className="p-6 text-gray-400 text-center">{loading ? t.loading : t.empty}</td></tr>
-              ) : films.map((film) => (
-                <tr key={film.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
-                  <td className="p-3">
-                    <p className="font-semibold text-gray-900">{film.title ?? "-"}</p>
-                    <p className="text-xs text-gray-500">{film.studio ?? "-"}</p>
-                    {film?.core_cast && (
-                      <p className="text-[10px] text-gray-400 mt-0.5">Cast: {film.core_cast}</p>
-                    )}
-                    {film?.region && (
-                      <p className="text-[10px] text-gray-400">Region: {film.region}</p>
-                    )}
-                    {film?.lbs_royalty != null && (
-                      <p className="text-[10px] text-blue-500">LBS Royalty: {film.lbs_royalty}%</p>
+                <tr><td colSpan={11} className="p-6 text-gray-400 text-center text-xs">{loading ? t.loading : t.empty}</td></tr>
+              ) : films.map((film, idx) => (
+                <tr key={film.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/40">
+                  <td className="px-2 py-1.5 text-[11px] text-gray-400 font-mono">{idx + 1}</td>
+                  <td className="px-2 py-1.5">
+                    <p className="text-[11px] font-semibold text-gray-900 leading-tight">{film.title ?? "-"}</p>
+                    <p className="text-[10px] text-gray-400 leading-tight">{film.studio ?? "-"}</p>
+                    {film.trailer_url && (
+                      <a href={film.trailer_url.startsWith("http") ? film.trailer_url : `https://${film.trailer_url}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400 hover:underline">預告↗</a>
                     )}
                   </td>
-                  <td className="p-3">
-                    <span className={`font-bold text-sm ${(film.ai_ratio ?? 0) >= 51 ? "text-green-600" : "text-red-600"}`}>
-                      {Math.round(film.ai_ratio ?? 0)}%
-                    </span>
-                    <p className="text-xs text-gray-400">{(film.ai_ratio ?? 0) >= 51 ? "✓ 達標" : "✗ 不足"}</p>
+                  <td className="px-2 py-1.5">
+                    <p className="text-[11px] text-gray-700 leading-tight truncate max-w-[140px]">{film.users?.email ?? "-"}</p>
+                    <p className="text-[10px] text-gray-400 font-mono leading-tight truncate max-w-[140px]">{film.users?.wallet_address ? `${film.users.wallet_address.slice(0, 8)}...` : "-"}</p>
                   </td>
-                  <td className="p-3">
-                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusColor(film.status)}`}>{film.status}</span>
+                  <td className="px-2 py-1.5 text-[11px] text-gray-500 whitespace-nowrap">{new Date(film.created_at).toLocaleDateString("zh-HK")}<br/><span className="text-[10px] text-gray-400">{new Date(film.created_at).toLocaleTimeString("zh-HK", { hour: "2-digit", minute: "2-digit" })}</span></td>
+                  <td className="px-2 py-1.5">
+                    <span className={`text-[11px] font-bold ${(film.ai_ratio ?? 0) >= 51 ? "text-green-600" : "text-red-600"}`}>{Math.round(film.ai_ratio ?? 0)}%</span>
+                    <p className="text-[10px] text-gray-400">{(film.ai_ratio ?? 0) >= 51 ? "✓達標" : "✗不足"}</p>
                   </td>
-                  <td className="p-3">
-                    <div className="flex flex-col gap-1">
-                      {film?.trailer_url ? (
-                        <a
-                          href={film.trailer_url.startsWith("http") ? film.trailer_url : `https://${film.trailer_url}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-500 hover:underline text-xs block"
-                          onClick={(e) => { e.stopPropagation(); }}
-                        >
-                          觀看預告 <i className="fas fa-external-link-alt ml-1" />
-                        </a>
-                      ) : (
-                        <span className="text-gray-400 text-xs block">無預告片</span>
-                      )}
-                      {film?.feature_url ? (
-                        <a
-                          href={film.feature_url.startsWith("http") ? film.feature_url : `https://${film.feature_url}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-500 hover:underline text-xs block"
-                          onClick={(e) => { e.stopPropagation(); }}
-                        >
-                          觀看正片 <i className="fas fa-external-link-alt ml-1" />
-                        </a>
-                      ) : (
-                        <span className="text-gray-400 text-xs block">無正片</span>
-                      )}
-                      {film?.poster_url ? (
-                        <a
-                          href={film.poster_url.startsWith("http") ? film.poster_url : `https://${film.poster_url}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-500 hover:underline text-xs block"
-                          onClick={(e) => { e.stopPropagation(); }}
-                        >
-                          查看海報 <i className="fas fa-external-link-alt ml-1" />
-                        </a>
-                      ) : (
-                        <span className="text-gray-400 text-xs block">無海報</span>
-                      )}
-                      {film?.copyright_url ? (
-                        <a
-                          href={film.copyright_url.startsWith("http") ? film.copyright_url : `https://${film.copyright_url}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-500 hover:underline text-xs block"
-                          onClick={(e) => { e.stopPropagation(); }}
-                        >
-                          版權文件 <i className="fas fa-external-link-alt ml-1" />
-                        </a>
-                      ) : (
-                        <span className="text-gray-400 text-xs block">無版權文件</span>
-                      )}
-                    </div>
+                  <td className="px-2 py-1.5">
+                    {film.main_video_url ? (
+                      <a href={film.main_video_url.startsWith("http") ? film.main_video_url : `https://${film.main_video_url}`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-500 hover:underline block leading-tight">正片↗</a>
+                    ) : (
+                      <span className="text-[11px] text-gray-400">無正片</span>
+                    )}
+                    {film.poster_url && <a href={film.poster_url.startsWith("http") ? film.poster_url : `https://${film.poster_url}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-400 hover:underline block">海報↗</a>}
+                    {film.copyright_url && <a href={film.copyright_url.startsWith("http") ? film.copyright_url : `https://${film.copyright_url}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-400 hover:underline block">版權↗</a>}
                   </td>
-                  <td className="p-3">
-                    <div className="flex flex-col items-center gap-1">
+                  <td className="px-2 py-1.5">
+                    <div className="flex flex-col items-center gap-0.5">
                       <button
                         onClick={() => toggleParallelUniverse(film)}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${film.parallel_start_time ? "bg-[#CCFF00]" : "bg-gray-300"}`}
-                        title={film.parallel_start_time ? `隊列中，開始: ${new Date(film.parallel_start_time).toLocaleTimeString()}` : "未啟用平行宇宙"}
+                        className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${film.parallel_start_time ? "bg-[#CCFF00]" : "bg-gray-300"}`}
+                        title={film.parallel_start_time ? `隊列，開始: ${new Date(film.parallel_start_time).toLocaleTimeString()}` : "未啟用"}
                       >
-                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform shadow ${film.parallel_start_time ? "translate-x-4" : "translate-x-1"}`} />
+                        <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${film.parallel_start_time ? "translate-x-4" : "translate-x-0.5"}`} />
                       </button>
                       {film.parallel_start_time ? (() => {
-                        const now = new Date();
-                        const start = new Date(film.parallel_start_time);
-                        const end = new Date(start.getTime() + 9 * 60000);
-                        if (now < start) {
-                          return <span className="text-[9px] font-semibold text-amber-600 text-center leading-tight">QUEUED<br/>{start.toLocaleTimeString()}</span>;
-                        } else if (now < end) {
-                          return <span className="text-[9px] font-semibold text-[#6b9900] text-center leading-tight">LIVE</span>;
-                        } else {
-                          return <span className="text-[9px] font-semibold text-gray-400 text-center leading-tight">EXPIRED</span>;
-                        }
-                      })() : (
-                        <span className="text-[10px] font-semibold text-gray-400">OFF</span>
-                      )}
+                        const now = new Date(); const start = new Date(film.parallel_start_time); const end = new Date(start.getTime() + 9 * 60000);
+                        if (now < start) return <span className="text-[9px] font-semibold text-amber-600 text-center">QUEUED</span>;
+                        if (now < end) return <span className="text-[9px] font-semibold text-[#6b9900] text-center">LIVE</span>;
+                        return <span className="text-[9px] text-gray-400 text-center">EXP</span>;
+                      })() : <span className="text-[9px] text-gray-400">OFF</span>}
                     </div>
                   </td>
-                  <td className="p-3">
-                    <div className="flex gap-2">
-                      <button className={`${BTN_SM} bg-green-600 text-white hover:bg-green-700`} onClick={() => approveFilm(film)}>{t.approve}</button>
-                      <button className={`${BTN_SM} bg-red-600 text-white hover:bg-red-700`} onClick={() => { setRejectTarget(film); setRejectReason(t.rejectReasons[0]); }}>{t.reject}</button>
+                  <td className="px-2 py-1.5">
+                    <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${statusColor(film.status)}`}>{film.status}</span>
+                  </td>
+                  <td className="px-2 py-1.5">
+                    <div className="flex gap-1.5">
+                      <button className="px-2 py-0.5 text-[10px] font-semibold rounded bg-green-600 text-white hover:bg-green-700" onClick={() => approveFilm(film)}>{t.approve}</button>
+                      <button className="px-2 py-0.5 text-[10px] font-semibold rounded bg-red-600 text-white hover:bg-red-700" onClick={() => { setRejectTarget(film); setRejectReason(t.rejectReasons[0]); }}>{t.reject}</button>
                     </div>
+                  </td>
+                  <td className="px-2 py-1.5 text-center">
+                    <MiniToggle on={!!film.feed_enabled} onChange={() => toggleFeed(film)} labelOn="上架" labelOff="下架" />
+                  </td>
+                  <td className="px-2 py-1.5 text-center">
+                    <MiniToggle on={!!film.feature_enabled} onChange={() => toggleFeature(film)} labelOn="上架" labelOff="下架" />
                   </td>
                 </tr>
               ))}
