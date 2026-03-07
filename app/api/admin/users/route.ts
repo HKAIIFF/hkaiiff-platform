@@ -1,33 +1,31 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 export async function GET() {
   try {
-    const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
-    const appSecret = process.env.PRIVY_APP_SECRET;
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!appId || !appSecret) {
-      return NextResponse.json({ error: "Missing Privy credentials" }, { status: 500 });
+    if (!supabaseUrl || !serviceRoleKey) {
+      return NextResponse.json({ error: '缺少 Supabase 環境變量配置' }, { status: 500 });
     }
 
-    const response = await fetch('https://auth.privy.io/api/v1/users', {
-      method: 'GET',
-      headers: {
-        'privy-app-id': appId,
-        'Authorization': 'Basic ' + Buffer.from(`${appId}:${appSecret}`).toString('base64'),
-        'Content-Type': 'application/json'
-      },
-      cache: 'no-store'
+    const adminSupabase = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false },
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to fetch users from Privy');
+    const { data: users, error } = await adminSupabase
+      .from('users')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const data = await response.json();
-    return NextResponse.json(data.data || []);
+    return NextResponse.json(users ?? []);
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : '未知錯誤';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

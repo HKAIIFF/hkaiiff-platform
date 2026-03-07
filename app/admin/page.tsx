@@ -19,18 +19,13 @@ interface Film {
   is_parallel_universe?: boolean | null;
   parallel_start_time?: string | null;
 }
-interface PrivyLinkedAccount {
-  type: string;
-  address: string;
-  chain_type?: string;
-  verified_at?: number;
-}
 interface UserRow {
   id: string;
-  created_at: number;
-  linked_accounts: PrivyLinkedAccount[];
-  wallet?: { address: string; chain_type?: string };
-  email?: { address: string };
+  created_at: string;
+  wallet_address: string | null;
+  email: string | null;
+  aif_balance: number | null;
+  deposit_address: string | null;
 }
 interface LbsNode {
   id: string; title: string; location: string | null; lat: number | null; lng: number | null;
@@ -1125,65 +1120,134 @@ function DistOnlineTab({ t }: { t: T }) {
 function EcoHumanTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string, ok?: boolean) => void; askConfirm: (c: ConfirmConfig) => void }) {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const res = await fetch('/api/admin/users');
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch');
+      if (!res.ok) {
+        setFetchError(data.error || '獲取用戶失敗，請稍後重試');
+        setUsers([]);
+        return;
+      }
       setUsers(Array.isArray(data) ? data : []);
     } catch (err: unknown) {
-      pushToast(err instanceof Error ? err.message : '拉取用戶失敗', false);
+      const msg = err instanceof Error ? err.message : '網絡請求失敗，請檢查連接';
+      setFetchError(msg);
+      setUsers([]);
     } finally {
       setLoading(false);
     }
-  }, [pushToast]);
+  }, []);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  function getBindingIdentity(u: UserRow): string {
-    // 优先使用 Privy 直接返回的 wallet/email 属性
-    const walletAddr = u.wallet?.address
-      ?? u.linked_accounts?.find((a) => a.type === 'wallet')?.address;
-    if (walletAddr) {
-      return `${walletAddr.slice(0, 6)}...${walletAddr.slice(-4)}`;
-    }
-    const emailAddr = u.email?.address
-      ?? u.linked_accounts?.find((a) => a.type === 'email' || a.type === 'google_oauth' || a.type === 'github_oauth')?.address;
-    return emailAddr ?? '未绑定';
+  function formatAddress(addr: string | null): string {
+    if (!addr) return '—';
+    if (addr.length > 16) return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+    return addr;
   }
+
+  function getBindingIdentity(u: UserRow): string {
+    if (u.wallet_address) return formatAddress(u.wallet_address);
+    if (u.email) return u.email;
+    return '未綁定';
+  }
+
+  const TABLE_HEADERS = ['用戶 ID', '錢包地址 / 綁定身份', 'AIF 餘額', '專屬充值地址', '註冊時間', '操作'];
 
   return (
     <div className={`${CARD} overflow-hidden`}>
-      <div className="flex justify-end p-3 border-b border-gray-100">
-        <button className={BTN_GHOST} onClick={fetchUsers}>{loading ? t.loading : t.refresh}</button>
+      <div className="flex items-center justify-between p-3 border-b border-gray-100">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-gray-500">碳基人類檔案</span>
+          {users.length > 0 && (
+            <span className="text-xs bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-full">{users.length} 人</span>
+          )}
+        </div>
+        <button className={BTN_GHOST} onClick={fetchUsers} disabled={loading}>
+          {loading ? t.loading : t.refresh}
+        </button>
       </div>
+
+      {fetchError && (
+        <div className="mx-3 mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          ⚠ {fetchError}
+        </div>
+      )}
+
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] text-sm">
+        <table className="w-full min-w-[960px] text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 font-semibold">
-              {["Privy ID", "绑定身份", "注册时间", "状态", "角色", "操作"].map((h) => (
+              {TABLE_HEADERS.map((h) => (
                 <th key={h} className="p-3 text-left">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {users.length === 0 && (
-              <tr><td colSpan={6} className="p-6 text-gray-400 text-center">{loading ? t.loading : t.empty}</td></tr>
+            {users.length === 0 && !fetchError && (
+              <tr>
+                <td colSpan={TABLE_HEADERS.length} className="p-8 text-gray-400 text-center">
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                      {t.loading}
+                    </span>
+                  ) : t.empty}
+                </td>
+              </tr>
             )}
             {users.map((u) => (
               <tr key={u.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
-                <td className="p-3 text-xs text-gray-600 font-mono truncate max-w-[140px]" title={u.id}>{u.id.replace('did:privy:', '')}</td>
-                <td className="p-3 text-xs text-gray-600 font-mono">{getBindingIdentity(u)}</td>
-                <td className="p-3 text-xs text-gray-600">{new Date(u.created_at * 1000).toLocaleString()}</td>
-                <td className="p-3"><span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-0.5 rounded-full">Active</span></td>
-                <td className="p-3 text-xs text-gray-600">User</td>
+                <td className="p-3 text-xs text-gray-500 font-mono truncate max-w-[120px]" title={u.id}>
+                  {u.id.slice(0, 8)}...
+                </td>
+                <td className="p-3">
+                  <div className="flex flex-col gap-0.5">
+                    {u.wallet_address ? (
+                      <span className="text-xs text-gray-800 font-mono font-semibold" title={u.wallet_address}>
+                        {formatAddress(u.wallet_address)}
+                      </span>
+                    ) : null}
+                    {u.email ? (
+                      <span className="text-xs text-gray-500">{u.email}</span>
+                    ) : null}
+                    {!u.wallet_address && !u.email && (
+                      <span className="text-xs text-gray-400 italic">未綁定</span>
+                    )}
+                  </div>
+                </td>
+                <td className="p-3">
+                  <span className={`text-sm font-bold ${(u.aif_balance ?? 0) > 0 ? 'text-blue-700' : 'text-gray-400'}`}>
+                    {(u.aif_balance ?? 0).toLocaleString()} AIF
+                  </span>
+                </td>
+                <td className="p-3 text-xs text-gray-600 font-mono" title={u.deposit_address ?? ''}>
+                  {u.deposit_address ? formatAddress(u.deposit_address) : (
+                    <span className="text-gray-300 italic">未分配</span>
+                  )}
+                </td>
+                <td className="p-3 text-xs text-gray-500 whitespace-nowrap">
+                  {u.created_at ? new Date(u.created_at).toLocaleString('zh-HK', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
+                </td>
                 <td className="p-3">
                   <div className="flex gap-1">
-                    <button className={`${BTN_SM} bg-red-600 text-white hover:bg-red-700`} onClick={() => askConfirm({ title: t.ban, body: `確認封禁用戶？`, danger: true, onConfirm: () => pushToast("已封禁") })}>{t.ban}</button>
-                    <button className={`${BTN_SM} bg-red-600 text-white hover:bg-red-700`} onClick={() => askConfirm({ title: t.forceOffline, body: "確認強制下線？", danger: true, onConfirm: () => pushToast("已強制下線") })}>{t.forceOffline}</button>
-                    <button className={`${BTN_SM} border border-red-300 text-red-600 hover:bg-red-50`} onClick={() => askConfirm({ title: t.clearData, body: "確認清空用戶數據？此操作不可逆！", danger: true, onConfirm: () => pushToast("已清空") })}>{t.clearData}</button>
+                    <button
+                      className={`${BTN_SM} bg-red-600 text-white hover:bg-red-700`}
+                      onClick={() => askConfirm({ title: t.ban, body: `確認封禁此用戶？`, danger: true, onConfirm: () => pushToast('已封禁') })}
+                    >{t.ban}</button>
+                    <button
+                      className={`${BTN_SM} bg-orange-500 text-white hover:bg-orange-600`}
+                      onClick={() => askConfirm({ title: t.forceOffline, body: '確認強制下線？', danger: true, onConfirm: () => pushToast('已強制下線') })}
+                    >{t.forceOffline}</button>
+                    <button
+                      className={`${BTN_SM} border border-red-300 text-red-600 hover:bg-red-50`}
+                      onClick={() => askConfirm({ title: t.clearData, body: '確認清空用戶數據？此操作不可逆！', danger: true, onConfirm: () => pushToast('已清空') })}
+                    >{t.clearData}</button>
                   </div>
                 </td>
               </tr>
