@@ -63,6 +63,7 @@ export default function MePage() {
   const [onChainAifBalance, setOnChainAifBalance] = useState<number | null>(null);
   const [displaySolanaAddress, setDisplaySolanaAddress] = useState<string | null>(null);
   const [isFetchingBalance, setIsFetchingBalance] = useState(false);
+  const [isRefreshingAif, setIsRefreshingAif] = useState(false);
 
   // ── 資料加載狀態（區分「加載中」vs「加載完但無數據」，防止永遠卡在 ...） ──
   const [isProfileLoading, setIsProfileLoading] = useState(true);
@@ -426,6 +427,29 @@ export default function MePage() {
     }
   };
 
+  // ── 手動刷新 AIF 餘額（同時刷新 DB 內部帳本 + 鏈上餘額） ────────────────
+  const handleRefreshBalance = async () => {
+    if (!user?.id || isRefreshingAif) return;
+    setIsRefreshingAif(true);
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('aif_balance')
+        .eq('id', user.id)
+        .single();
+      if (!error && data) {
+        setDbProfile((prev) => prev ? { ...prev, aif_balance: data.aif_balance ?? 0 } : prev);
+      }
+      if (displaySolanaAddress) {
+        await fetchAIFBalance(displaySolanaAddress);
+      }
+    } catch (err) {
+      console.error('[handleRefreshBalance] error:', err);
+    } finally {
+      setIsRefreshingAif(false);
+    }
+  };
+
   /* ─── AUTH GUARD ─────────────────────────────────────────────────────────── */
   // Privy 尚未初始化完成時，渲染空白等待 redirect；已就緒未登錄同樣清空防閃爍
   if (!ready || !authenticated) return null;
@@ -543,6 +567,27 @@ export default function MePage() {
               <span className="text-signal text-lg font-heavy">AIF</span>
             )}
             <span className="text-[9px] font-mono text-gray-600 ml-1">INTERNAL LEDGER</span>
+            {/* ── 極客風刷新按鈕 ── */}
+            {!isProfileLoading && (
+              <button
+                onClick={handleRefreshBalance}
+                disabled={isRefreshingAif}
+                title={isRefreshingAif ? 'Refreshing...' : 'Refresh balance'}
+                className="relative z-10 w-6 h-6 rounded-md border border-[#333] bg-[#0d1a00]
+                           flex items-center justify-center
+                           hover:border-signal/60 hover:bg-signal/10
+                           active:scale-90 transition-all ml-1
+                           disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <i
+                  className={`fas fa-sync-alt text-[9px] transition-colors
+                    ${isRefreshingAif
+                      ? 'animate-spin text-signal'
+                      : 'text-signal/50 group-hover:text-signal'
+                    }`}
+                />
+              </button>
+            )}
           </div>
           <button
             onClick={handleOpenTopUp}

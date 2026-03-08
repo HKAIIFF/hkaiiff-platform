@@ -185,6 +185,9 @@ async function processUserWallet(walletIndex: number, depositAddress: string): P
         `     派生地址：  ${derivedAddress}\n` +
         `     已跳過，防止誤操作。`
     );
+    console.info(
+      `  💡 提示：若為測試環境更換了助記詞，請執行 npm run reset-wallets 清除舊錢包數據後重新生成地址。`
+    );
     return; // 地址不符，立即跳過，不執行任何轉帳
   }
   console.log(`  ✅ 安全校驗通過`);
