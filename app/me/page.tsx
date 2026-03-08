@@ -65,6 +65,12 @@ export default function MePage() {
   const [isFetchingBalance, setIsFetchingBalance] = useState(false);
   const [isRefreshingAif, setIsRefreshingAif] = useState(false);
 
+  // ── Supabase Realtime 狀態 ────────────────────────────────────────────────
+  /** WebSocket 是否成功訂閱（用於顯示 LIVE 狀態圓點） */
+  const [isRealtimeConnected, setIsRealtimeConnected] = useState(false);
+  /** 當 aif_balance 發生變化時，短暫閃爍高亮提示用戶 */
+  const [aifFlash, setAifFlash] = useState(false);
+
   // ── 資料加載狀態（區分「加載中」vs「加載完但無數據」，防止永遠卡在 ...） ──
   const [isProfileLoading, setIsProfileLoading] = useState(true);
 
@@ -450,6 +456,45 @@ export default function MePage() {
     }
   };
 
+  // ── Supabase Realtime：自動監聽當前用戶的 aif_balance 變化 ──────────────
+  useEffect(() => {
+    if (!authenticated || !user?.id) return;
+
+    const channelName = `me-aif-balance-${user.id}`;
+
+    const channel = supabase
+      .channel(channelName)
+      .on<{ aif_balance: number }>(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'users',
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newBalance = payload.new?.aif_balance;
+          if (typeof newBalance === 'number') {
+            setDbProfile((prev) =>
+              prev ? { ...prev, aif_balance: newBalance } : prev
+            );
+            // 觸發短暫閃爍動畫，告知用戶數值已自動更新
+            setAifFlash(true);
+            setTimeout(() => setAifFlash(false), 900);
+          }
+        }
+      )
+      .subscribe((status) => {
+        setIsRealtimeConnected(status === 'SUBSCRIBED');
+      });
+
+    // 組件 unmount 或 user 切換時，銷毀 WebSocket channel，防止內存洩漏
+    return () => {
+      supabase.removeChannel(channel);
+      setIsRealtimeConnected(false);
+    };
+  }, [authenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /* ─── AUTH GUARD ─────────────────────────────────────────────────────────── */
   // Privy 尚未初始化完成時，渲染空白等待 redirect；已就緒未登錄同樣清空防閃爍
   if (!ready || !authenticated) return null;
@@ -552,27 +597,58 @@ export default function MePage() {
         <div className="text-[10px] text-signal font-mono tracking-widest flex items-center gap-2 mb-3">
           <i className="fas fa-wallet" />
           FUNDING ACCOUNT
+          {/* ── Realtime LIVE 狀態圓點 ── */}
+          {!isProfileLoading && (
+            <span
+              className="flex items-center gap-1 ml-auto"
+              title={isRealtimeConnected ? 'Realtime connected · auto-updating' : 'Connecting to realtime...'}
+            >
+              <span
+                className={`w-1.5 h-1.5 rounded-full transition-colors duration-500
+                  ${isRealtimeConnected
+                    ? 'bg-signal shadow-[0_0_5px_rgba(204,255,0,0.8)] animate-pulse'
+                    : 'bg-gray-700'
+                  }`}
+              />
+              <span className={`font-mono text-[8px] tracking-widest transition-colors duration-500
+                ${isRealtimeConnected ? 'text-signal/60' : 'text-gray-700'}`}>
+                {isRealtimeConnected ? 'LIVE' : 'CONNECTING'}
+              </span>
+            </span>
+          )}
         </div>
 
         {/* Balance + TOP UP row */}
         <div className="flex flex-row justify-between items-center flex-wrap gap-4 mb-1">
           <div className="flex items-baseline gap-2">
-            <span className="text-4xl font-heavy text-white ltr-force">
+            {/* 數字閃爍：aif_balance 更新時短暫變綠，通知用戶 */}
+            <span
+              className={`text-4xl font-heavy ltr-force transition-colors duration-300
+                ${isProfileLoading
+                  ? 'text-gray-500'
+                  : aifFlash
+                    ? 'text-signal drop-shadow-[0_0_10px_rgba(204,255,0,0.6)]'
+                    : 'text-white'
+                }`}
+            >
               {isProfileLoading
-                ? <span className="text-2xl text-gray-500 animate-pulse">...</span>
+                ? <span className="text-2xl animate-pulse">...</span>
                 : (dbProfile?.aif_balance ?? 0).toLocaleString()
               }
             </span>
             {!isProfileLoading && (
-              <span className="text-signal text-lg font-heavy">AIF</span>
+              <span className={`text-lg font-heavy transition-colors duration-300
+                ${aifFlash ? 'text-signal' : 'text-signal'}`}>
+                AIF
+              </span>
             )}
             <span className="text-[9px] font-mono text-gray-600 ml-1">INTERNAL LEDGER</span>
-            {/* ── 極客風刷新按鈕 ── */}
+            {/* ── 手動刷新按鈕（Realtime 不穩定時的備用 Fallback） ── */}
             {!isProfileLoading && (
               <button
                 onClick={handleRefreshBalance}
                 disabled={isRefreshingAif}
-                title={isRefreshingAif ? 'Refreshing...' : 'Refresh balance'}
+                title={isRefreshingAif ? 'Refreshing...' : 'Manual refresh (fallback)'}
                 className="relative z-10 w-6 h-6 rounded-md border border-[#333] bg-[#0d1a00]
                            flex items-center justify-center
                            hover:border-signal/60 hover:bg-signal/10
@@ -583,7 +659,7 @@ export default function MePage() {
                   className={`fas fa-sync-alt text-[9px] transition-colors
                     ${isRefreshingAif
                       ? 'animate-spin text-signal'
-                      : 'text-signal/50 group-hover:text-signal'
+                      : 'text-signal/40 hover:text-signal'
                     }`}
                 />
               </button>
