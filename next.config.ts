@@ -1,10 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // 忽略構建時的 ESLint 語法警告
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   // 忽略構建時的 TypeScript 類型報錯 (保證順利上線)
   typescript: {
     ignoreBuildErrors: true,

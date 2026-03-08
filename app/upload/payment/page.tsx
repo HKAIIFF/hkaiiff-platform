@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { loadStripe } from '@stripe/stripe-js';
@@ -15,7 +15,7 @@ const supabase = createClient(
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
-export default function PaymentPage() {
+function PaymentPageContent() {
   const { user, authenticated, ready, getAccessToken } = usePrivy();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -260,5 +260,13 @@ export default function PaymentPage() {
         BACK
       </button>
     </div>
+  );
+}
+
+export default function PaymentPage() {
+  return (
+    <Suspense fallback={<CyberLoading text="LOADING PAYMENT..." />}>
+      <PaymentPageContent />
+    </Suspense>
   );
 }
