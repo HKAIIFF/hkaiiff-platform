@@ -4,16 +4,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useI18n } from "@/app/context/I18nContext";
 import { usePrivy } from "@privy-io/react-auth";
-import { useToast } from "@/app/context/ToastContext";
 
 const PROTECTED_HREFS = new Set(["/upload", "/messages", "/me"]);
 
 export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const { ready, authenticated, login } = usePrivy();
-  const { showToast } = useToast();
 
   const NAV_ITEMS = [
     { href: "/", icon: "fa-home", label: t("nav_feed") },
@@ -27,14 +25,7 @@ export default function BottomNav() {
     href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(href + "/");
 
   const handleProtectedNav = (href: string) => {
-    // 雙重鎖：Privy 未就緒 或 未登錄，一律觸發登錄框並中斷跳轉
     if (!ready || !authenticated) {
-      showToast(
-        lang === "en"
-          ? "Please connect wallet / login first."
-          : "請先登錄或連接錢包。",
-        "error"
-      );
       login();
       return;
     }
@@ -52,7 +43,7 @@ export default function BottomNav() {
             <button
               key={item.href}
               onClick={() => handleProtectedNav(item.href)}
-              className="flex flex-col items-center gap-1 w-1/5 relative -top-6 group cursor-pointer bg-transparent border-0 p-0"
+              className="flex flex-col items-center gap-1 w-1/5 relative -top-6 group cursor-pointer bg-transparent border-0 p-0 outline-none focus:outline-none [-webkit-tap-highlight-color:transparent]"
             >
               <div
                 className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl rotate-45 group-active:scale-95 transition-all border-2 shadow-[0_0_20px_rgba(204,255,0,0.3)] ${
@@ -74,7 +65,7 @@ export default function BottomNav() {
             <button
               key={item.href}
               onClick={() => handleProtectedNav(item.href)}
-              className={`nav-item flex flex-col items-center gap-1 w-1/5 transition-colors cursor-pointer bg-transparent border-0 p-0 ${
+              className={`nav-item flex flex-col items-center gap-1 w-1/5 transition-colors cursor-pointer bg-transparent border-0 p-0 outline-none focus:outline-none [-webkit-tap-highlight-color:transparent] ${
                 active ? "text-signal" : "text-gray-400 hover:text-white"
               }`}
             >
@@ -90,7 +81,7 @@ export default function BottomNav() {
           <Link
             key={item.href}
             href={item.href}
-            className={`nav-item flex flex-col items-center gap-1 w-1/5 transition-colors cursor-pointer ${
+            className={`nav-item flex flex-col items-center gap-1 w-1/5 transition-colors cursor-pointer outline-none focus:outline-none [-webkit-tap-highlight-color:transparent] ${
               active ? "text-signal" : "text-gray-400 hover:text-white"
             }`}
           >

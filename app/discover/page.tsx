@@ -426,7 +426,7 @@ export default function DiscoverPage() {
                 {/* Real background image */}
                 <div
                   className="absolute inset-0 z-0 bg-cover bg-center opacity-30 group-hover:scale-105 transition-transform duration-700"
-                  style={{ backgroundImage: bgSrc ? `url(${bgSrc})` : 'none' }}
+                  style={{ backgroundImage: bgSrc ? `url('${bgSrc}')` : 'none' }}
                 />
                 {/* Black gradient mask for text readability */}
                 <div className="absolute inset-0 z-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent" />
@@ -525,6 +525,12 @@ export default function DiscoverPage() {
                 src={selectedNode.background_url ?? selectedNode.img}
                 alt={selectedNode.title}
                 className="w-full h-full object-cover opacity-60"
+                onError={(e) => {
+                  const target = e.currentTarget;
+                  if (target.src !== selectedNode.img) {
+                    target.src = selectedNode.img;
+                  }
+                }}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent" />
             </div>
@@ -560,6 +566,7 @@ export default function DiscoverPage() {
                     src={selectedNode.poster_url}
                     alt={`${selectedNode.title} poster`}
                     className="w-20 h-28 object-cover rounded-lg border border-[#333] shrink-0"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
                   />
                   {selectedNode.desc && (
                     <p className="text-xs text-gray-300 font-mono leading-relaxed line-clamp-5 pt-1">

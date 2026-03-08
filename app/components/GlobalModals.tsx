@@ -154,6 +154,25 @@ export default function GlobalModals() {
 
   const film = selectedFilm;
 
+  // ─── Info 頁面分享（與 Feed handleShare 完全一致）─────────────────────────
+  const handleInfoShare = async () => {
+    const shareData = {
+      title: film?.title ?? "HKAIIFF Film",
+      text: `Check out "${film?.title ?? "this film"}" at the Hong Kong AI International Film Festival! 香港人工智能國際電影節`,
+      url: typeof window !== "undefined" ? window.location.origin : "",
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
+        showToast(lang === "en" ? "Link copied to clipboard!" : "鏈接已複製到剪貼板！", "success");
+      }
+    } catch (err) {
+      console.log("Error sharing:", err);
+    }
+  };
+
   return (
     <>
       {/* ─── Share Modal ─────────────────────────────────────────────────────── */}
@@ -271,7 +290,7 @@ export default function GlobalModals() {
             ON-CHAIN METADATA
           </div>
           <button
-            onClick={() => setActiveModal("share")}
+            onClick={handleInfoShare}
             className="w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform"
           >
             <i className="fas fa-share-alt" />

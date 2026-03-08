@@ -7,6 +7,7 @@ import { useToast } from "@/app/context/ToastContext";
 import { usePrivy } from "@privy-io/react-auth";
 import type { Film } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import Link from "next/link";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,9 @@ interface SupabaseFilm {
   created_at: string;
   is_parallel_universe?: boolean | null;
   parallel_start_time?: string | null;
+  // 關聯自 users 表
+  user_avatar_seed?: string | null;
+  user_display_name?: string | null;
 }
 
 // ─── Parallel Universe State Helpers ──────────────────────────────────────────
@@ -347,9 +351,9 @@ function FeedItem({
   const videoSrc =
     film.trailer_url || film.feature_url || film.video_url || undefined;
 
-  const avatarUrl = `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(
-    film.studio ?? film.id
-  )}`;
+  // 使用 users 表最新的 avatar_seed（bottts 風格與 Me 頁保持一致）
+  const avatarSeed = film.user_avatar_seed ?? film.studio ?? film.id;
+  const avatarUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(avatarSeed)}`;
 
   return (
     <>
@@ -406,21 +410,29 @@ function FeedItem({
                   <span className="text-[9px] text-white font-mono font-bold">{isMuted ? "UNMUTE" : "MUTED"}</span>
                 </button>
 
-                {/* 按鈕 1 ── 創作者頭像 */}
-                <div
-                  className="relative cursor-pointer mb-2 active:scale-95 transition-transform flex flex-col items-center"
-                  onClick={() => {
-                    setSelectedCreator(film.studio ?? film.id);
-                    setSelectedCreatorUserId(film.user_id ?? null);
-                    setActiveModal("creator");
-                  }}
-                >
-                  <img
-                    src={avatarUrl}
-                    alt={film.studio ?? ""}
-                    className="w-12 h-12 border-2 border-white rounded-full bg-black shadow-lg"
-                  />
-                </div>
+                {/* 按鈕 1 ── 創作者頭像（有 user_id 則跳轉 Creator 頁面） */}
+                {film.user_id ? (
+                  <Link
+                    href={`/creator/${film.user_id}`}
+                    className="relative mb-2 active:scale-95 transition-transform flex flex-col items-center outline-none focus:outline-none [-webkit-tap-highlight-color:transparent]"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <img
+                      src={avatarUrl}
+                      alt={film.user_display_name ?? film.studio ?? "creator"}
+                      className="w-12 h-12 border-2 border-white rounded-full bg-black shadow-lg"
+                    />
+                    <div className="w-2 h-2 rounded-full bg-signal absolute -bottom-0.5 -right-0.5 border border-black" />
+                  </Link>
+                ) : (
+                  <div className="relative mb-2 flex flex-col items-center">
+                    <img
+                      src={avatarUrl}
+                      alt={film.studio ?? ""}
+                      className="w-12 h-12 border-2 border-white rounded-full bg-black shadow-lg"
+                    />
+                  </div>
+                )}
 
                 {/* 按鈕 2 ── 平行宇宙指紋按鈕（基於 parallel_start_time 時間戳）*/}
                 {parallelState !== "NONE" && (
@@ -566,9 +578,36 @@ export default function FeedPage() {
         .order("created_at", { ascending: false });
 
       if (data) {
+        const films = data as SupabaseFilm[];
+
+        // 批量拉取所有創作者的 avatar_seed（user_id 去重）
+        const userIds = [...new Set(films.filter((f) => f.user_id).map((f) => f.user_id as string))];
+        let userMap: Record<string, { avatar_seed: string | null; display_name: string | null }> = {};
+        if (userIds.length > 0) {
+          const { data: users } = await supabase
+            .from("users")
+            .select("id, avatar_seed, display_name")
+            .in("id", userIds);
+          if (users) {
+            userMap = Object.fromEntries(
+              users.map((u: { id: string; avatar_seed: string | null; display_name: string | null }) => [
+                u.id,
+                { avatar_seed: u.avatar_seed, display_name: u.display_name },
+              ])
+            );
+          }
+        }
+
+        // 將 user 資料合併到每部影片
+        const enriched = films.map((f) => ({
+          ...f,
+          user_avatar_seed: f.user_id ? (userMap[f.user_id]?.avatar_seed ?? null) : null,
+          user_display_name: f.user_id ? (userMap[f.user_id]?.display_name ?? null) : null,
+        }));
+
         const now = new Date();
         // LIVE 影片（正在倒計時的）優先插到最前面
-        const sorted = [...(data as SupabaseFilm[])].sort((a, b) => {
+        const sorted = [...enriched].sort((a, b) => {
           const stateA = getParallelState(a.parallel_start_time, now);
           const stateB = getParallelState(b.parallel_start_time, now);
           const priority = (s: ParallelState) =>

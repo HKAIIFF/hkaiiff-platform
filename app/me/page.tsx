@@ -707,85 +707,154 @@ export default function MePage() {
             </button>
 
             {selectedFilm?.status === 'approved' ? (
-              /* ── 官方參賽證書 UI ────────────────────────────────────────── */
-              <div className="relative bg-[#050505] border-2 border-[#D4AF37]/50 rounded-xl p-8 overflow-hidden shadow-2xl">
+              /* ── 官方參賽證書 UI (重構版) ───────────────────────────────── */
+              <div className="relative bg-[#050505] rounded-xl overflow-hidden shadow-2xl">
+
+                {/* 雙層金邊框架 */}
+                <div className="absolute inset-0 rounded-xl border-2 border-[#D4AF37]/50 pointer-events-none z-20" />
+                <div className="absolute inset-[6px] rounded-lg border border-[#D4AF37]/25 pointer-events-none z-20" />
+
+                {/* 四角裝飾 */}
+                <div className="absolute top-2.5 left-2.5 text-[#D4AF37]/40 text-base select-none pointer-events-none z-20">✦</div>
+                <div className="absolute top-2.5 right-2.5 text-[#D4AF37]/40 text-base select-none pointer-events-none z-20">✦</div>
+                <div className="absolute bottom-2.5 left-2.5 text-[#D4AF37]/40 text-base select-none pointer-events-none z-20">✦</div>
+                <div className="absolute bottom-2.5 right-2.5 text-[#D4AF37]/40 text-base select-none pointer-events-none z-20">✦</div>
 
                 {/* 背景水印：徑向漸變 */}
                 <div
                   className="absolute inset-0 pointer-events-none select-none"
-                  style={{
-                    background: 'radial-gradient(ellipse at 50% 40%, rgba(212,175,55,0.06) 0%, transparent 70%)',
-                  }}
+                  style={{ background: 'radial-gradient(ellipse at 50% 35%, rgba(212,175,55,0.08) 0%, transparent 68%)' }}
                 />
                 {/* 頂部金色細線 */}
-                <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#D4AF37]/60 to-transparent" />
+                <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#D4AF37]/70 to-transparent" />
                 {/* 底部金色細線 */}
-                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#D4AF37]/40 to-transparent" />
+                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-gradient-to-r from-transparent via-[#D4AF37]/50 to-transparent" />
 
-                {/* 頂部 Header */}
-                <div className="text-center mb-6 relative z-10">
-                  <h3 className="text-[#D4AF37] font-serif text-2xl tracking-widest uppercase">
-                    Certificate of Entry
-                  </h3>
-                  <div className="text-gray-500 text-[10px] tracking-widest mt-1">
-                    HONG KONG AI INTERNATIONAL FILM FESTIVAL
+                <div className="relative z-10 p-8 pb-5">
+                  {/* 頂部 Header */}
+                  <div className="text-center mb-5">
+                    <div className="text-[#D4AF37]/50 font-mono text-[8px] tracking-[0.4em] uppercase mb-1">
+                      Hong Kong AI International Film Festival
+                    </div>
+                    <h3
+                      className="text-[#D4AF37] text-3xl tracking-widest uppercase"
+                      style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
+                    >
+                      Certificate
+                    </h3>
+                    <div
+                      className="text-[#D4AF37]/60 text-base mt-0.5 tracking-wider"
+                      style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontStyle: 'italic' }}
+                    >
+                      of Official Selection
+                    </div>
+                    <div className="w-20 h-px bg-gradient-to-r from-transparent via-[#D4AF37]/60 to-transparent mx-auto mt-3" />
                   </div>
-                  <div className="w-16 h-0.5 bg-[#D4AF37]/40 mx-auto mt-3" />
-                </div>
 
-                {/* 證書正文 */}
-                <div className="text-gray-300 text-sm leading-relaxed text-center font-mono relative z-10 mb-6">
-                  This is to certify that the AI-Native Film
-                  <span className="text-white text-xl font-heavy block my-3 uppercase tracking-wide">
-                    {selectedFilm?.title || 'UNTITLED'}
-                  </span>
-                  submitted by{' '}
-                  <span className="text-[#CCFF00]">
-                    {selectedFilm?.studio || dbProfile?.display_name || 'Unknown Studio'}
-                  </span>
-                  <br />
-                  has been officially selected and approved by the
-                  <br />
-                  <span className="text-white font-bold">
-                    Hong Kong AI International Film Festival Jury
-                  </span>
-                  .
-                </div>
+                  {/* 證書正文 */}
+                  <div
+                    className="text-center leading-relaxed relative z-10 mb-5"
+                    style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
+                  >
+                    <p className="text-gray-400 text-sm">This is to certify that the AI-Native Film</p>
+                    <p className="text-white text-xl font-bold my-3 uppercase tracking-wide leading-snug">
+                      {selectedFilm?.title || 'UNTITLED'}
+                    </p>
+                    <p className="text-gray-400 text-sm">
+                      submitted by{' '}
+                      <span className="text-[#CCFF00]">
+                        {selectedFilm?.studio || dbProfile?.display_name || 'Unknown Studio'}
+                      </span>
+                    </p>
+                    <p className="text-gray-400 text-sm mt-2">
+                      has been officially selected and approved by the
+                    </p>
+                    <p className="text-white font-semibold text-sm mt-1">
+                      Hong Kong AI International Film Festival Jury
+                    </p>
+                  </div>
 
-                {/* 關鍵數據網格 */}
-                <div className="grid grid-cols-3 gap-2 relative z-10 mb-2">
-                  <div className="bg-black/40 border border-[#D4AF37]/20 rounded-lg p-2 text-center">
-                    <div className="text-[8px] font-mono text-gray-500 tracking-widest mb-1">AI RATIO</div>
-                    <div className="text-[#CCFF00] font-heavy text-base">
-                      {selectedFilm?.ai_ratio ?? 0}%
+                  {/* 關鍵數據網格 */}
+                  <div className="grid grid-cols-3 gap-2 relative z-10 mb-5">
+                    <div className="bg-black/40 border border-[#D4AF37]/20 rounded-lg p-2 text-center">
+                      <div className="text-[8px] font-mono text-gray-500 tracking-widest mb-1">AI RATIO</div>
+                      <div className="text-[#CCFF00] font-bold text-base">{selectedFilm?.ai_ratio ?? 0}%</div>
+                    </div>
+                    <div className="bg-black/40 border border-[#D4AF37]/20 rounded-lg p-2 text-center">
+                      <div className="text-[8px] font-mono text-gray-500 tracking-widest mb-1">TECH STACK</div>
+                      <div className="text-white font-mono text-[9px] leading-tight">
+                        {selectedFilm?.tech_stack
+                          ? (Array.isArray(selectedFilm.tech_stack)
+                              ? selectedFilm.tech_stack[0]
+                              : selectedFilm.tech_stack.split(',')[0]?.trim())
+                          : '—'}
+                      </div>
+                    </div>
+                    <div className="bg-black/40 border border-[#D4AF37]/20 rounded-lg p-2 text-center">
+                      <div className="text-[8px] font-mono text-gray-500 tracking-widest mb-1">DATE</div>
+                      <div className="text-white font-mono text-[9px]">
+                        {selectedFilm?.created_at
+                          ? new Date(selectedFilm.created_at).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' })
+                          : '—'}
+                      </div>
                     </div>
                   </div>
-                  <div className="bg-black/40 border border-[#D4AF37]/20 rounded-lg p-2 text-center">
-                    <div className="text-[8px] font-mono text-gray-500 tracking-widest mb-1">TECH STACK</div>
-                    <div className="text-white font-mono text-[9px] leading-tight">
-                      {selectedFilm?.tech_stack
-                        ? (Array.isArray(selectedFilm.tech_stack)
-                            ? selectedFilm.tech_stack[0]
-                            : selectedFilm.tech_stack.split(',')[0]?.trim())
-                        : '—'}
-                    </div>
-                  </div>
-                  <div className="bg-black/40 border border-[#D4AF37]/20 rounded-lg p-2 text-center">
-                    <div className="text-[8px] font-mono text-gray-500 tracking-widest mb-1">DATE</div>
-                    <div className="text-white font-mono text-[9px]">
-                      {selectedFilm?.created_at
-                        ? new Date(selectedFilm.created_at).toLocaleDateString()
-                        : '—'}
-                    </div>
-                  </div>
-                </div>
 
-                {/* ── 官方防偽印章 (任務三) ─────────────────────────────── */}
-                <div className="absolute bottom-6 right-6 w-24 h-24 rounded-full border-[3px] border-double border-red-700/80 flex items-center justify-center transform -rotate-12 opacity-80 pointer-events-none select-none">
-                  <div className="text-center">
-                    <div className="text-red-700/80 text-[8px] font-bold tracking-widest uppercase">Official</div>
-                    <div className="text-red-700/80 text-lg font-heavy my-0.5">SELECTION</div>
-                    <div className="text-red-700/80 text-[6px] font-mono">HKAIIFF JURY</div>
+                  {/* 英式紅色印章 + 分享按鈕 同排 */}
+                  <div className="flex items-end justify-between gap-3">
+                    {/* 分享按鈕 */}
+                    <button
+                      onClick={async () => {
+                        const certUrl = `${window.location.origin}/certificate/${selectedFilm?.id}`;
+                        const shareData = {
+                          title: `Certificate — ${selectedFilm?.title}`,
+                          text: `Official Selection at the Hong Kong AI International Film Festival 🏆`,
+                          url: certUrl,
+                        };
+                        try {
+                          if (navigator.share) {
+                            await navigator.share(shareData);
+                          } else {
+                            await navigator.clipboard.writeText(certUrl);
+                            showToast('Certificate link copied!', 'success');
+                          }
+                        } catch {
+                          // user cancelled
+                        }
+                      }}
+                      className="flex items-center gap-2 px-4 py-2.5 border border-[#D4AF37]/40 text-[#D4AF37] rounded-lg text-xs font-mono tracking-wider hover:bg-[#D4AF37]/10 active:scale-95 transition-all"
+                    >
+                      <i className="fas fa-share-alt" />
+                      SHARE CERTIFICATE
+                    </button>
+
+                    {/* 英式傳統紅色印章 SVG */}
+                    <div className="w-24 h-24 -rotate-12 opacity-85 select-none pointer-events-none shrink-0">
+                      <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" className="w-full h-full">
+                        {Array.from({ length: 24 }).map((_, i) => {
+                          const angle = (i * 360) / 24;
+                          const rad = (angle * Math.PI) / 180;
+                          return (
+                            <line
+                              key={i}
+                              x1={60 + 50 * Math.cos(rad)} y1={60 + 50 * Math.sin(rad)}
+                              x2={60 + 57 * Math.cos(rad)} y2={60 + 57 * Math.sin(rad)}
+                              stroke="#8B0000" strokeWidth="2.5" strokeLinecap="round"
+                            />
+                          );
+                        })}
+                        <circle cx="60" cy="60" r="50" fill="none" stroke="#8B0000" strokeWidth="2.5" />
+                        <circle cx="60" cy="60" r="42" fill="none" stroke="#8B0000" strokeWidth="1.5" />
+                        <circle cx="60" cy="60" r="41" fill="#8B0000" fillOpacity="0.12" />
+                        <circle cx="60" cy="60" r="36" fill="none" stroke="#8B0000" strokeWidth="0.8" strokeDasharray="3 2" />
+                        <text x="60" y="26" textAnchor="middle" fill="#8B0000" fontSize="12" fontFamily="Georgia, serif">✦</text>
+                        <text x="60" y="52" textAnchor="middle" fill="#8B0000" fontSize="8.5" fontFamily="Georgia, serif" fontWeight="bold" letterSpacing="2">OFFICIAL</text>
+                        <text x="60" y="65" textAnchor="middle" fill="#8B0000" fontSize="11" fontFamily="Georgia, serif" fontWeight="bold" letterSpacing="1">SELECTION</text>
+                        <line x1="36" y1="70" x2="84" y2="70" stroke="#8B0000" strokeWidth="0.8" />
+                        <text x="60" y="81" textAnchor="middle" fill="#8B0000" fontSize="7" fontFamily="Georgia, serif" letterSpacing="1.5">HKAIIFF JURY</text>
+                        <text x="60" y="93" textAnchor="middle" fill="#8B0000" fontSize="6.5" fontFamily="Georgia, serif" letterSpacing="2">MMXXV</text>
+                      </svg>
+                    </div>
                   </div>
                 </div>
               </div>
