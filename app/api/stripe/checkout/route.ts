@@ -30,7 +30,7 @@ const privyClient = new PrivyClient(
 
 // ── Stripe 初始化 ──────────────────────────────────────────────────────────────
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-01-27.acacia',
+  apiVersion: '2026-02-25.clover',
 });
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://hkaiiff.com';
@@ -129,7 +129,7 @@ export async function POST(req: Request) {
       },
     });
 
-    return NextResponse.json({ sessionId: session.id });
+    return NextResponse.json({ sessionId: session.id, url: session.url });
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown server error';

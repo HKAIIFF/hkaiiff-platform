@@ -3,7 +3,6 @@
 import { useState, useEffect, Suspense } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { loadStripe } from '@stripe/stripe-js';
 import { createClient } from '@supabase/supabase-js';
 import CyberLoading from '@/app/components/CyberLoading';
 import { useToast } from '@/app/context/ToastContext';
@@ -13,7 +12,57 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
+// ── Stripe SVG Wordmark ───────────────────────────────────────────────────────
+function StripeBadge() {
+  return (
+    <span className="inline-flex items-center gap-1.5 bg-[#635BFF] text-white text-[10px] font-bold px-3 py-1 rounded-full tracking-wider select-none">
+      {/* Simplified "S" mark */}
+      <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 fill-white" aria-hidden="true">
+        <path d="M5.4 4.44c-.9-.22-1.2-.43-1.2-.78 0-.4.37-.67.99-.67.65 0 1.33.25 1.79.5l.53-2.07A5.3 5.3 0 0 0 5.03.95C2.69.95 1.5 2.25 1.5 3.72c0 1.62 1.05 2.32 2.78 2.78.94.25 1.24.5 1.24.85 0 .45-.4.7-1.14.7-.78 0-1.76-.33-2.43-.75L1.4 9.44c.64.41 1.76.75 2.85.75 2.39 0 3.65-1.21 3.65-2.74C7.9 5.73 6.93 5.04 5.4 4.44z" />
+      </svg>
+      stripe
+    </span>
+  );
+}
+
+// ── Visa / MC / Amex Mini Cards ───────────────────────────────────────────────
+function CardBrands() {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-5 px-2 rounded bg-[#1a1f71] flex items-center">
+        <span className="text-[7px] font-black text-white tracking-widest">VISA</span>
+      </div>
+      <div className="h-5 w-9 rounded bg-[#1e1e1e] flex items-center justify-center relative overflow-hidden">
+        <div className="w-3 h-3 rounded-full bg-[#eb001b] absolute left-1" />
+        <div className="w-3 h-3 rounded-full bg-[#f79e1b] absolute left-2.5 opacity-90" />
+      </div>
+      <div className="h-5 px-2 rounded bg-[#003087]/40 border border-[#2e77bc]/30 flex items-center">
+        <span className="text-[7px] font-black text-[#2e77bc] tracking-widest">AMEX</span>
+      </div>
+    </div>
+  );
+}
+
+// ── AIF Chain Icon ────────────────────────────────────────────────────────────
+function ChainIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden="true">
+      <path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z" />
+    </svg>
+  );
+}
+
+// ── Spinner ───────────────────────────────────────────────────────────────────
+function Spinner({ color }: { color: string }) {
+  return (
+    <div
+      className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin"
+      style={{ borderColor: `${color} transparent transparent transparent` }}
+    />
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function PaymentPageContent() {
   const { user, authenticated, ready, getAccessToken } = usePrivy();
@@ -28,24 +77,20 @@ function PaymentPageContent() {
   const [isStripeLoading, setIsStripeLoading] = useState(false);
   const [isAifLoading, setIsAifLoading] = useState(false);
 
-  // 頁面鑒權硬鎖
+  // Auth guard
   useEffect(() => {
-    if (ready && !authenticated) {
-      router.replace('/');
-    }
+    if (ready && !authenticated) router.replace('/');
   }, [ready, authenticated, router]);
 
-  // 若沒有 filmId，重導至上傳頁
+  // filmId guard
   useEffect(() => {
-    if (ready && authenticated && !filmId) {
-      router.replace('/upload');
-    }
+    if (ready && authenticated && !filmId) router.replace('/upload');
   }, [ready, authenticated, filmId, router]);
 
-  // 從 Supabase 加載用戶 AIF 餘額
+  // Load AIF balance
   useEffect(() => {
     if (!authenticated || !user?.id) return;
-    const fetchBalance = async () => {
+    const fetch_ = async () => {
       setIsLoadingBalance(true);
       const { data } = await supabase
         .from('users')
@@ -55,10 +100,10 @@ function PaymentPageContent() {
       setAifBalance(data?.aif_balance ?? 0);
       setIsLoadingBalance(false);
     };
-    fetchBalance();
+    fetch_();
   }, [authenticated, user?.id]);
 
-  // ── Stripe 法幣支付 ──────────────────────────────────────────────────────────
+  // ── Stripe Checkout ───────────────────────────────────────────────────────
   const handleStripeCheckout = async () => {
     if (!user?.id || !filmId) return;
     setIsStripeLoading(true);
@@ -79,25 +124,20 @@ function PaymentPageContent() {
         return;
       }
 
-      const stripe = await stripePromise;
-      if (!stripe) {
-        showToast('Stripe failed to load', 'error');
+      // Redirect to Stripe-hosted checkout page via session URL
+      if (!data.url) {
+        showToast('No checkout URL returned', 'error');
         return;
       }
-
-      const { error } = await stripe.redirectToCheckout({ sessionId: data.sessionId });
-      if (error) {
-        showToast(error.message ?? 'Redirect failed', 'error');
-      }
+      window.location.href = data.url;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      showToast(msg, 'error');
+      showToast(err instanceof Error ? err.message : 'Unknown error', 'error');
     } finally {
       setIsStripeLoading(false);
     }
   };
 
-  // ── AIF 鏈上內部賬本支付 ─────────────────────────────────────────────────────
+  // ── AIF On-Chain Payment ──────────────────────────────────────────────────
   const handleAifPayment = async () => {
     if (!user?.id || !filmId) return;
     if (aifBalance < 2500) {
@@ -125,8 +165,7 @@ function PaymentPageContent() {
       showToast('AIF payment confirmed!', 'success');
       router.push('/me?payment=success');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      showToast(msg, 'error');
+      showToast(err instanceof Error ? err.message : 'Unknown error', 'error');
     } finally {
       setIsAifLoading(false);
     }
@@ -136,129 +175,223 @@ function PaymentPageContent() {
   if (!authenticated) return null;
 
   const hasEnoughAif = aifBalance >= 2500;
+  const isAnyLoading = isStripeLoading || isAifLoading;
 
   return (
-    <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center px-4 py-16">
+    <div className="min-h-screen bg-[#040404] flex flex-col items-center justify-center px-4 py-14">
 
-      {/* Header */}
-      <div className="w-full max-w-lg mb-10 text-center">
-        <div className="font-mono text-[10px] text-gray-500 tracking-[0.3em] mb-2">
-          HKAIIFF 2026 · ENTRY FEE
+      {/* ── Film ID Badge ─────────────────────────────────────────────────── */}
+      {filmId && (
+        <div className="mb-8 inline-flex items-center gap-2 font-mono text-[9px] tracking-[0.4em] text-[#2a2a2a]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#CCFF00]/50" />
+          FILM&nbsp;·&nbsp;{filmId.slice(0, 8).toUpperCase()}
         </div>
-        <h1 className="font-heavy text-4xl md:text-5xl text-white tracking-widest uppercase">
-          SUBMIT FILM
+      )}
+
+      {/* ── Header ───────────────────────────────────────────────────────── */}
+      <div className="text-center mb-12">
+        <p className="font-mono text-[9px] tracking-[0.6em] text-[#2a2a2a] mb-3 uppercase">
+          HKAIIFF 2026 · Entry Fee
+        </p>
+        <h1 className="text-5xl md:text-6xl font-black text-white tracking-[0.12em] uppercase leading-tight">
+          SELECT PAYMENT
         </h1>
-        <div className="mt-3 h-px w-24 bg-signal mx-auto" />
+        <div className="mt-5 mx-auto h-px w-24 bg-gradient-to-r from-transparent via-[#CCFF00]/60 to-transparent" />
       </div>
 
-      {/* Payment Cards */}
-      <div className="w-full max-w-lg flex flex-col gap-4">
+      {/* ── Dual Payment Cards ────────────────────────────────────────────── */}
+      <div className="w-full max-w-2xl grid grid-cols-1 md:grid-cols-2 gap-4">
 
-        {/* Card A — Fiat (Stripe) */}
+        {/* ──── Card A · Stripe / Fiat ──────────────────────────────────── */}
         <button
           onClick={handleStripeCheckout}
-          disabled={isStripeLoading || isAifLoading}
+          disabled={isAnyLoading}
           className="
-            group relative w-full bg-[#141414] border border-[#2a2a2a]
-            hover:border-[#444] rounded-2xl p-8
-            flex items-center justify-between
-            transition-all duration-200
-            active:scale-[0.98]
+            group relative overflow-hidden text-left
+            bg-[#080808] border border-[#1C1C1C]
+            hover:border-[#635BFF]/50
+            rounded-2xl p-7
+            flex flex-col justify-between
+            min-h-[300px]
+            transition-all duration-300
+            active:scale-[0.985]
             disabled:opacity-50 disabled:cursor-not-allowed
+            focus:outline-none
           "
         >
-          <div className="text-left">
-            <div className="font-mono text-[10px] text-gray-500 mb-1 tracking-widest">FIAT PAYMENT</div>
-            <div className="font-heavy text-5xl text-white leading-none">$500</div>
-            <div className="font-mono text-[10px] text-gray-400 mt-2">USD · Powered by Stripe</div>
-          </div>
-          <div className="flex flex-col items-end gap-3">
-            {isStripeLoading ? (
-              <i className="fas fa-spinner fa-spin text-2xl text-gray-400" />
-            ) : (
-              <i className="fa-brands fa-cc-visa text-4xl text-[#1a1f71] group-hover:text-[#2a2f91] transition-colors" />
-            )}
-            <div className="flex gap-1.5">
-              <i className="fa-brands fa-cc-mastercard text-xl text-[#eb001b] opacity-70" />
-              <i className="fa-brands fa-cc-amex text-xl text-[#2e77bc] opacity-70" />
+          {/* Hover radial glow – Stripe purple */}
+          <div
+            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+            style={{ background: 'radial-gradient(ellipse 80% 60% at 20% 20%, rgba(99,91,255,0.10) 0%, transparent 70%)' }}
+          />
+          {/* Bottom edge glow */}
+          <div className="absolute bottom-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-[#635BFF]/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-400 pointer-events-none" />
+
+          {/* Top row */}
+          <div className="flex items-start justify-between">
+            <div className="space-y-2">
+              <span className="font-mono text-[8px] tracking-[0.5em] text-[#333] block">WEB2 · FIAT</span>
+              <StripeBadge />
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-[#635BFF]/10 border border-[#635BFF]/15 flex items-center justify-center group-hover:bg-[#635BFF]/20 transition-colors flex-shrink-0">
+              {isStripeLoading ? (
+                <Spinner color="#635BFF" />
+              ) : (
+                <svg viewBox="0 0 24 24" className="w-5 h-5 fill-[#635BFF]/80" aria-hidden="true">
+                  <path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z" />
+                </svg>
+              )}
             </div>
           </div>
-          {/* Subtle glow on hover */}
-          <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-            style={{ boxShadow: 'inset 0 0 40px rgba(255,255,255,0.02)' }} />
+
+          {/* Price */}
+          <div className="my-6">
+            <div className="font-black text-[72px] text-white leading-none tracking-tight">
+              $500
+            </div>
+            <div className="font-mono text-[10px] text-[#444] tracking-[0.4em] mt-1">
+              USD · ONE-TIME FEE
+            </div>
+          </div>
+
+          {/* Bottom row */}
+          <div className="flex items-center justify-between">
+            <CardBrands />
+            <span className="font-mono text-[9px] tracking-[0.3em] text-[#635BFF]/50 group-hover:text-[#635BFF]/80 transition-colors">
+              {isStripeLoading ? 'REDIRECTING…' : 'PAY →'}
+            </span>
+          </div>
         </button>
 
-        {/* Divider */}
-        <div className="flex items-center gap-3">
-          <div className="flex-1 h-px bg-[#222]" />
-          <span className="font-mono text-[10px] text-gray-600 tracking-widest">OR</span>
-          <div className="flex-1 h-px bg-[#222]" />
-        </div>
-
-        {/* Card B — AIF On-Chain */}
+        {/* ──── Card B · AIF On-Chain ───────────────────────────────────── */}
         <button
           onClick={handleAifPayment}
-          disabled={isAifLoading || isStripeLoading || !hasEnoughAif}
-          className="
-            group relative w-full rounded-2xl p-8
-            flex items-center justify-between
-            transition-all duration-200
-            active:scale-[0.98]
-            disabled:cursor-not-allowed
-            bg-[#CCFF00]
-            disabled:bg-[#CCFF00]/40
-          "
+          disabled={isAnyLoading || !hasEnoughAif}
+          className={`
+            group relative overflow-hidden text-left
+            rounded-2xl p-7
+            flex flex-col justify-between
+            min-h-[300px]
+            transition-all duration-300
+            active:scale-[0.985]
+            focus:outline-none
+            ${hasEnoughAif
+              ? 'bg-[#030A04] border border-[#00FF41]/15 hover:border-[#00FF41]/50 disabled:cursor-not-allowed'
+              : 'bg-[#040804] border border-[#0C1C0C] opacity-55 cursor-not-allowed'}
+          `}
         >
-          <div className="text-left">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="font-mono text-[10px] text-black/60 tracking-widest">ON-CHAIN PAYMENT</div>
-              <span className="font-mono text-[8px] bg-black/10 text-black/70 px-2 py-0.5 rounded-full tracking-widest">50% OFF</span>
+          {/* Matrix scanline overlay */}
+          <div
+            className="absolute inset-0 pointer-events-none opacity-[0.025]"
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(0,255,65,0.4) 23px, rgba(0,255,65,0.4) 24px)',
+            }}
+          />
+
+          {/* Hover radial glow – Matrix green */}
+          {hasEnoughAif && (
+            <div
+              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+              style={{ background: 'radial-gradient(ellipse 80% 60% at 80% 80%, rgba(0,255,65,0.08) 0%, transparent 70%)' }}
+            />
+          )}
+          {/* Bottom edge glow */}
+          {hasEnoughAif && (
+            <div className="absolute bottom-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-[#00FF41]/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-400 pointer-events-none" />
+          )}
+
+          {/* Top row */}
+          <div className="flex items-start justify-between">
+            <div className="space-y-2">
+              <span className={`font-mono text-[8px] tracking-[0.5em] block ${hasEnoughAif ? 'text-[#00FF41]/30' : 'text-[#1a2a1a]'}`}>
+                WEB3 · ON-CHAIN
+              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={`inline-flex items-center gap-1.5 text-[10px] font-bold px-3 py-1 rounded-full tracking-wider font-mono border ${
+                  hasEnoughAif
+                    ? 'bg-[#00FF41]/8 border-[#00FF41]/20 text-[#00FF41]'
+                    : 'bg-[#0a1a0a] border-[#0a1a0a] text-[#1a2a1a]'
+                }`}>
+                  <ChainIcon className="w-3 h-3" />
+                  AIF TOKEN
+                </span>
+                <span className={`inline-flex items-center text-[8px] font-bold px-2 py-0.5 rounded-full tracking-wider font-mono border ${
+                  hasEnoughAif
+                    ? 'bg-[#CCFF00]/8 border-[#CCFF00]/20 text-[#CCFF00]'
+                    : 'bg-[#1a1a00]/20 border-[#1a1a00] text-[#1a1a00]'
+                }`}>
+                  50% OFF
+                </span>
+              </div>
             </div>
-            <div className="font-heavy text-5xl text-black leading-none">2500</div>
-            <div className="font-mono text-[10px] text-black/60 mt-2">AIF · Internal Ledger</div>
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors flex-shrink-0 ${
+              hasEnoughAif
+                ? 'bg-[#00FF41]/8 border border-[#00FF41]/15 group-hover:bg-[#00FF41]/18'
+                : 'bg-[#0a1a0a] border border-[#0a1a0a]'
+            }`}>
+              {isAifLoading ? (
+                <Spinner color="#00FF41" />
+              ) : (
+                <ChainIcon className={`w-5 h-5 ${hasEnoughAif ? 'text-[#00FF41]/70' : 'text-[#1a3a1a]'}`} />
+              )}
+            </div>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            {isAifLoading ? (
-              <i className="fas fa-spinner fa-spin text-2xl text-black/60" />
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-black/10 flex items-center justify-center">
-                <span className="font-heavy text-xl text-black">AIF</span>
-              </div>
-            )}
-            {!hasEnoughAif && !isLoadingBalance && (
-              <div className="font-mono text-[8px] text-black/60 flex items-center gap-1">
-                <i className="fas fa-exclamation-triangle text-[7px]" />
-                INSUFFICIENT
-              </div>
+
+          {/* Price */}
+          <div className="my-6">
+            <div className={`font-black text-[72px] leading-none tracking-tight ${hasEnoughAif ? 'text-[#00FF41]' : 'text-[#0a2a0a]'}`}>
+              2500
+            </div>
+            <div className={`font-mono text-[10px] tracking-[0.4em] mt-1 ${hasEnoughAif ? 'text-[#00FF41]/30' : 'text-[#0a2a0a]'}`}>
+              AIF · INTERNAL LEDGER
+            </div>
+          </div>
+
+          {/* Bottom row */}
+          <div className="flex items-center justify-between">
+            <div className="font-mono text-[9px]">
+              {isLoadingBalance ? (
+                <span className="text-[#1a2a1a] tracking-widest animate-pulse">LOADING…</span>
+              ) : (
+                <span className={hasEnoughAif ? 'text-[#00FF41]/40' : 'text-[#FF3333]/50'}>
+                  BAL:&nbsp;{aifBalance.toLocaleString()}&nbsp;AIF
+                  {!hasEnoughAif && (
+                    <span className="ml-2 text-[#FF3333]/60">· INSUFFICIENT</span>
+                  )}
+                </span>
+              )}
+            </div>
+            {hasEnoughAif && (
+              <span className="font-mono text-[9px] tracking-[0.3em] text-[#00FF41]/40 group-hover:text-[#00FF41]/70 transition-colors">
+                {isAifLoading ? 'PROCESSING…' : 'PAY →'}
+              </span>
             )}
           </div>
         </button>
 
       </div>
 
-      {/* Wallet Balance */}
-      <div className="mt-8 font-mono text-[10px] text-gray-600 flex items-center gap-2">
-        <i className="fas fa-wallet text-signal text-[9px]" />
-        {isLoadingBalance ? (
-          <span className="animate-pulse">Loading balance...</span>
-        ) : (
-          <span>
-            Wallet Balance:{' '}
-            <span className={hasEnoughAif ? 'text-signal' : 'text-red-500'}>
-              {aifBalance.toLocaleString()} AIF
-            </span>
-          </span>
-        )}
+      {/* ── OR Divider (mobile spacing) ────────────────────────────────────── */}
+      <div className="mt-4 flex md:hidden items-center gap-3 w-full max-w-2xl">
+        <div className="flex-1 h-px bg-[#111]" />
+        <span className="font-mono text-[9px] text-[#1e1e1e] tracking-[0.4em]">OR</span>
+        <div className="flex-1 h-px bg-[#111]" />
       </div>
 
-      {/* Back link */}
-      <button
-        onClick={() => router.back()}
-        className="mt-6 font-mono text-[10px] text-gray-600 hover:text-gray-400 flex items-center gap-1.5 transition-colors"
-      >
-        <i className="fas fa-arrow-left text-[9px]" />
-        BACK
-      </button>
+      {/* ── Footer ───────────────────────────────────────────────────────── */}
+      <div className="mt-10 flex flex-col items-center gap-4">
+        <button
+          onClick={() => router.back()}
+          className="font-mono text-[9px] tracking-[0.4em] text-[#1e1e1e] hover:text-[#444] transition-colors flex items-center gap-1.5"
+        >
+          ← BACK
+        </button>
+        <p className="font-mono text-[8px] tracking-[0.4em] text-[#111]">
+          SECURED BY STRIPE &amp; SOLANA BLOCKCHAIN · 2026
+        </p>
+      </div>
+
     </div>
   );
 }
