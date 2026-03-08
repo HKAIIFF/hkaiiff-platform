@@ -4,9 +4,15 @@ import { useState, useEffect, useRef } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
 import OSS from 'ali-oss';
+import { createClient } from '@supabase/supabase-js';
 import { useToast } from '@/app/context/ToastContext';
 import { useI18n } from '@/app/context/I18nContext';
 import CyberLoading from '@/app/components/CyberLoading';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 type Step = 1 | 2 | 'processing';
 
@@ -30,7 +36,7 @@ const TERMINAL_LINES = [
 ];
 
 export default function UploadPage() {
-  const { user, authenticated, ready } = usePrivy();
+  const { user, authenticated, ready, getAccessToken } = usePrivy();
   const router = useRouter();
   const { showToast } = useToast();
   const { t } = useI18n();
@@ -58,7 +64,8 @@ export default function UploadPage() {
   const [filmFile,      setFilmFile]      = useState<File | null>(null);
   const [errorMsg,      setErrorMsg]      = useState('');
   const [uploadStatus,  setUploadStatus]  = useState('');
-  const selectedPayment: 'USD' = 'USD';
+  const [aifBalance,    setAifBalance]    = useState(0);
+  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [terminalLines, setTerminalLines] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
@@ -88,6 +95,22 @@ export default function UploadPage() {
       terminalRef.current.scrollTop = terminalRef.current.scrollHeight;
     }
   }, [terminalLines]);
+
+  // Fetch AIF balance when entering Step 2 (payment selection)
+  useEffect(() => {
+    if (step !== 2 || !authenticated || !user?.id) return;
+    const fetchBalance = async () => {
+      setIsLoadingBalance(true);
+      const { data } = await supabase
+        .from('users')
+        .select('aif_balance')
+        .eq('id', user.id)
+        .single();
+      setAifBalance(data?.aif_balance ?? 0);
+      setIsLoadingBalance(false);
+    };
+    fetchBalance();
+  }, [step, authenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sliderTrackStyle = {
     background: isSignal
@@ -145,101 +168,111 @@ export default function UploadPage() {
     setStep(2);
   };
 
-  // ── Submit handler ────────────────────────────────────────────────────────
+  // ── Shared upload logic (OSS → DB record) ────────────────────────────────
+  const doUploadAndCreateRecord = async (paymentMethod: 'USD' | 'AIF'): Promise<string> => {
+    const stsRes = await fetch('/api/oss-sts');
+    const stsData = await stsRes.json();
+    if (stsData.error) throw new Error(stsData.error);
 
-  const handleSubmit = async () => {
+    setUploadStatus('SECURE CHANNEL ESTABLISHED. UPLOADING MEDIA...');
+
+    const client = new OSS({
+      region: stsData.Region || process.env.NEXT_PUBLIC_ALIYUN_REGION || 'oss-ap-southeast-1',
+      accessKeyId: stsData.AccessKeyId,
+      accessKeySecret: stsData.AccessKeySecret,
+      stsToken: stsData.SecurityToken,
+      bucket: stsData.Bucket,
+      secure: true,
+    });
+
+    const prefix = `submissions/${user!.id}/${Date.now()}`;
+
+    setUploadStatus('UPLOADING POSTER ASSETS...');
+    const posterResult = await client.multipartUpload(`${prefix}_poster_${posterFile!.name}`, posterFile!);
+    const posterUrl = posterResult.res.requestUrls[0].split('?')[0];
+
+    setUploadStatus('UPLOADING TRAILER FILES...');
+    const trailerResult = await client.multipartUpload(`${prefix}_trailer_${trailerFile!.name}`, trailerFile!);
+    const trailerUrl = trailerResult.res.requestUrls[0].split('?')[0];
+
+    setUploadStatus('UPLOADING FULL FILM (THIS MAY TAKE A WHILE)...');
+    const filmResult = await client.multipartUpload(`${prefix}_film_${filmFile!.name}`, filmFile!);
+    const fullFilmUrl = filmResult.res.requestUrls[0].split('?')[0];
+
+    setUploadStatus('MEDIA SECURED. MINTING DATA TO DATABASE...');
+    const dbRes = await fetch('/api/upload-film', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        creator_id:     user!.id,
+        title:          formData.title,
+        studio_name:    formData.studio,
+        tech_stack:     formData.techStack,
+        ai_ratio:       formData.aiRatio,
+        synopsis:       formData.synopsis,
+        core_cast:      formData.coreCast,
+        region:         formData.region,
+        lbs_royalty:    formData.lbsRoyalty,
+        poster_url:     posterUrl,
+        trailer_url:    trailerUrl,
+        full_film_url:  fullFilmUrl,
+        payment_method: paymentMethod,
+      }),
+    });
+
+    const data = await dbRes.json();
+    if (!data.success) throw new Error(data.error ?? 'Submission failed');
+    return data.film.id as string;
+  };
+
+  // ── Fiat (Stripe) path ────────────────────────────────────────────────────
+  const handleSubmitFiat = async () => {
     if (!authenticated || !user) return;
-
     setIsSubmitting(true);
     setUploadStatus('INITIALIZING SECURE CHANNEL...');
-
     try {
-      const stsRes = await fetch('/api/oss-sts');
-      const stsData = await stsRes.json();
-      if (stsData.error) throw new Error(stsData.error);
-
-      setUploadStatus('SECURE CHANNEL ESTABLISHED. UPLOADING MEDIA...');
-
-      const ossRegion =
-        stsData.Region ||
-        process.env.NEXT_PUBLIC_ALIYUN_REGION ||
-        'oss-ap-southeast-1';
-      const client = new OSS({
-        region: ossRegion,
-        accessKeyId: stsData.AccessKeyId,
-        accessKeySecret: stsData.AccessKeySecret,
-        stsToken: stsData.SecurityToken,
-        bucket: stsData.Bucket,
-        secure: true,
-      });
-
-      const prefix = `submissions/${user.id}/${Date.now()}`;
-
-      setUploadStatus('UPLOADING POSTER ASSETS...');
-      const posterResult = await client.multipartUpload(`${prefix}_poster_${posterFile!.name}`, posterFile!);
-      const posterUrl = posterResult.res.requestUrls[0].split('?')[0];
-
-      setUploadStatus('UPLOADING TRAILER FILES...');
-      const trailerResult = await client.multipartUpload(`${prefix}_trailer_${trailerFile!.name}`, trailerFile!);
-      const trailerUrl = trailerResult.res.requestUrls[0].split('?')[0];
-
-      setUploadStatus('UPLOADING FULL FILM (THIS MAY TAKE A WHILE)...');
-      const filmResult = await client.multipartUpload(`${prefix}_film_${filmFile!.name}`, filmFile!);
-      const fullFilmUrl = filmResult.res.requestUrls[0].split('?')[0];
-
-      setUploadStatus('MEDIA SECURED. MINTING DATA TO DATABASE...');
-      const dbRes = await fetch('/api/upload-film', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          creator_id:     user.id,
-          title:          formData.title,
-          studio_name:    formData.studio,
-          tech_stack:     formData.techStack,
-          ai_ratio:       formData.aiRatio,
-          synopsis:       formData.synopsis,
-          core_cast:      formData.coreCast,
-          region:         formData.region,
-          lbs_royalty:    formData.lbsRoyalty,
-          poster_url:     posterUrl,
-          trailer_url:    trailerUrl,
-          full_film_url:  fullFilmUrl,
-          payment_method: selectedPayment,
-        }),
-      });
-
-      const data = await dbRes.json();
-      if (data.success) {
-        showToast('MEDIA UPLOADED. PROCEEDING TO PAYMENT...', 'success');
-        router.push(`/upload/payment?filmId=${data.film.id}`);
-      } else {
-        const errMsg = data.error ?? 'Submission failed. Please try again.';
-        console.error('Insert failed:', data.error);
-        setUploadStatus(errMsg);
-        showToast(errMsg, 'error');
-      }
+      const filmId = await doUploadAndCreateRecord('USD');
+      showToast('MEDIA UPLOADED. PROCEEDING TO PAYMENT...', 'success');
+      router.push(`/upload/payment?filmId=${filmId}`);
     } catch (err: unknown) {
-      console.error(err);
-      const msg: string = err instanceof Error ? err.message : String(err);
-      const code = (err as { code?: number })?.code;
-      if (msg.toLowerCase().includes('user rejected') || msg.includes('cancelled') || code === 4001) {
-        const errText = 'Transaction cancelled';
-        setUploadStatus(errText);
-        showToast(errText, 'error');
-      } else if (msg.toLowerCase().includes('insufficient')) {
-        const errText = 'Insufficient AIF balance';
-        setUploadStatus(errText);
-        showToast(errText, 'error');
-      } else {
-        const errText = `Submission failed: ${msg}`;
-        setUploadStatus(errText);
-        showToast(errText, 'error');
-      }
+      const msg = err instanceof Error ? err.message : String(err);
+      setUploadStatus(msg);
+      showToast(msg, 'error');
     } finally {
-      setUploadStatus((prev) => {
-        setIsSubmitting(false);
-        return prev.includes('ERROR') ? prev : '';
+      setIsSubmitting(false);
+    }
+  };
+
+  // ── AIF (On-Chain Ledger) path ─────────────────────────────────────────────
+  const handleSubmitAif = async () => {
+    if (!authenticated || !user) return;
+    if (aifBalance < 2500) {
+      showToast('Insufficient AIF balance (need 2500 AIF)', 'error');
+      return;
+    }
+    setIsSubmitting(true);
+    setUploadStatus('INITIALIZING SECURE CHANNEL...');
+    try {
+      const filmId = await doUploadAndCreateRecord('AIF');
+
+      setUploadStatus('DEDUCTING AIF BALANCE...');
+      const token = await getAccessToken();
+      const payRes = await fetch('/api/pay/aif', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ filmId, userId: user.id }),
       });
+      const payData = await payRes.json();
+      if (!payRes.ok) throw new Error(payData.error ?? 'AIF payment failed');
+
+      showToast('AIF payment confirmed! Minting...', 'success');
+      setStep('processing');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setUploadStatus(msg);
+      showToast(msg, 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -535,7 +568,7 @@ export default function UploadPage() {
           </div>
         )}
 
-        {/* ── Step 2: Payment ────────────────────────────────── */}
+        {/* ── Step 2: Payment Selection (Dual Track) ─────────── */}
         {step === 2 && (
           <div className="animate-fade-in">
             <button
@@ -545,9 +578,9 @@ export default function UploadPage() {
               <i className="fas fa-arrow-left" /> {t('btn_back')}
             </button>
 
-            {/* Minting Summary */}
+            {/* Film Summary */}
             <div className="bg-gradient-to-br from-[#111] to-[#050505] border border-[#333] p-5 rounded-xl mb-6 shadow-lg">
-              <div className="text-[10px] font-mono text-gray-500 mb-1">MINTING TARGET</div>
+              <div className="text-[10px] font-mono text-gray-500 mb-1">ENTRY FEE · SELECT PAYMENT METHOD</div>
               <div className="font-heavy text-2xl text-white mb-3 uppercase tracking-wide truncate">
                 {formData.title || '...'}
               </div>
@@ -559,7 +592,7 @@ export default function UploadPage() {
                 <div>
                   <div className="text-[9px] font-mono text-gray-500">NETWORK</div>
                   <div className="text-sm font-bold text-white flex items-center gap-1">
-                    <i className="fa-brands fa-solana text-aif" /> SOL
+                    <i className="fa-brands fa-solana text-[#9945FF]" /> SOL
                   </div>
                 </div>
                 <div>
@@ -568,48 +601,123 @@ export default function UploadPage() {
                     <i className="fas fa-check-circle text-xs" /> 3 / 3
                   </div>
                 </div>
+                <div className="ml-auto">
+                  <div className="text-[9px] font-mono text-gray-500">YOUR AIF</div>
+                  <div className={`text-sm font-bold ${aifBalance >= 2500 ? 'text-signal' : 'text-red-500'}`}>
+                    {isLoadingBalance ? '—' : `${aifBalance.toLocaleString()} AIF`}
+                  </div>
+                </div>
               </div>
             </div>
 
             {/* Not-logged-in warning */}
             {notLoggedIn && (
               <div className="bg-[#111] border border-danger/50 rounded-xl p-4 mb-4 text-center font-mono text-xs text-danger flex items-center justify-center gap-2">
-                <i className="fas fa-lock" />
-                PLEASE LOGIN FIRST
+                <i className="fas fa-lock" /> PLEASE LOGIN FIRST
               </div>
             )}
 
-            {/* Upload Status */}
+            {/* Upload status (shown during upload) */}
             {uploadStatus && (
-              <div
-                className={`text-xs text-center mb-4 font-mono ${
-                  uploadStatus.includes('ERROR')
-                    ? 'text-red-500'
-                    : 'animate-pulse text-signal'
-                }`}
-              >
+              <div className={`text-xs text-center mb-4 font-mono px-4 py-2 rounded-lg ${
+                uploadStatus.toLowerCase().includes('fail') || uploadStatus.toLowerCase().includes('error')
+                  ? 'bg-red-500/10 text-red-400 border border-red-500/30'
+                  : 'bg-signal/5 text-signal border border-signal/20 animate-pulse'
+              }`}>
+                <i className="fas fa-circle-notch fa-spin mr-2" />
                 {uploadStatus}
               </div>
             )}
 
-            {/* PAY & MINT */}
-            <button
-              disabled={isSubmitting || notLoggedIn}
-              onClick={handleSubmit}
-              className="brutal-btn w-full text-lg shadow-[0_0_20px_rgba(204,255,0,0.15)] disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100"
-            >
-              {isSubmitting ? (
-                <>
-                  <i className="fas fa-spinner fa-spin mr-2" />
-                  {t('up_uploading')}
-                </>
-              ) : (
-                <>
-                  <i className="fas fa-bolt mr-2" />
-                  ⚡️ SUBMIT
-                </>
-              )}
-            </button>
+            {/* ── Dual Payment Cards ─────────────────────────────────────── */}
+            {!isSubmitting && (
+              <div className="flex flex-col gap-4">
+
+                {/* Card A — Fiat (Stripe) */}
+                <button
+                  onClick={handleSubmitFiat}
+                  disabled={notLoggedIn}
+                  className="
+                    group relative w-full bg-[#141414] border border-[#2a2a2a]
+                    hover:border-[#555] rounded-2xl p-8
+                    flex items-center justify-between
+                    transition-all duration-200 active:scale-[0.98]
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                  "
+                >
+                  <div className="text-left">
+                    <div className="font-mono text-[10px] text-gray-500 mb-1 tracking-widest">FIAT PAYMENT</div>
+                    <div className="font-heavy text-5xl text-white leading-none">$500</div>
+                    <div className="font-mono text-[10px] text-gray-400 mt-2">USD · Powered by Stripe</div>
+                  </div>
+                  <div className="flex flex-col items-end gap-3">
+                    <i className="fa-brands fa-cc-visa text-4xl text-[#1a1f71] group-hover:text-[#2a2f91] transition-colors" />
+                    <div className="flex gap-1.5">
+                      <i className="fa-brands fa-cc-mastercard text-xl text-[#eb001b] opacity-70" />
+                      <i className="fa-brands fa-cc-amex text-xl text-[#2e77bc] opacity-70" />
+                    </div>
+                  </div>
+                  <div
+                    className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                    style={{ boxShadow: 'inset 0 0 40px rgba(255,255,255,0.02)' }}
+                  />
+                </button>
+
+                {/* Divider */}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-[#222]" />
+                  <span className="font-mono text-[10px] text-gray-600 tracking-widest">OR</span>
+                  <div className="flex-1 h-px bg-[#222]" />
+                </div>
+
+                {/* Card B — AIF On-Chain */}
+                <button
+                  onClick={handleSubmitAif}
+                  disabled={notLoggedIn || aifBalance < 2500}
+                  className="
+                    group relative w-full rounded-2xl p-8
+                    flex items-center justify-between
+                    transition-all duration-200 active:scale-[0.98]
+                    disabled:cursor-not-allowed
+                    bg-[#CCFF00] disabled:bg-[#CCFF00]/40
+                  "
+                >
+                  <div className="text-left">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="font-mono text-[10px] text-black/60 tracking-widest">ON-CHAIN PAYMENT</div>
+                      <span className="font-mono text-[8px] bg-black/10 text-black/70 px-2 py-0.5 rounded-full tracking-widest">50% OFF</span>
+                    </div>
+                    <div className="font-heavy text-5xl text-black leading-none">2500</div>
+                    <div className="font-mono text-[10px] text-black/60 mt-2">AIF · Internal Ledger</div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <div className="w-12 h-12 rounded-full bg-black/10 flex items-center justify-center">
+                      <span className="font-heavy text-xl text-black">AIF</span>
+                    </div>
+                    {aifBalance < 2500 && !isLoadingBalance && (
+                      <div className="font-mono text-[9px] text-black/60 flex items-center gap-1">
+                        <i className="fas fa-exclamation-triangle text-[8px]" />
+                        INSUFFICIENT BALANCE
+                      </div>
+                    )}
+                  </div>
+                </button>
+
+              </div>
+            )}
+
+            {/* Loading state (during upload) */}
+            {isSubmitting && (
+              <div className="flex flex-col items-center gap-4 py-8">
+                <div className="w-16 h-16 border-2 border-signal/30 border-t-signal rounded-full animate-spin" />
+                <div className="text-[10px] font-mono text-signal tracking-widest animate-pulse">
+                  {uploadStatus || 'PROCESSING...'}
+                </div>
+                <div className="text-[9px] font-mono text-gray-600">
+                  DO NOT CLOSE THIS PAGE
+                </div>
+              </div>
+            )}
           </div>
         )}
 
