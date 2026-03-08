@@ -17,7 +17,7 @@ export async function POST(req: Request) {
           name: 'New Agent',
           last_sign_in_at: new Date().toISOString(),
         }],
-        { onConflict: 'email' }
+        { onConflict: 'id' }   // 以主鍵 id 去重，email 可為 null 不做衝突判斷
       )
       .select()
       .single();

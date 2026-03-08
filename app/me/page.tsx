@@ -64,6 +64,9 @@ export default function MePage() {
   const [displaySolanaAddress, setDisplaySolanaAddress] = useState<string | null>(null);
   const [isFetchingBalance, setIsFetchingBalance] = useState(false);
 
+  // ── 資料加載狀態（區分「加載中」vs「加載完但無數據」，防止永遠卡在 ...） ──
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+
   // ── HD Wallet 充值地址 State ──────────────────────────────────────────────
   const [depositAddress, setDepositAddress] = useState<string | null>(null);
   const [isFetchingDepositAddress, setIsFetchingDepositAddress] = useState(false);
@@ -71,7 +74,6 @@ export default function MePage() {
   // ── Top-Up Modal State ────────────────────────────────────────────────────
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const [isCreatingWallet, setIsCreatingWallet] = useState(false);
 
   const handleTopUpCopy = async () => {
     if (!depositAddress) return;
@@ -85,49 +87,53 @@ export default function MePage() {
     }
   };
 
-  const handleCreateWallet = async () => {
-    setIsCreatingWallet(true);
-    try {
-      await createWallet();
-      showToast(lang === 'en' ? 'Deposit address generated!' : '充值地址已生成！', 'success');
-    } catch (err) {
-      console.error('Failed to create embedded wallet:', err);
-      showToast(lang === 'en' ? 'Failed to generate address, please try again' : '生成地址失敗，請重試', 'error');
-    } finally {
-      setIsCreatingWallet(false);
+  /**
+   * 呼叫 /api/wallet/assign 的統一封裝函數。
+   * 在 body 中攜帶 walletAddress，以便後端在用戶行不存在時能自動 upsert 創建。
+   * 使用相對路徑，本地開發與生產環境均可正常運作，絕不寫死域名。
+   */
+  const callAssignWalletApi = async (solanaAddress: string | null): Promise<string | null> => {
+    const token = await getAccessToken();
+    const res = await fetch('/api/wallet/assign', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        walletAddress: solanaAddress,
+      }),
+    });
+    const data = await res.json();
+    if (res.ok && data.address) {
+      return data.address as string;
     }
+    throw new Error(data?.error ?? 'Failed to assign wallet address');
   };
 
-  const handleOpenTopUp = async () => {
-    setIsTopUpOpen(true);
-    // 已有地址，直接顯示 Modal
-    if (depositAddress) return;
-
-    // 尚無地址，調用 API 生成
+  /**
+   * 用戶在 Modal 內主動點擊「生成充值地址」按鈕時觸發。
+   */
+  const handleGenerateAddress = async () => {
+    if (isFetchingDepositAddress) return;
+    setIsFetchingDepositAddress(true);
     try {
-      setIsFetchingDepositAddress(true);
-      const token = await getAccessToken();
-      const res = await fetch('/api/wallet/assign', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.address) {
-          setDepositAddress(data.address);
-          setDbProfile((prev) => prev ? { ...prev, deposit_address: data.address } : prev);
-        }
-      } else {
-        showToast(lang === 'en' ? 'Failed to generate address' : '生成地址失敗', 'error');
-      }
+      const address = await callAssignWalletApi(displaySolanaAddress);
+      setDepositAddress(address);
+      setDbProfile((prev) => prev ? { ...prev, deposit_address: address } : prev);
+      showToast(lang === 'en' ? 'Deposit address generated!' : '專屬充值地址已生成！', 'success');
     } catch (error) {
-      console.error('handleOpenTopUp error:', error);
+      console.error('[handleGenerateAddress] error:', error);
+      const msg = error instanceof Error ? error.message : (lang === 'en' ? 'Network error, please retry' : '網絡錯誤，請重試');
+      showToast(msg, 'error');
     } finally {
       setIsFetchingDepositAddress(false);
     }
+  };
+
+  /** TOP UP 按鈕：只負責打開 Modal，地址顯示/生成邏輯由 Modal 內部處理 */
+  const handleOpenTopUp = () => {
+    setIsTopUpOpen(true);
   };
 
   // ── Profile Edit Modal State ──────────────────────────────────────────────
@@ -253,6 +259,19 @@ export default function MePage() {
             .single();
           if (profileError) {
             console.error('❌ Failed to fetch profile:', profileError.message);
+            // 查詢失敗時設置預設值，防止餘額永遠卡在 ...
+            setDbProfile({
+              agent_id: '',
+              name: 'New Agent',
+              display_name: null,
+              role: 'human',
+              aif_balance: 0,
+              avatar_seed: user.id,
+              bio: null,
+              tech_stack: null,
+              core_team: null,
+              deposit_address: null,
+            });
           } else if (profileRow) {
             setDbProfile(profileRow);
 
@@ -260,9 +279,13 @@ export default function MePage() {
               // 已有充值地址，直接使用
               setDepositAddress(profileRow.deposit_address);
             } else {
-              // 靜默調用 assign API 獲取並寫入充值地址
-              setIsFetchingDepositAddress(true);
+              // 靜默嘗試自動生成充值地址（帶 walletAddress body，失敗不阻塞，用戶可在 Modal 內手動重試）
               try {
+                const privyEmbedded = user.linkedAccounts?.find(
+                  (acc: any) => acc.type === 'wallet' && acc.walletClientType === 'privy'
+                );
+                const solanaAddr: string | null = (privyEmbedded as any)?.address ?? null;
+
                 const token = await getAccessToken();
                 const res = await fetch('/api/wallet/assign', {
                   method: 'POST',
@@ -270,20 +293,54 @@ export default function MePage() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`,
                   },
+                  body: JSON.stringify({ walletAddress: solanaAddr }),
                 });
-                const assignData = await res.json();
-                if (assignData.address) {
-                  setDepositAddress(assignData.address);
+                if (res.ok) {
+                  const assignData = await res.json();
+                  if (assignData.address) {
+                    setDepositAddress(assignData.address);
+                    setDbProfile((prev) => prev ? { ...prev, deposit_address: assignData.address } : prev);
+                  }
+                } else {
+                  console.warn('⚠️ Auto-assign deposit address failed, user can generate manually in Modal.');
                 }
               } catch (assignErr) {
-                console.error('❌ Failed to assign deposit address:', assignErr);
-              } finally {
-                setIsFetchingDepositAddress(false);
+                console.warn('⚠️ Auto-assign deposit address exception, user can generate manually in Modal:', assignErr);
               }
             }
+          } else {
+            // 查詢無結果（用戶行尚未創建），顯示預設 0
+            setDbProfile({
+              agent_id: '',
+              name: 'New Agent',
+              display_name: null,
+              role: 'human',
+              aif_balance: 0,
+              avatar_seed: user.id,
+              bio: null,
+              tech_stack: null,
+              core_team: null,
+              deposit_address: null,
+            });
           }
         } catch (err) {
           console.error('❌ Profile fetch exception:', err);
+          // 異常時同樣設置預設值，確保 UI 不卡死
+          setDbProfile({
+            agent_id: '',
+            name: 'New Agent',
+            display_name: null,
+            role: 'human',
+            aif_balance: 0,
+            avatar_seed: user.id,
+            bio: null,
+            tech_stack: null,
+            core_team: null,
+            deposit_address: null,
+          });
+        } finally {
+          // 無論成功或失敗，標記 profile 加載完成
+          setIsProfileLoading(false);
         }
 
         try {
@@ -463,9 +520,9 @@ export default function MePage() {
       {/* ── Funding Account Panel ──────────────────────────────────────── */}
       <div className="bg-gradient-to-br from-[#0d1a00] to-[#0a0a0a] p-5 rounded-xl border border-signal/30
                       shadow-[0_0_20px_rgba(204,255,0,0.06)] relative overflow-hidden group mb-4 min-h-[100px] shrink-0">
-        {/* Corner glow */}
-        <div className="absolute top-0 right-0 w-28 h-28 bg-signal/5 rounded-bl-full transition-colors group-hover:bg-signal/10" />
-        <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-signal/60 via-signal/20 to-transparent" />
+        {/* Corner glow — pointer-events-none 防止裝飾層攔截按鈕點擊 */}
+        <div className="absolute top-0 right-0 w-28 h-28 bg-signal/5 rounded-bl-full transition-colors group-hover:bg-signal/10 pointer-events-none" />
+        <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-signal/60 via-signal/20 to-transparent pointer-events-none" />
 
         {/* Label row */}
         <div className="text-[10px] text-signal font-mono tracking-widest flex items-center gap-2 mb-3">
@@ -477,17 +534,19 @@ export default function MePage() {
         <div className="flex flex-row justify-between items-center flex-wrap gap-4 mb-1">
           <div className="flex items-baseline gap-2">
             <span className="text-4xl font-heavy text-white ltr-force">
-              {dbProfile !== null
-                ? (dbProfile.aif_balance ?? 0).toLocaleString()
-                : <span className="text-2xl text-gray-500 animate-pulse">...</span>
+              {isProfileLoading
+                ? <span className="text-2xl text-gray-500 animate-pulse">...</span>
+                : (dbProfile?.aif_balance ?? 0).toLocaleString()
               }
             </span>
-            <span className="text-signal text-lg font-heavy">AIF</span>
+            {!isProfileLoading && (
+              <span className="text-signal text-lg font-heavy">AIF</span>
+            )}
             <span className="text-[9px] font-mono text-gray-600 ml-1">INTERNAL LEDGER</span>
           </div>
           <button
             onClick={handleOpenTopUp}
-            className="flex items-center gap-1.5 text-[10px] font-heavy tracking-widest
+            className="relative z-10 flex items-center gap-1.5 text-[10px] font-heavy tracking-widest
                        bg-signal text-black px-3 py-1.5 rounded-lg
                        shadow-[0_0_12px_rgba(204,255,0,0.4)]
                        hover:shadow-[0_0_20px_rgba(204,255,0,0.6)]
@@ -834,83 +893,97 @@ export default function MePage() {
                 </p>
               </div>
 
-              {/* QR Code */}
+              {/* QR Code 區域 */}
               <div className="flex flex-col items-center gap-3">
                 {depositAddress ? (
-                  <div className="p-3 bg-white rounded-xl shadow-[0_0_24px_rgba(204,255,0,0.2)]">
-                    <QRCode
-                      value={depositAddress}
-                      size={160}
-                      bgColor="#ffffff"
-                      fgColor="#000000"
-                      level="M"
-                    />
+                  /* ── 已有地址：渲染 QR Code ─────────────────────────── */
+                  <>
+                    <div className="p-3 bg-white rounded-xl shadow-[0_0_24px_rgba(204,255,0,0.2)]">
+                      <QRCode
+                        value={depositAddress}
+                        size={160}
+                        bgColor="#ffffff"
+                        fgColor="#000000"
+                        level="M"
+                      />
+                    </div>
+                    <div className="text-[9px] font-mono text-gray-500 tracking-wider">
+                      SCAN WITH SOLANA WALLET
+                    </div>
+                  </>
+                ) : isFetchingDepositAddress ? (
+                  /* ── 生成中：轉圈動畫 ──────────────────────────────── */
+                  <div className="w-[186px] h-[186px] border-2 border-dashed border-signal/30 rounded-xl flex flex-col items-center justify-center gap-3 bg-signal/5">
+                    <i className="fas fa-circle-notch fa-spin text-3xl text-signal/50" />
+                    <span className="text-[10px] font-mono text-signal/60 tracking-wider text-center px-4">
+                      GENERATING ADDRESS...
+                    </span>
                   </div>
                 ) : (
-                  <div className="w-[186px] h-[186px] border-2 border-dashed border-signal/30 rounded-xl flex flex-col
-                                  items-center justify-center gap-3 bg-signal/5 px-4">
-                    {isFetchingDepositAddress ? (
-                      <>
-                        <i className="fas fa-circle-notch fa-spin text-3xl text-signal/50" />
-                        <span className="text-[10px] font-mono text-signal/60 tracking-wider text-center">
-                          GENERATING ADDRESS...
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <i className="fas fa-qrcode text-4xl text-signal/40" />
-                        <span className="text-[10px] font-mono text-gray-600 tracking-wider text-center">
-                          ADDRESS NOT READY
-                        </span>
-                      </>
-                    )}
-                  </div>
-                )}
-                {depositAddress && (
-                  <div className="text-[9px] font-mono text-gray-500 tracking-wider">
-                    SCAN WITH SOLANA WALLET
+                  /* ── 無地址：醒目的生成按鈕 ────────────────────────── */
+                  <div className="w-full flex flex-col items-center gap-4 py-2">
+                    <div className="w-16 h-16 rounded-full border-2 border-dashed border-signal/40 flex items-center justify-center bg-signal/5">
+                      <i className="fas fa-wallet text-2xl text-signal/50" />
+                    </div>
+                    <div className="text-center space-y-1">
+                      <div className="text-[11px] font-mono text-gray-400 tracking-wider">
+                        NO DEPOSIT ADDRESS YET
+                      </div>
+                      <div className="text-[10px] font-mono text-gray-600">
+                        Generate a dedicated Solana address to receive $AIF
+                      </div>
+                    </div>
+                    <button
+                      onClick={handleGenerateAddress}
+                      className="flex items-center gap-2 bg-signal text-black font-heavy text-[11px] tracking-widest
+                                 px-5 py-2.5 rounded-xl shadow-[0_0_20px_rgba(204,255,0,0.35)]
+                                 hover:shadow-[0_0_30px_rgba(204,255,0,0.55)]
+                                 active:scale-95 transition-all"
+                    >
+                      <i className="fas fa-plus-circle text-sm" />
+                      Generate Deposit Address
+                    </button>
+                    <div className="text-[9px] font-mono text-gray-700 text-center">
+                      生成專屬充值地址
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Address Display + Copy */}
-              <div className="space-y-2">
-                <div className="text-[9px] font-mono text-gray-600 tracking-widest">
-                  DEPOSIT ADDRESS
-                </div>
-                <div className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl p-3 flex items-center gap-3">
-                  {depositAddress ? (
-                    <>
-                      <span className="font-mono text-[11px] text-signal/90 flex-1 break-all ltr-force leading-relaxed">
-                        {depositAddress}
+              {/* Address Display + Copy（僅在地址存在或加載中時顯示） */}
+              {(depositAddress || isFetchingDepositAddress) && (
+                <div className="space-y-2">
+                  <div className="text-[9px] font-mono text-gray-600 tracking-widest">
+                    DEPOSIT ADDRESS
+                  </div>
+                  <div className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl p-3 flex items-center gap-3">
+                    {depositAddress ? (
+                      <>
+                        <span className="font-mono text-[11px] text-signal/90 flex-1 break-all ltr-force leading-relaxed">
+                          {depositAddress}
+                        </span>
+                        <button
+                          onClick={handleTopUpCopy}
+                          className={`flex-shrink-0 w-9 h-9 rounded-lg border flex items-center justify-center
+                                     transition-all active:scale-90
+                                     ${isCopied
+                                       ? 'bg-signal/20 border-signal text-signal shadow-[0_0_12px_rgba(204,255,0,0.3)]'
+                                       : 'bg-[#111] border-[#333] text-gray-400 hover:border-signal hover:text-signal'
+                                     }`}
+                          title="Copy address"
+                        >
+                          <i className={`fas ${isCopied ? 'fa-check' : 'fa-copy'} text-xs`} />
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-[11px] font-mono text-gray-600 flex-1 flex items-center gap-2">
+                        <i className="fas fa-circle-notch fa-spin text-[10px]" />
+                        GENERATING DEDICATED ADDRESS...
                       </span>
-                      <button
-                        onClick={handleTopUpCopy}
-                        className={`flex-shrink-0 w-9 h-9 rounded-lg border flex items-center justify-center
-                                   transition-all active:scale-90
-                                   ${isCopied
-                                     ? 'bg-signal/20 border-signal text-signal shadow-[0_0_12px_rgba(204,255,0,0.3)]'
-                                     : 'bg-[#111] border-[#333] text-gray-400 hover:border-signal hover:text-signal'
-                                   }`}
-                        title="Copy address"
-                      >
-                        <i className={`fas ${isCopied ? 'fa-check' : 'fa-copy'} text-xs`} />
-                      </button>
-                    </>
-                  ) : (
-                    <span className="text-[11px] font-mono text-gray-600 flex-1 flex items-center gap-2">
-                      {isFetchingDepositAddress ? (
-                        <>
-                          <i className="fas fa-circle-notch fa-spin text-[10px]" />
-                          GENERATING DEDICATED ADDRESS...
-                        </>
-                      ) : (
-                        'ADDRESS UNAVAILABLE'
-                      )}
-                    </span>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Footer */}
