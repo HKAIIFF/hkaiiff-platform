@@ -28,14 +28,35 @@ const privyClient = new PrivyClient(
   process.env.PRIVY_APP_SECRET!
 );
 
-// ── Stripe 初始化 ──────────────────────────────────────────────────────────────
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-02-25.clover',
-});
-
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://hkaiiff.com';
 
+/** 從任意 thrown 值萃取可讀錯誤訊息 */
+function extractErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  if (err && typeof err === 'object') {
+    const e = err as Record<string, unknown>;
+    if (typeof e.message === 'string') return e.message;
+    if (typeof e.error === 'string') return e.error;
+  }
+  return 'Unknown server error';
+}
+
 export async function POST(req: Request) {
+  // ── Stripe Secret Key 前置檢查 ────────────────────────────────────────────
+  if (!process.env.STRIPE_SECRET_KEY) {
+    console.error('[stripe/checkout] STRIPE_SECRET_KEY is not set');
+    return NextResponse.json(
+      { error: 'Payment service is not configured. Please contact support.' },
+      { status: 500 }
+    );
+  }
+
+  // ── Stripe 延遲初始化（避免模組載入時因 Key 缺失而崩潰） ─────────────────
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2026-02-25.clover',
+  });
+
   try {
     // ── Step 1: 驗證 Privy Access Token ──────────────────────────────────────
     const authHeader = req.headers.get('authorization');
@@ -51,7 +72,8 @@ export async function POST(req: Request) {
     try {
       const claims = await privyClient.verifyAuthToken(token);
       verifiedUserId = claims.userId;
-    } catch {
+    } catch (tokenErr) {
+      console.error('[stripe/checkout] Token 驗證失敗:', tokenErr);
       return NextResponse.json(
         { error: 'Invalid or expired auth token' },
         { status: 401 }
@@ -84,6 +106,7 @@ export async function POST(req: Request) {
       .single();
 
     if (filmError || !film) {
+      console.error('[stripe/checkout] Film 查詢失敗:', filmError);
       return NextResponse.json(
         { error: 'Film not found' },
         { status: 404 }
@@ -132,8 +155,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ sessionId: session.id, url: session.url });
 
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Unknown server error';
-    console.error('[stripe/checkout] 未預期錯誤:', message);
+    console.error('[stripe/checkout] Stripe API Error:', err);
+    const message = extractErrorMessage(err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

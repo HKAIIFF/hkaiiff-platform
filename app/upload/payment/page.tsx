@@ -4,8 +4,12 @@ import { useState, useEffect, Suspense } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
+import { loadStripe } from '@stripe/stripe-js';
 import CyberLoading from '@/app/components/CyberLoading';
 import { useToast } from '@/app/context/ToastContext';
+
+// 在模組頂層快取 Stripe 實例，避免重複初始化
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -103,35 +107,99 @@ function PaymentPageContent() {
     fetch_();
   }, [authenticated, user?.id]);
 
+  // ── 從任意 thrown 值萃取可讀錯誤訊息 ────────────────────────────────────
+  const extractMessage = (err: unknown): string => {
+    if (err instanceof Error) return err.message;
+    if (typeof err === 'string') return err;
+    if (err && typeof err === 'object') {
+      const e = err as Record<string, unknown>;
+      if (typeof e.message === 'string') return e.message;
+      if (typeof e.error === 'string') return e.error;
+    }
+    return 'An unexpected error occurred. Please try again.';
+  };
+
   // ── Stripe Checkout ───────────────────────────────────────────────────────
   const handleStripeCheckout = async () => {
     if (!user?.id || !filmId) return;
     setIsStripeLoading(true);
     try {
-      const token = await getAccessToken();
-      const res = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ filmId, userId: user.id }),
+      // Step 1: 取得 Privy access token
+      let token: string | null = null;
+      try {
+        token = await getAccessToken();
+      } catch (tokenErr) {
+        console.error('[Stripe] getAccessToken 失敗:', tokenErr);
+        showToast('Authentication failed. Please log in again.', 'error');
+        return;
+      }
+
+      if (!token) {
+        showToast('Authentication token is missing. Please log in again.', 'error');
+        return;
+      }
+
+      // Step 2: 向後端請求建立 Checkout Session
+      let res: Response;
+      try {
+        res = await fetch('/api/stripe/checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ filmId, userId: user.id }),
+        });
+      } catch (networkErr) {
+        console.error('[Stripe] 網路請求失敗:', networkErr);
+        showToast('Network error. Please check your connection and try again.', 'error');
+        return;
+      }
+
+      // Step 3: 解析回應 JSON
+      let data: { sessionId?: string; url?: string; error?: string };
+      try {
+        data = await res.json();
+      } catch (parseErr) {
+        console.error('[Stripe] 回應 JSON 解析失敗:', parseErr);
+        showToast('Invalid server response. Please try again.', 'error');
+        return;
+      }
+
+      // Step 4: 檢查後端是否回傳錯誤
+      if (!res.ok) {
+        const errMsg = data.error ?? `Server error (${res.status})`;
+        console.error('[Stripe] 後端錯誤:', errMsg);
+        showToast(errMsg, 'error');
+        return;
+      }
+
+      if (!data.sessionId) {
+        console.error('[Stripe] 後端未回傳 sessionId:', data);
+        showToast('No session ID returned from server. Please try again.', 'error');
+        return;
+      }
+
+      // Step 5: 初始化 Stripe.js 並跳轉到官方結帳頁面
+      const stripe = await stripePromise;
+      if (!stripe) {
+        console.error('[Stripe] Stripe.js 初始化失敗，請檢查 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY');
+        showToast('Payment service failed to initialize. Please refresh and try again.', 'error');
+        return;
+      }
+
+      const { error: redirectError } = await stripe.redirectToCheckout({
+        sessionId: data.sessionId,
       });
 
-      const data = await res.json();
-      if (!res.ok) {
-        showToast(data.error ?? 'Stripe checkout failed', 'error');
-        return;
+      // redirectToCheckout 只在失敗時返回（成功時頁面已跳轉）
+      if (redirectError) {
+        console.error('[Stripe] redirectToCheckout 失敗:', redirectError);
+        showToast(redirectError.message ?? 'Redirect to checkout failed.', 'error');
       }
-
-      // Redirect to Stripe-hosted checkout page via session URL
-      if (!data.url) {
-        showToast('No checkout URL returned', 'error');
-        return;
-      }
-      window.location.href = data.url;
     } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Unknown error', 'error');
+      console.error('[Stripe] 未預期錯誤:', err);
+      showToast(extractMessage(err), 'error');
     } finally {
       setIsStripeLoading(false);
     }
