@@ -58,6 +58,7 @@ export default function MePage() {
     tech_stack: string | null;
     core_team: TeamMember[] | null;
     deposit_address: string | null;
+    wallet_index: number | null;
   } | null>(null);
 
   const [onChainAifBalance, setOnChainAifBalance] = useState<number | null>(null);
@@ -261,7 +262,7 @@ export default function MePage() {
         try {
           const { data: profileRow, error: profileError } = await supabase
             .from('users')
-            .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team, deposit_address')
+            .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team, deposit_address, wallet_index')
             .eq('id', user.id)
             .single();
           if (profileError) {
@@ -278,6 +279,7 @@ export default function MePage() {
               tech_stack: null,
               core_team: null,
               deposit_address: null,
+              wallet_index: null,
             });
           } else if (profileRow) {
             setDbProfile(profileRow);
@@ -285,8 +287,8 @@ export default function MePage() {
             if (profileRow.deposit_address) {
               // 已有充值地址，直接使用
               setDepositAddress(profileRow.deposit_address);
-            } else {
-              // 靜默嘗試自動生成充值地址（帶 walletAddress body，失敗不阻塞，用戶可在 Modal 內手動重試）
+            } else if (!profileRow.wallet_index && profileRow.wallet_index !== 0) {
+              // 全新用戶（無 wallet_index）：靜默自動分配充值地址
               try {
                 const privyEmbedded = user.linkedAccounts?.find(
                   (acc: any) => acc.type === 'wallet' && acc.walletClientType === 'privy'
@@ -314,6 +316,11 @@ export default function MePage() {
               } catch (assignErr) {
                 console.warn('⚠️ Auto-assign deposit address exception, user can generate manually in Modal:', assignErr);
               }
+            } else {
+              // 已有 wallet_index 但 deposit_address 被清空：
+              // 不靜默重生成（否則清空後立即又出現同一個舊地址）。
+              // 用戶需在 Modal 內點擊「恢復充值地址」按鈕手動恢復。
+              console.log('[me] deposit_address cleared by admin; wallet_index exists. Awaiting manual restore.');
             }
           } else {
             // 查詢無結果（用戶行尚未創建），顯示預設 0
@@ -328,6 +335,7 @@ export default function MePage() {
               tech_stack: null,
               core_team: null,
               deposit_address: null,
+              wallet_index: null,
             });
           }
         } catch (err) {
@@ -344,6 +352,7 @@ export default function MePage() {
             tech_stack: null,
             core_team: null,
             deposit_address: null,
+            wallet_index: null,
           });
         } finally {
           // 無論成功或失敗，標記 profile 加載完成

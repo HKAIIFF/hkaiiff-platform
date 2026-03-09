@@ -233,7 +233,8 @@ function PaymentPageContent() {
       showToast('AIF payment confirmed!', 'success');
       router.push('/me?payment=success');
     } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Unknown error', 'error');
+      console.error('[AIF] 未預期錯誤:', err);
+      showToast(extractMessage(err), 'error');
     } finally {
       setIsAifLoading(false);
     }

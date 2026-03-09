@@ -30,16 +30,33 @@ const privyClient = new PrivyClient(
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://hkaiiff.com';
 
-/** 從任意 thrown 值萃取可讀錯誤訊息 */
+/** 從任意 thrown 值萃取可讀錯誤訊息（包括 Stripe SDK 結構化錯誤） */
 function extractErrorMessage(err: unknown): string {
-  if (err instanceof Error) return err.message;
+  if (!err) return 'Unknown server error';
   if (typeof err === 'string') return err;
-  if (err && typeof err === 'object') {
+  if (typeof err === 'object') {
     const e = err as Record<string, unknown>;
-    if (typeof e.message === 'string') return e.message;
-    if (typeof e.error === 'string') return e.error;
+    // Stripe SDK errors expose .message, .type, .code, .statusCode
+    if (typeof e.message === 'string' && e.message) return e.message;
+    if (typeof e.error === 'string' && e.error) return e.error;
   }
   return 'Unknown server error';
+}
+
+/** Stripe SDK 錯誤的完整結構化日誌（暴露 type/code/statusCode 方便排查） */
+function logStripeError(label: string, err: unknown): void {
+  if (err && typeof err === 'object') {
+    const e = err as Record<string, unknown>;
+    console.error(label, {
+      message: e.message,
+      type: e.type,
+      code: e.code,
+      statusCode: e.statusCode,
+      raw: e.raw ?? e,
+    });
+  } else {
+    console.error(label, err);
+  }
 }
 
 export async function POST(req: Request) {
@@ -155,7 +172,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ sessionId: session.id, url: session.url });
 
   } catch (err: unknown) {
-    console.error('[stripe/checkout] Stripe API Error:', err);
+    logStripeError('[stripe/checkout] Stripe API Error (full details):', err);
     const message = extractErrorMessage(err);
     return NextResponse.json({ error: message }, { status: 500 });
   }
