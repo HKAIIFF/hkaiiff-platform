@@ -225,7 +225,7 @@ function PaymentPageContent() {
 
       const data = await res.json();
       if (!res.ok) {
-        showToast(data.error ?? 'AIF payment failed', 'error');
+        alert(`AIF 支付失敗: ${data.error ?? 'AIF payment failed'}`);
         return;
       }
 
@@ -412,7 +412,7 @@ function PaymentPageContent() {
               500
             </div>
             <div className={`font-mono text-[10px] tracking-[0.4em] mt-1 ${hasEnoughAif ? 'text-[#00FF41]/30' : 'text-[#0a2a0a]'}`}>
-              AIF · INTERNAL LEDGER
+              AIF · ON-CHAIN
             </div>
           </div>
 

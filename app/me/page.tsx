@@ -60,7 +60,6 @@ export default function MePage() {
   } | null>(null);
 
   const [displaySolanaAddress, setDisplaySolanaAddress] = useState<string | null>(null);
-  const [isRefreshingProfile, setIsRefreshingProfile] = useState(false);
 
   // ── Supabase Realtime 狀態 ────────────────────────────────────────────────
   /** WebSocket 是否成功訂閱（用於顯示 LIVE 狀態圓點） */
@@ -407,34 +406,6 @@ export default function MePage() {
     }
   }, [authenticated, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── 手動刷新整個錢包區塊（含 deposit_address） ──────────────────────────
-  const handleRefreshProfile = async () => {
-    if (!user?.id || isRefreshingProfile) return;
-    setIsRefreshingProfile(true);
-    try {
-      const { data: profileRow, error } = await supabase
-        .from('users')
-        .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team, deposit_address, wallet_index')
-        .eq('id', user.id)
-        .single();
-
-      if (!error && profileRow) {
-        setDbProfile(profileRow);
-        if (profileRow.deposit_address) {
-          setDepositAddress(profileRow.deposit_address);
-        } else {
-          setDepositAddress(null);
-        }
-      }
-      // 強制 Next.js 失效伺服器端快取
-      router.refresh();
-    } catch (err) {
-      console.error('[handleRefreshProfile] error:', err);
-    } finally {
-      setIsRefreshingProfile(false);
-    }
-  };
-
   // ── Supabase Realtime：自動監聽當前用戶的 aif_balance 變化 ──────────────
   useEffect(() => {
     if (!authenticated || !user?.id) return;
@@ -473,6 +444,20 @@ export default function MePage() {
       setIsRealtimeConnected(false);
     };
   }, [authenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── 九國語言充值按鈕字典 ─────────────────────────────────────────────────
+  const topUpLabels: Record<string, string> = {
+    zh: '充值',
+    en: 'TOP UP / DEPOSIT',
+    ja: 'チャージ',
+    ko: '충전',
+    th: 'เติมเงิน',
+    fr: 'RECHARGER',
+    de: 'AUFLADEN',
+    es: 'RECARGAR',
+    ar: 'تعبئة الرصيد',
+  };
+  const topUpLabel = topUpLabels[lang] ?? 'TOP UP / DEPOSIT';
 
   /* ─── AUTH GUARD ─────────────────────────────────────────────────────────── */
   // Privy 尚未初始化完成時，渲染空白等待 redirect；已就緒未登錄同樣清空防閃爍
@@ -595,22 +580,6 @@ export default function MePage() {
               </span>
             </span>
           )}
-          {/* ── 手動刷新按鈕（強制重新讀取地址與餘額） ── */}
-          {!isProfileLoading && (
-            <button
-              onClick={handleRefreshProfile}
-              disabled={isRefreshingProfile}
-              title="Refresh wallet & deposit address"
-              className="relative z-10 ml-auto flex items-center gap-1.5 text-[9px] font-mono tracking-widest
-                         border border-signal/30 bg-signal/5 text-signal/60
-                         hover:bg-signal/15 hover:border-signal/60 hover:text-signal
-                         px-2.5 py-1 rounded-lg transition-all active:scale-95
-                         disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <i className={`fas fa-sync-alt text-[8px] ${isRefreshingProfile ? 'animate-spin' : ''}`} />
-              {isRefreshingProfile ? 'REFRESHING...' : 'REFRESH'}
-            </button>
-          )}
         </div>
 
         {/* Balance + TOP UP row */}
@@ -637,7 +606,6 @@ export default function MePage() {
                 AIF
               </span>
             )}
-            <span className="text-[9px] font-mono text-gray-600 ml-1">INTERNAL LEDGER</span>
           </div>
           <button
             onClick={handleOpenTopUp}
@@ -648,7 +616,7 @@ export default function MePage() {
                        active:scale-95 transition-all shrink-0"
           >
             <i className="fas fa-plus text-[9px]" />
-            {lang === 'zh' ? '充值' : 'TOP UP / DEPOSIT'}
+            {topUpLabel}
           </button>
         </div>
 

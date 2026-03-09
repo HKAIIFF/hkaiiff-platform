@@ -28,7 +28,6 @@ const privyClient = new PrivyClient(
   process.env.PRIVY_APP_SECRET!
 );
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://hkaiiff.com';
 
 /** 從任意 thrown 值萃取可讀錯誤訊息（包括 Stripe SDK 結構化錯誤） */
 function extractErrorMessage(err: unknown): string {
@@ -145,6 +144,10 @@ export async function POST(req: Request) {
     }
 
     // ── Step 4: 創建 Stripe Checkout Session ─────────────────────────────────
+    // 優先使用請求來源 origin，避免跨域或本地開發 URL 不符
+    const reqOrigin = req.headers.get('origin');
+    const siteUrl = reqOrigin || process.env.NEXT_PUBLIC_SITE_URL || 'https://hkaiiff.com';
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
@@ -161,8 +164,8 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
-      success_url: `${SITE_URL}/me?payment=success`,
-      cancel_url: `${SITE_URL}/upload/payment?filmId=${filmId}&payment=cancelled`,
+      success_url: `${siteUrl}/me?payment=success`,
+      cancel_url: `${siteUrl}/upload/payment?filmId=${filmId}&payment=cancelled`,
       metadata: {
         userId: verifiedUserId,
         filmId,
