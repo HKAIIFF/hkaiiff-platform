@@ -6,8 +6,6 @@ import { useRouter } from "next/navigation";
 import { useI18n } from "@/app/context/I18nContext";
 import { useToast } from "@/app/context/ToastContext";
 import CyberLoading from "@/app/components/CyberLoading";
-import { Connection, PublicKey } from '@solana/web3.js';
-import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { supabase } from "@/lib/supabase";
 import QRCode from "react-qr-code";
 
@@ -61,10 +59,7 @@ export default function MePage() {
     wallet_index: number | null;
   } | null>(null);
 
-  const [onChainAifBalance, setOnChainAifBalance] = useState<number | null>(null);
   const [displaySolanaAddress, setDisplaySolanaAddress] = useState<string | null>(null);
-  const [isFetchingBalance, setIsFetchingBalance] = useState(false);
-  const [isRefreshingAif, setIsRefreshingAif] = useState(false);
   const [isRefreshingProfile, setIsRefreshingProfile] = useState(false);
 
   // ── Supabase Realtime 狀態 ────────────────────────────────────────────────
@@ -407,66 +402,10 @@ export default function MePage() {
 
     if (privyWalletAddress && !privyWalletAddress.startsWith('0x')) {
       setDisplaySolanaAddress(privyWalletAddress);
-      fetchAIFBalance(privyWalletAddress);
     } else {
       setDisplaySolanaAddress(null);
-      setOnChainAifBalance(0);
     }
   }, [authenticated, user]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const fetchAIFBalance = async (address: string) => {
-    setIsFetchingBalance(true);
-    try {
-      const mintAddress = process.env.NEXT_PUBLIC_AIF_MINT_ADDRESS;
-      if (!mintAddress) {
-        setOnChainAifBalance(0);
-        return;
-      }
-
-      const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL || 'https://api.mainnet-beta.solana.com';
-      const connection = new Connection(rpcUrl, 'confirmed');
-      const mintPubkey = new PublicKey(mintAddress);
-      const ownerPubkey = new PublicKey(address);
-
-      const ataAddress = await getAssociatedTokenAddress(mintPubkey, ownerPubkey);
-
-      try {
-        const balanceInfo = await connection.getTokenAccountBalance(ataAddress);
-        setOnChainAifBalance(balanceInfo.value.uiAmount ?? 0);
-      } catch (error) {
-        console.error("ATA 餘額獲取失敗，可能無餘額", error);
-        setOnChainAifBalance(0);
-      }
-    } catch (error) {
-      console.error('AIF balance query error:', error);
-      setOnChainAifBalance(0);
-    } finally {
-      setIsFetchingBalance(false);
-    }
-  };
-
-  // ── 手動刷新 AIF 餘額（同時刷新 DB 內部帳本 + 鏈上餘額） ────────────────
-  const handleRefreshBalance = async () => {
-    if (!user?.id || isRefreshingAif) return;
-    setIsRefreshingAif(true);
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('aif_balance')
-        .eq('id', user.id)
-        .single();
-      if (!error && data) {
-        setDbProfile((prev) => prev ? { ...prev, aif_balance: data.aif_balance ?? 0 } : prev);
-      }
-      if (displaySolanaAddress) {
-        await fetchAIFBalance(displaySolanaAddress);
-      }
-    } catch (err) {
-      console.error('[handleRefreshBalance] error:', err);
-    } finally {
-      setIsRefreshingAif(false);
-    }
-  };
 
   // ── 手動刷新整個錢包區塊（含 deposit_address） ──────────────────────────
   const handleRefreshProfile = async () => {
@@ -699,27 +638,6 @@ export default function MePage() {
               </span>
             )}
             <span className="text-[9px] font-mono text-gray-600 ml-1">INTERNAL LEDGER</span>
-            {/* ── 手動刷新按鈕（Realtime 不穩定時的備用 Fallback） ── */}
-            {!isProfileLoading && (
-              <button
-                onClick={handleRefreshBalance}
-                disabled={isRefreshingAif}
-                title={isRefreshingAif ? 'Refreshing...' : 'Manual refresh (fallback)'}
-                className="relative z-10 w-6 h-6 rounded-md border border-[#333] bg-[#0d1a00]
-                           flex items-center justify-center
-                           hover:border-signal/60 hover:bg-signal/10
-                           active:scale-90 transition-all ml-1
-                           disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <i
-                  className={`fas fa-sync-alt text-[9px] transition-colors
-                    ${isRefreshingAif
-                      ? 'animate-spin text-signal'
-                      : 'text-signal/40 hover:text-signal'
-                    }`}
-                />
-              </button>
-            )}
           </div>
           <button
             onClick={handleOpenTopUp}
@@ -730,23 +648,10 @@ export default function MePage() {
                        active:scale-95 transition-all shrink-0"
           >
             <i className="fas fa-plus text-[9px]" />
-            TOP UP
+            {lang === 'zh' ? '充值' : 'TOP UP / DEPOSIT'}
           </button>
         </div>
 
-        {/* On-chain balance (secondary) */}
-        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-[#222]">
-          <i className="fa-brands fa-solana text-[#9945FF] text-[10px]" />
-          <span className="text-[10px] font-mono text-gray-500">ON-CHAIN:</span>
-          <span className="text-[10px] font-mono text-white ltr-force">
-            {isFetchingBalance
-              ? <span className="animate-pulse text-gray-600">QUERYING...</span>
-              : onChainAifBalance !== null
-                ? `${onChainAifBalance.toLocaleString()} AIF`
-                : '—'
-            }
-          </span>
-        </div>
       </div>
 
       {/* ── My Submissions ─────────────────────────────────────────────── */}

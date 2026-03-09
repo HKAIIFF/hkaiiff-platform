@@ -32,6 +32,7 @@ import {
   getAssociatedTokenAddress,
   getAccount,
   createTransferInstruction,
+  getMint,
   TOKEN_PROGRAM_ID,
 } from '@solana/spl-token';
 import * as bip39 from 'bip39';
@@ -159,7 +160,12 @@ function sleep(ms: number): Promise<void> {
  * @param walletIndex    - 用戶在 HD 錢包中的索引
  * @param depositAddress - 數據庫中存儲的用戶充值地址（用於安全校驗）
  */
-async function processUserWallet(walletIndex: number, depositAddress: string): Promise<void> {
+async function processUserWallet(
+  walletIndex: number,
+  depositAddress: string,
+  userId: string,
+  mintDecimals: number,
+): Promise<void> {
   console.log(`\n📋 開始處理 | 索引：${walletIndex} | 地址：${depositAddress}`);
 
   // ----------------------------------------------------------
@@ -297,6 +303,36 @@ async function processUserWallet(walletIndex: number, depositAddress: string): P
         `      交易哈希：${signature}\n` +
         `      查看：https://solscan.io/tx/${signature}`
     );
+
+    // ----------------------------------------------------------
+    // Step 7：同步 Supabase 內部帳本餘額
+    // ----------------------------------------------------------
+    try {
+      const { data: userData, error: fetchErr } = await supabase
+        .from('users')
+        .select('aif_balance')
+        .eq('id', userId)
+        .single();
+
+      if (fetchErr) throw new Error(`查詢帳本餘額失敗: ${fetchErr.message}`);
+
+      const currentBalance: number = userData?.aif_balance ?? 0;
+      const sweptAmountUi = Number(aifBalance) / Math.pow(10, mintDecimals);
+      const newBalance = currentBalance + sweptAmountUi;
+
+      const { error: updateErr } = await supabase
+        .from('users')
+        .update({ aif_balance: newBalance })
+        .eq('id', userId);
+
+      if (updateErr) throw new Error(`更新帳本餘額失敗: ${updateErr.message}`);
+
+      console.log(
+        `  ✅ Supabase 餘額更新成功（${currentBalance} + ${sweptAmountUi} = ${newBalance} AIF）`
+      );
+    } catch (dbErr) {
+      console.error(`  ❌ [Supabase 更新失敗] ${(dbErr as Error).message}`);
+    }
   } catch (txErr) {
     // 交易失敗（可能是網絡問題、賬戶狀態變化等），記錄錯誤後繼續處理下一個用戶
     console.error(
@@ -343,6 +379,18 @@ async function main(): Promise<void> {
 
   console.log(`\n📊 共找到 ${users.length} 個用戶賬戶，開始逐一掃描...\n`);
 
+  // ----------------------------------------------------------
+  // 預先查詢 AIF Mint 小數位（避免每個錢包重複查詢）
+  // ----------------------------------------------------------
+  let mintDecimals = 9; // Solana SPL Token 預設值
+  try {
+    const mintInfo = await getMint(connection, AIF_MINT_ADDRESS);
+    mintDecimals = mintInfo.decimals;
+    console.log(`   AIF 小數位：${mintDecimals}`);
+  } catch (mintErr) {
+    console.warn(`⚠️  無法獲取 Mint 小數位，使用預設值 ${mintDecimals}: ${(mintErr as Error).message}`);
+  }
+
   let successCount = 0;
   let skipCount = 0;
   let errorCount = 0;
@@ -354,7 +402,9 @@ async function main(): Promise<void> {
     try {
       await processUserWallet(
         user.wallet_index as number,
-        user.deposit_address as string
+        user.deposit_address as string,
+        user.id as string,
+        mintDecimals,
       );
       successCount++;
     } catch (err) {

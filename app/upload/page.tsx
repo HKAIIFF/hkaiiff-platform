@@ -4,15 +4,10 @@ import { useState, useEffect, useRef } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
 import OSS from 'ali-oss';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
 import { useToast } from '@/app/context/ToastContext';
 import { useI18n } from '@/app/context/I18nContext';
 import CyberLoading from '@/app/components/CyberLoading';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 type Step = 1 | 2 | 'processing';
 
@@ -96,21 +91,33 @@ export default function UploadPage() {
     }
   }, [terminalLines]);
 
-  // Fetch AIF balance when entering Step 2 (payment selection)
+  // 一旦用戶已驗證就拉取 AIF 餘額（無需等到 Step 2 才觸發）
+  // 進入 Step 2 時也會因 step 變化而重新拉取，確保資料最新
   useEffect(() => {
-    if (step !== 2 || !authenticated || !user?.id) return;
+    if (!authenticated || !user?.id) return;
     const fetchBalance = async () => {
       setIsLoadingBalance(true);
-      const { data } = await supabase
-        .from('users')
-        .select('aif_balance')
-        .eq('id', user.id)
-        .single();
-      setAifBalance(data?.aif_balance ?? 0);
-      setIsLoadingBalance(false);
+      try {
+        const { data, error } = await supabase
+          .from('users')
+          .select('aif_balance')
+          .eq('id', user.id)
+          .single();
+        if (error) {
+          console.error('[upload] fetchBalance error:', error.message);
+          setAifBalance(0);
+        } else {
+          setAifBalance(data?.aif_balance ?? 0);
+        }
+      } catch (err) {
+        console.error('[upload] fetchBalance exception:', err);
+        setAifBalance(0);
+      } finally {
+        setIsLoadingBalance(false);
+      }
     };
     fetchBalance();
-  }, [step, authenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authenticated, user?.id, step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const sliderTrackStyle = {
     background: isSignal
@@ -603,7 +610,7 @@ export default function UploadPage() {
                 </div>
                 <div className="ml-auto">
                   <div className="text-[9px] font-mono text-gray-500">YOUR AIF</div>
-                  <div className={`text-sm font-bold ${aifBalance >= 2500 ? 'text-signal' : 'text-red-500'}`}>
+                  <div className={`text-sm font-bold ${aifBalance >= 500 ? 'text-signal' : 'text-red-500'}`}>
                     {isLoadingBalance ? '—' : `${aifBalance.toLocaleString()} AIF`}
                   </div>
                 </div>
