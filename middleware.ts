@@ -11,6 +11,7 @@ const PROTECTED_PREFIXES = [
   "/admin",
   "/messages",
   "/creator/edit",
+  "/verification",
 ];
 
 /**
@@ -61,5 +62,6 @@ export const config = {
     "/admin/:path*",
     "/messages/:path*",
     "/creator/edit/:path*",
+    "/verification/:path*",
   ],
 };

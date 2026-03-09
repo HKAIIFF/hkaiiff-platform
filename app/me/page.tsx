@@ -67,6 +67,9 @@ export default function MePage() {
     core_team: TeamMember[] | null;
     deposit_address: string | null;
     wallet_index: number | null;
+    verification_status: 'unverified' | 'pending' | 'approved' | 'rejected';
+    verification_type: 'creator' | 'institution' | 'curator' | null;
+    rejection_reason: string | null;
   } | null>(null);
 
   const [displaySolanaAddress, setDisplaySolanaAddress] = useState<string | null>(null);
@@ -270,7 +273,7 @@ export default function MePage() {
         try {
           const { data: profileRow, error: profileError } = await supabase
             .from('users')
-            .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team, deposit_address, wallet_index')
+            .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team, deposit_address, wallet_index, verification_status, verification_type, rejection_reason')
             .eq('id', user.id)
             .single();
           if (profileError) {
@@ -288,6 +291,9 @@ export default function MePage() {
               core_team: null,
               deposit_address: null,
               wallet_index: null,
+              verification_status: 'unverified',
+              verification_type: null,
+              rejection_reason: null,
             });
           } else if (profileRow) {
             setDbProfile(profileRow);
@@ -344,11 +350,13 @@ export default function MePage() {
               core_team: null,
               deposit_address: null,
               wallet_index: null,
+              verification_status: 'unverified',
+              verification_type: null,
+              rejection_reason: null,
             });
           }
         } catch (err) {
           console.error('❌ Profile fetch exception:', err);
-          // 異常時同樣設置預設值，確保 UI 不卡死
           setDbProfile({
             agent_id: '',
             name: 'New Agent',
@@ -361,6 +369,9 @@ export default function MePage() {
             core_team: null,
             deposit_address: null,
             wallet_index: null,
+            verification_status: 'unverified',
+            verification_type: null,
+            rejection_reason: null,
           });
         } finally {
           // 無論成功或失敗，標記 profile 加載完成
@@ -538,9 +549,21 @@ export default function MePage() {
 
         {/* Info */}
         <div className="flex-1 min-w-0 pr-16">
-          <h2 className="font-heavy text-2xl text-white mb-0.5 tracking-wide truncate">
-            {dbProfile?.display_name || (user?.id ? `Agent_${user.id.replace('did:privy:', '').substring(0, 6)}` : 'Agent_SYNCING')}
-          </h2>
+          <div className="flex items-center gap-2 flex-wrap mb-0.5">
+            <h2 className="font-heavy text-2xl text-white tracking-wide truncate">
+              {dbProfile?.display_name || (user?.id ? `Agent_${user.id.replace('did:privy:', '').substring(0, 6)}` : 'Agent_SYNCING')}
+            </h2>
+            {/* Verification Badge — only when approved */}
+            {dbProfile?.verification_status === 'approved' && dbProfile.verification_type && (
+              <span className={`inline-flex items-center gap-1 text-[9px] font-heavy px-2 py-0.5 rounded-full tracking-wider shrink-0
+                ${dbProfile.verification_type === 'creator' ? 'bg-signal/20 text-signal border border-signal/40' :
+                  dbProfile.verification_type === 'institution' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40' :
+                  'bg-purple-500/20 text-purple-400 border border-purple-500/40'}`}>
+                <i className="fas fa-check-circle text-[8px]" />
+                {t(`verify_badge_${dbProfile.verification_type}`)}
+              </span>
+            )}
+          </div>
           <div className="text-[9px] text-gray-400 font-mono mb-2 tracking-wider uppercase">
             {dbProfile ? t(`role_${dbProfile?.role || 'human'}`).toUpperCase() : '...'}
           </div>
@@ -560,6 +583,54 @@ export default function MePage() {
           </div>
         </div>
       </div>
+
+      {/* ── Identity Verification Banner ───────────────────────────────── */}
+      {dbProfile && dbProfile.verification_status !== 'approved' && (
+        <div className="mb-4 bg-[#0a0a0a] border border-[#2a2a2a] rounded-xl p-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] font-mono text-gray-500 tracking-widest mb-1">
+                {t('verify_identity').toUpperCase()}
+              </div>
+              {dbProfile.verification_status === 'rejected' && dbProfile.rejection_reason && (
+                <p className="text-red-400 text-[11px] font-mono leading-relaxed mt-1">
+                  <i className="fas fa-exclamation-circle mr-1" />
+                  {dbProfile.rejection_reason}
+                </p>
+              )}
+              {dbProfile.verification_status === 'pending' && (
+                <p className="text-yellow-500/70 text-[10px] font-mono mt-0.5">
+                  <i className="fas fa-hourglass-half mr-1 animate-pulse" />
+                  {t('verify_btn_pending')}
+                </p>
+              )}
+            </div>
+
+            {/* Button */}
+            {dbProfile.verification_status === 'pending' ? (
+              <button
+                disabled
+                className="flex items-center gap-1.5 text-[10px] font-heavy tracking-widest
+                           bg-[#1a1a1a] text-gray-600 px-4 py-2 rounded-lg border border-[#2a2a2a]
+                           cursor-not-allowed opacity-60 shrink-0"
+              >
+                <i className="fas fa-hourglass-half text-[9px]" />
+                {t('verify_btn_pending')}
+              </button>
+            ) : (
+              <button
+                onClick={() => router.push('/verification')}
+                className="flex items-center gap-1.5 text-[10px] font-heavy tracking-widest
+                           bg-white text-black px-4 py-2 rounded-lg
+                           hover:bg-signal hover:text-black active:scale-95 transition-all shrink-0"
+              >
+                <i className="fas fa-id-badge text-[9px]" />
+                {dbProfile.verification_status === 'rejected' ? t('verify_btn_unverified') : t('verify_identity')}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Funding Account Panel ──────────────────────────────────────── */}
       <div className="bg-gradient-to-br from-[#0d1a00] to-[#0a0a0a] p-5 rounded-xl border border-signal/30
@@ -1237,8 +1308,14 @@ export default function MePage() {
 
                 {/* Nickname Input */}
                 <div>
-                  <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5">
+                  <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5 flex items-center gap-1.5">
                     DISPLAY NAME
+                    {dbProfile?.verification_status === 'approved' && (
+                      <span className="flex items-center gap-1 text-[9px] text-signal">
+                        <i className="fas fa-lock text-[8px]" />
+                        LOCKED
+                      </span>
+                    )}
                   </label>
                   <input
                     type="text"
@@ -1246,9 +1323,11 @@ export default function MePage() {
                     onChange={(e) => setEditName(e.target.value)}
                     maxLength={40}
                     placeholder="Enter display name..."
+                    disabled={dbProfile?.verification_status === 'approved'}
                     className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-sm px-3 py-2.5 rounded-lg
                                outline-none focus:border-signal focus:shadow-[0_0_12px_rgba(204,255,0,0.15)]
-                               placeholder:text-gray-700 transition-all"
+                               placeholder:text-gray-700 transition-all
+                               disabled:opacity-50 disabled:cursor-not-allowed disabled:border-[#1a1a1a]"
                   />
                 </div>
               </div>

@@ -22,6 +22,9 @@ interface DbCreatorProfile {
   bio: string | null;
   tech_stack: string | null;
   core_team: TeamMember[] | null;
+  portfolio: string | null;
+  verification_status: "unverified" | "pending" | "approved" | "rejected" | null;
+  verification_type: "creator" | "institution" | "curator" | null;
 }
 
 interface DbFilm {
@@ -64,7 +67,7 @@ export default function GlobalModals() {
       const [profileResult, filmsResult] = await Promise.all([
         supabase
           .from("users")
-          .select("id, display_name, name, agent_id, avatar_seed, bio, tech_stack, core_team")
+          .select("id, display_name, name, agent_id, avatar_seed, bio, tech_stack, core_team, portfolio, verification_status, verification_type")
           .eq("id", selectedCreatorUserId)
           .single(),
         supabase
@@ -802,15 +805,26 @@ export default function GlobalModals() {
                 />
               </div>
 
-              {/* 名称 */}
-              <h1 className="font-heavy text-4xl text-white mb-2 flex items-center gap-2">
+              {/* 名称 + Verification Badge */}
+              <h1 className="font-heavy text-4xl text-white mb-2 flex items-center gap-2 flex-wrap">
                 <span>
                   {creatorProfile.display_name ||
                     (creatorProfile.name && creatorProfile.name !== "New Agent" ? creatorProfile.name : null) ||
                     selectedCreator ||
                     "ANONYMOUS"}
                 </span>
-                <i className="fas fa-check-circle text-signal text-xl" />
+                {creatorProfile.verification_status === "approved" && creatorProfile.verification_type ? (
+                  <span className={`inline-flex items-center gap-1 text-[10px] font-heavy px-2.5 py-1 rounded-full tracking-wider
+                    ${creatorProfile.verification_type === "creator" ? "bg-signal/20 text-signal border border-signal/40" :
+                      creatorProfile.verification_type === "institution" ? "bg-blue-500/20 text-blue-400 border border-blue-500/40" :
+                      "bg-purple-500/20 text-purple-400 border border-purple-500/40"}`}>
+                    <i className="fas fa-check-circle text-[8px]" />
+                    {creatorProfile.verification_type === "creator" ? "Creator" :
+                     creatorProfile.verification_type === "institution" ? "Institution" : "Curator"}
+                  </span>
+                ) : (
+                  <i className="fas fa-check-circle text-signal text-xl" />
+                )}
               </h1>
 
               {/* 作品數指標行 */}
@@ -885,6 +899,20 @@ export default function GlobalModals() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* PORTFOLIO */}
+                {creatorProfile.portfolio && creatorProfile.portfolio.trim() && (
+                  <section>
+                    <h3 className="font-heavy text-xl text-white mb-3 border-l-4 border-blue-400 pl-3">
+                      {t("verify_portfolio")}
+                    </h3>
+                    <div className="bg-[#111] p-5 rounded-xl border border-[#222]">
+                      <p className="text-xs text-gray-300 font-mono leading-relaxed text-justify">
+                        {creatorProfile.portfolio}
+                      </p>
                     </div>
                   </section>
                 )}
