@@ -647,49 +647,59 @@ export default function DiscoverPage() {
                     </span>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {detailFilms.map((film) => (
                       <div
                         key={film.id}
-                        className="group cursor-pointer hover:-translate-y-1 transition-all duration-300"
-                        onClick={() => playFilm(film)}
+                        className="group bg-[#111] rounded-2xl border border-white/10 overflow-hidden shadow-2xl hover:-translate-y-1 transition-all duration-300"
                       >
-                        {/* 2:3 Poster Container */}
-                        <div className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-lg mb-3">
+                        {/* ── 上半部：海報 ── */}
+                        <div className="relative aspect-[2/3] w-full overflow-hidden">
                           <img
                             src={film.coverUrl}
                             alt={film.title}
-                            className="w-full h-full object-cover rounded-xl transition-transform duration-500 group-hover:scale-105"
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                             onError={(e) => {
                               (e.currentTarget as HTMLImageElement).src =
                                 'https://images.unsplash.com/photo-1608889175123-8ee362201f81?q=80&w=300';
                             }}
                           />
-
-                          {/* Bottom gradient overlay */}
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent rounded-xl" />
-
-                          {/* Glassmorphism play button */}
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <div className="w-16 h-16 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-[#CCFF00]/20 group-hover:border-[#CCFF00]/60 group-hover:shadow-[0_0_24px_rgba(204,255,0,0.45)]">
-                              <i className="fas fa-play text-white text-xl ml-1 group-hover:text-[#CCFF00] transition-colors duration-300" />
-                            </div>
-                          </div>
+                          {/* 底部漸層 */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#111]/80 via-transparent to-transparent" />
                         </div>
 
-                        {/* Film Info */}
-                        <div className="px-1">
-                          <h4 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white truncate leading-none mb-1">
+                        {/* ── 下半部：資訊區 ── */}
+                        <div className="p-5 flex flex-col gap-2">
+                          {/* 片名 */}
+                          <h4 className="text-xl md:text-2xl font-black text-white uppercase truncate leading-tight">
                             {film.title}
                           </h4>
-                          <p className="text-sm font-mono text-emerald-400 mb-2 truncate">
+
+                          {/* 創作者 */}
+                          <p className="text-sm font-mono text-emerald-400 truncate">
                             {film.studio}
                           </p>
+
+                          {/* 簡介 */}
                           {film.synopsis && (
-                            <p className="text-gray-400 text-sm line-clamp-2 leading-snug">
+                            <p className="text-sm text-gray-400 line-clamp-2 mt-1 leading-snug">
                               {film.synopsis}
                             </p>
                           )}
+
+                          {/* 播放正片按鈕 */}
+                          <button
+                            onClick={() => playFilm(film)}
+                            className="mt-3 w-full bg-white text-black hover:bg-gray-200 active:scale-95 font-bold rounded-xl py-3 text-sm tracking-wide transition-all duration-200 flex items-center justify-center gap-2"
+                          >
+                            <span>▶ 播放正片</span>
+                            <span className="font-mono font-normal text-xs text-black/50">PLAY FILM</span>
+                          </button>
+
+                          {/* 橫屏提示 */}
+                          <p className="text-center text-[10px] font-mono text-gray-500 tracking-wide mt-0.5">
+                            ◱ 建議橫屏觀看 <span className="text-gray-600">Landscape Mode Recommended</span>
+                          </p>
                         </div>
                       </div>
                     ))}
