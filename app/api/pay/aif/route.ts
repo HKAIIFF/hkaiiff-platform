@@ -1,13 +1,13 @@
 /**
  * POST /api/pay/aif
  *
- * AIF 內部賬本扣款 — 影片報名費 2500 AIF。
+ * AIF 內部賬本扣款 — 影片報名費 500 AIF。
  *
  * 安全要點：
  *  - 必須攜帶有效的 Privy Access Token（Bearer），userId 從 Token 中取得
  *  - Token 中的 userId 必須與請求體的 userId 一致，防止越權扣款
  *  - filmId 必須屬於該用戶且處於未支付狀態
- *  - 使用帶 WHERE 條件的原子 UPDATE（aif_balance >= 2500）
+ *  - 使用帶 WHERE 條件的原子 UPDATE（aif_balance >= 500）
  *    防止餘額競態條件（超賣）
  *  - 兩步操作：先原子扣款，後更新影片狀態（若影片更新失敗則記錄告警）
  */
@@ -29,7 +29,7 @@ const privyClient = new PrivyClient(
   process.env.PRIVY_APP_SECRET!
 );
 
-const AIF_FEE = 2500;
+const AIF_FEE = 500;
 
 export async function POST(req: Request) {
   try {

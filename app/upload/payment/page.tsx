@@ -208,8 +208,8 @@ function PaymentPageContent() {
   // ── AIF On-Chain Payment ──────────────────────────────────────────────────
   const handleAifPayment = async () => {
     if (!user?.id || !filmId) return;
-    if (aifBalance < 2500) {
-      showToast('Insufficient AIF balance (need 2500 AIF)', 'error');
+    if (aifBalance < 500) {
+      showToast('Insufficient AIF balance (need 500 AIF)', 'error');
       return;
     }
     setIsAifLoading(true);
@@ -242,7 +242,7 @@ function PaymentPageContent() {
   if (!ready) return <CyberLoading text="AUTHENTICATING..." />;
   if (!authenticated) return null;
 
-  const hasEnoughAif = aifBalance >= 2500;
+  const hasEnoughAif = aifBalance >= 500;
   const isAnyLoading = isStripeLoading || isAifLoading;
 
   return (
@@ -315,7 +315,7 @@ function PaymentPageContent() {
           {/* Price */}
           <div className="my-6">
             <div className="font-black text-[72px] text-white leading-none tracking-tight">
-              $500
+              $99
             </div>
             <div className="font-mono text-[10px] text-[#444] tracking-[0.4em] mt-1">
               USD · ONE-TIME FEE
@@ -409,7 +409,7 @@ function PaymentPageContent() {
           {/* Price */}
           <div className="my-6">
             <div className={`font-black text-[72px] leading-none tracking-tight ${hasEnoughAif ? 'text-[#00FF41]' : 'text-[#0a2a0a]'}`}>
-              2500
+              500
             </div>
             <div className={`font-mono text-[10px] tracking-[0.4em] mt-1 ${hasEnoughAif ? 'text-[#00FF41]/30' : 'text-[#0a2a0a]'}`}>
               AIF · INTERNAL LEDGER

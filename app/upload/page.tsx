@@ -246,8 +246,8 @@ export default function UploadPage() {
   // ── AIF (On-Chain Ledger) path ─────────────────────────────────────────────
   const handleSubmitAif = async () => {
     if (!authenticated || !user) return;
-    if (aifBalance < 2500) {
-      showToast('Insufficient AIF balance (need 2500 AIF)', 'error');
+    if (aifBalance < 500) {
+      showToast('Insufficient AIF balance (need 500 AIF)', 'error');
       return;
     }
     setIsSubmitting(true);
@@ -673,7 +673,7 @@ export default function UploadPage() {
                 {/* Card B — AIF On-Chain */}
                 <button
                   onClick={handleSubmitAif}
-                  disabled={notLoggedIn || aifBalance < 2500}
+                  disabled={notLoggedIn || aifBalance < 500}
                   className="
                     group relative w-full rounded-2xl p-8
                     flex items-center justify-between
@@ -687,14 +687,14 @@ export default function UploadPage() {
                       <div className="font-mono text-[10px] text-black/60 tracking-widest">ON-CHAIN PAYMENT</div>
                       <span className="font-mono text-[8px] bg-black/10 text-black/70 px-2 py-0.5 rounded-full tracking-widest">50% OFF</span>
                     </div>
-                    <div className="font-heavy text-5xl text-black leading-none">2500</div>
+                    <div className="font-heavy text-5xl text-black leading-none">500</div>
                     <div className="font-mono text-[10px] text-black/60 mt-2">AIF · Internal Ledger</div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <div className="w-12 h-12 rounded-full bg-black/10 flex items-center justify-center">
                       <span className="font-heavy text-xl text-black">AIF</span>
                     </div>
-                    {aifBalance < 2500 && !isLoadingBalance && (
+                    {aifBalance < 500 && !isLoadingBalance && (
                       <div className="font-mono text-[9px] text-black/60 flex items-center gap-1">
                         <i className="fas fa-exclamation-triangle text-[8px]" />
                         INSUFFICIENT BALANCE

@@ -136,10 +136,10 @@ export async function POST(req: Request) {
           price_data: {
             currency: 'usd',
             product_data: {
-              name: 'HKAIIFF 2026 Film Submission Fee',
+              name: 'HKAIIFF Entry Fee',
               description: `Entry fee for: ${film.title ?? filmId}`,
             },
-            unit_amount: 50000, // $500.00 USD in cents
+            unit_amount: 9900, // $99.00 USD in cents
           },
           quantity: 1,
         },
