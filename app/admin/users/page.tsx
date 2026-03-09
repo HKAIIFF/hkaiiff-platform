@@ -17,16 +17,10 @@ type ToastType = "success" | "error";
 interface Toast { id: number; message: string; type: ToastType; }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-function truncateAddr(addr: string | null | undefined, head = 6, tail = 4): string {
-  if (!addr) return "—";
-  if (addr.length <= head + tail + 3) return addr;
-  return `${addr.slice(0, head)}...${addr.slice(-tail)}`;
-}
-
-function formatDate(iso: string) {
+function formatDate(iso: string): string {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function formatAIF(balance: number | null): string {
@@ -35,6 +29,25 @@ function formatAIF(balance: number | null): string {
   if (balance >= 1_000_000) return `${(balance / 1_000_000).toFixed(2)}M`;
   if (balance >= 1_000) return `${(balance / 1_000).toFixed(2)}K`;
   return balance.toLocaleString();
+}
+
+// ─── Copy Icon ────────────────────────────────────────────────────────────────
+function CopyIcon() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
@@ -61,8 +74,9 @@ function ToastContainer({ toasts }: { toasts: Toast[] }) {
 }
 
 // ─── Column layout ────────────────────────────────────────────────────────────
-const GRID = "260px 180px 160px 120px 260px 110px";
+const GRID = "300px 180px 220px 100px 220px 120px";
 const HEADERS = ["USER ID", "身份憑證", "錢包地址", "AIF 餘額", "專屬充值地址", "接入時間"];
+const MIN_WIDTH = "1140px";
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function UsersPage() {
@@ -184,7 +198,7 @@ export default function UsersPage() {
         {/* Table Header */}
         <div
           className="grid text-[10px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50/70 border-b border-gray-100"
-          style={{ gridTemplateColumns: GRID, minWidth: "1090px" }}
+          style={{ gridTemplateColumns: GRID, minWidth: MIN_WIDTH }}
         >
           {HEADERS.map((h) => (
             <div key={h} className="px-3 py-3 whitespace-nowrap">{h}</div>
@@ -193,11 +207,11 @@ export default function UsersPage() {
 
         {/* Rows */}
         {loading ? (
-          <div className="py-20 text-center text-gray-400 text-sm animate-pulse" style={{ minWidth: "1090px" }}>
+          <div className="py-20 text-center text-gray-400 text-sm animate-pulse" style={{ minWidth: MIN_WIDTH }}>
             載入中...
           </div>
         ) : filtered.length === 0 ? (
-          <div className="py-20 text-center" style={{ minWidth: "1090px" }}>
+          <div className="py-20 text-center" style={{ minWidth: MIN_WIDTH }}>
             <div className="text-gray-200 text-4xl mb-2">◎</div>
             <div className="text-gray-400 text-sm">
               {search ? "找不到匹配的用戶" : "暫無用戶數據"}
@@ -208,31 +222,31 @@ export default function UsersPage() {
             <div
               key={user.id}
               className="grid border-b border-gray-100 hover:bg-gray-50/50 transition-colors duration-100"
-              style={{ gridTemplateColumns: GRID, minWidth: "1090px" }}
+              style={{ gridTemplateColumns: GRID, minWidth: MIN_WIDTH }}
             >
 
               {/* ① USER ID */}
-              <div className="px-3 py-3 flex flex-col justify-center gap-0.5">
-                <button
-                  onClick={() => copyToClipboard(user.id, "User ID")}
-                  className="text-left group"
-                  title={user.id}
-                >
-                  <span className={`text-xs font-mono transition-colors group-hover:text-[#1a73e8] ${
-                    copied === user.id ? "text-[#1a73e8]" : "text-gray-500"
+              <div className="px-3 py-3 flex flex-col justify-center gap-1">
+                <div className="flex items-start gap-1.5">
+                  <span className={`text-[10px] sm:text-xs font-mono break-all transition-colors ${
+                    copied === user.id ? "text-[#1a73e8]" : "text-gray-600"
                   }`}>
-                    {truncateAddr(user.id, 12, 6)}
+                    {user.id}
                   </span>
-                </button>
-                <span className="text-[10px] text-gray-300 font-mono">
-                  #{user.id.slice(0, 8).toUpperCase()}
-                </span>
+                  <button
+                    onClick={() => copyToClipboard(user.id, "User ID")}
+                    className="flex-shrink-0 cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors mt-0.5"
+                    title="複製 User ID"
+                  >
+                    <CopyIcon />
+                  </button>
+                </div>
               </div>
 
-              {/* ② 身份憑證 (Email / Wallet) */}
+              {/* ② 身份憑證 (Email / Wallet Index) */}
               <div className="px-3 py-3 flex flex-col justify-center gap-0.5">
                 {user.email ? (
-                  <span className="text-xs text-gray-700 truncate max-w-[170px]" title={user.email}>
+                  <span className="text-xs text-gray-700 break-all" title={user.email}>
                     {user.email}
                   </span>
                 ) : (
@@ -244,21 +258,24 @@ export default function UsersPage() {
               </div>
 
               {/* ③ 錢包地址 */}
-              <div className="px-3 py-3 flex items-center">
+              <div className="px-3 py-3 flex items-start pt-3.5">
                 {user.wallet_address ? (
-                  <button
-                    onClick={() => copyToClipboard(user.wallet_address!, "錢包地址")}
-                    className="group text-left"
-                    title={user.wallet_address}
-                  >
-                    <span className={`text-xs font-mono transition-colors group-hover:text-[#1a73e8] ${
-                      copied === user.wallet_address ? "text-[#1a73e8]" : "text-gray-500"
+                  <div className="flex items-start gap-1.5 w-full">
+                    <span className={`text-[10px] sm:text-xs font-mono break-all transition-colors ${
+                      copied === user.wallet_address ? "text-[#1a73e8]" : "text-gray-600"
                     }`}>
-                      {truncateAddr(user.wallet_address)}
+                      {user.wallet_address}
                     </span>
-                  </button>
+                    <button
+                      onClick={() => copyToClipboard(user.wallet_address!, "錢包地址")}
+                      className="flex-shrink-0 cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors mt-0.5"
+                      title="複製錢包地址"
+                    >
+                      <CopyIcon />
+                    </button>
+                  </div>
                 ) : (
-                  <span className="text-xs text-gray-300">— 未連結</span>
+                  <span className="text-xs text-gray-300">未分配</span>
                 )}
               </div>
 
@@ -277,22 +294,22 @@ export default function UsersPage() {
               </div>
 
               {/* ⑤ 專屬充值地址 */}
-              <div className="px-3 py-3 flex items-center">
+              <div className="px-3 py-3 flex items-start pt-3.5">
                 {user.deposit_address ? (
-                  <button
-                    onClick={() => copyToClipboard(user.deposit_address!, "充值地址")}
-                    className="group text-left flex items-center gap-1.5"
-                    title={user.deposit_address}
-                  >
-                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                      copied === user.deposit_address ? "bg-[#1a73e8]" : "bg-green-400"
-                    }`} />
-                    <span className={`text-xs font-mono transition-colors group-hover:text-[#1a73e8] ${
-                      copied === user.deposit_address ? "text-[#1a73e8]" : "text-gray-500"
+                  <div className="flex items-start gap-1.5 w-full">
+                    <span className={`text-[10px] sm:text-xs font-mono break-all transition-colors ${
+                      copied === user.deposit_address ? "text-[#1a73e8]" : "text-gray-600"
                     }`}>
-                      {truncateAddr(user.deposit_address, 8, 6)}
+                      {user.deposit_address}
                     </span>
-                  </button>
+                    <button
+                      onClick={() => copyToClipboard(user.deposit_address!, "充值地址")}
+                      className="flex-shrink-0 cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors mt-0.5"
+                      title="複製充值地址"
+                    >
+                      <CopyIcon />
+                    </button>
+                  </div>
                 ) : (
                   <span className="flex items-center gap-1.5 text-xs text-gray-300">
                     <span className="w-1.5 h-1.5 rounded-full bg-gray-200 flex-shrink-0" />
@@ -303,7 +320,7 @@ export default function UsersPage() {
 
               {/* ⑥ 接入時間 */}
               <div className="px-3 py-3 flex items-center">
-                <span className="text-xs text-gray-500 whitespace-nowrap">
+                <span className="text-xs text-gray-500 whitespace-nowrap font-mono">
                   {user.created_at ? formatDate(user.created_at) : "—"}
                 </span>
               </div>
