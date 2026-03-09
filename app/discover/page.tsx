@@ -22,6 +22,7 @@ interface LbsFilmEntry {
   studio: string;
   duration: string;
   trailerUrl: string | null;
+  synopsis: string | null;
 }
 
 interface LbsNode {
@@ -306,7 +307,7 @@ export default function DiscoverPage() {
         try {
           const { data, error } = await supabase
             .from('films')
-            .select('id, title, poster_url, studio_name, trailer_url, ai_ratio')
+            .select('id, title, poster_url, studio_name, trailer_url, synopsis')
             .in('id', node.filmIds)
             .eq('status', 'approved');
 
@@ -321,6 +322,7 @@ export default function DiscoverPage() {
                 studio: f.studio_name ?? '—',
                 duration: '—',
                 trailerUrl: f.trailer_url ?? null,
+                synopsis: f.synopsis ?? null,
               })),
             );
           }
@@ -628,14 +630,12 @@ export default function DiscoverPage() {
                 </h3>
 
                 {filmsLoading ? (
-                  <div className="space-y-3">
-                    {[...Array(2)].map((_, i) => (
-                      <div key={i} className="bg-[#111] border border-[#222] rounded-xl p-3 flex gap-4 items-center animate-pulse">
-                        <div className="w-16 h-12 bg-[#1a1a1a] rounded shrink-0" />
-                        <div className="flex-1 space-y-2">
-                          <div className="h-3 bg-[#1a1a1a] rounded w-3/4" />
-                          <div className="h-2 bg-[#1a1a1a] rounded w-1/2" />
-                        </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="animate-pulse">
+                        <div className="aspect-[2/3] rounded-xl bg-[#1a1a1a] mb-3" />
+                        <div className="h-4 bg-[#1a1a1a] rounded w-3/4 mb-2" />
+                        <div className="h-3 bg-[#1a1a1a] rounded w-1/2" />
                       </div>
                     ))}
                   </div>
@@ -647,30 +647,53 @@ export default function DiscoverPage() {
                     </span>
                   </div>
                 ) : (
-                  detailFilms.map((film) => (
-                    <div
-                      key={film.id}
-                      className="bg-[#111] border border-[#222] rounded-xl p-3 flex gap-4 items-center cursor-pointer hover:border-[#CCFF00] transition-colors group mb-3"
-                      onClick={() => playFilm(film)}
-                    >
-                      <img
-                        src={film.coverUrl}
-                        alt={film.title}
-                        className="w-16 h-12 object-cover rounded border border-[#333] shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-bold text-white tracking-wide group-hover:text-[#CCFF00] transition-colors truncate">
-                          {film.title}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {detailFilms.map((film) => (
+                      <div
+                        key={film.id}
+                        className="group cursor-pointer hover:-translate-y-1 transition-all duration-300"
+                        onClick={() => playFilm(film)}
+                      >
+                        {/* 2:3 Poster Container */}
+                        <div className="relative aspect-[2/3] rounded-xl overflow-hidden shadow-lg mb-3">
+                          <img
+                            src={film.coverUrl}
+                            alt={film.title}
+                            className="w-full h-full object-cover rounded-xl transition-transform duration-500 group-hover:scale-105"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src =
+                                'https://images.unsplash.com/photo-1608889175123-8ee362201f81?q=80&w=300';
+                            }}
+                          />
+
+                          {/* Bottom gradient overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent rounded-xl" />
+
+                          {/* Glassmorphism play button */}
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-16 h-16 rounded-full bg-black/40 backdrop-blur-md border border-white/20 flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:bg-[#CCFF00]/20 group-hover:border-[#CCFF00]/60 group-hover:shadow-[0_0_24px_rgba(204,255,0,0.45)]">
+                              <i className="fas fa-play text-white text-xl ml-1 group-hover:text-[#CCFF00] transition-colors duration-300" />
+                            </div>
+                          </div>
                         </div>
-                        <div className="text-[9px] text-gray-500 font-mono mt-1 uppercase">
-                          {film.studio} · {film.duration}
+
+                        {/* Film Info */}
+                        <div className="px-1">
+                          <h4 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-white truncate leading-none mb-1">
+                            {film.title}
+                          </h4>
+                          <p className="text-sm font-mono text-emerald-400 mb-2 truncate">
+                            {film.studio}
+                          </p>
+                          {film.synopsis && (
+                            <p className="text-gray-400 text-sm line-clamp-2 leading-snug">
+                              {film.synopsis}
+                            </p>
+                          )}
                         </div>
                       </div>
-                      <div className="w-10 h-10 rounded-full border border-[#333] flex items-center justify-center text-gray-500 group-hover:text-[#CCFF00] group-hover:border-[#CCFF00] transition-all shrink-0">
-                        <i className="fas fa-play" />
-                      </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 )}
               </section>
 
