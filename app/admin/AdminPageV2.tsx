@@ -32,6 +32,7 @@ interface UserRow {
   aif_balance: number | null;
   deposit_address: string | null;
   created_at: string;
+  role?: string;
 }
 
 interface LbsNode {
@@ -786,22 +787,62 @@ function DistributionModule({ t, pushToast }: SharedProps) {
   );
 }
 
+function formatBotDate(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function BotCopyIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
 function EcosystemModule({ t, pushToast, askConfirm }: SharedProps) {
   const [sub, setSub] = useState<"human" | "bot">("human");
   const [users, setUsers] = useState<UserRow[]>([]);
+  const [botRows, setBotRows] = useState<UserRow[]>([]);
+  const [copiedBot, setCopiedBot] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
       .from("users")
       .select("*")
+      .neq("role", "bot")
       .order("created_at", { ascending: false })
       .then(({ data }) => setUsers((data as UserRow[]) ?? []));
   }, []);
 
-  const bots = [
-    { id: "BOT-001", human: "alice@aif.bot", modules: "Brain/Gemini3.1 + Hands/Render + Skills/Review", status: "Running" },
-    { id: "BOT-002", human: "wallet:fiebk...xros", modules: "Brain/OpenAI5.4 + Hands/Chain + Skills/Ops", status: "Idle" },
-  ];
+  useEffect(() => {
+    supabase
+      .from("users")
+      .select("*")
+      .eq("role", "bot")
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setBotRows((data as UserRow[]) ?? []));
+  }, []);
+
+  const copyBotField = useCallback(
+    async (text: string, label: string) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopiedBot(text);
+        pushToast(`已複製 ${label}`);
+        setTimeout(() => setCopiedBot(null), 2000);
+      } catch {
+        pushToast("複製失敗", false);
+      }
+    },
+    [pushToast],
+  );
+
+  const BOT_GRID = "280px 200px 90px 200px 130px 230px";
+  const BOT_MIN = "1130px";
+  const BOT_HEADERS = ["BOT DID", "錢包地址 / 綁定身份", "AIF 餘額", "專屬充值地址", "註冊時間", "操作"];
 
   return (
     <div>
@@ -860,29 +901,144 @@ function EcosystemModule({ t, pushToast, askConfirm }: SharedProps) {
       )}
 
       {sub === "bot" && (
-        <div className={`${CARD} overflow-hidden`}>
-          <div className="overflow-x-auto">
-            <div className="min-w-[900px]">
-              <div className="grid grid-cols-[130px_1fr_1.3fr_120px_150px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
-                {["Bot ID", "歸屬人類", "裝配模塊 (Brain/Hands/Skills)", "狀態", "操作"].map((h) => (
-                  <div key={h} className="p-3">
-                    {h}
-                  </div>
-                ))}
-              </div>
-              {bots.map((b) => (
-                <div key={b.id} className="grid grid-cols-[130px_1fr_1.3fr_120px_150px] border-b border-gray-100 last:border-0">
-                  <div className="p-3 text-sm text-gray-900">{b.id}</div>
-                  <div className="p-3 text-sm text-gray-700">{b.human}</div>
-                  <div className="p-3 text-sm text-gray-700">{b.modules}</div>
-                  <div className="p-3 text-sm text-gray-700">{b.status}</div>
-                  <div className="p-3 flex gap-2">
-                    <button className={`${BTN} !px-2 !py-1 border border-gray-200 text-gray-700`} onClick={() => pushToast("Bot 已休眠")}>{t.sleep}</button>
-                    <button className={`${BTN} !px-2 !py-1 border border-gray-200 text-gray-700`} onClick={() => pushToast("Bot 已重置")}>{t.reset}</button>
-                  </div>
-                </div>
+        <div className={`${CARD} overflow-x-auto`}>
+          <div style={{ minWidth: BOT_MIN }}>
+
+            {/* ── Table Header ──────────────────────────────────────────────── */}
+            <div
+              className="grid text-[10px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50/70 border-b border-gray-100"
+              style={{ gridTemplateColumns: BOT_GRID }}
+            >
+              {BOT_HEADERS.map((h) => (
+                <div key={h} className="px-3 py-3 whitespace-nowrap">{h}</div>
               ))}
             </div>
+
+            {/* ── Empty State ───────────────────────────────────────────────── */}
+            {botRows.length === 0 && (
+              <div className="py-16 text-center">
+                <div className="text-4xl mb-2 text-gray-200">◎</div>
+                <div className="text-sm text-gray-400">暫無硅基數字人登錄</div>
+              </div>
+            )}
+
+            {/* ── Bot Rows ──────────────────────────────────────────────────── */}
+            {botRows.map((bot) => (
+              <div
+                key={bot.id}
+                className="grid border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors duration-100"
+                style={{ gridTemplateColumns: BOT_GRID }}
+              >
+
+                {/* ① BOT DID */}
+                <div className="px-3 py-3 flex items-start gap-2">
+                  <span
+                    className="flex-shrink-0 mt-[5px] w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"
+                    title="Online"
+                  />
+                  <div className="flex items-start gap-1 min-w-0">
+                    <span className={`text-[10px] sm:text-xs font-mono break-all text-neutral-600 transition-colors ${copiedBot === bot.id ? "text-[#1a73e8]" : ""}`}>
+                      {bot.id}
+                    </span>
+                    <button
+                      onClick={() => copyBotField(bot.id, "BOT DID")}
+                      className="flex-shrink-0 cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors mt-0.5"
+                      title="複製 BOT DID"
+                    >
+                      <BotCopyIcon />
+                    </button>
+                  </div>
+                </div>
+
+                {/* ② 錢包地址 / 綁定身份 */}
+                <div className="px-3 py-3 flex items-start pt-3.5">
+                  {bot.wallet_address ? (
+                    <div className="flex items-start gap-1 w-full min-w-0">
+                      <span className={`text-[10px] sm:text-xs font-mono break-all text-neutral-600 transition-colors ${copiedBot === bot.wallet_address ? "text-[#1a73e8]" : ""}`}>
+                        {bot.wallet_address}
+                      </span>
+                      <button
+                        onClick={() => copyBotField(bot.wallet_address!, "錢包地址")}
+                        className="flex-shrink-0 cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors mt-0.5"
+                        title="複製錢包地址"
+                      >
+                        <BotCopyIcon />
+                      </button>
+                    </div>
+                  ) : bot.email ? (
+                    <span className="text-[10px] sm:text-xs break-all text-neutral-600">{bot.email}</span>
+                  ) : (
+                    <span className="text-xs text-gray-300">—</span>
+                  )}
+                </div>
+
+                {/* ③ AIF 餘額 */}
+                <div className="px-3 py-3 flex items-center">
+                  <div className="flex flex-col gap-0.5">
+                    <span className={`text-sm font-bold ${(bot.aif_balance ?? 0) > 0 ? "text-green-600" : "text-gray-300"}`}>
+                      {bot.aif_balance != null ? bot.aif_balance.toLocaleString() : "—"}
+                    </span>
+                    {(bot.aif_balance ?? 0) > 0 && (
+                      <span className="text-[10px] text-green-400 font-medium">AIF</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* ④ 專屬充值地址 */}
+                <div className="px-3 py-3 flex items-start pt-3.5">
+                  {bot.deposit_address ? (
+                    <div className="flex items-start gap-1 w-full min-w-0">
+                      <span className={`text-[10px] sm:text-xs font-mono break-all text-neutral-600 transition-colors ${copiedBot === bot.deposit_address ? "text-[#1a73e8]" : ""}`}>
+                        {bot.deposit_address}
+                      </span>
+                      <button
+                        onClick={() => copyBotField(bot.deposit_address!, "充值地址")}
+                        className="flex-shrink-0 cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors mt-0.5"
+                        title="複製充值地址"
+                      >
+                        <BotCopyIcon />
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="flex items-center gap-1.5 text-xs text-gray-300">
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-200 flex-shrink-0" />
+                      未分配
+                    </span>
+                  )}
+                </div>
+
+                {/* ⑤ 註冊時間 */}
+                <div className="px-3 py-3 flex items-center">
+                  <span className="text-xs text-gray-500 whitespace-nowrap font-mono">
+                    {bot.created_at ? formatBotDate(bot.created_at) : "—"}
+                  </span>
+                </div>
+
+                {/* ⑥ 操作 */}
+                <div className="px-3 py-3 flex items-center gap-2 flex-wrap">
+                  <button
+                    className="border border-neutral-300 text-neutral-700 hover:bg-neutral-100 rounded-full px-3 py-1 text-xs transition-colors whitespace-nowrap"
+                    onClick={() =>
+                      askConfirm({
+                        title: "凍結權限",
+                        body: `確認凍結 Bot ${bot.id.slice(-8)} 的所有權限？`,
+                        danger: true,
+                        onConfirm: () => pushToast(`已凍結 Bot ${bot.id.slice(-8)}`),
+                      })
+                    }
+                  >
+                    凍結權限
+                  </button>
+                  <button
+                    className="border border-neutral-300 text-neutral-700 hover:bg-neutral-100 rounded-full px-3 py-1 text-xs transition-colors whitespace-nowrap"
+                    onClick={() => pushToast(`Bot 緩存已清除`)}
+                  >
+                    清除緩存
+                  </button>
+                </div>
+
+              </div>
+            ))}
           </div>
         </div>
       )}
