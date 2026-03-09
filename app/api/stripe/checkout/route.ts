@@ -175,6 +175,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ sessionId: session.id, url: session.url });
 
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message || 'Stripe API Error' }, { status: 500 });
+    logStripeError('[stripe/checkout] Unexpected error:', error);
+    return NextResponse.json(
+      { error: extractErrorMessage(error) || 'Stripe API 拒絕交易' },
+      { status: 500 }
+    );
   }
 }

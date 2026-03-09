@@ -239,8 +239,30 @@ export default function UploadPage() {
     setUploadStatus('INITIALIZING SECURE CHANNEL...');
     try {
       const filmId = await doUploadAndCreateRecord('USD');
-      showToast('MEDIA UPLOADED. PROCEEDING TO PAYMENT...', 'success');
-      router.push(`/upload/payment?filmId=${filmId}`);
+
+      setUploadStatus('CREATING STRIPE PAYMENT SESSION...');
+      const token = await getAccessToken();
+      const res = await fetch('/api/stripe/checkout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ filmId, userId: user.id }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        alert('Stripe 失敗原因: ' + (err.error || '未知'));
+        return;
+      }
+
+      const { url } = await res.json();
+      if (url) {
+        window.location.href = url;
+      } else {
+        throw new Error('Stripe 未回傳付款頁面 URL，請重試');
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setUploadStatus(msg);
@@ -695,7 +717,7 @@ export default function UploadPage() {
                       <span className="font-mono text-[8px] bg-black/10 text-black/70 px-2 py-0.5 rounded-full tracking-widest">50% OFF</span>
                     </div>
                     <div className="font-heavy text-5xl text-black leading-none">500</div>
-                    <div className="font-mono text-[10px] text-black/60 mt-2">AIF · Internal Ledger</div>
+                    <div className="font-mono text-[10px] text-black/60 mt-2">AIF · On-Chain</div>
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <div className="w-12 h-12 rounded-full bg-black/10 flex items-center justify-center">
