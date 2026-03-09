@@ -14,6 +14,7 @@ type ConfirmConfig = { title: string; body: string; danger?: boolean; onConfirm:
 interface Film {
   id: string; user_id: string | null; title: string | null; studio: string | null;
   ai_ratio: number | null; poster_url: string | null; trailer_url?: string | null;
+  video_url?: string | null;
   feature_url?: string | null; main_video_url?: string | null; copyright_url?: string | null;
   core_cast?: string | null; region?: string | null; lbs_royalty?: number | null;
   status: "pending" | "approved" | "rejected"; created_at: string;
@@ -457,7 +458,11 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
   const [rejectTarget, setRejectTarget] = useState<Film | null>(null);
   const [rejectReason, setRejectReason] = useState<string>(t.rejectReasons[0]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [orderQuery, setOrderQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [paymentFilter, setPaymentFilter] = useState<"all" | "fiat" | "aif" | "official_waived">("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   const fetchFilms = useCallback(async () => {
     setLoading(true);
@@ -472,10 +477,36 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
 
   useEffect(() => { fetchFilms(); }, [fetchFilms]);
 
+  const stats = useMemo(() => ({
+    total:    films.length,
+    pending:  films.filter((f) => f.status === "pending").length,
+    approved: films.filter((f) => f.status === "approved").length,
+    rejected: films.filter((f) => f.status === "rejected").length,
+  }), [films]);
+
   const filteredFilms = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
+    const oq = orderQuery.toLowerCase().trim();
     return films.filter((film) => {
       if (statusFilter !== "all" && film.status !== statusFilter) return false;
+      if (paymentFilter !== "all") {
+        const pm = (film.payment_method ?? "").toLowerCase();
+        if (paymentFilter === "fiat" && pm !== "fiat" && pm !== "usd") return false;
+        if (paymentFilter === "aif" && pm !== "aif") return false;
+        if (paymentFilter === "official_waived" && pm !== "official_waived") return false;
+      }
+      if (dateFrom) {
+        const filmDate = new Date(film.created_at);
+        const from = new Date(dateFrom);
+        if (filmDate < from) return false;
+      }
+      if (dateTo) {
+        const filmDate = new Date(film.created_at);
+        const to = new Date(dateTo);
+        to.setHours(23, 59, 59, 999);
+        if (filmDate > to) return false;
+      }
+      if (oq && !(film.order_number ?? "").toLowerCase().includes(oq)) return false;
       if (!q) return true;
       return (
         (film.title ?? "").toLowerCase().includes(q) ||
@@ -483,7 +514,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
         (film.users?.wallet_address ?? "").toLowerCase().includes(q)
       );
     });
-  }, [films, searchQuery, statusFilter]);
+  }, [films, searchQuery, orderQuery, statusFilter, paymentFilter, dateFrom, dateTo]);
 
   async function approveFilm(film: Film) {
     const { error } = await supabase.from("films").update({ status: "approved" }).eq("id", film.id);
@@ -564,12 +595,12 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
     return (
       <button
         onClick={onChange}
-        className={`group flex items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors ${on ? "hover:bg-blue-50" : "hover:bg-gray-100"}`}
+        className={`group flex items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors active:scale-95 ${on ? "hover:bg-blue-50" : "hover:bg-slate-100"}`}
       >
-        <span className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors ${on ? "bg-blue-500" : "bg-gray-300"}`}>
-          <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${on ? "translate-x-3.5" : "translate-x-0.5"}`} />
+        <span className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors duration-200 ${on ? "bg-blue-500" : "bg-slate-300"}`}>
+          <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform duration-200 ${on ? "translate-x-3.5" : "translate-x-0.5"}`} />
         </span>
-        <span className={`text-[10px] font-medium whitespace-nowrap ${on ? "text-blue-600" : "text-gray-400"}`}>{label}</span>
+        <span className={`text-[10px] font-medium whitespace-nowrap transition-colors ${on ? "text-blue-600" : "text-slate-400"}`}>{label}</span>
       </button>
     );
   }
@@ -579,7 +610,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
       <button
         onClick={() => copyToClipboard(text, label)}
         title={`複製 ${label}`}
-        className="inline-flex shrink-0 items-center justify-center rounded p-0.5 text-gray-300 transition-colors hover:bg-blue-50 hover:text-blue-500"
+        className="inline-flex shrink-0 items-center justify-center rounded p-0.5 text-slate-300 transition-colors hover:bg-blue-50 hover:text-blue-500 active:scale-90"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
           <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
@@ -590,14 +621,14 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
   }
 
   function LinkChip({ href, label, accent }: { href: string | null | undefined; label: string; accent?: boolean }) {
-    if (!href) return <span className="text-[10px] text-gray-300">無{label}</span>;
+    if (!href) return <span className="text-[10px] text-slate-300 italic">無{label.replace(" ↗", "")}</span>;
     const url = href.startsWith("http") ? href : `https://${href}`;
     return (
       <a
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className={`inline-flex items-center gap-0.5 text-[10px] font-semibold hover:underline transition-colors ${accent ? "text-purple-500 hover:text-purple-700" : "text-blue-500 hover:text-blue-700"}`}
+        className={`inline-flex items-center gap-0.5 text-[10px] font-semibold hover:underline transition-colors active:opacity-70 ${accent ? "text-violet-600 hover:text-violet-800" : "text-blue-600 hover:text-blue-800"}`}
       >
         {label}
         <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
@@ -617,107 +648,176 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
     return <span className="text-[9px] text-gray-400 bg-gray-100 px-1 py-0.5 rounded">EXP</span>;
   }
 
+  const hasFilters = !!(searchQuery || orderQuery || statusFilter !== "all" || paymentFilter !== "all" || dateFrom || dateTo);
+
+  function clearFilters() {
+    setSearchQuery(""); setOrderQuery(""); setStatusFilter("all");
+    setPaymentFilter("all"); setDateFrom(""); setDateTo("");
+  }
+
   return (
     <>
-      {/* ── Action Bar ── */}
-      <div className="flex flex-col sm:flex-row gap-2 mb-3">
-        <div className="relative flex-1">
-          <svg className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-          </svg>
-          <input
-            type="text"
-            placeholder="搜尋片名、Email 或錢包地址…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-          />
-        </div>
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-        >
-          <option value="all">全部狀態</option>
-          <option value="pending">待審核</option>
-          <option value="approved">已通過</option>
-          <option value="rejected">已駁回</option>
-        </select>
-        <button className={BTN_GHOST} onClick={fetchFilms}>
-          {loading ? t.loading : t.refresh}
-        </button>
+      {/* ── Stats Cards ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        {[
+          { label: "總報名數", value: stats.total, color: "text-slate-900", bg: "bg-white", border: "border-slate-200", dot: "bg-slate-400" },
+          { label: "待審核",   value: stats.pending,  color: "text-amber-700",   bg: "bg-amber-50",   border: "border-amber-200",   dot: "bg-amber-400" },
+          { label: "已通過",   value: stats.approved, color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200", dot: "bg-emerald-500" },
+          { label: "已駁回",   value: stats.rejected, color: "text-rose-700",    bg: "bg-rose-50",    border: "border-rose-200",    dot: "bg-rose-500" },
+        ].map((card) => (
+          <div key={card.label} className={`${card.bg} border ${card.border} rounded-xl px-5 py-4 shadow-sm flex items-center gap-3`}>
+            <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${card.dot}`} />
+            <div>
+              <p className="text-xs font-medium text-slate-500">{card.label}</p>
+              <p className={`text-3xl font-black mt-0.5 leading-none ${card.color}`}>{card.value}</p>
+            </div>
+          </div>
+        ))}
       </div>
 
-      <p className="mb-2 text-[11px] text-gray-400">
-        {filteredFilms.length} / {films.length} 條記錄
-        {(searchQuery || statusFilter !== "all") && (
+      {/* ── Action Bar ── */}
+      <div className="bg-white border border-slate-200 rounded-xl p-3 mb-4 shadow-sm space-y-2">
+        <div className="flex flex-col sm:flex-row gap-2">
+          {/* 片名 / 用戶搜尋 */}
+          <div className="relative flex-1 min-w-0">
+            <svg className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+            </svg>
+            <input
+              type="text"
+              placeholder="搜尋片名、Email 或錢包地址…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white transition-colors"
+            />
+          </div>
+          {/* 流水號搜尋 */}
+          <div className="relative sm:w-44">
+            <svg className="pointer-events-none absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="12" y2="15"/>
+            </svg>
+            <input
+              type="text"
+              placeholder="流水號…"
+              value={orderQuery}
+              onChange={(e) => setOrderQuery(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white transition-colors"
+            />
+          </div>
           <button
-            onClick={() => { setSearchQuery(""); setStatusFilter("all"); }}
-            className="ml-2 text-blue-500 hover:underline"
+            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors active:scale-95 shrink-0"
+            onClick={fetchFilms}
           >
-            清除篩選
+            {loading ? "讀取中…" : "↺ 刷新"}
           </button>
-        )}
-      </p>
+        </div>
+
+        <div className="flex flex-wrap gap-2 items-center">
+          {/* 狀態篩選 */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          >
+            <option value="all">全部狀態</option>
+            <option value="pending">待審核</option>
+            <option value="approved">已通過</option>
+            <option value="rejected">已駁回</option>
+          </select>
+          {/* 支付方式篩選 */}
+          <select
+            value={paymentFilter}
+            onChange={(e) => setPaymentFilter(e.target.value as typeof paymentFilter)}
+            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          >
+            <option value="all">全部支付方式</option>
+            <option value="fiat">法幣 (Fiat)</option>
+            <option value="aif">AIF (Web3)</option>
+            <option value="official_waived">官方免除</option>
+          </select>
+          {/* 日期範圍 */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-slate-500 shrink-0">從</span>
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            />
+            <span className="text-xs text-slate-500 shrink-0">至</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            />
+          </div>
+          {hasFilters && (
+            <button
+              onClick={clearFilters}
+              className="text-xs text-blue-500 hover:text-blue-700 hover:underline transition-colors ml-1"
+            >
+              清除所有篩選
+            </button>
+          )}
+          <span className="ml-auto text-[11px] text-slate-400">
+            顯示 <strong className="text-slate-600">{filteredFilms.length}</strong> / {films.length} 條記錄
+          </span>
+        </div>
+      </div>
 
       {/* ── Table ── */}
-      <div className={`${CARD} overflow-hidden`}>
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1160px]">
             <thead>
-              <tr className="border-b border-gray-200 bg-gray-50 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                <th className="w-[130px] px-3 py-2.5 text-left">報名時間</th>
-                <th className="w-[160px] px-3 py-2.5 text-left">流水串號</th>
-                <th className="w-[110px] px-3 py-2.5 text-left">支付方式</th>
-                <th className="px-3 py-2.5 text-left">影片與創作者</th>
-                <th className="w-[210px] px-3 py-2.5 text-left">審核資料池</th>
-                <th className="w-[180px] px-3 py-2.5 text-left">決策中心</th>
-                <th className="w-[150px] px-3 py-2.5 text-left">展映大盤</th>
+              <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                <th className="w-[130px] px-4 py-3 text-left">報名時間</th>
+                <th className="w-[160px] px-4 py-3 text-left">流水串號</th>
+                <th className="w-[110px] px-4 py-3 text-left">支付方式</th>
+                <th className="px-4 py-3 text-left">影片與創作者</th>
+                <th className="w-[210px] px-4 py-3 text-left">審核資料池</th>
+                <th className="w-[180px] px-4 py-3 text-left">決策中心</th>
+                <th className="w-[150px] px-4 py-3 text-left">展映大盤</th>
               </tr>
             </thead>
             <tbody>
               {filteredFilms.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-8 text-center text-sm text-gray-400">
-                    {loading ? t.loading : searchQuery || statusFilter !== "all" ? "無符合條件的結果" : t.empty}
+                  <td colSpan={7} className="p-10 text-center text-sm text-slate-400">
+                    {loading ? "讀取中…" : hasFilters ? "無符合條件的結果" : "暫無資料"}
                   </td>
                 </tr>
               ) : filteredFilms.map((film) => (
-                <tr key={film.id} className="border-b border-gray-100 transition-colors last:border-0 hover:bg-gray-50/60">
+                <tr key={film.id} className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50/70">
 
                   {/* ── 報名時間 ── */}
-                  <td className="px-3 py-3 align-top">
-                    <span className="font-mono text-[10px] text-gray-600 whitespace-nowrap">
+                  <td className="px-4 py-4 align-middle">
+                    <span className="font-mono text-[11px] text-slate-600 whitespace-nowrap">
                       {fmtAdminDate(film.created_at)}
                     </span>
                   </td>
 
                   {/* ── 流水串號 ── */}
-                  <td className="px-3 py-3 align-top">
+                  <td className="px-3 py-4 align-middle">
                     {film.order_number ? (
-                      <div className="flex items-center gap-1">
-                        <span className="font-mono text-[10px] text-gray-700 truncate max-w-[130px]" title={film.order_number}>
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-[11px] font-semibold text-slate-800 truncate max-w-[130px]" title={film.order_number}>
                           {film.order_number}
                         </span>
-                        <CopyBtn text={film.order_number} label="Order ID" />
+                        <CopyBtn text={film.order_number} label="流水號" />
                       </div>
                     ) : (
-                      <span className="text-[10px] text-gray-300">—</span>
+                      <span className="text-[10px] text-slate-300 italic">未設定</span>
                     )}
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <span className="font-mono text-[9px] text-gray-300 truncate max-w-[130px]" title={film.id}>
-                        {film.id.slice(0, 16)}…
-                      </span>
-                      <CopyBtn text={film.id} label="Film ID" />
-                    </div>
                   </td>
 
                   {/* ── 支付方式 ── */}
-                  <td className="px-3 py-3 align-top">
+                  <td className="px-4 py-4 align-middle">
                     {(() => {
                       const { label, cls } = fmtPaymentMethod(film.payment_method);
                       return (
-                        <span className={`inline-block rounded border px-1.5 py-0.5 text-[9px] font-bold leading-tight ${cls}`}>
+                        <span className={`inline-block rounded-md border px-2 py-1 text-[10px] font-semibold leading-tight ${cls}`}>
                           {label}
                         </span>
                       );
@@ -725,24 +825,24 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                   </td>
 
                   {/* ── 影片與創作者 ── */}
-                  <td className="px-3 py-3 align-top">
-                    <div className="flex items-center gap-1">
-                      <p className="max-w-[180px] truncate text-[12px] font-bold leading-snug text-gray-900" title={film.title ?? "-"}>
+                  <td className="px-4 py-4 align-middle">
+                    <div className="flex items-center gap-1.5">
+                      <p className="max-w-[200px] truncate text-[13px] font-semibold leading-snug text-slate-900" title={film.title ?? "-"}>
                         {film.title ?? "-"}
                       </p>
                       {film.title && <CopyBtn text={film.title} label="片名" />}
                     </div>
                     {film.studio && (
-                      <p className="mb-1 text-[10px] leading-tight text-gray-400">{film.studio}</p>
+                      <p className="mt-0.5 mb-1.5 text-[10px] leading-tight text-slate-500">{film.studio}</p>
                     )}
                     <div className="mt-1 flex items-center gap-1">
-                      <p className="max-w-[180px] truncate text-[10px] text-gray-500" title={film.users?.email ?? "-"}>
+                      <p className="max-w-[200px] truncate text-[10px] text-slate-500" title={film.users?.email ?? "-"}>
                         {film.users?.email ?? "-"}
                       </p>
                       {film.users?.email && <CopyBtn text={film.users.email} label="Email" />}
                     </div>
                     <div className="flex items-center gap-1">
-                      <p className="max-w-[180px] truncate font-mono text-[10px] text-gray-400" title={film.users?.wallet_address ?? ""}>
+                      <p className="max-w-[200px] truncate font-mono text-[10px] text-slate-400" title={film.users?.wallet_address ?? ""}>
                         {film.users?.wallet_address ? `${film.users.wallet_address.slice(0, 12)}…` : "-"}
                       </p>
                       {film.users?.wallet_address && <CopyBtn text={film.users.wallet_address} label="錢包" />}
@@ -750,41 +850,45 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                   </td>
 
                   {/* ── 審核資料池 ── */}
-                  <td className="px-3 py-3 align-top">
+                  <td className="px-4 py-4 align-middle">
                     <div className="mb-2 flex items-center gap-1.5">
-                      <span className={`text-[12px] font-black ${(film.ai_ratio ?? 0) >= 51 ? "text-green-600" : "text-red-500"}`}>
+                      <span className={`text-[13px] font-black ${(film.ai_ratio ?? 0) >= 51 ? "text-emerald-600" : "text-rose-500"}`}>
                         {Math.round(film.ai_ratio ?? 0)}%
                       </span>
-                      <span className={`rounded px-1 py-0.5 text-[9px] font-bold ${(film.ai_ratio ?? 0) >= 51 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                      <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-bold ${(film.ai_ratio ?? 0) >= 51 ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-600"}`}>
                         {(film.ai_ratio ?? 0) >= 51 ? "✓ 達標" : "✗ 不足"}
                       </span>
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-1.5">
-                      <LinkChip href={film.trailer_url} label="預告" />
+                      {(film.trailer_url || film.video_url) ? (
+                        <LinkChip href={film.trailer_url || film.video_url} label="預告 ↗" />
+                      ) : (
+                        <span className="text-[10px] text-slate-300">無預告</span>
+                      )}
                       <LinkChip href={film.poster_url} label="海報" />
                       {(film.main_video_url || film.feature_url) ? (
                         <LinkChip href={film.main_video_url || film.feature_url} label="正片" accent />
                       ) : (
-                        <span className="text-[10px] text-gray-300">無正片</span>
+                        <span className="text-[10px] text-slate-300">無正片</span>
                       )}
                       {film.copyright_url && <LinkChip href={film.copyright_url} label="版權" />}
                     </div>
                   </td>
 
                   {/* ── 決策中心 ── */}
-                  <td className="px-3 py-3 align-top">
-                    <span className={`mb-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${statusBadgeClass(film.status)}`}>
+                  <td className="px-4 py-4 align-middle">
+                    <span className={`mb-2.5 inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold ${statusBadgeClass(film.status)}`}>
                       {statusLabel(film.status)}
                     </span>
-                    <div className="flex gap-1.5">
+                    <div className="flex gap-2">
                       <button
-                        className="rounded-md bg-green-600 px-2.5 py-1 text-[10px] font-bold text-white transition-colors hover:bg-green-700"
+                        className="rounded-md bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-emerald-600 active:scale-95"
                         onClick={() => approveFilm(film)}
                       >
                         {t.approve}
                       </button>
                       <button
-                        className="rounded-md bg-red-500 px-2.5 py-1 text-[10px] font-bold text-white transition-colors hover:bg-red-600"
+                        className="rounded-md bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-rose-600 active:scale-95"
                         onClick={() => { setRejectTarget(film); setRejectReason(t.rejectReasons[0]); }}
                       >
                         {t.reject}
@@ -793,7 +897,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                   </td>
 
                   {/* ── 展映大盤 ── */}
-                  <td className="px-3 py-3 align-top">
+                  <td className="px-4 py-4 align-middle">
                     <div className="space-y-0.5">
                       <MiniToggle
                         on={!!film.feed_enabled}
