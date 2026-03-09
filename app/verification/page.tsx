@@ -71,7 +71,7 @@ export default function VerificationPage() {
   const { showToast } = useToast();
   const docInputRef = useRef<HTMLInputElement>(null);
 
-  const [step, setStep] = useState(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [aifBalance, setAifBalance] = useState(0);
   const [isLoadingBalance, setIsLoadingBalance] = useState(true);
   const [isDocUploading, setIsDocUploading] = useState(false);
@@ -283,7 +283,7 @@ export default function VerificationPage() {
       return;
     }
     showToast(t("verify_success"), "success");
-    router.replace("/me?verified=1");
+    setStep(4);
   }
 
   // ── Handle return from Stripe ──────────────────────────────────────────────
@@ -309,7 +309,7 @@ export default function VerificationPage() {
   const hasEnoughAif = aifBalance >= VERIFICATION_AIF_FEE;
   const isAnyLoading = isStripeLoading || isAifLoading;
 
-  const stepLabels = [t("verify_step1"), t("verify_step2"), t("verify_step3")];
+  const stepLabels = [t("verify_step1"), t("verify_step2"), t("verify_step3"), t("verify_step4")];
 
   const IDENTITY_TYPES: Array<{ value: VerificationType; icon: string; color: string }> = [
     { value: "creator", icon: "fa-film", color: "signal" },
@@ -321,25 +321,30 @@ export default function VerificationPage() {
     <div className="min-h-screen bg-void px-4 pt-24 pb-32 flex flex-col items-center">
       <div className="w-full max-w-lg">
 
-        {/* Header */}
-        <div className="mb-6">
+        {/* Floating Back Button */}
+        {step < 4 && (
           <button
-            onClick={() => (step > 1 ? setStep(step - 1) : router.back())}
-            className="flex items-center gap-2 text-gray-500 hover:text-white text-xs font-mono mb-4 transition-colors"
+            onClick={() => (step > 1 ? setStep((step - 1) as 1 | 2 | 3 | 4) : router.back())}
+            className="fixed top-20 left-4 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 transition cursor-pointer"
           >
-            <i className="fas fa-arrow-left text-[10px]" />
-            {t("btn_back")}
+            <i className="fas fa-chevron-left text-sm" />
           </button>
-          <h1 className="font-heavy text-2xl text-white tracking-wider">
-            {t("verify_identity").toUpperCase()}
-          </h1>
-          <div className="text-[9px] font-mono text-signal tracking-widest mt-1">
-            HKAIIFF · CREATOR CREDENTIALING
+        )}
+
+        {/* Header */}
+        {step < 4 && (
+          <div className="mb-6">
+            <h1 className="font-heavy text-2xl text-white tracking-wider">
+              {t("verify_identity").toUpperCase()}
+            </h1>
+            <div className="text-[9px] font-mono text-signal tracking-widest mt-1">
+              HKAIIFF · CREATOR CREDENTIALING
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Step Indicator */}
-        <StepIndicator current={step} total={3} labels={stepLabels} />
+        {step < 4 && <StepIndicator current={step} total={4} labels={stepLabels} />}
 
         {/* ═══ STEP 1: Profile Info ═════════════════════════════════════════ */}
         {step === 1 && (
@@ -491,7 +496,7 @@ export default function VerificationPage() {
                          shadow-[0_0_20px_rgba(204,255,0,0.25)] hover:shadow-[0_0_30px_rgba(204,255,0,0.4)]
                          active:scale-95 transition-all"
             >
-              {t("btn_next")} →
+              {t("verify_step1_submit")}
             </button>
           </div>
         )}
@@ -613,7 +618,7 @@ export default function VerificationPage() {
                            shadow-[0_0_20px_rgba(204,255,0,0.25)] hover:shadow-[0_0_30px_rgba(204,255,0,0.4)]
                            active:scale-95 transition-all"
               >
-                {t("btn_next")} →
+                {t("verify_step2_pay")}
               </button>
             </div>
           </div>
@@ -741,6 +746,50 @@ export default function VerificationPage() {
 
             <p className="font-mono text-[8px] tracking-[0.3em] text-[#111] text-center">
               SECURED BY STRIPE &amp; SOLANA · HKAIIFF 2026
+            </p>
+          </div>
+        )}
+
+        {/* ═══ STEP 4: Success Screen ═══════════════════════════════════════ */}
+        {step === 4 && (
+          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8 animate-in fade-in duration-500 text-center">
+            {/* Icon */}
+            <div className="relative">
+              <div className="w-24 h-24 rounded-full bg-signal/10 border-2 border-signal/40 flex items-center justify-center
+                              shadow-[0_0_40px_rgba(204,255,0,0.2)]">
+                <i className="fas fa-check-circle text-signal text-5xl" />
+              </div>
+              <div className="absolute inset-0 rounded-full border border-signal/20 animate-ping" />
+            </div>
+
+            {/* Text */}
+            <div className="space-y-3">
+              <h2 className="font-heavy text-3xl text-white tracking-wider">
+                {t("verify_success_title").toUpperCase()}
+              </h2>
+              <p className="font-mono text-[11px] text-gray-400 tracking-widest leading-relaxed max-w-xs">
+                {t("verify_success_subtitle")}
+              </p>
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                <span className="text-[9px] font-mono text-yellow-400/60 tracking-widest">48–72 HRS</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+              </div>
+            </div>
+
+            {/* CTA */}
+            <button
+              onClick={() => router.replace("/me")}
+              className="flex items-center gap-2 px-8 py-3 bg-signal text-black font-heavy text-sm tracking-widest rounded-xl
+                         shadow-[0_0_20px_rgba(204,255,0,0.3)] hover:shadow-[0_0_35px_rgba(204,255,0,0.5)]
+                         active:scale-95 transition-all"
+            >
+              <i className="fas fa-home text-xs" />
+              {t("verify_back_to_me")}
+            </button>
+
+            <p className="font-mono text-[8px] tracking-[0.3em] text-[#222]">
+              HKAIIFF 2026 · CREATOR CREDENTIALING
             </p>
           </div>
         )}

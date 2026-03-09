@@ -539,11 +539,29 @@ export default function MePage() {
             <img
               src={`https://api.dicebear.com/7.x/bottts/svg?seed=${dbProfile?.avatar_seed || user?.id || 'default'}`}
               alt="avatar"
-              className="w-20 h-20 bg-black rounded-full border-2 border-signal p-1"
+              className={`w-20 h-20 bg-black rounded-full border-2 p-1
+                ${dbProfile?.verification_status === 'approved'
+                  ? dbProfile?.verification_type === 'creator'
+                    ? 'border-signal shadow-[0_0_14px_rgba(204,255,0,0.35)]'
+                    : dbProfile?.verification_type === 'institution'
+                      ? 'border-[#9D00FF] shadow-[0_0_14px_rgba(157,0,255,0.35)]'
+                      : 'border-[#FFC107] shadow-[0_0_14px_rgba(255,193,7,0.35)]'
+                  : 'border-[#444]'
+                }`}
             />
-            <div className="absolute bottom-0 right-0 w-6 h-6 bg-signal rounded-full border-2 border-black flex items-center justify-center text-[10px] text-black">
-              <i className="fas fa-check" />
-            </div>
+            {dbProfile?.verification_status === 'approved' && (
+              <div
+                className={`absolute bottom-0 right-0 w-6 h-6 rounded-full border-2 border-black flex items-center justify-center text-[10px]
+                  ${dbProfile?.verification_type === 'institution'
+                    ? 'bg-[#9D00FF] text-white'
+                    : dbProfile?.verification_type === 'curator'
+                      ? 'bg-[#FFC107] text-black'
+                      : 'bg-signal text-black'
+                  }`}
+              >
+                <i className="fas fa-check text-[9px]" />
+              </div>
+            )}
           </div>
         </div>
 
@@ -556,10 +574,13 @@ export default function MePage() {
             {/* Verification Badge — only when approved */}
             {dbProfile?.verification_status === 'approved' && dbProfile.verification_type && (
               <span className={`inline-flex items-center gap-1 text-[9px] font-heavy px-2 py-0.5 rounded-full tracking-wider shrink-0
-                ${dbProfile.verification_type === 'creator' ? 'bg-signal/20 text-signal border border-signal/40' :
-                  dbProfile.verification_type === 'institution' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/40' :
-                  'bg-purple-500/20 text-purple-400 border border-purple-500/40'}`}>
-                <i className="fas fa-check-circle text-[8px]" />
+                ${dbProfile.verification_type === 'creator'
+                  ? 'bg-signal/20 text-signal border border-signal/40'
+                  : dbProfile.verification_type === 'institution'
+                    ? 'bg-[#9D00FF]/20 text-[#9D00FF] border border-[#9D00FF]/40'
+                    : 'bg-[#FFC107]/20 text-[#FFC107] border border-[#FFC107]/40'
+                }`}>
+                <i className={`fas fa-check-circle text-[8px]`} />
                 {t(`verify_badge_${dbProfile.verification_type}`)}
               </span>
             )}
@@ -567,7 +588,7 @@ export default function MePage() {
           <div className="text-[9px] text-gray-400 font-mono mb-2 tracking-wider uppercase">
             {dbProfile ? t(`role_${dbProfile?.role || 'human'}`).toUpperCase() : '...'}
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-2 flex-wrap gap-y-1">
             <button
               onClick={handleCopy}
               className="flex items-center space-x-2 bg-[#111] border border-[#333] px-3 py-1 rounded text-xs text-gray-400 hover:text-signal transition-colors"
@@ -580,55 +601,32 @@ export default function MePage() {
               </span>
               <i className="far fa-copy"></i>
             </button>
+
+            {/* ── Inline Verify Badge / Button ── */}
+            {dbProfile && (
+              dbProfile.verification_status === 'approved' ? null :
+              dbProfile.verification_status === 'pending' ? (
+                <span className="text-[9px] font-bold bg-neutral-800 text-neutral-400 border border-neutral-700 px-2 py-0.5 rounded-full ml-1">
+                  {t('verify_btn_pending')}
+                </span>
+              ) : (
+                <button
+                  onClick={() => router.push('/verification')}
+                  className="text-[9px] font-bold bg-white text-black px-2 py-0.5 rounded-full hover:bg-neutral-200 ml-1 transition-colors"
+                >
+                  {t('verify_inline_verify')}
+                </button>
+              )
+            )}
           </div>
         </div>
       </div>
 
-      {/* ── Identity Verification Banner ───────────────────────────────── */}
-      {dbProfile && dbProfile.verification_status !== 'approved' && (
-        <div className="mb-4 bg-[#0a0a0a] border border-[#2a2a2a] rounded-xl p-4">
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex-1 min-w-0">
-              <div className="text-[10px] font-mono text-gray-500 tracking-widest mb-1">
-                {t('verify_identity').toUpperCase()}
-              </div>
-              {dbProfile.verification_status === 'rejected' && dbProfile.rejection_reason && (
-                <p className="text-red-400 text-[11px] font-mono leading-relaxed mt-1">
-                  <i className="fas fa-exclamation-circle mr-1" />
-                  {dbProfile.rejection_reason}
-                </p>
-              )}
-              {dbProfile.verification_status === 'pending' && (
-                <p className="text-yellow-500/70 text-[10px] font-mono mt-0.5">
-                  <i className="fas fa-hourglass-half mr-1 animate-pulse" />
-                  {t('verify_btn_pending')}
-                </p>
-              )}
-            </div>
-
-            {/* Button */}
-            {dbProfile.verification_status === 'pending' ? (
-              <button
-                disabled
-                className="flex items-center gap-1.5 text-[10px] font-heavy tracking-widest
-                           bg-[#1a1a1a] text-gray-600 px-4 py-2 rounded-lg border border-[#2a2a2a]
-                           cursor-not-allowed opacity-60 shrink-0"
-              >
-                <i className="fas fa-hourglass-half text-[9px]" />
-                {t('verify_btn_pending')}
-              </button>
-            ) : (
-              <button
-                onClick={() => router.push('/verification')}
-                className="flex items-center gap-1.5 text-[10px] font-heavy tracking-widest
-                           bg-white text-black px-4 py-2 rounded-lg
-                           hover:bg-signal hover:text-black active:scale-95 transition-all shrink-0"
-              >
-                <i className="fas fa-id-badge text-[9px]" />
-                {dbProfile.verification_status === 'rejected' ? t('verify_btn_unverified') : t('verify_identity')}
-              </button>
-            )}
-          </div>
+      {/* ── Rejection notice (compact, no full banner) ─────────────────── */}
+      {dbProfile && dbProfile.verification_status === 'rejected' && dbProfile.rejection_reason && (
+        <div className="mb-4 bg-red-500/5 border border-red-500/20 rounded-lg px-4 py-2.5 flex items-start gap-2">
+          <i className="fas fa-exclamation-circle text-red-400 mt-0.5 text-xs shrink-0" />
+          <p className="text-red-400 text-[11px] font-mono leading-relaxed">{dbProfile.rejection_reason}</p>
         </div>
       )}
 
