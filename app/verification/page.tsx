@@ -318,14 +318,14 @@ export default function VerificationPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-void px-4 pt-24 pb-32 flex flex-col items-center">
+    <div className="min-h-screen bg-void px-4 pt-28 pb-32 flex flex-col items-center">
       <div className="w-full max-w-lg">
 
         {/* Floating Back Button */}
         {step < 4 && (
           <button
             onClick={() => (step > 1 ? setStep((step - 1) as 1 | 2 | 3 | 4) : router.back())}
-            className="fixed top-20 left-4 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 transition cursor-pointer"
+            className="fixed top-24 left-4 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-neutral-800/80 backdrop-blur-md border border-neutral-600 text-white hover:bg-neutral-700 transition cursor-pointer shadow-lg"
           >
             <i className="fas fa-chevron-left text-sm" />
           </button>
@@ -387,9 +387,9 @@ export default function VerificationPage() {
                 placeholder={lang === "zh" ? "請介紹您的創作理念、背景與風格..." : "Describe your creative vision, background and style..."}
                 className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
                            outline-none focus:border-signal focus:shadow-[0_0_10px_rgba(204,255,0,0.12)]
-                           placeholder:text-gray-700 resize-none transition-all leading-relaxed"
+                           placeholder:text-gray-600 resize-none transition-all leading-relaxed"
               />
-              <div className="text-right text-[9px] font-mono text-gray-700 mt-0.5">{form.bio.length}/500</div>
+              <div className="text-right text-[9px] font-mono text-gray-600 mt-0.5">{form.bio.length}/500</div>
             </div>
 
             {/* Tech Stack */}
@@ -405,7 +405,7 @@ export default function VerificationPage() {
                 placeholder="Sora, Midjourney, RunwayML, ComfyUI..."
                 className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
                            outline-none focus:border-signal focus:shadow-[0_0_10px_rgba(204,255,0,0.12)]
-                           placeholder:text-gray-700 transition-all"
+                           placeholder:text-gray-600 transition-all"
               />
               {form.techStack && (
                 <div className="flex flex-wrap gap-1.5 mt-2">
@@ -447,15 +447,15 @@ export default function VerificationPage() {
                           onChange={(e) => updateTeamMember(idx, "name", e.target.value)}
                           placeholder="Name"
                           className="bg-black border border-[#2a2a2a] text-white font-mono text-xs px-2.5 py-1.5 rounded
-                                     outline-none focus:border-purple-400/50 placeholder:text-gray-700 transition-all w-full"
-                        />
+                                     outline-none focus:border-purple-400/50 placeholder:text-gray-600 transition-all w-full"
+                          />
                         <input
                           type="text"
                           value={member.role}
                           onChange={(e) => updateTeamMember(idx, "role", e.target.value)}
                           placeholder="Role (e.g. Director)"
                           className="bg-black border border-[#2a2a2a] text-white font-mono text-xs px-2.5 py-1.5 rounded
-                                     outline-none focus:border-purple-400/50 placeholder:text-gray-700 transition-all w-full"
+                                     outline-none focus:border-purple-400/50 placeholder:text-gray-600 transition-all w-full"
                         />
                       </div>
                       <button
@@ -484,9 +484,9 @@ export default function VerificationPage() {
                 placeholder={lang === "zh" ? "請描述您的過往作品、獲獎經歷或重要項目..." : "Describe your past works, awards, or notable projects..."}
                 className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
                            outline-none focus:border-blue-400/50 focus:shadow-[0_0_10px_rgba(96,165,250,0.1)]
-                           placeholder:text-gray-700 resize-none transition-all leading-relaxed"
+                           placeholder:text-gray-600 resize-none transition-all leading-relaxed"
               />
-              <div className="text-right text-[9px] font-mono text-gray-700 mt-0.5">{form.portfolio.length}/600</div>
+              <div className="text-right text-[9px] font-mono text-gray-600 mt-0.5">{form.portfolio.length}/600</div>
             </div>
 
             {/* Next Button */}
@@ -629,7 +629,7 @@ export default function VerificationPage() {
           <div className="space-y-5 animate-in fade-in duration-300">
 
             <div className="text-center mb-2">
-              <p className="font-mono text-[9px] tracking-[0.5em] text-[#2a2a2a] mb-1 uppercase">
+              <p className="font-mono text-[9px] tracking-[0.5em] text-gray-500 mb-1 uppercase">
                 HKAIIFF · {lang === "zh" ? "身份認證費" : "Verification Fee"}
               </p>
               <h2 className="text-3xl font-black text-white tracking-wide">
@@ -652,7 +652,7 @@ export default function VerificationPage() {
                   style={{ background: "radial-gradient(ellipse 80% 60% at 20% 20%, rgba(99,91,255,0.10) 0%, transparent 70%)" }} />
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <div className="font-mono text-[8px] tracking-[0.4em] text-[#333] mb-1">WEB2 · FIAT</div>
+                    <div className="font-mono text-[8px] tracking-[0.4em] text-gray-500 mb-1">WEB2 · FIAT</div>
                     <StripeBadge />
                   </div>
                   <div className="w-9 h-9 rounded-xl bg-[#635BFF]/10 border border-[#635BFF]/15 flex items-center justify-center">
@@ -668,7 +668,7 @@ export default function VerificationPage() {
                 <div className="flex items-end justify-between">
                   <div>
                     <div className="font-black text-4xl text-white leading-none">${VERIFICATION_FIAT_FEE}</div>
-                    <div className="font-mono text-[9px] text-[#444] tracking-[0.3em] mt-0.5">USD · ONE-TIME</div>
+                    <div className="font-mono text-[9px] text-gray-400 tracking-[0.3em] mt-0.5">USD · ONE-TIME</div>
                   </div>
                   <span className="font-mono text-[9px] tracking-[0.3em] text-[#635BFF]/50 group-hover:text-[#635BFF]/80 transition-colors">
                     {isStripeLoading ? "REDIRECTING…" : "PAY →"}
@@ -688,41 +688,41 @@ export default function VerificationPage() {
               >
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <div className={`font-mono text-[8px] tracking-[0.4em] mb-1 ${hasEnoughAif ? "text-[#00FF41]/30" : "text-[#1a2a1a]"}`}>
+                    <div className={`font-mono text-[8px] tracking-[0.4em] mb-1 ${hasEnoughAif ? "text-[#00FF41]/30" : "text-gray-600"}`}>
                       WEB3 · ON-CHAIN
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wider border
-                        ${hasEnoughAif ? "bg-[#00FF41]/8 border-[#00FF41]/20 text-[#00FF41]" : "bg-[#0a1a0a] border-[#0a1a0a] text-[#1a2a1a]"}`}>
+                        ${hasEnoughAif ? "bg-[#00FF41]/8 border-[#00FF41]/20 text-[#00FF41]" : "bg-[#1a1a1a] border-[#333] text-gray-500"}`}>
                         AIF TOKEN
                       </span>
                       <span className={`inline-flex items-center text-[8px] font-bold px-1.5 py-0.5 rounded-full tracking-wider border
-                        ${hasEnoughAif ? "bg-signal/8 border-signal/20 text-signal" : "bg-[#1a1a00]/20 border-[#1a1a00] text-[#1a1a00]"}`}>
+                        ${hasEnoughAif ? "bg-signal/8 border-signal/20 text-signal" : "bg-[#1a1a1a] border-[#333] text-gray-500"}`}>
                         50% OFF
                       </span>
                     </div>
                   </div>
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-colors
-                    ${hasEnoughAif ? "bg-[#00FF41]/8 border border-[#00FF41]/15" : "bg-[#0a1a0a] border border-[#0a1a0a]"}`}>
+                    ${hasEnoughAif ? "bg-[#00FF41]/8 border border-[#00FF41]/15" : "bg-[#1a1a1a] border border-[#333]"}`}>
                     {isAifLoading ? (
                       <div className="w-4 h-4 rounded-full border-2 border-[#00FF41] border-t-transparent animate-spin" />
                     ) : (
-                      <i className={`fas fa-link text-sm ${hasEnoughAif ? "text-[#00FF41]/70" : "text-[#1a3a1a]"}`} />
+                      <i className={`fas fa-link text-sm ${hasEnoughAif ? "text-[#00FF41]/70" : "text-gray-600"}`} />
                     )}
                   </div>
                 </div>
                 <div className="flex items-end justify-between">
                   <div>
-                    <div className={`font-black text-4xl leading-none ${hasEnoughAif ? "text-[#00FF41]" : "text-[#0a2a0a]"}`}>
+                    <div className={`font-black text-4xl leading-none ${hasEnoughAif ? "text-[#00FF41]" : "text-gray-500"}`}>
                       {VERIFICATION_AIF_FEE}
                     </div>
-                    <div className={`font-mono text-[9px] tracking-[0.3em] mt-0.5 ${hasEnoughAif ? "text-[#00FF41]/30" : "text-[#0a2a0a]"}`}>
+                    <div className={`font-mono text-[9px] tracking-[0.3em] mt-0.5 ${hasEnoughAif ? "text-[#00FF41]/30" : "text-gray-600"}`}>
                       AIF · ON-CHAIN
                     </div>
                   </div>
                   <div className="font-mono text-[9px]">
                     {isLoadingBalance ? (
-                      <span className="text-[#1a2a1a] animate-pulse">LOADING…</span>
+                      <span className="text-gray-600 animate-pulse">LOADING…</span>
                     ) : (
                       <span className={hasEnoughAif ? "text-[#00FF41]/40" : "text-red-500/50"}>
                         BAL: {aifBalance.toLocaleString()} AIF
@@ -738,13 +738,13 @@ export default function VerificationPage() {
             <button
               onClick={() => setStep(2)}
               disabled={isAnyLoading}
-              className="w-full font-mono text-[9px] tracking-[0.4em] text-[#1e1e1e] hover:text-[#444] transition-colors
+              className="w-full font-mono text-[9px] tracking-[0.4em] text-gray-600 hover:text-gray-300 transition-colors
                          flex items-center justify-center gap-1.5 py-2 disabled:opacity-40"
             >
               ← {t("btn_back")}
             </button>
 
-            <p className="font-mono text-[8px] tracking-[0.3em] text-[#111] text-center">
+            <p className="font-mono text-[8px] tracking-[0.3em] text-gray-600 text-center">
               SECURED BY STRIPE &amp; SOLANA · HKAIIFF 2026
             </p>
           </div>
@@ -788,7 +788,7 @@ export default function VerificationPage() {
               {t("verify_back_to_me")}
             </button>
 
-            <p className="font-mono text-[8px] tracking-[0.3em] text-[#222]">
+            <p className="font-mono text-[8px] tracking-[0.3em] text-gray-600">
               HKAIIFF 2026 · CREATOR CREDENTIALING
             </p>
           </div>

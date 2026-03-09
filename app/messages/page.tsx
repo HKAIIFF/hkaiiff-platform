@@ -526,7 +526,7 @@ export default function MessagesPage() {
 
       {/* ── 底部提示 ── */}
       {!loading && filtered.length > 0 && (
-        <p className="text-center text-[9px] font-mono text-gray-700 tracking-widest mt-8 uppercase">
+        <p className="text-center text-[9px] font-mono text-gray-500 tracking-widest mt-8 uppercase">
           END OF TRANSMISSIONS — {filtered.length} RECORD{filtered.length !== 1 ? 'S' : ''}
         </p>
       )}
@@ -777,7 +777,7 @@ export default function MessagesPage() {
 
             <div className="mt-6 flex items-center gap-3">
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-              <span className="font-mono text-[8px] text-gray-700 tracking-widest uppercase">32 Global Partners</span>
+              <span className="font-mono text-[8px] text-gray-500 tracking-widest uppercase">32 Global Partners</span>
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
             </div>
           </div>

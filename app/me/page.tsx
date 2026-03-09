@@ -588,10 +588,10 @@ export default function MePage() {
           <div className="text-[9px] text-gray-400 font-mono mb-2 tracking-wider uppercase">
             {dbProfile ? t(`role_${dbProfile?.role || 'human'}`).toUpperCase() : '...'}
           </div>
-          <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+          <div className="flex items-stretch gap-2 mt-1">
             <button
               onClick={handleCopy}
-              className="flex items-center space-x-2 bg-[#111] border border-[#333] px-3 py-1 rounded text-xs text-gray-400 hover:text-signal transition-colors"
+              className="flex items-center gap-2 bg-[#111] border border-[#333] px-3 py-1.5 rounded text-xs text-gray-400 hover:text-signal transition-colors"
             >
               <i className="fa-brands fa-solana text-signal" />
               <span className="font-mono ltr-force">
@@ -602,17 +602,17 @@ export default function MePage() {
               <i className="far fa-copy"></i>
             </button>
 
-            {/* ── Inline Verify Badge / Button ── */}
+            {/* ── Inline Verify Badge / Button — 與錢包地址框等高 ── */}
             {dbProfile && (
               dbProfile.verification_status === 'approved' ? null :
               dbProfile.verification_status === 'pending' ? (
-                <span className="text-[9px] font-bold bg-neutral-800 text-neutral-400 border border-neutral-700 px-2 py-0.5 rounded-full ml-1">
+                <span className="text-[9px] font-bold bg-neutral-800 text-neutral-400 border border-neutral-700 px-3 flex items-center justify-center rounded">
                   {t('verify_btn_pending')}
                 </span>
               ) : (
                 <button
                   onClick={() => router.push('/verification')}
-                  className="text-[9px] font-bold bg-white text-black px-2 py-0.5 rounded-full hover:bg-neutral-200 ml-1 transition-colors"
+                  className="text-[10px] font-bold bg-white text-black px-3 flex items-center justify-center rounded hover:bg-neutral-200 transition-colors uppercase tracking-wider"
                 >
                   {t('verify_inline_verify')}
                 </button>
@@ -655,7 +655,7 @@ export default function MePage() {
                   }`}
               />
               <span className={`font-mono text-[8px] tracking-widest transition-colors duration-500
-                ${isRealtimeConnected ? 'text-signal/60' : 'text-gray-700'}`}>
+                ${isRealtimeConnected ? 'text-signal/60' : 'text-gray-500'}`}>
                 {isRealtimeConnected ? 'LIVE' : 'CONNECTING'}
               </span>
             </span>
@@ -773,13 +773,13 @@ export default function MePage() {
                     </div>
 
                     {/* 詳細時間 YYYYMMDD HH:mm */}
-                    <div className="text-[9px] font-mono text-gray-700 tracking-wider">
+                    <div className="text-[9px] font-mono text-gray-500 tracking-wider">
                       {film?.created_at ? formatDateTime(film.created_at) : '—'}
                     </div>
 
                     {/* 流水串號 + 一鍵複製 */}
                     <div className="flex items-center gap-1 pt-0.5">
-                      <span className="text-[9px] font-mono text-gray-700 flex-1 truncate tracking-wider">
+                      <span className="text-[9px] font-mono text-gray-500 flex-1 truncate tracking-wider">
                         #{(film?.id ?? '').slice(0, 8).toUpperCase()}
                       </span>
                       <button
@@ -1073,7 +1073,7 @@ export default function MePage() {
                     </div>
                   )}
 
-                  <div className="text-[9px] font-mono text-gray-700 text-center pt-1">
+                  <div className="text-[9px] font-mono text-gray-500 text-center pt-1">
                     SUBMITTED · {selectedFilm?.created_at
                       ? new Date(selectedFilm.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
                       : '—'}
@@ -1180,7 +1180,7 @@ export default function MePage() {
                       <i className="fas fa-plus-circle text-sm" />
                       Generate Deposit Address
                     </button>
-                    <div className="text-[9px] font-mono text-gray-700 text-center">
+                    <div className="text-[9px] font-mono text-gray-500 text-center">
                       生成專屬充值地址
                     </div>
                   </div>
@@ -1324,7 +1324,7 @@ export default function MePage() {
                     disabled={dbProfile?.verification_status === 'approved'}
                     className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-sm px-3 py-2.5 rounded-lg
                                outline-none focus:border-signal focus:shadow-[0_0_12px_rgba(204,255,0,0.15)]
-                               placeholder:text-gray-700 transition-all
+                               placeholder:text-gray-600 transition-all
                                disabled:opacity-50 disabled:cursor-not-allowed disabled:border-[#1a1a1a]"
                   />
                 </div>
@@ -1337,7 +1337,7 @@ export default function MePage() {
                     <i className="fas fa-lock text-gray-600 text-sm" />
                   </div>
                   <div className="text-[11px] font-heavy text-gray-500 tracking-widest mb-1">CREATOR PROFILE LOCKED</div>
-                  <div className="text-[10px] font-mono text-gray-700 leading-relaxed">
+                  <div className="text-[10px] font-mono text-gray-500 leading-relaxed">
                     Submit at least one film to unlock<br />advanced creator settings.
                   </div>
                 </div>
@@ -1364,9 +1364,9 @@ export default function MePage() {
                       placeholder="Describe your studio, vision, and creative process..."
                       className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
                                  outline-none focus:border-[#00F0FF] focus:shadow-[0_0_12px_rgba(0,240,255,0.12)]
-                                 placeholder:text-gray-700 resize-none transition-all leading-relaxed"
+                                 placeholder:text-gray-600 resize-none transition-all leading-relaxed"
                     />
-                    <div className="text-right text-[9px] font-mono text-gray-700 mt-0.5">
+                    <div className="text-right text-[9px] font-mono text-gray-600 mt-0.5">
                       {editAboutStudio.length}/400
                     </div>
                   </div>
@@ -1375,7 +1375,7 @@ export default function MePage() {
                   <div className="mb-5">
                     <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5">
                       <i className="fas fa-microchip mr-1 text-signal" />TECH STACK
-                      <span className="text-gray-700 ml-2 normal-case tracking-normal">comma-separated</span>
+                      <span className="text-gray-600 ml-2 normal-case tracking-normal">comma-separated</span>
                     </label>
                     <input
                       type="text"
@@ -1384,7 +1384,7 @@ export default function MePage() {
                       placeholder="Sora, Midjourney, Suno, RunwayML..."
                       className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
                                  outline-none focus:border-signal focus:shadow-[0_0_12px_rgba(204,255,0,0.15)]
-                                 placeholder:text-gray-700 transition-all"
+                                 placeholder:text-gray-600 transition-all"
                     />
                     {editTechStack && (
                       <div className="flex flex-wrap gap-1.5 mt-2">
@@ -1413,7 +1413,7 @@ export default function MePage() {
                     </div>
 
                     {editCoreTeam.length === 0 ? (
-                      <div className="border border-dashed border-[#222] rounded-lg py-4 text-center text-[10px] font-mono text-gray-700">
+                      <div className="border border-dashed border-[#222] rounded-lg py-4 text-center text-[10px] font-mono text-gray-500">
                         No team members added yet.
                       </div>
                     ) : (
@@ -1428,7 +1428,7 @@ export default function MePage() {
                                 placeholder="Name"
                                 className="bg-black border border-[#2a2a2a] text-white font-mono text-xs px-2.5 py-1.5 rounded
                                            outline-none focus:border-[#9D00FF] focus:shadow-[0_0_8px_rgba(157,0,255,0.15)]
-                                           placeholder:text-gray-700 transition-all w-full"
+                                           placeholder:text-gray-600 transition-all w-full"
                               />
                               <input
                                 type="text"
@@ -1437,7 +1437,7 @@ export default function MePage() {
                                 placeholder="Role (e.g. Director, Sound Designer)"
                                 className="bg-black border border-[#2a2a2a] text-white font-mono text-xs px-2.5 py-1.5 rounded
                                            outline-none focus:border-[#9D00FF] focus:shadow-[0_0_8px_rgba(157,0,255,0.15)]
-                                           placeholder:text-gray-700 transition-all w-full"
+                                           placeholder:text-gray-600 transition-all w-full"
                               />
                             </div>
                             <button
