@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import OSS from "ali-oss";
 
 // ─── 類型定義 ───────────────────────────────────────────────────────────────
 type Lang = "zh" | "en";
@@ -21,6 +22,8 @@ interface Film {
   feed_enabled?: boolean | null;
   feature_enabled?: boolean | null;
   users?: { email: string | null; wallet_address: string | null } | null;
+  order_number?: string | null;
+  payment_method?: string | null;
 }
 interface UserRow {
   id: string;
@@ -286,6 +289,165 @@ function DashboardModule({ t }: { t: T }) {
   );
 }
 
+// ─── 日期格式化：YYYYMMDD HH:mm ──────────────────────────────────────────────
+function fmtAdminDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  const y = d.getFullYear();
+  const mo = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const h = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${y}${mo}${day} ${h}:${mi}`;
+}
+
+// ─── 支付方式友善標籤 ─────────────────────────────────────────────────────────
+function fmtPaymentMethod(method: string | null | undefined): { label: string; cls: string } {
+  if (method === "fiat" || method === "USD")
+    return { label: "法幣 (Stripe)", cls: "text-blue-700 bg-blue-50 border-blue-200" };
+  if (method === "aif" || method === "AIF")
+    return { label: "AIF (Web3)", cls: "text-purple-700 bg-purple-50 border-purple-200" };
+  if (method === "official_waived")
+    return { label: "官方免除", cls: "text-amber-700 bg-amber-50 border-amber-200" };
+  return { label: method ?? "—", cls: "text-gray-500 bg-gray-50 border-gray-200" };
+}
+
+// ─── AdminOssUploader：拖曳上傳組件（淺色 Admin 主題）────────────────────────
+type AdminUploadState = "idle" | "uploading" | "done" | "error";
+
+interface AdminOssUploaderProps {
+  label: string;
+  accept: string;
+  hint: string;
+  maxMB: number;
+  uploadPath: string;
+  value: string;
+  onUploaded: (url: string) => void;
+  onError: (msg: string) => void;
+  resetKey?: number;
+  required?: boolean;
+}
+
+function AdminOssUploader({
+  label, accept, hint, maxMB, uploadPath, value, onUploaded, onError, resetKey, required,
+}: AdminOssUploaderProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [state, setState] = useState<AdminUploadState>(value ? "done" : "idle");
+  const [progress, setProgress] = useState(0);
+  const [fileName, setFileName] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+
+  useEffect(() => {
+    setState("idle"); setProgress(0); setFileName("");
+    if (inputRef.current) inputRef.current.value = "";
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resetKey]);
+
+  const doUpload = async (file: File) => {
+    if (file.size > maxMB * 1024 * 1024) {
+      onError(`${label} 超過限制（最大 ${maxMB}MB）`); return;
+    }
+    setFileName(file.name); setState("uploading"); setProgress(0);
+    try {
+      const stsRes = await fetch("/api/oss-sts");
+      const stsData = await stsRes.json();
+      if (stsData.error) throw new Error(stsData.error);
+      const client = new OSS({
+        region: stsData.Region || process.env.NEXT_PUBLIC_ALIYUN_REGION || "oss-ap-southeast-1",
+        accessKeyId: stsData.AccessKeyId, accessKeySecret: stsData.AccessKeySecret,
+        stsToken: stsData.SecurityToken, bucket: stsData.Bucket, secure: true,
+      });
+      const key = `${uploadPath}/${Date.now()}_${file.name}`;
+      const result = await client.multipartUpload(key, file, {
+        progress: (p: number) => setProgress(Math.round(p * 100)),
+      });
+      const url = (result.res as unknown as { requestUrls: string[] }).requestUrls[0].split("?")[0];
+      setProgress(100); setState("done"); onUploaded(url);
+    } catch (err: unknown) {
+      setState("error"); onError(`${label} 上傳失敗: ${err instanceof Error ? err.message : "Unknown"}`);
+    }
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (file) doUpload(file);
+  };
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault(); setIsDragging(false);
+    const file = e.dataTransfer.files?.[0]; if (file) doUpload(file);
+  };
+  const reset = () => {
+    setState("idle"); setProgress(0); setFileName(""); onUploaded("");
+    if (inputRef.current) inputRef.current.value = "";
+  };
+
+  return (
+    <div className="space-y-1">
+      <label className="text-xs font-semibold text-gray-700">
+        {label}{required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+
+      {state === "idle" && (
+        <div
+          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={handleDrop}
+          onClick={() => inputRef.current?.click()}
+          className={`flex items-center gap-3 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+            isDragging ? "border-blue-400 bg-blue-50" : "border-gray-200 bg-gray-50 hover:border-blue-300 hover:bg-blue-50/40"
+          }`}
+        >
+          <input ref={inputRef} type="file" accept={accept} onChange={handleChange} className="hidden" />
+          <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 shrink-0 transition-colors ${isDragging ? "text-blue-500" : "text-gray-400"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+            <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+          </svg>
+          <div>
+            <div className={`text-xs font-semibold transition-colors ${isDragging ? "text-blue-600" : "text-gray-500"}`}>
+              點擊選擇 / 拖曳上傳
+            </div>
+            <div className="text-[10px] text-gray-400 mt-0.5">{hint}</div>
+          </div>
+        </div>
+      )}
+
+      {state === "uploading" && (
+        <div className="px-4 py-3 border border-blue-200 bg-blue-50 rounded-lg">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-medium text-blue-700 truncate max-w-[80%]">{fileName}</span>
+            <span className="text-xs font-bold text-blue-600">{progress}%</span>
+          </div>
+          <div className="w-full h-1.5 bg-blue-100 rounded-full overflow-hidden">
+            <div className="h-full bg-blue-500 rounded-full transition-all duration-200" style={{ width: `${progress}%` }} />
+          </div>
+          <div className="text-[10px] text-blue-500 mt-1 animate-pulse">上傳至 Aliyun OSS 中...</div>
+        </div>
+      )}
+
+      {state === "done" && (
+        <div className="flex items-center gap-2 px-4 py-3 border border-green-200 bg-green-50 rounded-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-semibold text-green-700 truncate">{fileName || value.split("/").pop() || "已上傳"}</div>
+            <div className="text-[10px] text-green-600/70 truncate mt-0.5">{value}</div>
+          </div>
+          <button onClick={reset} className="text-xs text-gray-400 hover:text-red-500 transition-colors shrink-0 font-semibold ml-2">更換</button>
+        </div>
+      )}
+
+      {state === "error" && (
+        <div className="flex items-center gap-2 px-4 py-3 border border-red-200 bg-red-50 rounded-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-red-500 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+          </svg>
+          <span className="text-xs font-semibold text-red-600 flex-1">上傳失敗，請重試</span>
+          <button onClick={reset} className="text-xs text-gray-500 hover:text-gray-700 font-semibold">重試</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ────────────────────────────────────────────────────────────────────────────
 // 模塊二：審核與風控
 // ────────────────────────────────────────────────────────────────────────────
@@ -501,10 +663,12 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
       {/* ── Table ── */}
       <div className={`${CARD} overflow-hidden`}>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[880px]">
+          <table className="w-full min-w-[1160px]">
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                <th className="w-8 px-3 py-2.5 text-left">#</th>
+                <th className="w-[130px] px-3 py-2.5 text-left">報名時間</th>
+                <th className="w-[160px] px-3 py-2.5 text-left">流水串號</th>
+                <th className="w-[110px] px-3 py-2.5 text-left">支付方式</th>
                 <th className="px-3 py-2.5 text-left">影片與創作者</th>
                 <th className="w-[210px] px-3 py-2.5 text-left">審核資料池</th>
                 <th className="w-[180px] px-3 py-2.5 text-left">決策中心</th>
@@ -514,21 +678,54 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
             <tbody>
               {filteredFilms.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="p-8 text-center text-sm text-gray-400">
+                  <td colSpan={7} className="p-8 text-center text-sm text-gray-400">
                     {loading ? t.loading : searchQuery || statusFilter !== "all" ? "無符合條件的結果" : t.empty}
                   </td>
                 </tr>
-              ) : filteredFilms.map((film, idx) => (
+              ) : filteredFilms.map((film) => (
                 <tr key={film.id} className="border-b border-gray-100 transition-colors last:border-0 hover:bg-gray-50/60">
 
-                  {/* # */}
-                  <td className="px-3 py-3 align-top text-[11px] font-mono text-gray-400">{idx + 1}</td>
+                  {/* ── 報名時間 ── */}
+                  <td className="px-3 py-3 align-top">
+                    <span className="font-mono text-[10px] text-gray-600 whitespace-nowrap">
+                      {fmtAdminDate(film.created_at)}
+                    </span>
+                  </td>
+
+                  {/* ── 流水串號 ── */}
+                  <td className="px-3 py-3 align-top">
+                    {film.order_number ? (
+                      <div className="flex items-center gap-1">
+                        <span className="font-mono text-[10px] text-gray-700 truncate max-w-[130px]" title={film.order_number}>
+                          {film.order_number}
+                        </span>
+                        <CopyBtn text={film.order_number} label="Order ID" />
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-gray-300">—</span>
+                    )}
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span className="font-mono text-[9px] text-gray-300 truncate max-w-[130px]" title={film.id}>
+                        {film.id.slice(0, 16)}…
+                      </span>
+                      <CopyBtn text={film.id} label="Film ID" />
+                    </div>
+                  </td>
+
+                  {/* ── 支付方式 ── */}
+                  <td className="px-3 py-3 align-top">
+                    {(() => {
+                      const { label, cls } = fmtPaymentMethod(film.payment_method);
+                      return (
+                        <span className={`inline-block rounded border px-1.5 py-0.5 text-[9px] font-bold leading-tight ${cls}`}>
+                          {label}
+                        </span>
+                      );
+                    })()}
+                  </td>
 
                   {/* ── 影片與創作者 ── */}
                   <td className="px-3 py-3 align-top">
-                    <p className="mb-1 text-[10px] text-gray-400">
-                      {new Date(film.created_at).toLocaleString("zh-HK", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
-                    </p>
                     <div className="flex items-center gap-1">
                       <p className="max-w-[180px] truncate text-[12px] font-bold leading-snug text-gray-900" title={film.title ?? "-"}>
                         {film.title ?? "-"}
@@ -1492,11 +1689,16 @@ function DistOfficialTab({ pushToast }: { pushToast: (s: string, ok?: boolean) =
   const [title, setTitle] = useState("");
   const [synopsis, setSynopsis] = useState("");
   const [aiRatio, setAiRatio] = useState("");
-  const [videoUrl, setVideoUrl] = useState("");
-  const [mainVideoUrl, setMainVideoUrl] = useState("");
-  const [posterUrl, setPosterUrl] = useState("");
-  const [copyrightDocUrl, setCopyrightDocUrl] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // ── 已上傳素材 URL（由 AdminOssUploader 回填）─────────────────────────────
+  const [videoUrl, setVideoUrl] = useState("");         // 預告片
+  const [mainVideoUrl, setMainVideoUrl] = useState(""); // 正片
+  const [posterUrl, setPosterUrl] = useState("");       // 海報
+  const [copyrightDocUrl, setCopyrightDocUrl] = useState(""); // 版權文件
+
+  // resetKey 遞增後，所有 AdminOssUploader 偵測到變化會自我重置
+  const [resetKey, setResetKey] = useState(0);
 
   useEffect(() => {
     async function loadUsers() {
@@ -1517,47 +1719,41 @@ function DistOfficialTab({ pushToast }: { pushToast: (s: string, ok?: boolean) =
   }, []);
 
   function resetForm() {
-    setSelectedUserId("");
-    setTitle("");
-    setSynopsis("");
-    setAiRatio("");
-    setVideoUrl("");
-    setMainVideoUrl("");
-    setPosterUrl("");
-    setCopyrightDocUrl("");
+    setSelectedUserId(""); setTitle(""); setSynopsis(""); setAiRatio("");
+    setVideoUrl(""); setMainVideoUrl(""); setPosterUrl(""); setCopyrightDocUrl("");
+    setResetKey((k) => k + 1); // 觸發所有 Uploader 重置
   }
 
   async function handleSubmit() {
     if (!selectedUserId) { pushToast("❌ 請先選擇發行帳號", false); return; }
     if (!title.trim()) { pushToast("❌ 影片名稱為必填", false); return; }
-    if (!videoUrl.trim()) { pushToast("❌ 預告片鏈接為必填", false); return; }
+    if (!videoUrl) { pushToast("❌ 預告片檔案為必填，請先上傳", false); return; }
 
     const parsedAiRatio = aiRatio !== "" ? parseFloat(aiRatio) : null;
     if (parsedAiRatio !== null && (parsedAiRatio < 0 || parsedAiRatio > 100)) {
-      pushToast("❌ AI 含金量須介於 0 至 100 之間", false);
-      return;
+      pushToast("❌ AI 含金量須介於 0 至 100 之間", false); return;
     }
 
     setSubmitting(true);
     const payload = {
-      user_id: selectedUserId,
-      title: title.trim(),
-      synopsis: synopsis.trim() || null,
-      ai_ratio: parsedAiRatio,
-      video_url: videoUrl.trim(),
-      main_video_url: mainVideoUrl.trim() || null,
-      poster_url: posterUrl.trim() || null,
-      copyright_doc_url: copyrightDocUrl.trim() || null,
-      status: "pending",
-      payment_status: "paid",
-      payment_method: "official_waived",
-      order_number: `OFFICIAL-${Date.now().toString().slice(-6)}`,
+      user_id:           selectedUserId,
+      title:             title.trim(),
+      synopsis:          synopsis.trim() || null,
+      ai_ratio:          parsedAiRatio,
+      video_url:         videoUrl || null,
+      main_video_url:    mainVideoUrl || null,
+      poster_url:        posterUrl || null,
+      copyright_doc_url: copyrightDocUrl || null,
+      // ── 官方代發核心標記（隱藏字段自動注入）─────────────
+      status:            "pending",
+      payment_status:    "paid",
+      payment_method:    "official_waived",
+      order_number:      `OFFICIAL-${Date.now().toString().slice(-6)}`,
     };
 
     const { error } = await supabase.from("films").insert([payload]);
     setSubmitting(false);
     if (error) { pushToast(`❌ 提交失敗：${error.message}`, false); return; }
-
     pushToast("✅ 官方發行提交成功，已進入審核池");
     resetForm();
   }
@@ -1574,6 +1770,7 @@ function DistOfficialTab({ pushToast }: { pushToast: (s: string, ok?: boolean) =
           <p className="font-black text-amber-900 text-sm tracking-wide">官方代客發行 · VIP 綠色通道</p>
           <p className="text-xs text-amber-700 mt-0.5 leading-relaxed">
             此通道僅限管理員操作。選擇指定用戶並代為填報影片資料，提交後直接進入標準審核池（支付狀態自動標記為已結清）。
+            檔案將自動上傳至 <strong>Aliyun OSS</strong>，取得真實 URL 後一併寫入資料庫。
           </p>
         </div>
       </div>
@@ -1638,10 +1835,7 @@ function DistOfficialTab({ pushToast }: { pushToast: (s: string, ok?: boolean) =
             <div className="flex items-center gap-3">
               <input
                 className={`${INPUT} w-32`}
-                type="number"
-                min="0"
-                max="100"
-                step="1"
+                type="number" min="0" max="100" step="1"
                 placeholder="例：85"
                 value={aiRatio}
                 onChange={(e) => setAiRatio(e.target.value)}
@@ -1656,56 +1850,64 @@ function DistOfficialTab({ pushToast }: { pushToast: (s: string, ok?: boolean) =
         </div>
       </div>
 
-      {/* 區塊三：素材鏈接 */}
+      {/* 區塊三：素材上傳（拖曳 / 點擊 → Aliyun OSS）*/}
       <div className={`${CARD} p-5`}>
         <h3 className="text-sm font-black text-gray-900 mb-4 flex items-center gap-2">
           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black">3</span>
-          素材鏈接
+          素材上傳
+          <span className="text-[10px] font-normal text-gray-400 ml-1">檔案將即時上傳至 Aliyun OSS</span>
         </h3>
-        <div className="space-y-3">
-          <div>
-            <label className={FIELD_LABEL}>
-              預告片鏈接 (Trailer URL / video_url){REQUIRED_STAR}
-            </label>
-            <input
-              className={INPUT}
-              placeholder="https://..."
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className={FIELD_LABEL}>正片鏈接 (Main Video URL)</label>
-            <input
-              className={INPUT}
-              placeholder="https://..."
-              value={mainVideoUrl}
-              onChange={(e) => setMainVideoUrl(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className={FIELD_LABEL}>海報鏈接 (Poster URL)</label>
-            <input
-              className={INPUT}
-              placeholder="https://..."
-              value={posterUrl}
-              onChange={(e) => setPosterUrl(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className={FIELD_LABEL}>版權文件鏈接 (Copyright Doc URL)</label>
-            <input
-              className={INPUT}
-              placeholder="https://..."
-              value={copyrightDocUrl}
-              onChange={(e) => setCopyrightDocUrl(e.target.value)}
-            />
-          </div>
+        <div className="space-y-4">
+          <AdminOssUploader
+            label="預告片 (Trailer)"
+            accept="video/mp4,video/quicktime"
+            hint="MP4 / MOV · 最大 200MB"
+            maxMB={200}
+            uploadPath="official/trailers"
+            value={videoUrl}
+            onUploaded={setVideoUrl}
+            onError={(msg) => pushToast(msg, false)}
+            resetKey={resetKey}
+            required
+          />
+          <AdminOssUploader
+            label="正片 (Main Film)"
+            accept="video/mp4,video/quicktime"
+            hint="MP4 / MOV · 最大 2048MB (2GB)"
+            maxMB={2048}
+            uploadPath="official/films"
+            value={mainVideoUrl}
+            onUploaded={setMainVideoUrl}
+            onError={(msg) => pushToast(msg, false)}
+            resetKey={resetKey}
+          />
+          <AdminOssUploader
+            label="海報圖片 (Poster)"
+            accept="image/jpeg,image/png,image/webp"
+            hint="JPG / PNG / WEBP · 最大 5MB"
+            maxMB={5}
+            uploadPath="official/posters"
+            value={posterUrl}
+            onUploaded={setPosterUrl}
+            onError={(msg) => pushToast(msg, false)}
+            resetKey={resetKey}
+          />
+          <AdminOssUploader
+            label="版權文件 (Copyright Document)"
+            accept=".pdf,image/jpeg,image/png"
+            hint="PDF / JPG / PNG · 最大 20MB"
+            maxMB={20}
+            uploadPath="official/copyright"
+            value={copyrightDocUrl}
+            onUploaded={setCopyrightDocUrl}
+            onError={(msg) => pushToast(msg, false)}
+            resetKey={resetKey}
+          />
         </div>
 
-        {/* 將自動注入的系統字段說明 */}
-        <div className="mt-4 rounded-lg bg-gray-50 border border-gray-200 p-3 space-y-1">
-          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">系統自動注入字段</p>
+        {/* 系統自動注入字段說明 */}
+        <div className="mt-5 rounded-lg bg-gray-50 border border-gray-200 p-3 space-y-1">
+          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">隱藏字段 · 系統自動注入</p>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-gray-500 font-mono">
             <span>status</span><span className="text-amber-600 font-semibold">→ &quot;pending&quot;</span>
             <span>payment_status</span><span className="text-green-600 font-semibold">→ &quot;paid&quot;</span>
@@ -1729,7 +1931,12 @@ function DistOfficialTab({ pushToast }: { pushToast: (s: string, ok?: boolean) =
           disabled={submitting || usersLoading}
           className={`${BTN_PRIMARY} px-8 py-3 text-sm font-black tracking-widest disabled:opacity-50 disabled:cursor-not-allowed`}
         >
-          {submitting ? "提交中…" : "🚀 提交官方發行"}
+          {submitting ? (
+            <span className="flex items-center gap-2">
+              <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.3"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg>
+              提交中…
+            </span>
+          ) : "🚀 提交官方發行"}
         </button>
       </div>
     </div>
