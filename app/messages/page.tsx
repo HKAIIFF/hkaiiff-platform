@@ -209,39 +209,97 @@ export default function MessagesPage() {
     setReadGlobalMsgs(getLocalArray(LS_READ_KEY));
   }, []);
 
-  // ── 獲取消息 ──
+  // ── 獲取消息（via API route 服務密鑰，繞過 RLS，強制 no-store 無緩存） ──
   const fetchMessages = useCallback(async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from('messages')
-        .select('id, type, title, body, is_read, user_id, created_at')
-        .order('created_at', { ascending: false });
+      const url = user?.id
+        ? `/api/messages?userId=${encodeURIComponent(user.id)}`
+        : '/api/messages';
 
-      if (user?.id) {
-        // 全局廣播 OR 個人通知
-        query = query.or(`user_id.is.null,user_id.eq.${user.id}`);
-      } else {
-        // 未登錄：只看全局廣播
-        query = query.is('user_id', null);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('[Messages] fetch error:', error);
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) {
+        console.error('[Messages] API error:', res.status, await res.text());
         setMessages([]);
-      } else {
-        setMessages((data as DbMessage[]) ?? []);
+        return;
       }
+      const json = await res.json();
+      setMessages((json.messages as DbMessage[]) ?? []);
+    } catch (err) {
+      console.error('[Messages] fetch exception:', err);
+      setMessages([]);
     } finally {
       setLoading(false);
     }
-  }, [user?.id, showToast]);
+  }, [user?.id]); // 只依賴 user?.id
 
   useEffect(() => {
     if (ready) fetchMessages();
   }, [ready, fetchMessages]);
+
+  // ── Supabase Realtime：監聽 messages 表新增/更新，自動推送通知 ──
+  useEffect(() => {
+    if (!ready) return;
+
+    const channelName = user?.id
+      ? `messages-realtime-${user.id}`
+      : 'messages-realtime-global';
+
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        },
+        (payload) => {
+          const newMsg = payload.new as DbMessage;
+          // 只插入與當前用戶相關的消息（個人通知 或 全局廣播）
+          const isPersonal = user?.id && newMsg.user_id === user.id;
+          const isBroadcast = newMsg.user_id === null;
+          if (isPersonal || isBroadcast) {
+            setMessages((prev) => {
+              // 防止重複插入
+              if (prev.some((m) => m.id === newMsg.id)) return prev;
+              return [newMsg, ...prev];
+            });
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+        },
+        (payload) => {
+          const updated = payload.new as DbMessage;
+          setMessages((prev) =>
+            prev.map((m) => (m.id === updated.id ? { ...m, ...updated } : m))
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'messages',
+        },
+        (payload) => {
+          const deleted = payload.old as { id: string };
+          setMessages((prev) => prev.filter((m) => m.id !== deleted.id));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [ready, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 標記全部已讀 ──
   const handleMarkAllRead = async () => {
@@ -258,15 +316,14 @@ export default function MessagesPage() {
       return;
     }
 
-    // 更新個人消息的 is_read
+    // 通過 API route 批量標記個人消息已讀
     if (personalIds.length > 0 && user?.id) {
-      const { error } = await supabase
-        .from('messages')
-        .update({ is_read: true })
-        .eq('user_id', user.id)
-        .eq('is_read', false);
-
-      if (error) {
+      const res = await fetch('/api/messages', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      if (!res.ok) {
         showToast('Failed to mark messages as read', 'error');
         return;
       }
@@ -275,7 +332,7 @@ export default function MessagesPage() {
       );
     }
 
-    // 全局廣播存入 localStorage
+    // 全局廣播存入 localStorage（不觸碰數據庫）
     if (globalIds.length > 0) {
       const newReadGlobal = [...new Set([...readGlobalMsgs, ...globalIds])];
       setReadGlobalMsgs(newReadGlobal);
@@ -295,7 +352,12 @@ export default function MessagesPage() {
     } else {
       const msg = messages.find((m) => m.id === id);
       if (!msg || msg.is_read) return;
-      await supabase.from('messages').update({ is_read: true }).eq('id', id);
+      // 通過 API route 標記已讀
+      await fetch('/api/messages', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, userId: user?.id }),
+      });
       setMessages((prev) =>
         prev.map((m) => (m.id === id ? { ...m, is_read: true } : m))
       );
@@ -311,9 +373,12 @@ export default function MessagesPage() {
       setLocalArray(LS_HIDDEN_KEY, updated);
       showToast('MESSAGE HIDDEN', 'info');
     } else {
-      // 個人消息：從數據庫刪除
-      const { error } = await supabase.from('messages').delete().eq('id', id);
-      if (error) {
+      // 個人消息：通過 API route 刪除
+      if (!user?.id) return;
+      const res = await fetch(`/api/messages?id=${id}&userId=${encodeURIComponent(user.id)}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
         showToast('Failed to delete message', 'error');
         return;
       }

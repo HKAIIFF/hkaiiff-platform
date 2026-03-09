@@ -640,7 +640,14 @@ export default function MePage() {
         ) : (
           <div className="flex flex-col">
             {mySubmissions.map((film) => {
-              const isApproved = film?.status === 'approved';
+              const filmStatus: string = film?.status || 'pending';
+              const statusUI = getStatusUI(filmStatus);
+              const STATUS_LABELS: Record<string, string> = {
+                approved: 'APPROVED',
+                rejected: 'REJECTED',
+                pending: 'PENDING',
+              };
+              const statusLabel = STATUS_LABELS[filmStatus] ?? 'PENDING';
               return (
                 <div
                   key={film.id}
@@ -672,22 +679,17 @@ export default function MePage() {
                     <div className="text-[11px] text-gray-500 font-mono truncate">
                       {film?.studio || film?.core_cast || dbProfile?.display_name || '—'}
                     </div>
-                    {/* 底部：日期 + 狀態 Badge */}
+                    {/* 底部：日期 + 狀態 Badge（三狀態：pending / approved / rejected） */}
                     <div className="flex items-center justify-between mt-1">
                       <span className="text-[10px] font-mono text-gray-600">
                         {film?.created_at
                           ? new Date(film.created_at).toLocaleDateString()
                           : '—'}
                       </span>
-                      {isApproved ? (
-                        <span className="text-[#CCFF00] border border-[#CCFF00] px-2 py-0.5 rounded text-[10px] font-mono">
-                          APPROVED
-                        </span>
-                      ) : (
-                        <span className="text-yellow-500 border border-yellow-500/60 px-2 py-0.5 rounded text-[10px] font-mono">
-                          PENDING
-                        </span>
-                      )}
+                      <span className={`border px-2 py-0.5 rounded text-[10px] font-mono flex items-center gap-1 ${statusUI.color}`}>
+                        <i className={`fas ${statusUI.icon} text-[9px]`} />
+                        {statusLabel}
+                      </span>
                     </div>
                   </div>
 
