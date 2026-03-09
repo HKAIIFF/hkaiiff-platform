@@ -40,20 +40,22 @@ function formatAIF(balance: number | null): string {
 // ─── Toast ────────────────────────────────────────────────────────────────────
 function ToastContainer({ toasts }: { toasts: Toast[] }) {
   return (
-    <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[99999] flex flex-col items-center gap-2 pointer-events-none">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] flex flex-col items-center gap-2 pointer-events-none">
       {toasts.map((t) => (
         <div
           key={t.id}
-          className="pointer-events-auto flex items-center gap-3 px-6 py-3 shadow-2xl text-sm font-medium text-white"
-          style={{ background: "#111", border: "1px solid #333", animation: "toastIn 0.3s ease-out" }}
+          className={`pointer-events-auto flex items-center gap-2.5 px-5 py-2.5 rounded-full shadow-lg text-sm font-semibold border ${
+            t.type === "success"
+              ? "bg-white border-green-200 text-green-700"
+              : "bg-white border-red-200 text-red-600"
+          }`}
+          style={{ animation: "toastIn 0.25s ease-out" }}
         >
-          <span style={{ color: t.type === "success" ? "#CCFF00" : "#ef4444" }}>
-            {t.type === "success" ? "✓" : "✕"}
-          </span>
+          <span>{t.type === "success" ? "✓" : "✕"}</span>
           {t.message}
         </div>
       ))}
-      <style>{`@keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <style>{`@keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
 }
@@ -125,55 +127,51 @@ export default function UsersPage() {
   const withBalance = users.filter((u) => (u.aif_balance ?? 0) > 0).length;
 
   return (
-    <div className="p-5 space-y-4 font-mono min-h-screen bg-[#050505]">
+    <div className="p-5 space-y-4 min-h-screen bg-[#f8f9fa]">
 
       {/* ── Page Header ───────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-[#CCFF00] text-base tracking-[0.5em] font-bold">
-            碳基人類檔案
-          </h1>
-          <p className="text-[#444] text-[9px] tracking-[0.3em] mt-0.5">
-            USER DIRECTORY // CARBON-BASED LIFEFORM REGISTRY // {users.length} TOTAL
-          </p>
+          <h1 className="text-gray-900 text-base font-semibold">用戶目錄</h1>
+          <p className="text-gray-400 text-xs mt-0.5">共 {users.length} 位用戶</p>
         </div>
         <button
           onClick={fetchUsers}
           disabled={loading}
-          className="px-3 py-1.5 border border-[#333] text-[#555] text-[9px] tracking-[0.3em] hover:border-[#CCFF00]/50 hover:text-[#CCFF00] transition-colors duration-150 disabled:opacity-30"
+          className="rounded-full border border-gray-200 px-4 py-1.5 text-xs font-medium text-gray-600 hover:bg-white hover:shadow-sm transition-all disabled:opacity-40 bg-white"
         >
-          {loading ? "LOADING..." : "↺ REFRESH"}
+          {loading ? "載入中..." : "↺ 刷新"}
         </button>
       </div>
 
       {/* ── Stats Bar ─────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-3">
         {[
-          { label: "TOTAL USERS", value: users.length, color: "#CCFF00" },
-          { label: "WITH DEPOSIT ADDR", value: withDeposit, color: "#4d9fff" },
-          { label: "AIF HOLDERS", value: withBalance, color: "#00E599" },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="border border-[#1a1a1a] bg-[#080808] px-4 py-3">
-            <div className="text-[8px] tracking-[0.35em] text-[#333]">{label}</div>
-            <div className="text-lg font-bold mt-1" style={{ color }}>{value}</div>
+          { label: "用戶總數", value: users.length, cls: "text-gray-900" },
+          { label: "已分配充值地址", value: withDeposit, cls: "text-[#1a73e8]" },
+          { label: "AIF 持有者", value: withBalance, cls: "text-green-600" },
+        ].map(({ label, value, cls }) => (
+          <div key={label} className="bg-white border border-gray-200/80 rounded-2xl px-4 py-3">
+            <div className="text-xs text-gray-500">{label}</div>
+            <div className={`text-xl font-bold mt-1 ${cls}`}>{value}</div>
           </div>
         ))}
       </div>
 
       {/* ── Search ────────────────────────────────────────────────────────── */}
       <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#333] text-xs">⌕</span>
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">⌕</span>
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="SEARCH BY ID / EMAIL / WALLET / DEPOSIT ADDRESS"
-          className="w-full bg-[#080808] border border-[#1e1e1e] pl-8 pr-4 py-2 text-[10px] tracking-[0.2em] text-[#666] placeholder-[#2a2a2a] outline-none focus:border-[#CCFF00]/30 transition-colors"
+          placeholder="搜尋 ID / 郵箱 / 錢包地址 / 充值地址"
+          className="w-full bg-white border border-gray-200 rounded-full pl-10 pr-10 py-2.5 text-sm text-gray-700 placeholder-gray-300 outline-none focus:ring-2 focus:ring-[#1a73e8]/20 focus:border-[#1a73e8]/40 transition-all"
         />
         {search && (
           <button
             onClick={() => setSearch("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#444] hover:text-[#666] text-xs"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 text-xs"
           >
             ✕
           </button>
@@ -181,41 +179,35 @@ export default function UsersPage() {
       </div>
 
       {/* ── Data Table ────────────────────────────────────────────────────── */}
-      <div className="border border-[#222] overflow-x-auto">
+      <div className="bg-white border border-gray-200/80 rounded-2xl overflow-x-auto">
 
         {/* Table Header */}
         <div
-          className="grid text-[8px] tracking-[0.3em] text-[#444] bg-[#0a0a0a] border-b border-[#222]"
+          className="grid text-[10px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50/70 border-b border-gray-100"
           style={{ gridTemplateColumns: GRID, minWidth: "1090px" }}
         >
           {HEADERS.map((h) => (
-            <div key={h} className="px-3 py-2 whitespace-nowrap">{h}</div>
+            <div key={h} className="px-3 py-3 whitespace-nowrap">{h}</div>
           ))}
         </div>
 
         {/* Rows */}
         {loading ? (
-          <div
-            className="py-20 text-center text-[#333] text-[9px] tracking-[0.5em] animate-pulse"
-            style={{ minWidth: "1090px" }}
-          >
-            DECRYPTING BIOLOGICAL RECORDS...
+          <div className="py-20 text-center text-gray-400 text-sm animate-pulse" style={{ minWidth: "1090px" }}>
+            載入中...
           </div>
         ) : filtered.length === 0 ? (
-          <div
-            className="py-20 text-center"
-            style={{ minWidth: "1090px" }}
-          >
-            <div className="text-[#333] text-4xl mb-3">◎</div>
-            <div className="text-[#2a2a2a] text-[9px] tracking-[0.5em]">
-              {search ? "NO MATCHING LIFEFORMS DETECTED" : "NO CARBON-BASED LIFEFORMS FOUND"}
+          <div className="py-20 text-center" style={{ minWidth: "1090px" }}>
+            <div className="text-gray-200 text-4xl mb-2">◎</div>
+            <div className="text-gray-400 text-sm">
+              {search ? "找不到匹配的用戶" : "暫無用戶數據"}
             </div>
           </div>
         ) : (
           filtered.map((user) => (
             <div
               key={user.id}
-              className="grid border-b border-[#111] hover:bg-[#0b0b0b] transition-colors duration-100"
+              className="grid border-b border-gray-100 hover:bg-gray-50/50 transition-colors duration-100"
               style={{ gridTemplateColumns: GRID, minWidth: "1090px" }}
             >
 
@@ -226,14 +218,13 @@ export default function UsersPage() {
                   className="text-left group"
                   title={user.id}
                 >
-                  <span
-                    className="text-[9px] tracking-[0.1em] transition-colors group-hover:text-[#CCFF00]/70"
-                    style={{ color: copied === user.id ? "#CCFF00" : "#3a3a3a" }}
-                  >
+                  <span className={`text-xs font-mono transition-colors group-hover:text-[#1a73e8] ${
+                    copied === user.id ? "text-[#1a73e8]" : "text-gray-500"
+                  }`}>
                     {truncateAddr(user.id, 12, 6)}
                   </span>
                 </button>
-                <span className="text-[8px] text-[#222] tracking-[0.1em]">
+                <span className="text-[10px] text-gray-300 font-mono">
                   #{user.id.slice(0, 8).toUpperCase()}
                 </span>
               </div>
@@ -241,14 +232,14 @@ export default function UsersPage() {
               {/* ② 身份憑證 (Email / Wallet) */}
               <div className="px-3 py-3 flex flex-col justify-center gap-0.5">
                 {user.email ? (
-                  <span className="text-[10px] text-[#777] truncate max-w-[170px]" title={user.email}>
+                  <span className="text-xs text-gray-700 truncate max-w-[170px]" title={user.email}>
                     {user.email}
                   </span>
                 ) : (
-                  <span className="text-[9px] text-[#2e2e2e] tracking-[0.15em]">— NO EMAIL</span>
+                  <span className="text-xs text-gray-300">— 無郵箱</span>
                 )}
-                <span className="text-[8px] text-[#2a2a2a] tracking-[0.1em]">
-                  {user.wallet_index !== null ? `IDX: ${user.wallet_index}` : "NO INDEX"}
+                <span className="text-[10px] text-gray-400">
+                  {user.wallet_index !== null ? `IDX: ${user.wallet_index}` : ""}
                 </span>
               </div>
 
@@ -260,31 +251,27 @@ export default function UsersPage() {
                     className="group text-left"
                     title={user.wallet_address}
                   >
-                    <span
-                      className="text-[9px] tracking-[0.05em] font-mono transition-colors group-hover:text-[#4d9fff]/70"
-                      style={{ color: copied === user.wallet_address ? "#4d9fff" : "#3d3d3d" }}
-                    >
+                    <span className={`text-xs font-mono transition-colors group-hover:text-[#1a73e8] ${
+                      copied === user.wallet_address ? "text-[#1a73e8]" : "text-gray-500"
+                    }`}>
                       {truncateAddr(user.wallet_address)}
                     </span>
                   </button>
                 ) : (
-                  <span className="text-[9px] text-[#222] tracking-[0.1em]">— UNLINKED</span>
+                  <span className="text-xs text-gray-300">— 未連結</span>
                 )}
               </div>
 
               {/* ④ AIF 餘額 */}
               <div className="px-3 py-3 flex items-center">
                 <div className="flex flex-col gap-0.5">
-                  <span
-                    className="text-[11px] font-bold tracking-[0.05em]"
-                    style={{
-                      color: (user.aif_balance ?? 0) > 0 ? "#00E599" : "#2a2a2a",
-                    }}
-                  >
+                  <span className={`text-sm font-bold ${
+                    (user.aif_balance ?? 0) > 0 ? "text-green-600" : "text-gray-300"
+                  }`}>
                     {formatAIF(user.aif_balance)}
                   </span>
                   {(user.aif_balance ?? 0) > 0 && (
-                    <span className="text-[8px] text-[#1e4a33] tracking-[0.1em]">AIF</span>
+                    <span className="text-[10px] text-green-400 font-medium">AIF</span>
                   )}
                 </div>
               </div>
@@ -297,28 +284,26 @@ export default function UsersPage() {
                     className="group text-left flex items-center gap-1.5"
                     title={user.deposit_address}
                   >
-                    <span
-                      className="w-1 h-1 rounded-full flex-shrink-0"
-                      style={{ background: copied === user.deposit_address ? "#CCFF00" : "#1a4a1a" }}
-                    />
-                    <span
-                      className="text-[9px] tracking-[0.05em] font-mono transition-colors group-hover:text-[#CCFF00]/60"
-                      style={{ color: copied === user.deposit_address ? "#CCFF00" : "#3a5a3a" }}
-                    >
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                      copied === user.deposit_address ? "bg-[#1a73e8]" : "bg-green-400"
+                    }`} />
+                    <span className={`text-xs font-mono transition-colors group-hover:text-[#1a73e8] ${
+                      copied === user.deposit_address ? "text-[#1a73e8]" : "text-gray-500"
+                    }`}>
                       {truncateAddr(user.deposit_address, 8, 6)}
                     </span>
                   </button>
                 ) : (
-                  <span className="flex items-center gap-1.5 text-[9px] text-[#222] tracking-[0.15em]">
-                    <span className="w-1 h-1 rounded-full bg-[#1a1a1a] flex-shrink-0" />
-                    NOT ASSIGNED
+                  <span className="flex items-center gap-1.5 text-xs text-gray-300">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gray-200 flex-shrink-0" />
+                    未分配
                   </span>
                 )}
               </div>
 
               {/* ⑥ 接入時間 */}
               <div className="px-3 py-3 flex items-center">
-                <span className="text-[9px] text-[#444] whitespace-nowrap">
+                <span className="text-xs text-gray-500 whitespace-nowrap">
                   {user.created_at ? formatDate(user.created_at) : "—"}
                 </span>
               </div>
@@ -330,12 +315,12 @@ export default function UsersPage() {
 
       {/* ── Footer ────────────────────────────────────────────────────────── */}
       {!loading && (
-        <div className="flex items-center justify-between text-[#282828] text-[8px] tracking-[0.3em]">
-          <span>SHOWING {filtered.length} / {users.length} LIFEFORMS</span>
-          <span className="text-[#1e1e1e]">
-            DEPOSIT ASSIGNED: {withDeposit} ·
-            AIF HOLDERS: {withBalance} ·
-            NO WALLET: {users.filter((u) => !u.deposit_address).length}
+        <div className="flex items-center justify-between text-gray-400 text-xs">
+          <span>顯示 {filtered.length} / {users.length} 筆</span>
+          <span>
+            已分配地址: {withDeposit} ·
+            AIF 持有: {withBalance} ·
+            無錢包: {users.filter((u) => !u.deposit_address).length}
           </span>
         </div>
       )}

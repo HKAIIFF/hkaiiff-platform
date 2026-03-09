@@ -61,15 +61,12 @@ function getUserDisplay(film: Film): string {
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 function StatusBadge({ status }: { status: Film["status"] }) {
   const cfg = {
-    pending:  { label: "PENDING",  color: "#FFC107", bg: "rgba(255,193,7,0.08)",  border: "rgba(255,193,7,0.3)"  },
-    approved: { label: "APPROVED", color: "#00E599", bg: "rgba(0,229,153,0.08)", border: "rgba(0,229,153,0.3)" },
-    rejected: { label: "REJECTED", color: "#FF3333", bg: "rgba(255,51,51,0.08)",  border: "rgba(255,51,51,0.3)"  },
+    pending:  { label: "待審核", cls: "text-amber-700 bg-amber-50 border-amber-200" },
+    approved: { label: "已通過", cls: "text-green-700 bg-green-50 border-green-200" },
+    rejected: { label: "已駁回", cls: "text-red-600 bg-red-50 border-red-200" },
   }[status];
   return (
-    <span
-      className="px-1.5 py-0.5 text-[8px] tracking-[0.25em] border font-bold whitespace-nowrap"
-      style={{ color: cfg.color, background: cfg.bg, borderColor: cfg.border }}
-    >
+    <span className={`px-2 py-0.5 text-[10px] font-semibold border rounded-full whitespace-nowrap ${cfg.cls}`}>
       {cfg.label}
     </span>
   );
@@ -94,7 +91,7 @@ function Toggle({
     >
       <div
         className={`relative inline-flex items-center h-[14px] w-[28px] rounded-full transition-colors duration-200 ${
-          checked ? "bg-[#CCFF00]" : "bg-[#2a2a2a]"
+          checked ? "bg-[#1a73e8]" : "bg-gray-200"
         } ${disabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`}
       >
         <span
@@ -104,7 +101,7 @@ function Toggle({
         />
       </div>
       {label && (
-        <span className={`text-[8px] tracking-[0.15em] transition-colors ${checked ? "text-[#CCFF00]" : "text-[#444]"}`}>
+        <span className={`text-[8px] font-medium transition-colors ${checked ? "text-[#1a73e8]" : "text-gray-400"}`}>
           {checked ? "上架" : "下架"}
         </span>
       )}
@@ -113,41 +110,41 @@ function Toggle({
 }
 
 // ─── Asset Link ───────────────────────────────────────────────────────────────
-function AssetLink({ label, url, color = "#4d9fff" }: { label: string; url: string | null | undefined; color?: string }) {
+function AssetLink({ label, url, accent = false }: { label: string; url: string | null | undefined; accent?: boolean }) {
   if (url) {
     return (
       <a
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        className="text-[9px] tracking-[0.1em] hover:underline whitespace-nowrap"
-        style={{ color }}
+        className={`text-[10px] font-medium hover:underline whitespace-nowrap ${accent ? "text-violet-600" : "text-[#1a73e8]"}`}
       >
         ↗ {label}
       </a>
     );
   }
-  return <span className="text-[9px] text-[#2e2e2e] whitespace-nowrap">— {label}</span>;
+  return <span className="text-[10px] text-gray-300 whitespace-nowrap">— {label}</span>;
 }
 
 // ─── Toast ────────────────────────────────────────────────────────────────────
 function ToastContainer({ toasts }: { toasts: Toast[] }) {
   return (
-    <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[99999] flex flex-col items-center gap-2 pointer-events-none">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] flex flex-col items-center gap-2 pointer-events-none">
       {toasts.map((t) => (
         <div
           key={t.id}
-          className="pointer-events-auto flex items-center gap-3 px-6 py-3 rounded-full shadow-2xl text-sm font-medium text-white"
-          style={{ background: "#111", border: "1px solid #333", animation: "toastIn 0.3s ease-out" }}
+          className={`pointer-events-auto flex items-center gap-2.5 px-5 py-2.5 rounded-full shadow-lg text-sm font-semibold border ${
+            t.type === "success"
+              ? "bg-white border-green-200 text-green-700"
+              : "bg-white border-red-200 text-red-600"
+          }`}
+          style={{ animation: "toastIn 0.25s ease-out" }}
         >
-          <i
-            className={`fas ${t.type === "success" ? "fa-check-circle" : "fa-exclamation-circle"}`}
-            style={{ color: t.type === "success" ? "#CCFF00" : "#ef4444" }}
-          />
+          <span>{t.type === "success" ? "✓" : "✕"}</span>
           {t.message}
         </div>
       ))}
-      <style>{`@keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <style>{`@keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
 }
@@ -238,63 +235,60 @@ export default function FilmsReviewPage() {
   const displayed = filter === "all" ? films : films.filter((f) => f.status === filter);
 
   return (
-    <div className="p-5 space-y-4 font-mono min-h-screen bg-[#050505]">
+    <div className="p-5 space-y-4 min-h-screen bg-[#f8f9fa]">
       {/* ── Page Header ─────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-[#CCFF00] text-base tracking-[0.5em] font-bold">
-            FILMS REVIEW
-          </h1>
-          <p className="text-[#444] text-[9px] tracking-[0.3em] mt-0.5">
-            SUBMISSION QUEUE // {films.length} TOTAL
-          </p>
+          <h1 className="text-gray-900 text-base font-semibold">影片審核</h1>
+          <p className="text-gray-400 text-xs mt-0.5">共 {films.length} 部影片</p>
         </div>
         <button
           onClick={fetchFilms}
           disabled={loading}
-          className="px-3 py-1.5 border border-[#333] text-[#555] text-[9px] tracking-[0.3em] hover:border-[#CCFF00]/50 hover:text-[#CCFF00] transition-colors duration-150 disabled:opacity-30"
+          className="rounded-full border border-gray-200 px-4 py-1.5 text-xs font-medium text-gray-600 hover:bg-white hover:shadow-sm transition-all disabled:opacity-40 bg-white"
         >
-          {loading ? "LOADING..." : "↺ REFRESH"}
+          {loading ? "載入中..." : "↺ 刷新"}
         </button>
       </div>
 
       {/* ── Filter Tabs ─────────────────────────────────────────────────── */}
-      <div className="flex gap-0 border-b border-[#222]">
+      <div className="flex gap-1 border-b border-gray-100 pb-0">
         {(["all", "pending", "approved", "rejected"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFilter(f)}
-            className={`px-4 py-1.5 text-[9px] tracking-[0.3em] border-b-2 transition-all duration-150 ${
+            className={`px-4 py-2 text-xs font-medium border-b-2 -mb-px transition-colors ${
               filter === f
-                ? "border-[#CCFF00] text-[#CCFF00]"
-                : "border-transparent text-[#444] hover:text-[#666]"
+                ? "border-[#1a73e8] text-[#1a73e8]"
+                : "border-transparent text-gray-500 hover:text-gray-700"
             }`}
           >
-            {f.toUpperCase()} ({counts[f]})
+            {{ all: "全部", pending: "待審核", approved: "已通過", rejected: "已駁回" }[f]} ({counts[f]})
           </button>
         ))}
       </div>
 
       {/* ── Data Table ──────────────────────────────────────────────────── */}
-      <div className="border border-[#222] overflow-x-auto">
+      <div className="bg-white border border-gray-200/80 rounded-2xl overflow-x-auto">
         {/* Table header */}
         <div
-          className="grid text-[8px] tracking-[0.3em] text-[#444] bg-[#0a0a0a] border-b border-[#222]"
+          className="grid text-[10px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50/70 border-b border-gray-100"
           style={{ gridTemplateColumns: GRID, minWidth: "1008px" }}
         >
           {HEADERS.map((h) => (
-            <div key={h} className="px-3 py-2 whitespace-nowrap">{h}</div>
+            <div key={h} className="px-3 py-3 whitespace-nowrap">{h}</div>
           ))}
         </div>
 
         {/* Rows */}
         {loading ? (
-          <div className="py-16 text-center text-[#333] text-[9px] tracking-[0.4em] animate-pulse" style={{ minWidth: "1008px" }}>
-            LOADING DATA...
+          <div className="py-16 text-center text-gray-400 text-sm animate-pulse" style={{ minWidth: "1008px" }}>
+            載入中...
           </div>
         ) : displayed.length === 0 ? (
-          <div className="py-16 text-center text-[#333] text-[9px] tracking-[0.4em]" style={{ minWidth: "1008px" }}>
-            NO RECORDS FOUND
+          <div className="py-16 text-center" style={{ minWidth: "1008px" }}>
+            <div className="text-gray-300 text-4xl mb-2">◎</div>
+            <div className="text-gray-400 text-sm">暫無記錄</div>
           </div>
         ) : (
           displayed.map((film) => {
@@ -306,68 +300,65 @@ export default function FilmsReviewPage() {
             return (
               <div
                 key={film.id}
-                className={`grid border-b border-[#151515] hover:bg-[#0c0c0c] transition-colors duration-100 ${
+                className={`grid border-b border-gray-100 hover:bg-gray-50/50 transition-colors duration-100 ${
                   isProcessing ? "opacity-40 pointer-events-none" : ""
                 }`}
                 style={{ gridTemplateColumns: GRID, minWidth: "1008px" }}
               >
                 {/* ① 訂單 / 序列 */}
-                <div className="px-3 py-2 flex flex-col justify-center gap-0.5">
-                  <span className="text-[10px] text-[#666] truncate leading-tight">
+                <div className="px-3 py-3 flex flex-col justify-center gap-0.5">
+                  <span className="text-xs text-gray-700 truncate leading-tight">
                     {film.order_number ?? "N/A"}
                   </span>
-                  <span className="text-[9px] text-[#383838] tracking-[0.1em] leading-tight">
+                  <span className="text-[10px] text-gray-400 leading-tight font-mono">
                     #{getSequence(film.id)}
                   </span>
                 </div>
 
                 {/* ② 影片名稱 */}
-                <div className="px-3 py-2 flex flex-col justify-center gap-0.5">
-                  <span className="text-[11px] text-[#ccc] font-bold truncate leading-tight">
+                <div className="px-3 py-3 flex flex-col justify-center gap-0.5">
+                  <span className="text-xs text-gray-900 font-semibold truncate leading-tight">
                     {film.title || "—"}
                   </span>
                   {film.tech_stack && (
-                    <span className="text-[8px] text-[#3a3a3a] truncate leading-tight">
+                    <span className="text-[10px] text-gray-400 truncate leading-tight">
                       {film.tech_stack}
                     </span>
                   )}
                 </div>
 
                 {/* ③ 用戶 */}
-                <div className="px-3 py-2 flex flex-col justify-center gap-0.5">
-                  <span className="text-[10px] text-[#666] truncate leading-tight max-w-[110px]">
+                <div className="px-3 py-3 flex flex-col justify-center gap-0.5">
+                  <span className="text-xs text-gray-600 truncate leading-tight max-w-[110px]">
                     {getUserDisplay(film)}
                   </span>
                   {film.ai_ratio != null && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-[8px] text-[#CCFF00]/60">
-                        AI {Math.round(film.ai_ratio)}%
-                      </span>
-                    </div>
+                    <span className="text-[10px] text-[#1a73e8] font-medium">
+                      AI {Math.round(film.ai_ratio)}%
+                    </span>
                   )}
                 </div>
 
                 {/* ④ 報名時間 */}
-                <div className="px-3 py-2 flex items-center">
-                  <span className="text-[9px] text-[#555] whitespace-nowrap">
+                <div className="px-3 py-3 flex items-center">
+                  <span className="text-[10px] text-gray-500 whitespace-nowrap">
                     {formatDate(film.created_at)}
                   </span>
                 </div>
 
                 {/* ⑤ 資料池 */}
-                <div className="px-3 py-2 flex flex-col justify-center gap-[3px]">
-                  <AssetLink label="預告片" url={film.video_url} color="#4d9fff" />
-                  {film.main_video_url ? (
-                    <AssetLink label="正　片" url={film.main_video_url} color="#00E599" />
-                  ) : (
-                    <span className="text-[9px] text-[#2e2e2e] whitespace-nowrap">— 無正片</span>
-                  )}
-                  <AssetLink label="海　報" url={film.poster_url} color="#a78bfa" />
-                  <AssetLink label="版權文件" url={film.copyright_doc_url} color="#f59e0b" />
+                <div className="px-3 py-3 flex flex-col justify-center gap-1">
+                  <AssetLink label="預告片" url={film.video_url} />
+                  {film.main_video_url
+                    ? <AssetLink label="正　片" url={film.main_video_url} accent />
+                    : <span className="text-[10px] text-gray-300 whitespace-nowrap">— 無正片</span>
+                  }
+                  <AssetLink label="海　報" url={film.poster_url} />
+                  <AssetLink label="版權文件" url={film.copyright_doc_url} />
                 </div>
 
                 {/* ⑥ 平行宇宙 */}
-                <div className="px-3 py-2 flex items-center justify-center">
+                <div className="px-3 py-3 flex items-center justify-center">
                   <Toggle
                     checked={film.is_parallel_universe ?? false}
                     onChange={(v) => toggleField(film.id, "is_parallel_universe", v)}
@@ -376,16 +367,16 @@ export default function FilmsReviewPage() {
                 </div>
 
                 {/* ⑦ 狀態 */}
-                <div className="px-3 py-2 flex items-center">
+                <div className="px-3 py-3 flex items-center">
                   <StatusBadge status={film.status} />
                 </div>
 
                 {/* ⑧ 審核操作 */}
-                <div className="px-3 py-2 flex items-center gap-1.5">
+                <div className="px-3 py-3 flex items-center gap-1.5">
                   {film.status !== "approved" && (
                     <button
                       onClick={() => updateStatus(film.id, "approved")}
-                      className="px-2 py-1 border border-[#CCFF00]/40 text-[#CCFF00] text-[8px] tracking-[0.2em] hover:bg-[#CCFF00] hover:text-[#050505] transition-all duration-150 font-bold whitespace-nowrap"
+                      className="px-2.5 py-1 rounded-full bg-green-50 border border-green-200 text-green-700 text-[10px] font-semibold hover:bg-green-100 transition-colors whitespace-nowrap"
                     >
                       通過
                     </button>
@@ -393,18 +384,18 @@ export default function FilmsReviewPage() {
                   {film.status !== "rejected" && (
                     <button
                       onClick={() => updateStatus(film.id, "rejected")}
-                      className="px-2 py-1 border border-[#FF3333]/40 text-[#FF3333] text-[8px] tracking-[0.2em] hover:bg-[#FF3333] hover:text-white transition-all duration-150 font-bold whitespace-nowrap"
+                      className="px-2.5 py-1 rounded-full bg-red-50 border border-red-200 text-red-600 text-[10px] font-semibold hover:bg-red-100 transition-colors whitespace-nowrap"
                     >
                       拒絕
                     </button>
                   )}
                   {film.status === "approved" && (
-                    <span className="text-[8px] text-[#1a3a1a]">— LOCKED</span>
+                    <span className="text-[10px] text-gray-300">已鎖定</span>
                   )}
                 </div>
 
                 {/* ⑨ Feed 管理 */}
-                <div className="px-3 py-2 flex items-center justify-center">
+                <div className="px-3 py-3 flex items-center justify-center">
                   <Toggle
                     checked={film.is_feed_published ?? false}
                     onChange={(v) => toggleField(film.id, "is_feed_published", v)}
@@ -413,7 +404,7 @@ export default function FilmsReviewPage() {
                 </div>
 
                 {/* ⑩ 正片管理 */}
-                <div className="px-3 py-2 flex items-center justify-center">
+                <div className="px-3 py-3 flex items-center justify-center">
                   <Toggle
                     checked={film.is_main_published ?? false}
                     onChange={(v) => toggleField(film.id, "is_main_published", v)}
@@ -428,12 +419,12 @@ export default function FilmsReviewPage() {
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       {!loading && (
-        <div className="flex items-center justify-between text-[#2a2a2a] text-[8px] tracking-[0.3em]">
-          <span>SHOWING {displayed.length} / {films.length} RECORDS</span>
-          <span className="text-[#1e1e1e]">
-            FEED: {films.filter((f) => f.is_feed_published).length} ·
-            MAIN: {films.filter((f) => f.is_main_published).length} ·
-            PARALLEL: {films.filter((f) => f.is_parallel_universe).length}
+        <div className="flex items-center justify-between text-gray-400 text-xs">
+          <span>顯示 {displayed.length} / {films.length} 筆記錄</span>
+          <span>
+            Feed: {films.filter((f) => f.is_feed_published).length} ·
+            正片: {films.filter((f) => f.is_main_published).length} ·
+            平行宇宙: {films.filter((f) => f.is_parallel_universe).length}
           </span>
         </div>
       )}

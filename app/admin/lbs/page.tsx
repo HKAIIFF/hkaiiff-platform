@@ -56,15 +56,12 @@ function formatDate(iso: string | null) {
 function StatusBadge({ status }: { status: string | null }) {
   const cfg =
     status === "active"
-      ? { label: "ACTIVE",   color: "#00E599", bg: "rgba(0,229,153,0.08)",  border: "rgba(0,229,153,0.3)"  }
+      ? { label: "運行中", cls: "text-green-700 bg-green-50 border-green-200" }
       : status === "offline"
-      ? { label: "OFFLINE",  color: "#FF3333", bg: "rgba(255,51,51,0.08)",  border: "rgba(255,51,51,0.3)"  }
-      : { label: "STANDBY",  color: "#FFC107", bg: "rgba(255,193,7,0.08)",  border: "rgba(255,193,7,0.3)"  };
+      ? { label: "已下線", cls: "text-red-600 bg-red-50 border-red-200" }
+      : { label: "待機", cls: "text-amber-700 bg-amber-50 border-amber-200" };
   return (
-    <span
-      className="px-1.5 py-0.5 text-[8px] tracking-[0.25em] border font-bold whitespace-nowrap"
-      style={{ color: cfg.color, background: cfg.bg, borderColor: cfg.border }}
-    >
+    <span className={`px-2 py-0.5 text-[10px] font-semibold border rounded-full whitespace-nowrap ${cfg.cls}`}>
       {cfg.label}
     </span>
   );
@@ -73,20 +70,22 @@ function StatusBadge({ status }: { status: string | null }) {
 // ─── Toast ────────────────────────────────────────────────────────────────────
 function ToastContainer({ toasts }: { toasts: Toast[] }) {
   return (
-    <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[99999] flex flex-col items-center gap-2 pointer-events-none">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] flex flex-col items-center gap-2 pointer-events-none">
       {toasts.map((t) => (
         <div
           key={t.id}
-          className="pointer-events-auto flex items-center gap-3 px-6 py-3 shadow-2xl text-sm font-medium text-white"
-          style={{ background: "#111", border: "1px solid #333", animation: "toastIn 0.3s ease-out" }}
+          className={`pointer-events-auto flex items-center gap-2.5 px-5 py-2.5 rounded-full shadow-lg text-sm font-semibold border ${
+            t.type === "success"
+              ? "bg-white border-green-200 text-green-700"
+              : "bg-white border-red-200 text-red-600"
+          }`}
+          style={{ animation: "toastIn 0.25s ease-out" }}
         >
-          <span style={{ color: t.type === "success" ? "#CCFF00" : "#ef4444" }}>
-            {t.type === "success" ? "✓" : "✕"}
-          </span>
+          <span>{t.type === "success" ? "✓" : "✕"}</span>
           {t.message}
         </div>
       ))}
-      <style>{`@keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <style>{`@keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
 }
@@ -100,8 +99,8 @@ function Field({
 }) {
   return (
     <div className="space-y-1">
-      <label className="text-[8px] font-mono tracking-[0.3em] text-[#444] flex items-center gap-1.5">
-        {disabled && <span className="text-[7px] text-[#333] border border-[#2a2a2a] px-1 py-0.5 tracking-wider">LOCKED</span>}
+      <label className="text-xs font-medium text-gray-500 flex items-center gap-1.5">
+        {disabled && <span className="text-[10px] text-gray-400 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded">鎖定</span>}
         {label}
       </label>
       <input
@@ -110,11 +109,11 @@ function Field({
         onChange={onChange ? (e) => onChange(e.target.value) : undefined}
         disabled={disabled}
         placeholder={placeholder}
-        className={`w-full px-3 py-2 text-[11px] font-mono outline-none transition-colors
-          ${disabled
-            ? "bg-[#0a0a0a] border border-[#1a1a1a] text-[#2a2a2a] cursor-not-allowed"
-            : "bg-[#0d0d0d] border border-[#2a2a2a] text-[#ccc] focus:border-[#CCFF00]/40"
-          }`}
+        className={`w-full px-3 py-2 text-sm rounded-lg outline-none transition-colors border ${
+          disabled
+            ? "bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed"
+            : "bg-white border-gray-200 text-gray-900 focus:ring-2 focus:ring-[#1a73e8]/20 focus:border-[#1a73e8]/40"
+        }`}
       />
     </div>
   );
@@ -181,119 +180,114 @@ function EditModal({
 
   return (
     <div
-      className="fixed inset-0 z-[200] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-[200] bg-gray-900/20 backdrop-blur-sm flex items-center justify-center p-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="relative w-full max-w-lg bg-[#080808] border border-[#2a2a2a] overflow-hidden shadow-2xl max-h-[92vh] flex flex-col">
-        {/* Top accent */}
-        <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-[#CCFF00]/60 via-[#CCFF00]/20 to-transparent" />
-
+      <div className="relative w-full max-w-lg bg-white border border-gray-200/80 rounded-2xl overflow-hidden shadow-xl max-h-[92vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#1a1a1a] flex-shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
           <div>
-            <div className="text-[#CCFF00] text-xs tracking-[0.5em] font-bold">EDIT LBS NODE</div>
-            <div className="text-[#333] text-[9px] tracking-[0.3em] mt-0.5 font-mono">
-              #{node.id.slice(0, 12).toUpperCase()} · GEO FIELDS LOCKED
-            </div>
+            <p className="text-gray-900 font-semibold text-sm">編輯 LBS 節點</p>
+            <p className="text-gray-400 text-xs mt-0.5">#{node.id.slice(0, 12).toUpperCase()} · 地理欄位已鎖定</p>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 border border-[#222] text-[#444] hover:text-[#CCFF00] hover:border-[#CCFF00]/40 transition-colors flex items-center justify-center text-sm"
+            className="w-8 h-8 rounded-full border border-gray-200 text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-center text-sm"
           >
             ✕
           </button>
         </div>
 
         {/* Scrollable body */}
-        <div className="overflow-y-auto flex-1 px-5 py-5 space-y-4">
+        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
 
           {/* ── Locked geo section ───────────────────────────────────────── */}
-          <div className="border border-[#FF3333]/20 bg-[#FF3333]/5 px-4 py-3 space-y-3">
-            <div className="text-[8px] font-mono tracking-[0.4em] text-[#FF3333]/60 flex items-center gap-2">
-              <span>⊘</span> GEO-VERIFICATION FIELDS — READ ONLY
+          <div className="border border-red-100 bg-red-50/50 px-4 py-3 rounded-xl space-y-3">
+            <div className="text-xs font-medium text-red-400 flex items-center gap-1.5">
+              <span>⊘</span> 地理核驗欄位 — 唯讀
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="LATITUDE"  value={String(node.lat  ?? "")} disabled />
-              <Field label="LONGITUDE" value={String(node.lng  ?? "")} disabled />
+              <Field label="緯度"  value={String(node.lat  ?? "")} disabled />
+              <Field label="經度" value={String(node.lng  ?? "")} disabled />
             </div>
-            <Field label="ADDRESS / LOCATION" value={node.location ?? ""} disabled />
-            <Field label="UNLOCK RADIUS (m)"  value={String(node.radius ?? "")} disabled />
+            <Field label="地址" value={node.location ?? ""} disabled />
+            <Field label="解鎖半徑 (m)"  value={String(node.radius ?? "")} disabled />
           </div>
 
           {/* ── Editable fields ──────────────────────────────────────────── */}
-          <Field label="NODE TITLE *" value={form.title} onChange={set("title")} placeholder="HKAIIFF ── Central Screening" />
+          <Field label="節點名稱 *" value={form.title} onChange={set("title")} placeholder="HKAIIFF ── Central Screening" />
 
           <div className="grid grid-cols-3 gap-3">
-            <Field label="COUNTRY"  value={form.country ?? ""} onChange={set("country")} placeholder="HK" />
-            <Field label="CITY"     value={form.city    ?? ""} onChange={set("city")}    placeholder="Central" />
-            <Field label="VENUE"    value={form.venue   ?? ""} onChange={set("venue")}   placeholder="Palace Cinema" />
+            <Field label="國家"  value={form.country ?? ""} onChange={set("country")} placeholder="HK" />
+            <Field label="城市"     value={form.city    ?? ""} onChange={set("city")}    placeholder="Central" />
+            <Field label="場地"    value={form.venue   ?? ""} onChange={set("venue")}   placeholder="Palace Cinema" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="START TIME" value={form.start_time ?? ""} onChange={set("start_time")} type="datetime-local" />
-            <Field label="END TIME"   value={form.end_time   ?? ""} onChange={set("end_time")}   type="datetime-local" />
+            <Field label="開始時間" value={form.start_time ?? ""} onChange={set("start_time")} type="datetime-local" />
+            <Field label="結束時間"   value={form.end_time   ?? ""} onChange={set("end_time")}   type="datetime-local" />
           </div>
 
           <div className="space-y-1">
-            <label className="text-[8px] font-mono tracking-[0.3em] text-[#444]">STATUS</label>
+            <label className="text-xs font-medium text-gray-500">狀態</label>
             <select
               value={form.status ?? "standby"}
               onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
-              className="w-full px-3 py-2 text-[11px] font-mono bg-[#0d0d0d] border border-[#2a2a2a] text-[#ccc] outline-none focus:border-[#CCFF00]/40"
+              className="w-full px-3 py-2 text-sm rounded-lg bg-white border border-gray-200 text-gray-900 outline-none focus:ring-2 focus:ring-[#1a73e8]/20 focus:border-[#1a73e8]/40"
             >
-              <option value="active">ACTIVE</option>
-              <option value="standby">STANDBY</option>
-              <option value="offline">OFFLINE</option>
+              <option value="active">運行中</option>
+              <option value="standby">待機</option>
+              <option value="offline">已下線</option>
             </select>
           </div>
 
-          <Field label="CONTRACT POLICY" value={form.contract_req ?? ""} onChange={set("contract_req")} placeholder="Standard · Public Screening License" />
-          <Field label="TICKET PRICE (AIF)" value={String(form.ticket_price_aif ?? "")} onChange={set("ticket_price_aif")} type="number" placeholder="0" />
+          <Field label="合約策略" value={form.contract_req ?? ""} onChange={set("contract_req")} placeholder="Standard · Public Screening License" />
+          <Field label="門票費用 (AIF)" value={String(form.ticket_price_aif ?? "")} onChange={set("ticket_price_aif")} type="number" placeholder="0" />
 
           {/* Background Image */}
           <div className="space-y-2">
-            <Field label="BACKGROUND IMAGE URL" value={form.background_url ?? ""} onChange={set("background_url")} placeholder="https://..." />
+            <Field label="背景圖片 URL" value={form.background_url ?? ""} onChange={set("background_url")} placeholder="https://..." />
             {form.background_url && (
               <div
-                className="w-full h-24 border border-[#2a2a2a] bg-cover bg-center relative overflow-hidden"
+                className="w-full h-24 border border-gray-200 rounded-xl bg-cover bg-center relative overflow-hidden"
                 style={{ backgroundImage: `url(${form.background_url})` }}
               >
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                  <span className="text-[8px] font-mono text-white/50 tracking-[0.3em]">BACKGROUND PREVIEW</span>
+                <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                  <span className="text-xs text-white/70">背景預覽</span>
                 </div>
               </div>
             )}
           </div>
 
-          <Field label="POSTER IMAGE URL" value={form.poster_url ?? ""} onChange={set("poster_url")} placeholder="https://..." />
+          <Field label="海報 URL" value={form.poster_url ?? ""} onChange={set("poster_url")} placeholder="https://..." />
 
           <div className="space-y-1">
-            <label className="text-[8px] font-mono tracking-[0.3em] text-[#444]">DESCRIPTION</label>
+            <label className="text-xs font-medium text-gray-500">節點描述</label>
             <textarea
               value={form.description ?? ""}
               onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
               rows={3}
-              placeholder="Node description..."
-              className="w-full px-3 py-2 text-[11px] font-mono bg-[#0d0d0d] border border-[#2a2a2a] text-[#ccc] outline-none focus:border-[#CCFF00]/40 resize-none"
+              placeholder="節點說明..."
+              className="w-full px-3 py-2 text-sm rounded-lg bg-white border border-gray-200 text-gray-900 outline-none focus:ring-2 focus:ring-[#1a73e8]/20 focus:border-[#1a73e8]/40 resize-none"
             />
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex items-center gap-3 px-5 py-4 border-t border-[#1a1a1a] flex-shrink-0 bg-[#050505]">
+        <div className="flex items-center gap-3 px-6 py-4 border-t border-gray-100 flex-shrink-0">
           <button
             onClick={onClose}
             disabled={saving}
-            className="flex-1 py-2.5 border border-[#222] text-[#444] text-[10px] tracking-[0.4em] font-mono hover:border-[#CCFF00]/30 hover:text-[#CCFF00] transition-colors disabled:opacity-30"
+            className="flex-1 py-2.5 rounded-full border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors disabled:opacity-40"
           >
-            CANCEL
+            取消
           </button>
           <button
             onClick={handleSave}
             disabled={saving || !form.title.trim()}
-            className="flex-[2] py-2.5 bg-[#CCFF00] text-black text-[10px] tracking-[0.4em] font-bold hover:bg-[#BBEE00] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex-[2] py-2.5 rounded-full bg-[#1a73e8] text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {saving ? "SAVING..." : "SAVE NODE"}
+            {saving ? "儲存中..." : "儲存節點"}
           </button>
         </div>
       </div>
@@ -312,7 +306,7 @@ function NodeCard({
   const hasBg = Boolean(node.background_url);
 
   return (
-    <div className="relative border border-[#1a1a1a] overflow-hidden group">
+    <div className="relative bg-white border border-gray-200/80 rounded-2xl overflow-hidden group">
       {/* Background image layer */}
       {hasBg && (
         <div
@@ -321,46 +315,49 @@ function NodeCard({
         />
       )}
       {/* Overlay */}
-      <div className={`absolute inset-0 ${hasBg ? "bg-black/65 group-hover:bg-black/55" : "bg-[#0a0a0a]"} transition-colors`} />
+      <div className={`absolute inset-0 ${hasBg ? "bg-black/60 group-hover:bg-black/50" : "bg-transparent"} transition-colors`} />
 
       {/* Content */}
-      <div className="relative z-10 p-4">
+      <div className="relative z-10 p-5">
         {/* Top row: status + edit button */}
         <div className="flex items-start justify-between gap-2 mb-3">
           <StatusBadge status={node.status} />
           <button
             onClick={() => onEdit(node)}
-            className="text-[9px] font-mono tracking-[0.3em] border border-[#CCFF00]/40 text-[#CCFF00] px-3 py-1
-                       hover:bg-[#CCFF00] hover:text-black transition-all duration-150 flex-shrink-0"
+            className={`text-xs font-semibold px-3 py-1 rounded-full border transition-all flex-shrink-0 ${
+              hasBg
+                ? "border-white/40 text-white hover:bg-white/20"
+                : "border-[#1a73e8]/30 text-[#1a73e8] hover:bg-[#1a73e8]/10"
+            }`}
           >
-            EDIT
+            編輯
           </button>
         </div>
 
         {/* Title */}
-        <div className="text-[13px] font-bold text-white tracking-wide mb-1 leading-tight">
-          {node.title || "UNTITLED NODE"}
-        </div>
+        <p className={`text-sm font-bold mb-1 leading-tight ${hasBg ? "text-white" : "text-gray-900"}`}>
+          {node.title || "未命名節點"}
+        </p>
 
         {/* Location */}
         {(node.venue || node.city || node.country) && (
-          <div className="text-[9px] font-mono text-[#CCFF00]/70 mb-2 tracking-wider">
+          <p className={`text-xs mb-2 ${hasBg ? "text-white/70" : "text-[#1a73e8]"}`}>
             {[node.venue, node.city, node.country].filter(Boolean).join(" · ")}
-          </div>
+          </p>
         )}
 
         {/* GPS */}
-        <div className="text-[9px] font-mono text-[#333] mb-3">
+        <p className={`text-[10px] font-mono mb-3 ${hasBg ? "text-white/40" : "text-gray-400"}`}>
           GPS: {node.lat ?? "—"}, {node.lng ?? "—"}
-          {node.radius && <span className="ml-2 text-[#2a2a2a]">R:{node.radius}m</span>}
-        </div>
+          {node.radius && <span className="ml-2">R:{node.radius}m</span>}
+        </p>
 
         {/* Film count */}
-        <div className="flex items-center justify-between border-t border-[#1a1a1a] pt-2 mt-2">
-          <span className="text-[9px] font-mono text-[#333]">
-            {(node.film_ids ?? []).length} FILMS LINKED
+        <div className={`flex items-center justify-between border-t pt-2 mt-2 ${hasBg ? "border-white/10" : "border-gray-100"}`}>
+          <span className={`text-[10px] ${hasBg ? "text-white/50" : "text-gray-400"}`}>
+            {(node.film_ids ?? []).length} 部影片
           </span>
-          <span className="text-[9px] font-mono text-[#2a2a2a]">
+          <span className={`text-[10px] ${hasBg ? "text-white/40" : "text-gray-400"}`}>
             {formatDate(node.start_time)}
           </span>
         </div>
@@ -418,67 +415,63 @@ export default function LBSNodesPage() {
   const offlineCount = nodes.filter((n) => n.status === "offline").length;
 
   return (
-    <div className="p-5 space-y-4 font-mono min-h-screen bg-[#050505]">
+    <div className="p-5 space-y-4 min-h-screen bg-[#f8f9fa]">
 
       {/* ── Page Header ─────────────────────────────────────────────────── */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-[#CCFF00] text-base tracking-[0.5em] font-bold">
-            LBS NODES
-          </h1>
-          <p className="text-[#444] text-[9px] tracking-[0.3em] mt-0.5">
-            GEO-VERIFICATION NETWORK // OFFICIAL LBS CINEMA GRID // {nodes.length} NODES
-          </p>
+          <h1 className="text-gray-900 text-base font-semibold">LBS 節點管理</h1>
+          <p className="text-gray-400 text-xs mt-0.5">共 {nodes.length} 個節點</p>
         </div>
         <button
           onClick={fetchNodes}
           disabled={loading}
-          className="px-3 py-1.5 border border-[#333] text-[#555] text-[9px] tracking-[0.3em] hover:border-[#CCFF00]/50 hover:text-[#CCFF00] transition-colors disabled:opacity-30"
+          className="rounded-full border border-gray-200 px-4 py-1.5 text-xs font-medium text-gray-600 hover:bg-white hover:shadow-sm transition-all disabled:opacity-40 bg-white"
         >
-          {loading ? "LOADING..." : "↺ REFRESH"}
+          {loading ? "載入中..." : "↺ 刷新"}
         </button>
       </div>
 
       {/* ── Stats Bar ─────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: "TOTAL NODES", value: nodes.length, color: "#CCFF00" },
-          { label: "ACTIVE",      value: activeCount,  color: "#00E599" },
-          { label: "STANDBY",     value: standbyCount, color: "#FFC107" },
-          { label: "OFFLINE",     value: offlineCount, color: "#FF3333" },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="border border-[#1a1a1a] bg-[#080808] px-4 py-3">
-            <div className="text-[8px] tracking-[0.35em] text-[#333]">{label}</div>
-            <div className="text-lg font-bold mt-1" style={{ color }}>{value}</div>
+          { label: "節點總數", value: nodes.length, cls: "text-gray-900" },
+          { label: "運行中", value: activeCount,  cls: "text-green-600" },
+          { label: "待機",   value: standbyCount, cls: "text-amber-600" },
+          { label: "已下線", value: offlineCount, cls: "text-red-500" },
+        ].map(({ label, value, cls }) => (
+          <div key={label} className="bg-white border border-gray-200/80 rounded-2xl px-4 py-3">
+            <div className="text-xs text-gray-500">{label}</div>
+            <div className={`text-xl font-bold mt-1 ${cls}`}>{value}</div>
           </div>
         ))}
       </div>
 
       {/* ── Search ──────────────────────────────────────────────────────── */}
       <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#333] text-xs">⌕</span>
+        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">⌕</span>
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="SEARCH BY TITLE / CITY / VENUE"
-          className="w-full bg-[#080808] border border-[#1e1e1e] pl-8 pr-4 py-2 text-[10px] tracking-[0.2em] text-[#666] placeholder-[#2a2a2a] outline-none focus:border-[#CCFF00]/30 transition-colors"
+          placeholder="搜尋節點名稱 / 城市 / 場地"
+          className="w-full bg-white border border-gray-200 rounded-full pl-10 pr-4 py-2.5 text-sm text-gray-700 placeholder-gray-300 outline-none focus:ring-2 focus:ring-[#1a73e8]/20 focus:border-[#1a73e8]/40 transition-all"
         />
       </div>
 
       {/* ── Node Grid ───────────────────────────────────────────────────── */}
       {loading ? (
-        <div className="py-20 text-center text-[#333] text-[9px] tracking-[0.5em] animate-pulse">
-          LOADING GEO-NODES...
+        <div className="py-20 text-center text-gray-400 text-sm animate-pulse">
+          載入中...
         </div>
       ) : filtered.length === 0 ? (
-        <div className="py-20 text-center border border-[#1a1a1a]">
-          <div className="text-[#333] text-4xl mb-3">◈</div>
-          <div className="text-[#2a2a2a] text-[9px] tracking-[0.5em]">
-            {search ? "NO MATCHING NODES" : "NO LBS NODES DEPLOYED"}
+        <div className="py-20 text-center bg-white border border-gray-200/80 rounded-2xl">
+          <div className="text-gray-200 text-4xl mb-2">◈</div>
+          <div className="text-gray-400 text-sm">
+            {search ? "找不到匹配節點" : "暫無 LBS 節點"}
           </div>
-          <div className="text-[#1a1a1a] text-[8px] tracking-[0.3em] mt-1">
-            CREATE NODES VIA THE MAIN ADMIN DASHBOARD
+          <div className="text-gray-300 text-xs mt-1">
+            請在主控台中創建節點
           </div>
         </div>
       ) : (
@@ -491,9 +484,9 @@ export default function LBSNodesPage() {
 
       {/* ── Footer ──────────────────────────────────────────────────────── */}
       {!loading && filtered.length > 0 && (
-        <div className="text-[#282828] text-[8px] tracking-[0.3em] flex justify-between">
-          <span>SHOWING {filtered.length} / {nodes.length} NODES</span>
-          <span>CLICK EDIT TO MODIFY NODE METADATA · GEO FIELDS ARE IMMUTABLE</span>
+        <div className="text-gray-400 text-xs flex justify-between">
+          <span>顯示 {filtered.length} / {nodes.length} 個節點</span>
+          <span>點擊「編輯」修改節點資訊 · 地理欄位不可變更</span>
         </div>
       )}
 

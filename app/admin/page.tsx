@@ -172,13 +172,13 @@ const DICT = {
 type T = (typeof DICT)[Lang];
 
 // ─── 公共樣式常量 ─────────────────────────────────────────────────────────────
-const CARD = "bg-white border border-gray-200 rounded-xl shadow-sm";
-const INPUT = "w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30";
-const BTN_BASE = "rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors";
-const BTN_PRIMARY = `${BTN_BASE} bg-blue-600 text-white hover:bg-blue-700`;
-const BTN_DANGER = `${BTN_BASE} bg-red-600 text-white hover:bg-red-700`;
-const BTN_GHOST = `${BTN_BASE} border border-gray-200 text-gray-700 hover:bg-gray-50`;
-const BTN_SM = "rounded-md px-2 py-1 text-xs font-semibold transition-colors";
+const CARD = "bg-white border border-gray-200/80 rounded-2xl";
+const INPUT = "w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/20";
+const BTN_BASE = "rounded-full px-4 py-1.5 text-sm font-semibold transition-all";
+const BTN_PRIMARY = `${BTN_BASE} bg-[#1a73e8] text-white hover:opacity-90`;
+const BTN_DANGER = `${BTN_BASE} bg-red-500 text-white hover:opacity-90`;
+const BTN_GHOST = `${BTN_BASE} border border-gray-200 text-gray-600 hover:bg-gray-50`;
+const BTN_SM = "rounded-full px-3 py-1 text-xs font-semibold transition-all";
 
 // ─── Toast 堆疊 ──────────────────────────────────────────────────────────────
 function ToastStack({ items }: { items: ToastItem[] }) {
@@ -2788,10 +2788,10 @@ export default function AdminPage() {
               <div key={m.id}>
                 {/* 一級菜單按鈕 */}
                 <button
-                  className={`w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors mb-0.5 ${
+                  className={`w-full flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors mb-0.5 ${
                     isActive
-                      ? "bg-blue-50 text-blue-700 border border-blue-200"
-                      : "text-gray-700 hover:bg-gray-100 border border-transparent"
+                      ? "bg-[#1a73e8]/8 text-[#1a73e8] font-semibold"
+                      : "text-gray-600 hover:bg-gray-100 font-medium"
                   }`}
                   onClick={() => handleModuleClick(m)}
                 >
@@ -2806,15 +2806,17 @@ export default function AdminPage() {
 
                 {/* 二級子菜單（展開） */}
                 {m.sub.length > 0 && isModuleOpen && (
-                  <div className="ml-4 mb-1 space-y-0.5 border-l-2 border-blue-100 pl-3">
+                  <div className="ml-4 mb-1 space-y-0.5 border-l border-gray-100 pl-3">
                     {m.sub.map((s) => {
                       const subLabel = lang === "zh" ? s.zh : s.en;
                       const subActive = activeSubMenu === s.id;
                       return (
                         <button
                           key={s.id}
-                          className={`w-full text-left rounded-lg px-2.5 py-2 text-xs font-medium transition-colors ${
-                            subActive ? "bg-blue-600 text-white" : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                          className={`w-full text-left rounded-lg px-2.5 py-2 text-xs transition-colors ${
+                            subActive
+                              ? "bg-[#1a73e8]/10 text-[#1a73e8] font-semibold"
+                              : "text-gray-500 hover:bg-gray-100 hover:text-gray-800 font-medium"
                           }`}
                           onClick={() => handleSubMenuClick(s.id)}
                         >
@@ -2830,17 +2832,20 @@ export default function AdminPage() {
         </nav>
 
         {/* 管理員卡片 + 退出 */}
-        <div className="mt-auto border-t border-gray-200 p-4 space-y-3 shrink-0">
-          <div className="rounded-xl bg-gray-50 border border-gray-200 px-3 py-3">
-            <p className="text-xs text-gray-400 font-medium">ADMIN</p>
-            <p className="text-sm font-semibold text-gray-900 truncate mt-0.5">{userShort}</p>
+        <div className="mt-auto border-t border-gray-100 p-4 space-y-3 shrink-0">
+          <div className="rounded-xl bg-gray-50 px-3 py-3">
+            <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Admin</p>
+            <p className="text-sm font-semibold text-gray-800 truncate mt-0.5">{userShort}</p>
             <div className="flex items-center gap-1.5 mt-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
               <span className="text-xs text-gray-400">Online</span>
             </div>
           </div>
-          <button className="w-full rounded-xl bg-red-600 text-white text-sm font-semibold py-2.5 hover:bg-red-700 transition-colors" onClick={handleLogout}>
-            🚪 {t.logout}
+          <button
+            className="w-full rounded-full border border-red-200 text-red-500 text-sm font-medium py-2 hover:bg-red-50 transition-colors"
+            onClick={handleLogout}
+          >
+            {t.logout}
           </button>
         </div>
       </div>
@@ -2848,7 +2853,7 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="h-screen overflow-hidden flex bg-[#F4F5F7] text-gray-900">
+    <div className="h-screen overflow-hidden flex bg-[#f8f9fa] text-gray-900">
       {/* ── 桌面 Sidebar ── */}
       <aside className="hidden md:flex flex-col w-64 h-screen shrink-0 bg-white border-r border-gray-200">
         <SidebarContent />
@@ -2857,7 +2862,7 @@ export default function AdminPage() {
       {/* ── 手機 Sidebar 遮罩 ── */}
       {mobileSidebarOpen && (
         <div className="md:hidden fixed inset-0 z-[1200]">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setMobileSidebarOpen(false)} />
+          <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={() => setMobileSidebarOpen(false)} />
           <aside className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-white border-r border-gray-200 flex flex-col z-10">
             <SidebarContent />
           </aside>
@@ -2867,23 +2872,23 @@ export default function AdminPage() {
       {/* ── 主內容區 ── */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* TopBar */}
-        <header className="shrink-0 h-14 bg-white border-b border-gray-200 px-4 sm:px-6 flex items-center justify-between gap-3">
+        <header className="shrink-0 h-14 bg-white border-b border-gray-100 px-4 sm:px-6 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <button
-              className="md:hidden rounded-lg border border-gray-200 p-2 text-gray-600 hover:bg-gray-50"
+              className="md:hidden rounded-lg border border-gray-200 p-2 text-gray-500 hover:bg-gray-50"
               onClick={() => setMobileSidebarOpen(true)}
               aria-label="Open sidebar"
             >
               ☰
             </button>
-            <nav className="text-sm text-gray-500 truncate">
+            <nav className="text-sm text-gray-400 truncate">
               <span>{t.adminConsole}</span>
-              <span className="mx-1.5 text-gray-300">/</span>
-              <span className="font-semibold text-gray-900">{breadcrumb}</span>
+              <span className="mx-1.5 text-gray-200">/</span>
+              <span className="font-medium text-gray-900">{breadcrumb}</span>
             </nav>
           </div>
           <button
-            className="shrink-0 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+            className="shrink-0 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
             onClick={() => setLang((p) => p === "zh" ? "en" : "zh")}
           >
             EN / 繁中

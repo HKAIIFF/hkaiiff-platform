@@ -108,10 +108,10 @@ function OssUploader({
 
   return (
     <div className="space-y-1.5">
-      <label className="text-[8px] font-mono tracking-[0.3em] text-[#444]">{label}</label>
+      <label className="text-xs font-medium text-gray-500">{label}</label>
 
       {state === "idle" && (
-        <label className="flex items-center gap-3 px-4 py-3 border border-dashed border-[#2a2a2a] bg-[#0a0a0a] cursor-pointer hover:border-[#CCFF00]/40 hover:bg-[#0d0d0d] transition-colors group">
+        <label className="flex items-center gap-3 px-4 py-3 border-2 border-dashed border-gray-200 rounded-xl bg-gray-50/50 cursor-pointer hover:border-[#1a73e8]/40 hover:bg-[#1a73e8]/5 transition-colors group">
           <input
             ref={inputRef}
             type="file"
@@ -119,62 +119,59 @@ function OssUploader({
             onChange={handleFileChange}
             className="hidden"
           />
-          <span className="text-[#333] group-hover:text-[#CCFF00]/50 text-lg">↑</span>
+          <span className="text-gray-400 group-hover:text-[#1a73e8] text-lg transition-colors">↑</span>
           <div>
-            <div className="text-[10px] font-mono text-[#555] group-hover:text-[#CCFF00]/60 transition-colors">
-              選擇檔案 / Click to Select File
+            <div className="text-sm text-gray-500 group-hover:text-[#1a73e8] transition-colors">
+              選擇檔案上傳
             </div>
-            <div className="text-[8px] font-mono text-[#2a2a2a] mt-0.5">{hint}</div>
+            <div className="text-xs text-gray-400 mt-0.5">{hint}</div>
           </div>
         </label>
       )}
 
       {state === "uploading" && (
-        <div className="px-4 py-3 border border-[#CCFF00]/30 bg-[#CCFF00]/5">
+        <div className="px-4 py-3 border border-blue-200 bg-blue-50 rounded-xl">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-mono text-[#CCFF00]/80 truncate max-w-[80%]">{fileName}</span>
-            <span className="text-[9px] font-mono text-[#CCFF00]">{progress}%</span>
+            <span className="text-xs font-medium text-blue-700 truncate max-w-[80%]">{fileName}</span>
+            <span className="text-xs font-bold text-blue-600">{progress}%</span>
           </div>
-          {/* Progress bar */}
-          <div className="w-full h-1 bg-[#1a1a1a] overflow-hidden">
+          <div className="w-full h-1.5 bg-blue-100 rounded-full overflow-hidden">
             <div
-              className="h-full bg-[#CCFF00] transition-all duration-200"
+              className="h-full bg-[#1a73e8] rounded-full transition-all duration-200"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <div className="text-[8px] font-mono text-[#444] mt-1.5 animate-pulse tracking-[0.3em]">
-            UPLOADING TO OSS...
-          </div>
+          <div className="text-[10px] text-blue-500 mt-1.5 animate-pulse">上傳至 Aliyun OSS 中...</div>
         </div>
       )}
 
       {state === "done" && (
-        <div className="flex items-center gap-2 px-4 py-3 border border-[#00E599]/30 bg-[#00E599]/5">
-          <span className="text-[#00E599] text-sm">✓</span>
+        <div className="flex items-center gap-2 px-4 py-3 border border-green-200 bg-green-50 rounded-xl">
+          <span className="text-green-500 text-sm">✓</span>
           <div className="flex-1 min-w-0">
-            <div className="text-[9px] font-mono text-[#00E599] truncate">
-              {fileName || value.split("/").pop() || "UPLOADED"}
+            <div className="text-xs font-semibold text-green-700 truncate">
+              {fileName || value.split("/").pop() || "已上傳"}
             </div>
-            <div className="text-[8px] font-mono text-[#1a4a2a] truncate mt-0.5">{value}</div>
+            <div className="text-[10px] text-green-600/70 truncate mt-0.5">{value}</div>
           </div>
           <button
             onClick={reset}
-            className="text-[8px] font-mono text-[#333] hover:text-[#FF3333] transition-colors flex-shrink-0 tracking-wider"
+            className="text-xs text-gray-400 hover:text-red-500 transition-colors flex-shrink-0 font-medium"
           >
-            CHANGE
+            更換
           </button>
         </div>
       )}
 
       {state === "error" && (
-        <div className="flex items-center gap-2 px-4 py-3 border border-[#FF3333]/30 bg-[#FF3333]/5">
-          <span className="text-[#FF3333] text-sm">✕</span>
-          <span className="text-[9px] font-mono text-[#FF3333]">上傳失敗</span>
+        <div className="flex items-center gap-2 px-4 py-3 border border-red-200 bg-red-50 rounded-xl">
+          <span className="text-red-500 text-sm">✕</span>
+          <span className="text-xs font-semibold text-red-600">上傳失敗，請重試</span>
           <button
             onClick={reset}
-            className="ml-auto text-[8px] font-mono text-[#444] hover:text-[#ccc] tracking-wider"
+            className="ml-auto text-xs text-gray-400 hover:text-gray-700 font-medium"
           >
-            RETRY
+            重試
           </button>
         </div>
       )}
@@ -185,20 +182,22 @@ function OssUploader({
 // ─── Toast ────────────────────────────────────────────────────────────────────
 function ToastContainer({ toasts }: { toasts: Toast[] }) {
   return (
-    <div className="fixed top-10 left-1/2 -translate-x-1/2 z-[99999] flex flex-col items-center gap-2 pointer-events-none">
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[99999] flex flex-col items-center gap-2 pointer-events-none">
       {toasts.map((t) => (
         <div
           key={t.id}
-          className="pointer-events-auto flex items-center gap-3 px-6 py-3 shadow-2xl text-sm font-medium text-white"
-          style={{ background: "#111", border: "1px solid #333", animation: "toastIn 0.3s ease-out" }}
+          className={`pointer-events-auto flex items-center gap-2.5 px-5 py-2.5 rounded-full shadow-lg text-sm font-semibold border ${
+            t.type === "success"
+              ? "bg-white border-green-200 text-green-700"
+              : "bg-white border-red-200 text-red-600"
+          }`}
+          style={{ animation: "toastIn 0.25s ease-out" }}
         >
-          <span style={{ color: t.type === "success" ? "#CCFF00" : "#ef4444" }}>
-            {t.type === "success" ? "✓" : "✕"}
-          </span>
+          <span>{t.type === "success" ? "✓" : "✕"}</span>
           {t.message}
         </div>
       ))}
-      <style>{`@keyframes toastIn{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}`}</style>
+      <style>{`@keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
 }
@@ -308,23 +307,25 @@ export default function OfficialReleasePage() {
     }
   };
 
+  const inputCls = "w-full px-3 py-2 text-sm rounded-lg bg-white border border-gray-200 text-gray-900 placeholder-gray-300 outline-none focus:ring-2 focus:ring-[#1a73e8]/20 focus:border-[#1a73e8]/40 transition-all";
+
   return (
-    <div className="p-5 space-y-6 font-mono min-h-screen bg-[#050505]">
+    <div className="p-5 space-y-6 min-h-screen bg-[#f8f9fa]">
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div>
-        <h1 className="text-[#CCFF00] text-base tracking-[0.5em] font-bold">OFFICIAL RELEASE</h1>
-        <p className="text-[#444] text-[9px] tracking-[0.3em] mt-0.5">
-          ADMIN DISTRIBUTION // 官方代發 // PAYMENT_METHOD: OFFICIAL_WAIVED
+        <h1 className="text-gray-900 text-base font-semibold">官方代發</h1>
+        <p className="text-gray-400 text-xs mt-0.5">
+          管理員代發影片 · payment_method: official_waived
         </p>
       </div>
 
       {/* ── Warning Banner ───────────────────────────────────────────────── */}
-      <div className="flex items-start gap-3 border border-amber-500/30 bg-amber-500/5 px-4 py-3">
-        <span className="text-amber-400 text-sm mt-0.5 flex-shrink-0">⚠</span>
-        <p className="text-[10px] font-mono text-amber-300/80 leading-relaxed">
+      <div className="flex items-start gap-3 border border-amber-200 bg-amber-50 rounded-xl px-4 py-3">
+        <span className="text-amber-500 text-sm mt-0.5 flex-shrink-0">⚠</span>
+        <p className="text-xs text-amber-700 leading-relaxed">
           本頁面用於管理員以官方名義代為發行影片。所有提交將自動標記{" "}
-          <span className="text-amber-300 font-bold">payment_status: paid · payment_method: official_waived</span>，
+          <span className="font-semibold">payment_status: paid · payment_method: official_waived</span>，
           跳過常規支付流程。文件上傳至 Aliyun OSS，提交後進入待審核狀態。
         </p>
       </div>
@@ -332,23 +333,21 @@ export default function OfficialReleasePage() {
       <div className="grid grid-cols-1 xl:grid-cols-[560px_1fr] gap-6">
 
         {/* ── Left: Form ──────────────────────────────────────────────────── */}
-        <form onSubmit={handleSubmit} className="border border-[#1a1a1a] bg-[#080808] p-5 space-y-5">
-          <div className="text-[9px] tracking-[0.5em] text-[#333] border-b border-[#111] pb-3">
-            FILM SUBMISSION FORM
-          </div>
+        <form onSubmit={handleSubmit} className="bg-white border border-gray-200/80 rounded-2xl p-6 space-y-5">
+          <p className="text-xs font-medium text-gray-500 border-b border-gray-100 pb-3">影片提交表單</p>
 
           {/* User Select */}
-          <div className="space-y-1">
-            <label className="text-[8px] font-mono tracking-[0.3em] text-[#444]">
-              TARGET USER <span className="text-[#FF3333]">*</span>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-gray-600">
+              目標用戶 <span className="text-red-400">*</span>
             </label>
             <select
               value={userId}
               onChange={(e) => setUserId(e.target.value)}
               required
-              className="w-full px-3 py-2 text-[11px] font-mono bg-[#0d0d0d] border border-[#2a2a2a] text-[#ccc] outline-none focus:border-[#CCFF00]/40 transition-colors"
+              className={inputCls}
             >
-              <option value="">— 選擇用戶 / Select User —</option>
+              <option value="">— 選擇用戶 —</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.email
@@ -363,65 +362,65 @@ export default function OfficialReleasePage() {
 
           {/* Title + Studio */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-[8px] font-mono tracking-[0.3em] text-[#444]">
-                TITLE <span className="text-[#FF3333]">*</span>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-600">
+                影片標題 <span className="text-red-400">*</span>
               </label>
               <input
                 type="text" value={title} onChange={(e) => setTitle(e.target.value)}
                 required placeholder="Film Title"
-                className="w-full px-3 py-2 text-[11px] font-mono bg-[#0d0d0d] border border-[#2a2a2a] text-[#ccc] outline-none focus:border-[#CCFF00]/40 transition-colors placeholder-[#333]"
+                className={inputCls}
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-[8px] font-mono tracking-[0.3em] text-[#444]">STUDIO</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-600">製作公司</label>
               <input
                 type="text" value={studio} onChange={(e) => setStudio(e.target.value)}
                 placeholder="Studio Name"
-                className="w-full px-3 py-2 text-[11px] font-mono bg-[#0d0d0d] border border-[#2a2a2a] text-[#ccc] outline-none focus:border-[#CCFF00]/40 transition-colors placeholder-[#333]"
+                className={inputCls}
               />
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-[8px] font-mono tracking-[0.3em] text-[#444]">AI RATIO (%)</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-600">AI 佔比 (%)</label>
               <input
                 type="number" min="0" max="100" value={aiRatio} onChange={(e) => setAiRatio(e.target.value)}
-                className="w-full px-3 py-2 text-[11px] font-mono bg-[#0d0d0d] border border-[#2a2a2a] text-[#ccc] outline-none focus:border-[#CCFF00]/40 transition-colors"
+                className={inputCls}
               />
             </div>
-            <div className="space-y-1">
-              <label className="text-[8px] font-mono tracking-[0.3em] text-[#444]">ORDER NUMBER</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-gray-600">訂單編號</label>
               <input
                 type="text" value={orderNumber} onChange={(e) => setOrderNumber(e.target.value)}
-                placeholder="Auto-generated if empty"
-                className="w-full px-3 py-2 text-[11px] font-mono bg-[#0d0d0d] border border-[#2a2a2a] text-[#ccc] outline-none focus:border-[#CCFF00]/40 transition-colors placeholder-[#333]"
+                placeholder="留空自動生成"
+                className={inputCls}
               />
             </div>
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[8px] font-mono tracking-[0.3em] text-[#444]">TECH STACK</label>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-gray-600">技術棧</label>
             <input
               type="text" value={techStack} onChange={(e) => setTechStack(e.target.value)}
               placeholder="Sora, Midjourney, Suno..."
-              className="w-full px-3 py-2 text-[11px] font-mono bg-[#0d0d0d] border border-[#2a2a2a] text-[#ccc] outline-none focus:border-[#CCFF00]/40 transition-colors placeholder-[#333]"
+              className={inputCls}
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[8px] font-mono tracking-[0.3em] text-[#444]">SYNOPSIS</label>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-gray-600">影片簡介</label>
             <textarea
               value={synopsis} onChange={(e) => setSynopsis(e.target.value)}
               rows={3} placeholder="Brief film description..."
-              className="w-full px-3 py-2 text-[11px] font-mono bg-[#0d0d0d] border border-[#2a2a2a] text-[#ccc] outline-none focus:border-[#CCFF00]/40 transition-colors placeholder-[#333] resize-none"
+              className={`${inputCls} resize-none`}
             />
           </div>
 
           {/* ── File Uploaders ─────────────────────────────────────────────── */}
-          <div className="border-t border-[#111] pt-4 space-y-4">
-            <div className="text-[8px] tracking-[0.4em] text-[#333]">ASSET UPLOADS (Aliyun OSS)</div>
+          <div className="border-t border-gray-100 pt-4 space-y-4">
+            <p className="text-xs font-medium text-gray-500">素材上傳 (Aliyun OSS)</p>
 
             <OssUploader
               label="POSTER IMAGE"
@@ -469,17 +468,17 @@ export default function OfficialReleasePage() {
           </div>
 
           {/* Flags Preview */}
-          <div className="border-t border-[#111] pt-3">
-            <div className="text-[8px] tracking-[0.4em] text-[#333] mb-2">WILL BE SUBMITTED WITH</div>
+          <div className="border-t border-gray-100 pt-3 space-y-2">
+            <p className="text-xs text-gray-400">提交標記預覽</p>
             <div className="grid grid-cols-2 gap-1.5">
               {[
                 ["payment_status", "paid"],
                 ["payment_method", "official_waived"],
                 ["status", "pending → review"],
               ].map(([k, v]) => (
-                <div key={k} className="flex items-center gap-2 text-[9px] font-mono">
-                  <span className="text-[#333]">{k}:</span>
-                  <span className="text-[#CCFF00]/70">{v}</span>
+                <div key={k} className="flex items-center gap-2 text-xs">
+                  <span className="text-gray-400">{k}:</span>
+                  <span className="text-[#1a73e8] font-medium">{v}</span>
                 </div>
               ))}
             </div>
@@ -488,15 +487,15 @@ export default function OfficialReleasePage() {
           <button
             type="submit"
             disabled={submitting || !userId || !title.trim()}
-            className="w-full py-3 bg-[#CCFF00] text-black text-[10px] tracking-[0.5em] font-bold hover:bg-[#BBEE00] transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full py-3 rounded-full bg-[#1a73e8] text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {submitting ? (
               <span className="flex items-center justify-center gap-2">
-                <span className="w-3 h-3 border border-black/30 border-t-black rounded-full animate-spin" />
-                SUBMITTING...
+                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                提交中...
               </span>
             ) : (
-              "OFFICIAL SUBMIT · 官方代發"
+              "官方代發 · 提交"
             )}
           </button>
         </form>
@@ -504,59 +503,59 @@ export default function OfficialReleasePage() {
         {/* ── Right: Recent Releases ───────────────────────────────────────── */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <div className="text-[9px] tracking-[0.5em] text-[#333]">RECENT OFFICIAL RELEASES</div>
+            <p className="text-sm font-medium text-gray-700">近期官方代發記錄</p>
             <button
               onClick={fetchRecentFilms}
               disabled={loadingFilms}
-              className="text-[8px] font-mono text-[#333] hover:text-[#CCFF00] transition-colors disabled:opacity-30 tracking-[0.3em]"
+              className="rounded-full border border-gray-200 px-3 py-1 text-xs font-medium text-gray-500 hover:bg-white hover:shadow-sm transition-all disabled:opacity-40 bg-white"
             >
-              ↺ REFRESH
+              ↺ 刷新
             </button>
           </div>
 
-          <div className="border border-[#1a1a1a] overflow-x-auto">
+          <div className="bg-white border border-gray-200/80 rounded-2xl overflow-x-auto">
             <div
-              className="grid text-[8px] tracking-[0.3em] text-[#333] bg-[#0a0a0a] border-b border-[#1a1a1a]"
+              className="grid text-[10px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50/70 border-b border-gray-100"
               style={{ gridTemplateColumns: "1fr 1fr 80px 100px 110px" }}
             >
-              {["TITLE", "STUDIO", "STATUS", "METHOD", "DATE"].map((h) => (
-                <div key={h} className="px-3 py-2 whitespace-nowrap">{h}</div>
+              {["標題", "製作公司", "狀態", "方式", "日期"].map((h) => (
+                <div key={h} className="px-3 py-3 whitespace-nowrap">{h}</div>
               ))}
             </div>
 
             {loadingFilms ? (
-              <div className="py-10 text-center text-[#333] text-[9px] tracking-[0.4em] animate-pulse">LOADING...</div>
+              <div className="py-10 text-center text-gray-400 text-sm animate-pulse">載入中...</div>
             ) : recentFilms.length === 0 ? (
-              <div className="py-10 text-center text-[#2a2a2a] text-[9px] tracking-[0.4em]">NO OFFICIAL RELEASES YET</div>
+              <div className="py-10 text-center text-gray-400 text-sm">暫無官方代發記錄</div>
             ) : (
               recentFilms.map((f) => (
                 <div
                   key={f.id}
-                  className="grid text-[9px] font-mono border-b border-[#111] hover:bg-[#0b0b0b] transition-colors"
+                  className="grid text-xs border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
                   style={{ gridTemplateColumns: "1fr 1fr 80px 100px 110px" }}
                 >
-                  <div className="px-3 py-2 text-[#ccc] truncate">{f.title ?? "—"}</div>
-                  <div className="px-3 py-2 text-[#555] truncate">{f.studio ?? "—"}</div>
-                  <div className="px-3 py-2">
-                    <span className={`px-1.5 py-0.5 text-[7px] tracking-[0.2em] border font-bold ${
+                  <div className="px-3 py-3 text-gray-800 font-medium truncate">{f.title ?? "—"}</div>
+                  <div className="px-3 py-3 text-gray-500 truncate">{f.studio ?? "—"}</div>
+                  <div className="px-3 py-3">
+                    <span className={`px-2 py-0.5 text-[10px] font-semibold border rounded-full ${
                       f.status === "approved"
-                        ? "text-[#00E599] border-[#00E599]/30 bg-[#00E599]/10"
+                        ? "text-green-700 bg-green-50 border-green-200"
                         : f.status === "rejected"
-                        ? "text-[#FF3333] border-[#FF3333]/30 bg-[#FF3333]/10"
-                        : "text-[#FFC107] border-[#FFC107]/30 bg-[#FFC107]/10"
-                    }`}>{f.status.toUpperCase()}</span>
+                        ? "text-red-600 bg-red-50 border-red-200"
+                        : "text-amber-700 bg-amber-50 border-amber-200"
+                    }`}>
+                      {{ approved: "已通過", rejected: "已駁回", pending: "待審核" }[f.status] ?? f.status}
+                    </span>
                   </div>
-                  <div className="px-3 py-2 text-[#3a5a3a]">{f.payment_method ?? "—"}</div>
-                  <div className="px-3 py-2 text-[#333]">{new Date(f.created_at).toLocaleDateString()}</div>
+                  <div className="px-3 py-3 text-green-600 text-[10px] font-medium">{f.payment_method ?? "—"}</div>
+                  <div className="px-3 py-3 text-gray-400">{new Date(f.created_at).toLocaleDateString()}</div>
                 </div>
               ))
             )}
           </div>
 
           {!loadingFilms && recentFilms.length > 0 && (
-            <div className="text-[#1e1e1e] text-[8px] tracking-[0.3em]">
-              {recentFilms.length} OFFICIAL RELEASE{recentFilms.length > 1 ? "S" : ""} FOUND
-            </div>
+            <p className="text-gray-400 text-xs">共 {recentFilms.length} 筆官方代發記錄</p>
           )}
         </div>
       </div>
