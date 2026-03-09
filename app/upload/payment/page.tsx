@@ -199,7 +199,8 @@ function PaymentPageContent() {
       }
     } catch (err: unknown) {
       console.error('[Stripe] 未預期錯誤:', err);
-      showToast(extractMessage(err), 'error');
+      const errObj = err as Record<string, unknown>;
+      alert((typeof errObj?.error === 'string' ? errObj.error : null) || '支付發起失敗');
     } finally {
       setIsStripeLoading(false);
     }
