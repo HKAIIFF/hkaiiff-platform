@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import { useModal } from '@/app/context/ModalContext';
+import { useRouter } from 'next/navigation';
 import { useToast } from '@/app/context/ToastContext';
 import { supabase } from '@/lib/supabase';
 
@@ -13,17 +13,6 @@ interface Curator {
   name: string;
   avatar: string;
   isCertified: boolean;
-}
-
-interface LbsFilmEntry {
-  id: string;
-  title: string;
-  coverUrl: string;
-  studio: string;
-  duration: string;
-  trailerUrl: string | null;
-  filmUrl: string | null;
-  synopsis: string | null;
 }
 
 interface LbsNode {
@@ -155,8 +144,13 @@ function mapDbNode(db: DbLbsNode): LbsNode {
 
 function NodeSkeleton() {
   return (
-    <div className="border border-[#222] rounded-xl overflow-hidden bg-[#111] min-h-[180px] animate-pulse">
-      <div className="w-full h-full bg-[#1a1a1a]" />
+    <div className="border border-[#222] rounded-xl overflow-hidden bg-[#111] h-36 animate-pulse flex">
+      <div className="w-[88px] shrink-0 bg-[#1a1a1a]" />
+      <div className="flex-1 p-4 space-y-3">
+        <div className="h-3 bg-[#1a1a1a] rounded w-1/3" />
+        <div className="h-5 bg-[#1a1a1a] rounded w-3/4" />
+        <div className="h-3 bg-[#1a1a1a] rounded w-1/2" />
+      </div>
     </div>
   );
 }
@@ -188,14 +182,11 @@ function EmptyState() {
 export default function DiscoverPage() {
   const [nodes, setNodes] = useState<LbsNode[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedNode, setSelectedNode] = useState<LbsNode | null>(null);
-  const [detailFilms, setDetailFilms] = useState<LbsFilmEntry[]>([]);
-  const [filmsLoading, setFilmsLoading] = useState(false);
   const [cityFilter, setCityFilter] = useState<string>('all');
   const [sortOrder, setSortOrder] = useState<'nearest' | 'latest'>('nearest');
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
 
-  const { setActiveModal, setLbsVideoUrl } = useModal();
+  const router = useRouter();
   const { showToast } = useToast();
 
   /* ── Watch user GPS for real-time badge update ───────────────────────── */
@@ -244,16 +235,16 @@ export default function DiscoverPage() {
     return base;
   }, [nodes, cityFilter, sortOrder]);
 
-  /* ── Open node detail + fetch associated films ───────────────────────── */
-  const openDetail = useCallback(
+  /* ── Open node: geo check → navigate to dedicated event page ─────────── */
+  const openNode = useCallback(
     async (node: LbsNode) => {
-      // 時間鎖節點：直接拒絕
+      // Time-locked: reject immediately
       if (node.state === 'locked_cond') {
         showToast('🔒 此影展尚未開放，請在活動時間窗口內再試', 'error');
         return;
       }
 
-      // 有座標的節點：強制進行實時 GPS 距離驗證
+      // Geo-locked node with coordinates: verify location before entering
       if (node.lat !== 0 || node.lng !== 0) {
         if (!navigator.geolocation) {
           showToast('🔒 您的設備不支持地理定位，無法解鎖 LBS 影展', 'error');
@@ -269,15 +260,13 @@ export default function DiscoverPage() {
           );
           const userLat = pos.coords.latitude;
           const userLng = pos.coords.longitude;
-          const nodeLat = Number(node.lat);
-          const nodeLng = Number(node.lng);
           const radius = Number(node.unlock_radius) || 500;
-          const distance = Math.round(haversineMeters(userLat, userLng, nodeLat, nodeLng));
+          const distance = Math.round(haversineMeters(userLat, userLng, node.lat, node.lng));
 
           if (distance > radius) {
             if (process.env.NODE_ENV === 'development') {
               showToast(
-                `🔒 DEV: 距離 ${distance}m > ${radius}m | 您(${userLat.toFixed(5)},${userLng.toFixed(5)}) → 節點(${nodeLat.toFixed(5)},${nodeLng.toFixed(5)})`,
+                `🔒 DEV: 距離 ${distance}m > ${radius}m | 您(${userLat.toFixed(5)},${userLng.toFixed(5)}) → 節點(${node.lat.toFixed(5)},${node.lng.toFixed(5)})`,
                 'error'
               );
             } else {
@@ -289,7 +278,6 @@ export default function DiscoverPage() {
             return;
           }
         } catch {
-          // 定位失敗時若 DB 標記非 unlocked，則拒絕進入
           if (node.state !== 'unlocked') {
             showToast('🔒 無法獲取您的位置，請允許位置權限後重試', 'error');
             return;
@@ -300,62 +288,10 @@ export default function DiscoverPage() {
         return;
       }
 
-      setSelectedNode(node);
-      setDetailFilms([]);
-
-      if (node.filmIds && node.filmIds.length > 0) {
-        setFilmsLoading(true);
-        try {
-          const { data, error } = await supabase
-            .from('films')
-            .select('id, title, poster_url, studio_name, trailer_url, feature_url, synopsis')
-            .in('id', node.filmIds)
-            .eq('status', 'approved');
-
-          if (error) throw error;
-
-          if (data && data.length > 0) {
-            setDetailFilms(
-              data.map((f) => ({
-                id: f.id,
-                title: f.title,
-                coverUrl: f.poster_url ?? 'https://images.unsplash.com/photo-1608889175123-8ee362201f81?q=80&w=300',
-                studio: f.studio_name ?? '—',
-                duration: '—',
-                trailerUrl: f.trailer_url ?? null,
-                filmUrl: f.feature_url ?? null,
-                synopsis: f.synopsis ?? null,
-              })),
-            );
-          }
-        } catch (err) {
-          console.error('[Discover] Failed to load node films:', err);
-        } finally {
-          setFilmsLoading(false);
-        }
-      }
+      // Geo check passed → navigate to dedicated event detail page
+      router.push(`/events/${node.id}`);
     },
-    [showToast],
-  );
-
-  const closeDetail = useCallback(() => {
-    setSelectedNode(null);
-    setDetailFilms([]);
-  }, []);
-
-  const playFilm = useCallback(
-    (film: LbsFilmEntry) => {
-      const playUrl = film.filmUrl ?? film.trailerUrl ?? null;
-      if (!playUrl) {
-        showToast('⚠️ 此影片暫無可播放的正片連結', 'error');
-        return;
-      }
-      setLbsVideoUrl(playUrl);
-      setSelectedNode(null);
-      setDetailFilms([]);
-      setActiveModal('play');
-    },
-    [setLbsVideoUrl, setActiveModal, showToast],
+    [router, showToast]
   );
 
   return (
@@ -406,333 +342,122 @@ export default function DiscoverPage() {
 
       {/* ─── Content ─────────────────────────────────────────────────────── */}
       {loading ? (
-        <div className="space-y-4">
+        <div className="space-y-3">
           {[...Array(3)].map((_, i) => <NodeSkeleton key={i} />)}
         </div>
       ) : nodes.length === 0 ? (
         <EmptyState />
       ) : (
         /* ─── LBS Node Card List ─────────────────────────────────────────── */
-        <div className="space-y-4">
+        <div className="space-y-3">
           {filteredNodes.map((node) => {
-            const dist = userLocation && (node.lat !== 0 || node.lng !== 0)
-              ? Math.round(haversineMeters(userLocation.lat, userLocation.lng, node.lat, node.lng))
-              : Infinity;
-            const isUnlocked = node.state === 'unlocked' ||
+            const dist =
+              userLocation && (node.lat !== 0 || node.lng !== 0)
+                ? Math.round(haversineMeters(userLocation.lat, userLocation.lng, node.lat, node.lng))
+                : Infinity;
+            const isUnlocked =
+              node.state === 'unlocked' ||
               (node.state === 'locked_geo' && userLocation !== null && dist <= (node.unlock_radius || 500));
-            const bgSrc = node.background_url ?? node.img;
+
+            /* Poster image (portrait 2:3) falls back to node image */
+            const posterSrc = node.poster_url ?? node.img;
+
             return (
               <div
                 key={node.id}
-                className={`relative overflow-hidden rounded-xl border-2 transition-all duration-300 cursor-pointer group shadow-lg ${
+                onClick={() => openNode(node)}
+                className={`relative overflow-hidden rounded-xl border-2 transition-all duration-300 cursor-pointer group shadow-lg flex ${
                   isUnlocked
-                    ? 'border-[#CCFF00] shadow-[0_0_15px_rgba(204,255,0,0.15)]'
+                    ? 'border-[#CCFF00] shadow-[0_0_15px_rgba(204,255,0,0.1)]'
+                    : node.state === 'locked_cond'
+                    ? 'border-honey/60 opacity-85'
                     : 'border-red-900/50 opacity-80'
                 }`}
-                onClick={() => openDetail(node)}
               >
-                {/* Real background image */}
-                <div
-                  className="absolute inset-0 z-0 bg-cover bg-center opacity-30 group-hover:scale-105 transition-transform duration-700"
-                  style={{ backgroundImage: bgSrc ? `url('${bgSrc}')` : 'none' }}
-                />
-                {/* Black gradient mask for text readability */}
-                <div className="absolute inset-0 z-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent" />
+                {/* ── Left: poster_url in 2:3 portrait ratio ── */}
+                <div className="relative w-[88px] aspect-[2/3] shrink-0 overflow-hidden">
+                  <img
+                    src={posterSrc}
+                    alt={node.title}
+                    className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src =
+                        'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=400';
+                    }}
+                  />
+                  {/* Right-edge fade into content area */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#050505]/70" />
+                </div>
 
-                {/* Content */}
-                <div className="relative z-10 p-5 flex flex-col justify-between h-full min-h-[180px]">
+                {/* ── Right: info with faint bg atmosphere ── */}
+                <div className="flex-1 p-4 flex flex-col justify-between relative overflow-hidden">
+                  {/* Faint background atmosphere from background_url */}
+                  {node.background_url && (
+                    <div
+                      className="absolute inset-0 opacity-[0.06] bg-cover bg-center"
+                      style={{ backgroundImage: `url('${node.background_url}')` }}
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a]/90 to-[#050505]/95" />
 
-                  {/* Top row: state badge + location text */}
-                  <div className="flex justify-between items-start">
+                  {/* Top: state badge + film count */}
+                  <div className="relative z-10 flex justify-between items-start gap-2">
                     {node.state === 'locked_cond' ? (
-                      <div className="bg-black/80 border border-honey text-[9px] font-mono px-2 py-1 rounded text-honey flex items-center gap-1.5 backdrop-blur shadow-[0_0_10px_currentColor]">
-                        <i className="fas fa-clock" />
+                      <div className="bg-black/80 border border-honey text-[8px] font-mono px-2 py-0.5 rounded text-honey flex items-center gap-1 backdrop-blur">
+                        <i className="fas fa-clock text-[7px]" />
                         <span>TIME-LOCKED</span>
                       </div>
                     ) : isUnlocked ? (
-                      <div className="border border-[#CCFF00] text-[#CCFF00] px-2 py-1 rounded text-[10px] font-mono flex items-center gap-1.5 bg-black/80 backdrop-blur">
-                        <i className="fas fa-unlock" /> UNLOCKED
+                      <div className="border border-[#CCFF00] text-[#CCFF00] px-2 py-0.5 rounded text-[8px] font-mono flex items-center gap-1 bg-black/60 backdrop-blur">
+                        <i className="fas fa-unlock text-[7px]" /> UNLOCKED
                       </div>
                     ) : (
-                      <div className="border border-red-500 text-red-500 px-2 py-1 rounded text-[10px] font-mono flex items-center gap-1.5 bg-black/80 backdrop-blur">
-                        <i className="fas fa-map-marker-alt" /> GEO-LOCKED
+                      <div className="border border-red-500 text-red-500 px-2 py-0.5 rounded text-[8px] font-mono flex items-center gap-1 bg-black/60 backdrop-blur">
+                        <i className="fas fa-map-marker-alt text-[7px]" /> GEO-LOCKED
                       </div>
                     )}
-                    <div className="flex flex-col items-end gap-1">
-                      <div className="text-[10px] font-mono text-gray-300 bg-black/50 px-2 py-1 rounded backdrop-blur border border-[#333] max-w-[160px] text-right">
-                        📍 {[node.country, node.city, node.venue].filter(Boolean).join(' ') || node.location}
-                      </div>
-                      <div className="text-[9px] font-mono text-gray-500 bg-black/50 px-2 py-0.5 rounded backdrop-blur border border-[#333] ltr-force">
-                        🎬 放映影片：{node.filmIds?.length || 0} 部
-                      </div>
+                    <div className="text-[8px] font-mono text-gray-500 bg-black/50 px-2 py-0.5 rounded backdrop-blur border border-[#222] shrink-0">
+                      🎬 {node.filmIds?.length ?? 0} 部
                     </div>
                   </div>
 
-                  {/* Bottom row: title + location + description + req + curator */}
-                  <div>
-                    <h3 className="font-heavy text-white text-2xl mb-1 tracking-wide drop-shadow-md">
+                  {/* Middle: title + location */}
+                  <div className="relative z-10 flex-1 flex flex-col justify-center py-2">
+                    <h3 className="font-heavy text-white text-lg leading-tight mb-1 line-clamp-2">
                       {node.title}
                     </h3>
-                    <div className="text-xs font-mono text-gray-300 mb-2 flex items-center gap-2">
-                      <i className={`fas fa-map-marker-alt ${node.textColor}`} />
-                      {node.location}
+                    <div className="text-[10px] font-mono text-gray-400 flex items-center gap-1">
+                      <i className={`fas fa-map-marker-alt ${node.textColor} text-[8px]`} />
+                      <span className="truncate">
+                        {[node.country, node.city, node.venue].filter(Boolean).join(' · ') || node.location}
+                      </span>
                     </div>
-                    {node.desc && (
-                      <p className="line-clamp-2 text-xs text-gray-400 mt-2 mb-2">{node.desc}</p>
-                    )}
-                    <div
-                      className={`text-[10px] text-gray-400 font-mono border-l-2 ${node.borderColor} pl-2 leading-snug bg-black/40 py-1 pr-1 backdrop-blur rounded-r mb-3`}
-                    >
-                      {node.req}
-                    </div>
+                  </div>
 
-                    {/* Curator row */}
-                    <div className="flex items-center gap-2">
+                  {/* Bottom: date + curator */}
+                  <div className="relative z-10 flex items-center justify-between">
+                    <div className="text-[9px] font-mono text-gray-500">{node.date}</div>
+                    <div className="flex items-center gap-1.5">
                       <img
                         src={node.curator.avatar}
                         alt="AIF.SHOW"
-                        className="w-5 h-5 rounded-full border border-[#444] object-cover shrink-0"
+                        className="w-4 h-4 rounded-full border border-[#444] object-cover shrink-0"
                       />
-                      <span className="text-[10px] font-mono text-gray-300 font-bold">AIF.SHOW</span>
-                      <i className="fas fa-check-circle text-blue-400 text-[10px]" />
+                      <span className="text-[8px] font-mono text-gray-500">AIF.SHOW</span>
+                      <i className="fas fa-check-circle text-blue-400 text-[8px]" />
                     </div>
                   </div>
+                </div>
+
+                {/* Chevron hint */}
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                  <i className="fas fa-chevron-right text-[#CCFF00] text-xs" />
                 </div>
               </div>
             );
           })}
         </div>
       )}
-
-      {/* ─── LBS Detail Drawer (full-screen slide-up) ────────────────────── */}
-      <div
-        className={`fixed inset-0 z-[400] bg-[#050505] flex flex-col transition-transform duration-300 ${
-          selectedNode ? 'translate-y-0' : 'translate-y-full'
-        }`}
-      >
-        {/* Top nav bar */}
-        <div className="absolute top-0 left-0 w-full z-20 flex justify-between items-center p-4 pt-12 bg-gradient-to-b from-black to-transparent">
-          <button
-            onClick={closeDetail}
-            className="w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform"
-          >
-            <i className="fas fa-arrow-left" />
-          </button>
-          <div className="font-mono text-[10px] text-signal tracking-widest bg-black/50 px-3 py-1.5 rounded-full backdrop-blur border border-[#333]">
-            EVENT DETAILS
-          </div>
-          <div className="w-10" />
-        </div>
-
-        {selectedNode && (
-          <div className="overflow-y-auto flex-1 pb-12">
-
-            {/* Hero image — uses background_url if available, falls back to img */}
-            <div className="relative w-full h-72 bg-black">
-              <img
-                src={selectedNode.background_url ?? selectedNode.img}
-                alt={selectedNode.title}
-                className="w-full h-full object-cover opacity-60"
-                onError={(e) => {
-                  const target = e.currentTarget;
-                  if (target.src !== selectedNode.img) {
-                    target.src = selectedNode.img;
-                  }
-                }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent" />
-            </div>
-
-            {/* Detail content */}
-            <div className="px-6 -mt-12 relative z-10 space-y-6">
-
-              {/* Title block */}
-              <div>
-                <div
-                  className={`inline-block text-[9px] font-mono px-2 py-1 rounded mb-2 border backdrop-blur ${selectedNode.borderColor} ${selectedNode.textColor} bg-black/80`}
-                >
-                  <i className={`fas ${selectedNode.icon} mr-1`} />
-                  {selectedNode.stateLabel}
-                </div>
-                <h2 className="font-heavy text-4xl text-white leading-none drop-shadow-md mb-2">
-                  {selectedNode.title}
-                </h2>
-                <div className="text-[10px] font-mono text-gray-400 ltr-force flex items-center gap-1">
-                  <i className="fas fa-crosshairs text-signal" />
-                  <span>{selectedNode.coords}</span>
-                  <span className="mx-1 text-[#333]">|</span>
-                  <span>{selectedNode.city}</span>
-                  <span className="mx-1 text-[#333]">·</span>
-                  <span>{selectedNode.distance}</span>
-                </div>
-              </div>
-
-              {/* Poster thumbnail (if available) */}
-              {selectedNode.poster_url && (
-                <div className="flex items-start gap-4">
-                  <img
-                    src={selectedNode.poster_url}
-                    alt={`${selectedNode.title} poster`}
-                    className="w-20 h-28 object-cover rounded-lg border border-[#333] shrink-0"
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-                  />
-                  {selectedNode.desc && (
-                    <p className="text-xs text-gray-300 font-mono leading-relaxed line-clamp-5 pt-1">
-                      {selectedNode.desc}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Curator info */}
-              <div className="flex items-center gap-3 bg-[#111] border border-[#222] rounded-xl p-3">
-                <img
-                  src={selectedNode.curator.avatar}
-                  alt={selectedNode.curator.name}
-                  className="w-10 h-10 rounded-full border border-[#333] object-cover shrink-0"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-white truncate">
-                      {selectedNode.curator.name}
-                    </span>
-                    {selectedNode.curator.isCertified && (
-                      <i className="fas fa-certificate text-[#CCFF00] text-xs shrink-0" />
-                    )}
-                  </div>
-                  <div className="text-[9px] font-mono text-gray-500 uppercase tracking-widest mt-0.5">
-                    Official Curator
-                  </div>
-                </div>
-              </div>
-
-              {/* Venue + Schedule grid */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-[#111] p-4 rounded-xl border border-[#222]">
-                  <div className="text-[9px] text-gray-500 font-mono mb-1">VENUE</div>
-                  <div className="text-sm text-white font-bold">{selectedNode.location}</div>
-                </div>
-                <div className="bg-[#111] p-4 rounded-xl border border-[#222]">
-                  <div className="text-[9px] text-gray-500 font-mono mb-1">SCHEDULE</div>
-                  <div className="text-sm text-white font-bold">{selectedNode.date}</div>
-                </div>
-              </div>
-
-              {/* Event Description */}
-              {selectedNode.desc && (
-                <section>
-                  <h3 className="font-heavy text-lg text-white mb-2">EVENT DESCRIPTION</h3>
-                  <p className="text-xs text-gray-300 font-mono leading-relaxed text-justify">
-                    {selectedNode.desc}
-                  </p>
-                </section>
-              )}
-
-              {/* Official Selection film pool */}
-              <section>
-                <h3 className="font-heavy text-lg text-white mb-3 flex items-center gap-2">
-                  <i className="fas fa-film text-[#CCFF00]" />
-                  OFFICIAL SELECTION
-                </h3>
-
-                {filmsLoading ? (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-                    {[...Array(4)].map((_, i) => (
-                      <div key={i} className="animate-pulse">
-                        <div className="aspect-[2/3] rounded-xl bg-[#1a1a1a] mb-2" />
-                        <div className="h-3 bg-[#1a1a1a] rounded w-3/4 mb-1.5" />
-                        <div className="h-2.5 bg-[#1a1a1a] rounded w-1/2" />
-                      </div>
-                    ))}
-                  </div>
-                ) : detailFilms.length === 0 ? (
-                  <div className="bg-[#111] border border-[#222] rounded-xl p-6 flex flex-col items-center gap-3">
-                    <i className="fas fa-film text-2xl text-[#333]" />
-                    <span className="font-mono text-[10px] text-[#444] tracking-widest">
-                      NO FILMS ASSIGNED TO THIS NODE
-                    </span>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
-                    {detailFilms.map((film) => (
-                      <div
-                        key={film.id}
-                        className="group bg-[#111] rounded-xl border border-white/10 overflow-hidden shadow-xl hover:-translate-y-0.5 transition-all duration-300"
-                      >
-                        {/* ── 上半部：海報 ── */}
-                        <div className="relative aspect-[2/3] w-full overflow-hidden">
-                          <img
-                            src={film.coverUrl}
-                            alt={film.title}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).src =
-                                'https://images.unsplash.com/photo-1608889175123-8ee362201f81?q=80&w=300';
-                            }}
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-[#111]/80 via-transparent to-transparent" />
-                          {/* 正片標記 */}
-                          {film.filmUrl && (
-                            <div className="absolute top-1.5 right-1.5 bg-[#CCFF00] text-black text-[8px] font-bold px-1.5 py-0.5 rounded-sm leading-none">
-                              正片
-                            </div>
-                          )}
-                        </div>
-
-                        {/* ── 下半部：資訊區 ── */}
-                        <div className="p-3 flex flex-col gap-1.5">
-                          {/* 片名 */}
-                          <h4 className="text-base md:text-lg font-black text-white uppercase truncate leading-tight">
-                            {film.title}
-                          </h4>
-
-                          {/* 創作者 */}
-                          <p className="text-xs text-emerald-400 truncate">
-                            {film.studio}
-                          </p>
-
-                          {/* 簡介 */}
-                          {film.synopsis && (
-                            <p className="text-[11px] md:text-xs text-gray-400 line-clamp-2 leading-snug">
-                              {film.synopsis}
-                            </p>
-                          )}
-
-                          {/* 播放正片按鈕 */}
-                          <button
-                            onClick={() => playFilm(film)}
-                            className="mt-2 w-full bg-white text-black hover:bg-[#CCFF00] active:scale-95 font-bold rounded-lg py-2.5 text-xs tracking-wide transition-all duration-200 flex items-center justify-center gap-1.5"
-                          >
-                            <i className="fas fa-play text-[10px]" />
-                            <span>播放正片</span>
-                          </button>
-
-                          {/* 橫屏提示 */}
-                          <p className="text-center text-[9px] font-mono text-gray-600 tracking-wide">
-                            ◱ 建議橫屏觀看
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              {/* Smart Contract Req */}
-              <section
-                className="bg-gradient-to-br from-[#111] to-[#0a0a0a] border border-[#333] p-4 rounded-xl relative overflow-hidden"
-              >
-                <div className={`absolute left-0 top-0 w-1 h-full ${selectedNode.borderColor.replace('border-', 'bg-')}`} />
-                <h3 className="font-heavy text-lg text-white mb-2">SMART CONTRACT REQ</h3>
-                <p className={`text-[10px] font-mono ${selectedNode.textColor}`}>
-                  {selectedNode.req}
-                </p>
-              </section>
-
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
