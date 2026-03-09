@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
+import OSS from "ali-oss";
 import { supabase } from "@/lib/supabase";
 
 type Lang = "zh" | "en";
@@ -265,6 +266,67 @@ function UploadMock({ title, onPick }: { title: string; onPick: (fileName: strin
       />
       <p className="font-semibold text-gray-700">{title}</p>
       <p className="mt-1 text-xs text-gray-400">Drag & drop or click to upload (Mock)</p>
+    </label>
+  );
+}
+
+function OssImageUpload({
+  title,
+  currentUrl,
+  onSuccess,
+  pushToast,
+}: {
+  title: string;
+  currentUrl: string;
+  onSuccess: (url: string) => void;
+  pushToast: (text: string, ok?: boolean) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const stsRes = await fetch("/api/oss-sts");
+      const stsData = await stsRes.json();
+      if (stsData.error) throw new Error(stsData.error);
+
+      const client = new OSS({
+        region: stsData.Region || "oss-ap-southeast-1",
+        accessKeyId: stsData.AccessKeyId,
+        accessKeySecret: stsData.AccessKeySecret,
+        stsToken: stsData.SecurityToken,
+        bucket: stsData.Bucket,
+        secure: true,
+      });
+
+      const key = `lbs-node-assets/${Date.now()}_${file.name}`;
+      const result = await client.put(key, file);
+      const url: string = result.url;
+      onSuccess(url);
+      pushToast(`${title} 上傳成功`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      pushToast(`${title} 上傳失敗: ${msg}`, false);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <label
+      className={`${CARD} block cursor-pointer border-dashed p-4 text-center text-sm text-gray-500 hover:border-blue-300 ${uploading ? "opacity-60 pointer-events-none" : ""}`}
+    >
+      <input type="file" className="hidden" accept="image/*" onChange={handleChange} />
+      <p className="font-semibold text-gray-700">{title}</p>
+      {uploading ? (
+        <p className="mt-1 text-xs text-blue-500">上傳中，請稍候…</p>
+      ) : currentUrl ? (
+        <p className="mt-1 text-xs text-green-600 truncate">✓ {currentUrl.split("/").pop()}</p>
+      ) : (
+        <p className="mt-1 text-xs text-gray-400">點擊上傳圖片至阿里雲 OSS</p>
+      )}
     </label>
   );
 }
@@ -548,13 +610,15 @@ function DistributionModule({ t, pushToast }: SharedProps) {
       end_time: null,
       contract_req: form.contractPolicy,
       film_ids: [] as string[],
+      poster_url: poster || null,
+      background_url: bgImage || null,
     };
     const { error } = await supabase.from("lbs_nodes").insert([payload]);
     if (error) {
       pushToast(`建立節點失敗: ${error.message}`, false);
       return;
     }
-    pushToast(`節點已建立，海報: ${poster || "-"}，背景: ${bgImage || "-"}`);
+    pushToast(`節點已建立`);
     setForm({
       title: "",
       lat: "",
@@ -626,8 +690,8 @@ function DistributionModule({ t, pushToast }: SharedProps) {
               <input className={INPUT} placeholder={t.ticketAif} value={form.ticketAif} onChange={(e) => setForm((p) => ({ ...p, ticketAif: e.target.value }))} />
               <input className={INPUT} placeholder={t.ticketUsd} value={form.ticketUsd} onChange={(e) => setForm((p) => ({ ...p, ticketUsd: e.target.value }))} />
             </div>
-            <UploadMock title={t.uploadPoster} onPick={setPoster} />
-            <UploadMock title={t.uploadBg} onPick={setBgImage} />
+            <OssImageUpload title={t.uploadPoster} currentUrl={poster} onSuccess={setPoster} pushToast={pushToast} />
+            <OssImageUpload title={t.uploadBg} currentUrl={bgImage} onSuccess={setBgImage} pushToast={pushToast} />
             <button className={`${BTN} w-full bg-blue-600 text-white`} type="submit">
               建立節點
             </button>

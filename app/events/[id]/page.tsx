@@ -262,19 +262,13 @@ export default function EventDetailPage() {
   return (
     <div className="min-h-screen bg-[#050505] overflow-y-auto pb-32">
 
-      {/* ── Fixed top nav ─────────────────────────────────────────────── */}
-      <div className="fixed top-0 left-0 right-0 z-20 flex justify-between items-center p-4 pt-12 bg-gradient-to-b from-black/90 to-transparent pointer-events-none">
-        <button
-          onClick={() => router.back()}
-          className="pointer-events-auto w-10 h-10 bg-black/60 backdrop-blur-md rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform shadow-lg"
-        >
-          <i className="fas fa-arrow-left" />
-        </button>
-        <div className="font-mono text-[10px] text-signal tracking-widest bg-black/60 px-3 py-1.5 rounded-full backdrop-blur border border-[#333]">
-          EVENT DETAILS
-        </div>
-        <div className="w-10" />
-      </div>
+      {/* ── Standalone floating back button ───────────────────────────── */}
+      <button
+        onClick={() => router.back()}
+        className="fixed top-4 left-4 z-[100] w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform shadow-lg"
+      >
+        <i className="fas fa-arrow-left" />
+      </button>
 
       {/* ── Hero (background_url) ──────────────────────────────────────── */}
       <div className="relative w-full h-72 bg-black overflow-hidden">
