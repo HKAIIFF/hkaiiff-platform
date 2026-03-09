@@ -294,6 +294,8 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
   const [loading, setLoading] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<Film | null>(null);
   const [rejectReason, setRejectReason] = useState<string>(t.rejectReasons[0]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
 
   const fetchFilms = useCallback(async () => {
     setLoading(true);
@@ -307,6 +309,19 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
   }, [pushToast]);
 
   useEffect(() => { fetchFilms(); }, [fetchFilms]);
+
+  const filteredFilms = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    return films.filter((film) => {
+      if (statusFilter !== "all" && film.status !== statusFilter) return false;
+      if (!q) return true;
+      return (
+        (film.title ?? "").toLowerCase().includes(q) ||
+        (film.users?.email ?? "").toLowerCase().includes(q) ||
+        (film.users?.wallet_address ?? "").toLowerCase().includes(q)
+      );
+    });
+  }, [films, searchQuery, statusFilter]);
 
   async function approveFilm(film: Film) {
     const { error } = await supabase.from("films").update({ status: "approved" }).eq("id", film.id);
@@ -367,104 +382,241 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
     pushToast("已發送駁回信 ✉");
   }
 
-  const statusColor = (s: string) => s === "approved" ? "text-green-700 bg-green-50" : s === "rejected" ? "text-red-700 bg-red-50" : "text-amber-700 bg-amber-50";
+  function copyToClipboard(text: string, label: string) {
+    navigator.clipboard.writeText(text)
+      .then(() => pushToast(`✓ 已複製 ${label}`, true))
+      .catch(() => pushToast("複製失敗", false));
+  }
 
-  function MiniToggle({ on, onChange, labelOn, labelOff }: { on: boolean; onChange: () => void; labelOn: string; labelOff: string }) {
+  const statusBadgeClass = (s: string) =>
+    s === "approved"
+      ? "text-green-700 bg-green-50 border border-green-200"
+      : s === "rejected"
+      ? "text-red-700 bg-red-50 border border-red-200"
+      : "text-amber-700 bg-amber-50 border border-amber-200";
+
+  const statusLabel = (s: string) =>
+    s === "approved" ? "已通過" : s === "rejected" ? "已駁回" : "待審核";
+
+  function MiniToggle({ on, onChange, label }: { on: boolean; onChange: () => void; label: string }) {
     return (
-      <div className="flex flex-col items-center gap-0.5">
-        <button onClick={onChange} className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${on ? "bg-blue-500" : "bg-gray-300"}`}>
-          <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${on ? "translate-x-4" : "translate-x-0.5"}`} />
-        </button>
-        <span className={`text-[9px] font-semibold ${on ? "text-blue-600" : "text-gray-400"}`}>{on ? labelOn : labelOff}</span>
-      </div>
+      <button
+        onClick={onChange}
+        className={`group flex items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors ${on ? "hover:bg-blue-50" : "hover:bg-gray-100"}`}
+      >
+        <span className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors ${on ? "bg-blue-500" : "bg-gray-300"}`}>
+          <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${on ? "translate-x-3.5" : "translate-x-0.5"}`} />
+        </span>
+        <span className={`text-[10px] font-medium whitespace-nowrap ${on ? "text-blue-600" : "text-gray-400"}`}>{label}</span>
+      </button>
     );
+  }
+
+  function CopyBtn({ text, label }: { text: string; label: string }) {
+    return (
+      <button
+        onClick={() => copyToClipboard(text, label)}
+        title={`複製 ${label}`}
+        className="inline-flex shrink-0 items-center justify-center rounded p-0.5 text-gray-300 transition-colors hover:bg-blue-50 hover:text-blue-500"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+        </svg>
+      </button>
+    );
+  }
+
+  function LinkChip({ href, label, accent }: { href: string | null | undefined; label: string; accent?: boolean }) {
+    if (!href) return <span className="text-[10px] text-gray-300">無{label}</span>;
+    const url = href.startsWith("http") ? href : `https://${href}`;
+    return (
+      <a
+        href={url}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`inline-flex items-center gap-0.5 text-[10px] font-semibold hover:underline transition-colors ${accent ? "text-purple-500 hover:text-purple-700" : "text-blue-500 hover:text-blue-700"}`}
+      >
+        {label}
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" />
+        </svg>
+      </a>
+    );
+  }
+
+  function ParallelStatusBadge({ film }: { film: Film }) {
+    if (!film.parallel_start_time) return null;
+    const now = new Date();
+    const start = new Date(film.parallel_start_time);
+    const end = new Date(start.getTime() + 9 * 60000);
+    if (now < start) return <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1 py-0.5 rounded">QUEUED</span>;
+    if (now < end) return <span className="text-[9px] font-bold text-green-700 bg-green-100 px-1 py-0.5 rounded">LIVE</span>;
+    return <span className="text-[9px] text-gray-400 bg-gray-100 px-1 py-0.5 rounded">EXP</span>;
   }
 
   return (
     <>
-      <div className="flex justify-end mb-3">
-        <button className={BTN_GHOST} onClick={fetchFilms}>{loading ? t.loading : t.refresh}</button>
+      {/* ── Action Bar ── */}
+      <div className="flex flex-col sm:flex-row gap-2 mb-3">
+        <div className="relative flex-1">
+          <svg className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+          </svg>
+          <input
+            type="text"
+            placeholder="搜尋片名、Email 或錢包地址…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+        >
+          <option value="all">全部狀態</option>
+          <option value="pending">待審核</option>
+          <option value="approved">已通過</option>
+          <option value="rejected">已駁回</option>
+        </select>
+        <button className={BTN_GHOST} onClick={fetchFilms}>
+          {loading ? t.loading : t.refresh}
+        </button>
       </div>
+
+      <p className="mb-2 text-[11px] text-gray-400">
+        {filteredFilms.length} / {films.length} 條記錄
+        {(searchQuery || statusFilter !== "all") && (
+          <button
+            onClick={() => { setSearchQuery(""); setStatusFilter("all"); }}
+            className="ml-2 text-blue-500 hover:underline"
+          >
+            清除篩選
+          </button>
+        )}
+      </p>
+
+      {/* ── Table ── */}
       <div className={`${CARD} overflow-hidden`}>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[1400px]">
+          <table className="w-full min-w-[880px]">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-[11px] text-gray-500 font-semibold">
-                <th className="px-2 py-2 text-left w-[48px]">#</th>
-                <th className="px-2 py-2 text-left">影片名稱</th>
-                <th className="px-2 py-2 text-left">用戶</th>
-                <th className="px-2 py-2 text-left w-[120px]">報名時間</th>
-                <th className="px-2 py-2 text-left w-[80px]">AI 51%</th>
-                <th className="px-2 py-2 text-left w-[120px]">資料池（正片）</th>
-                <th className="px-2 py-2 text-left w-[90px]">平行宇宙</th>
-                <th className="px-2 py-2 text-left w-[80px]">狀態</th>
-                <th className="px-2 py-2 text-left w-[110px]">審核操作</th>
-                <th className="px-2 py-2 text-center w-[68px]">Feed</th>
-                <th className="px-2 py-2 text-center w-[68px]">正片上架</th>
+              <tr className="border-b border-gray-200 bg-gray-50 text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                <th className="w-8 px-3 py-2.5 text-left">#</th>
+                <th className="px-3 py-2.5 text-left">影片與創作者</th>
+                <th className="w-[210px] px-3 py-2.5 text-left">審核資料池</th>
+                <th className="w-[180px] px-3 py-2.5 text-left">決策中心</th>
+                <th className="w-[150px] px-3 py-2.5 text-left">展映大盤</th>
               </tr>
             </thead>
             <tbody>
-              {films.length === 0 ? (
-                <tr><td colSpan={11} className="p-6 text-gray-400 text-center text-xs">{loading ? t.loading : t.empty}</td></tr>
-              ) : films.map((film, idx) => (
-                <tr key={film.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/40">
-                  <td className="px-2 py-1.5 text-[11px] text-gray-400 font-mono">{idx + 1}</td>
-                  <td className="px-2 py-1.5">
-                    <p className="text-[11px] font-semibold text-gray-900 leading-tight">{film.title ?? "-"}</p>
-                    <p className="text-[10px] text-gray-400 leading-tight">{film.studio ?? "-"}</p>
-                    {film.trailer_url && (
-                      <a href={film.trailer_url.startsWith("http") ? film.trailer_url : `https://${film.trailer_url}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400 hover:underline">預告↗</a>
+              {filteredFilms.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-sm text-gray-400">
+                    {loading ? t.loading : searchQuery || statusFilter !== "all" ? "無符合條件的結果" : t.empty}
+                  </td>
+                </tr>
+              ) : filteredFilms.map((film, idx) => (
+                <tr key={film.id} className="border-b border-gray-100 transition-colors last:border-0 hover:bg-gray-50/60">
+
+                  {/* # */}
+                  <td className="px-3 py-3 align-top text-[11px] font-mono text-gray-400">{idx + 1}</td>
+
+                  {/* ── 影片與創作者 ── */}
+                  <td className="px-3 py-3 align-top">
+                    <p className="mb-1 text-[10px] text-gray-400">
+                      {new Date(film.created_at).toLocaleString("zh-HK", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <p className="max-w-[180px] truncate text-[12px] font-bold leading-snug text-gray-900" title={film.title ?? "-"}>
+                        {film.title ?? "-"}
+                      </p>
+                      {film.title && <CopyBtn text={film.title} label="片名" />}
+                    </div>
+                    {film.studio && (
+                      <p className="mb-1 text-[10px] leading-tight text-gray-400">{film.studio}</p>
                     )}
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <p className="text-[11px] text-gray-700 leading-tight truncate max-w-[140px]">{film.users?.email ?? "-"}</p>
-                    <p className="text-[10px] text-gray-400 font-mono leading-tight truncate max-w-[140px]">{film.users?.wallet_address ? `${film.users.wallet_address.slice(0, 8)}...` : "-"}</p>
-                  </td>
-                  <td className="px-2 py-1.5 text-[11px] text-gray-500 whitespace-nowrap">{new Date(film.created_at).toLocaleDateString("zh-HK")}<br/><span className="text-[10px] text-gray-400">{new Date(film.created_at).toLocaleTimeString("zh-HK", { hour: "2-digit", minute: "2-digit" })}</span></td>
-                  <td className="px-2 py-1.5">
-                    <span className={`text-[11px] font-bold ${(film.ai_ratio ?? 0) >= 51 ? "text-green-600" : "text-red-600"}`}>{Math.round(film.ai_ratio ?? 0)}%</span>
-                    <p className="text-[10px] text-gray-400">{(film.ai_ratio ?? 0) >= 51 ? "✓達標" : "✗不足"}</p>
-                  </td>
-                  <td className="px-2 py-1.5">
-                    {film.main_video_url ? (
-                      <a href={film.main_video_url.startsWith("http") ? film.main_video_url : `https://${film.main_video_url}`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-500 hover:underline block leading-tight">正片↗</a>
-                    ) : (
-                      <span className="text-[11px] text-gray-400">無正片</span>
-                    )}
-                    {film.poster_url && <a href={film.poster_url.startsWith("http") ? film.poster_url : `https://${film.poster_url}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-400 hover:underline block">海報↗</a>}
-                    {film.copyright_url && <a href={film.copyright_url.startsWith("http") ? film.copyright_url : `https://${film.copyright_url}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-400 hover:underline block">版權↗</a>}
-                  </td>
-                  <td className="px-2 py-1.5">
-                    <div className="flex flex-col items-center gap-0.5">
-                      <button
-                        onClick={() => toggleParallelUniverse(film)}
-                        className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors ${film.parallel_start_time ? "bg-[#CCFF00]" : "bg-gray-300"}`}
-                        title={film.parallel_start_time ? `隊列，開始: ${new Date(film.parallel_start_time).toLocaleTimeString()}` : "未啟用"}
-                      >
-                        <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform ${film.parallel_start_time ? "translate-x-4" : "translate-x-0.5"}`} />
-                      </button>
-                      {film.parallel_start_time ? (() => {
-                        const now = new Date(); const start = new Date(film.parallel_start_time); const end = new Date(start.getTime() + 9 * 60000);
-                        if (now < start) return <span className="text-[9px] font-semibold text-amber-600 text-center">QUEUED</span>;
-                        if (now < end) return <span className="text-[9px] font-semibold text-[#6b9900] text-center">LIVE</span>;
-                        return <span className="text-[9px] text-gray-400 text-center">EXP</span>;
-                      })() : <span className="text-[9px] text-gray-400">OFF</span>}
+                    <div className="mt-1 flex items-center gap-1">
+                      <p className="max-w-[180px] truncate text-[10px] text-gray-500" title={film.users?.email ?? "-"}>
+                        {film.users?.email ?? "-"}
+                      </p>
+                      {film.users?.email && <CopyBtn text={film.users.email} label="Email" />}
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <p className="max-w-[180px] truncate font-mono text-[10px] text-gray-400" title={film.users?.wallet_address ?? ""}>
+                        {film.users?.wallet_address ? `${film.users.wallet_address.slice(0, 12)}…` : "-"}
+                      </p>
+                      {film.users?.wallet_address && <CopyBtn text={film.users.wallet_address} label="錢包" />}
                     </div>
                   </td>
-                  <td className="px-2 py-1.5">
-                    <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded-full ${statusColor(film.status)}`}>{film.status}</span>
+
+                  {/* ── 審核資料池 ── */}
+                  <td className="px-3 py-3 align-top">
+                    <div className="mb-2 flex items-center gap-1.5">
+                      <span className={`text-[12px] font-black ${(film.ai_ratio ?? 0) >= 51 ? "text-green-600" : "text-red-500"}`}>
+                        {Math.round(film.ai_ratio ?? 0)}%
+                      </span>
+                      <span className={`rounded px-1 py-0.5 text-[9px] font-bold ${(film.ai_ratio ?? 0) >= 51 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-600"}`}>
+                        {(film.ai_ratio ?? 0) >= 51 ? "✓ 達標" : "✗ 不足"}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+                      <LinkChip href={film.trailer_url} label="預告" />
+                      <LinkChip href={film.poster_url} label="海報" />
+                      {(film.main_video_url || film.feature_url) ? (
+                        <LinkChip href={film.main_video_url || film.feature_url} label="正片" accent />
+                      ) : (
+                        <span className="text-[10px] text-gray-300">無正片</span>
+                      )}
+                      {film.copyright_url && <LinkChip href={film.copyright_url} label="版權" />}
+                    </div>
                   </td>
-                  <td className="px-2 py-1.5">
+
+                  {/* ── 決策中心 ── */}
+                  <td className="px-3 py-3 align-top">
+                    <span className={`mb-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold ${statusBadgeClass(film.status)}`}>
+                      {statusLabel(film.status)}
+                    </span>
                     <div className="flex gap-1.5">
-                      <button className="px-2 py-0.5 text-[10px] font-semibold rounded bg-green-600 text-white hover:bg-green-700" onClick={() => approveFilm(film)}>{t.approve}</button>
-                      <button className="px-2 py-0.5 text-[10px] font-semibold rounded bg-red-600 text-white hover:bg-red-700" onClick={() => { setRejectTarget(film); setRejectReason(t.rejectReasons[0]); }}>{t.reject}</button>
+                      <button
+                        className="rounded-md bg-green-600 px-2.5 py-1 text-[10px] font-bold text-white transition-colors hover:bg-green-700"
+                        onClick={() => approveFilm(film)}
+                      >
+                        {t.approve}
+                      </button>
+                      <button
+                        className="rounded-md bg-red-500 px-2.5 py-1 text-[10px] font-bold text-white transition-colors hover:bg-red-600"
+                        onClick={() => { setRejectTarget(film); setRejectReason(t.rejectReasons[0]); }}
+                      >
+                        {t.reject}
+                      </button>
                     </div>
                   </td>
-                  <td className="px-2 py-1.5 text-center">
-                    <MiniToggle on={!!film.feed_enabled} onChange={() => toggleFeed(film)} labelOn="上架" labelOff="下架" />
-                  </td>
-                  <td className="px-2 py-1.5 text-center">
-                    <MiniToggle on={!!film.feature_enabled} onChange={() => toggleFeature(film)} labelOn="上架" labelOff="下架" />
+
+                  {/* ── 展映大盤 ── */}
+                  <td className="px-3 py-3 align-top">
+                    <div className="space-y-0.5">
+                      <MiniToggle
+                        on={!!film.feed_enabled}
+                        onChange={() => toggleFeed(film)}
+                        label={film.feed_enabled ? "Feed 上架" : "Feed 下架"}
+                      />
+                      <div className="flex items-center gap-1">
+                        <MiniToggle
+                          on={!!film.parallel_start_time}
+                          onChange={() => toggleParallelUniverse(film)}
+                          label="平行宇宙"
+                        />
+                        <ParallelStatusBadge film={film} />
+                      </div>
+                      <MiniToggle
+                        on={!!film.feature_enabled}
+                        onChange={() => toggleFeature(film)}
+                        label={film.feature_enabled ? "正片上架" : "正片下架"}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -472,13 +624,19 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
           </table>
         </div>
       </div>
+
       {rejectTarget && (
-        <Modal title={`${t.reject}: ${rejectTarget.title ?? ""}`} onClose={() => setRejectTarget(null)}
-          footer={<div className="flex justify-end gap-2">
-            <button className={BTN_GHOST} onClick={() => setRejectTarget(null)}>{t.cancel}</button>
-            <button className={BTN_DANGER} onClick={submitReject}>{t.sendReject}</button>
-          </div>}>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">{t.reason}</label>
+        <Modal
+          title={`${t.reject}: ${rejectTarget.title ?? ""}`}
+          onClose={() => setRejectTarget(null)}
+          footer={
+            <div className="flex justify-end gap-2">
+              <button className={BTN_GHOST} onClick={() => setRejectTarget(null)}>{t.cancel}</button>
+              <button className={BTN_DANGER} onClick={submitReject}>{t.sendReject}</button>
+            </div>
+          }
+        >
+          <label className="mb-2 block text-sm font-semibold text-gray-700">{t.reason}</label>
           <select value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} className={INPUT}>
             {t.rejectReasons.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
