@@ -26,7 +26,7 @@ export default function ConditionalNav({ children }: { children: ReactNode }) {
         <div className="hidden lg:flex flex-shrink-0">
           <Sidebar />
         </div>
-        <main className="flex-1 h-full overflow-hidden relative bg-void">
+        <main className="flex-1 h-full overflow-y-auto relative bg-void">
           {children}
         </main>
       </div>

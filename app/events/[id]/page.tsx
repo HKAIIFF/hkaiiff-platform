@@ -39,7 +39,7 @@ interface FilmCard {
   coverUrl: string;
   studio: string;
   synopsis: string | null;
-  filmUrl: string | null;
+  filmUrl: string | null;   // feature_url / main_video_url / film_url
   trailerUrl: string | null;
 }
 
@@ -134,20 +134,18 @@ export default function EventDetailPage() {
           setFilmsLoading(true);
           const { data: filmData, error: filmError } = await supabase
             .from('films')
-            .select('id, title, poster_url, studio_name, trailer_url, feature_url, synopsis')
-            .in('id', ev.film_ids)
-            .eq('status', 'approved');
+            .select('id, title, poster_url, studio_name, trailer_url, feature_url, main_video_url, film_url, synopsis')
+            .in('id', ev.film_ids);
           if (!filmError && filmData) {
             setFilms(
               filmData.map((f) => ({
-                id: f.id,
-                title: f.title,
-                coverUrl:
-                  f.poster_url ??
-                  'https://images.unsplash.com/photo-1608889175123-8ee362201f81?q=80&w=300',
+                id: String(f.id),
+                title: f.title ?? 'Untitled',
+                coverUrl: f.poster_url ?? '',
                 studio: f.studio_name ?? '—',
                 synopsis: f.synopsis ?? null,
-                filmUrl: f.feature_url ?? null,
+                // 依序嘗試正片欄位：main_video_url → feature_url → film_url
+                filmUrl: f.main_video_url ?? f.feature_url ?? f.film_url ?? null,
                 trailerUrl: f.trailer_url ?? null,
               }))
             );
@@ -262,7 +260,7 @@ export default function EventDetailPage() {
       : 'ON-CHAIN';
 
   return (
-    <div className="min-h-screen bg-[#050505] pb-20">
+    <div className="min-h-screen bg-[#050505] overflow-y-auto pb-32">
 
       {/* ── Fixed top nav ─────────────────────────────────────────────── */}
       <div className="fixed top-0 left-0 right-0 z-20 flex justify-between items-center p-4 pt-12 bg-gradient-to-b from-black/90 to-transparent pointer-events-none">
