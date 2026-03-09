@@ -95,6 +95,22 @@ export default function GlobalModals() {
 
   const audioInputRef = useRef<HTMLInputElement>(null);
   const visionInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  const handleFullscreen = useCallback(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    if (el.requestFullscreen) {
+      el.requestFullscreen();
+    } else {
+      const safariEl = el as HTMLVideoElement & { webkitRequestFullscreen?: () => void; webkitEnterFullscreen?: () => void };
+      if (safariEl.webkitRequestFullscreen) {
+        safariEl.webkitRequestFullscreen();
+      } else if (safariEl.webkitEnterFullscreen) {
+        safariEl.webkitEnterFullscreen();
+      }
+    }
+  }, []);
 
   // 當切換到 Bio Tab 時自動生成設備熵值
   const handleTabChange = useCallback(
@@ -661,124 +677,68 @@ export default function GlobalModals() {
       <div
         className={
           "fixed inset-0 z-[500] bg-black select-none transition-opacity duration-300 " +
-          (isPlay ? "flex opacity-100" : "hidden opacity-0")
+          (isPlay ? "flex opacity-100 pointer-events-auto" : "hidden opacity-0 pointer-events-none")
         }
       >
-        <div className="relative w-full h-full flex flex-col justify-between group">
+        <div className="relative w-full h-full flex flex-col">
 
-          {/* 背景海报（LBS 核验成功时优先使用 lbsVideoUrl） */}
-          <img
-            src={lbsVideoUrl ?? film?.video ?? undefined}
-            alt={film?.title ?? "LBS EXCLUSIVE"}
-            className="absolute inset-0 w-full h-full object-cover sm:object-contain opacity-80 group-hover:opacity-100 transition-opacity duration-500"
+          {/* ── 真實影片播放器 ── */}
+          <video
+            ref={videoRef}
+            key={lbsVideoUrl ?? undefined}
+            src={lbsVideoUrl ?? undefined}
+            className="absolute inset-0 w-full h-full object-contain bg-black"
+            controls
+            autoPlay
+            playsInline
+            onWaiting={() => setIsVideoLoading(true)}
+            onCanPlay={() => setIsVideoLoading(false)}
+            onError={() => {
+              setIsVideoLoading(false);
+              showToast("⚠️ 影片載入失敗，請檢查連結或網絡", "error");
+            }}
           />
 
-          {/* 顶部→底部渐变遮罩 */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90 opacity-100 transition-opacity duration-500" />
+          {/* ── 頂部控制條（懸浮於視頻上，點擊不干擾播放） ── */}
+          <div className="relative z-30 p-4 pt-12 flex justify-between items-start w-full pointer-events-none">
 
-          {/* ── 顶部控制栏 ── */}
-          <div className="relative z-30 p-4 pt-12 flex justify-between items-start w-full transform translate-y-0 group-hover:translate-y-0 transition-transform duration-500">
-
-            {/* 关闭（向下箭头）按钮 */}
+            {/* 關閉按鈕 */}
             <button
-              onClick={() => { setActiveModal(null); setLbsVideoUrl(null); }}
-              className="w-10 h-10 bg-black/40 backdrop-blur-md rounded-full text-white flex items-center justify-center border border-white/10 hover:bg-white/20 active:scale-90 transition-all shadow-lg"
+              onClick={() => {
+                if (videoRef.current) videoRef.current.pause();
+                setActiveModal(null);
+                setLbsVideoUrl(null);
+              }}
+              className="pointer-events-auto w-10 h-10 bg-black/60 backdrop-blur-md rounded-full text-white flex items-center justify-center border border-white/20 hover:bg-white/20 active:scale-90 transition-all shadow-lg"
             >
               <i className="fas fa-chevron-down" />
             </button>
 
-            {/* 右上角标签 */}
-            <div className="flex flex-col items-end gap-2">
-              {/* FULL FEATURE PLAYING — 红色脉冲标签 */}
-              <div className="bg-danger/20 border border-danger/50 px-3 py-1.5 rounded text-danger text-[9px] font-bold tracking-widest animate-pulse flex items-center gap-2 backdrop-blur-md shadow-[0_0_10px_rgba(255,51,51,0.2)]">
+            {/* 右上角標籤 */}
+            <div className="pointer-events-none flex flex-col items-end gap-2">
+              <div className="bg-red-900/40 border border-red-500/50 px-3 py-1.5 rounded text-red-400 text-[9px] font-bold tracking-widest animate-pulse flex items-center gap-2 backdrop-blur-md">
                 <i className="fas fa-circle text-[6px]" />
                 <span>FULL FEATURE PLAYING</span>
               </div>
-              {/* ARWEAVE SYNC + 4K HDR */}
               <div className="flex gap-2">
-                <span className="bg-black/50 border border-[#333] px-2 py-1 rounded text-[8px] font-mono text-gray-400 backdrop-blur-sm shadow-lg">
-                  <i className="fas fa-satellite-dish text-signal mr-1" /> ARWEAVE SYNC
-                </span>
-                <span className="bg-black/50 border border-[#333] px-2 py-1 rounded text-[8px] font-mono text-gray-400 backdrop-blur-sm shadow-lg">
-                  4K HDR
+                <span className="bg-black/50 border border-[#333] px-2 py-1 rounded text-[8px] font-mono text-gray-400 backdrop-blur-sm">
+                  <i className="fas fa-satellite-dish text-[#CCFF00] mr-1" /> LBS EXCLUSIVE
                 </span>
               </div>
             </div>
           </div>
 
-          {/* ── 正中央巨型播放按钮（hover 显示） ── */}
-          <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+          {/* ── 底部全螢幕專屬按鈕 ── */}
+          <div className="absolute bottom-0 left-0 right-0 z-30 pointer-events-none px-4 pb-6 flex justify-end">
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsVideoLoading(true);
-                setTimeout(() => {
-                  setIsVideoLoading(false);
-                  setActiveModal("play");
-                }, 2000);
-              }}
-              className="pointer-events-auto w-20 h-20 bg-signal/90 text-black rounded-full flex items-center justify-center text-3xl shadow-[0_0_40px_rgba(204,255,0,0.4)] hover:scale-110 active:scale-95 transition-all pl-2 opacity-0 group-hover:opacity-100 duration-300 backdrop-blur-md border border-white/40"
+              onClick={handleFullscreen}
+              className="pointer-events-auto flex items-center gap-2 bg-black/70 backdrop-blur-md border border-white/20 hover:border-[#CCFF00] hover:bg-[#CCFF00]/10 active:scale-95 transition-all px-4 py-2.5 rounded-xl text-white hover:text-[#CCFF00] text-sm font-bold shadow-lg"
             >
-              <i className="fas fa-play" />
+              <i className="fas fa-expand-arrows-alt text-base" />
+              <span>全螢幕 / 橫屏播放</span>
             </button>
           </div>
 
-          {/* ── 底部控制条 ── */}
-          <div className="relative z-30 w-full px-6 pb-10 pt-20 bg-gradient-to-t from-black to-transparent transform translate-y-0 transition-transform duration-500">
-
-            {/* 标题 + 前后跳转按钮 */}
-            <div className="flex justify-between items-end mb-4">
-              <h2 className="font-heavy text-3xl text-white shadow-black drop-shadow-2xl tracking-wide uppercase leading-none truncate max-w-[70%]">
-                {lbsVideoUrl ? "LBS EXCLUSIVE" : (film?.title ?? "TITLE")}
-              </h2>
-              <div className="flex gap-5 text-white/80">
-                <button className="hover:text-signal transition-colors active:scale-90">
-                  <i className="fas fa-backward text-lg drop-shadow-md" />
-                </button>
-                <button className="hover:text-signal transition-colors active:scale-90">
-                  <i className="fas fa-forward text-lg drop-shadow-md" />
-                </button>
-              </div>
-            </div>
-
-            {/* 进度条（group/bar 懸浮变大特效） */}
-            <div className="relative w-full h-2 group/bar cursor-pointer flex items-center">
-              <div className="absolute left-0 w-full h-1 bg-white/20 rounded-full transition-all group-hover/bar:h-2 shadow-inner" />
-              <div className="absolute left-0 w-1/3 h-1 bg-signal rounded-full shadow-[0_0_10px_#CCFF00] transition-all group-hover/bar:h-2" />
-              <div className="absolute left-1/3 w-3 h-3 bg-white rounded-full shadow-lg opacity-0 group-hover/bar:opacity-100 transition-opacity transform -translate-x-1/2" />
-            </div>
-
-            {/* 时间显示 */}
-            <div className="flex justify-between w-full text-[10px] font-mono text-gray-400 mt-2">
-              <span className="text-signal font-bold tracking-wider drop-shadow-md">00:24:15</span>
-              <span className="tracking-wider drop-shadow-md">02:15:30</span>
-            </div>
-
-            {/* 功能按钮行 */}
-            <div className="mt-5 flex justify-between items-center text-gray-300">
-              <div className="flex gap-6">
-                <button className="hover:text-white hover:scale-110 transition-all active:scale-90">
-                  <i className="fas fa-volume-up text-lg drop-shadow-md" />
-                </button>
-                <button className="hover:text-white hover:scale-110 transition-all active:scale-90 flex items-center gap-1.5">
-                  <i className="fas fa-closed-captioning text-lg drop-shadow-md" />
-                  <span className="text-[8px] font-mono border border-gray-400 rounded px-1 hidden sm:block font-bold">EN</span>
-                </button>
-                <button className="hover:text-white hover:scale-110 transition-all active:scale-90">
-                  <i className="fas fa-cog text-lg drop-shadow-md" />
-                </button>
-              </div>
-              <div className="flex gap-6">
-                <button className="hover:text-signal hover:scale-110 transition-all active:scale-90">
-                  <i className="fas fa-chromecast text-lg drop-shadow-md" />
-                </button>
-                <button className="hover:text-signal hover:scale-110 transition-all active:scale-90">
-                  <i className="fas fa-expand text-lg drop-shadow-md" />
-                </button>
-              </div>
-            </div>
-
-          </div>
         </div>
       </div>
 

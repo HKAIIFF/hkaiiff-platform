@@ -22,6 +22,7 @@ interface LbsFilmEntry {
   studio: string;
   duration: string;
   trailerUrl: string | null;
+  filmUrl: string | null;
   synopsis: string | null;
 }
 
@@ -307,7 +308,7 @@ export default function DiscoverPage() {
         try {
           const { data, error } = await supabase
             .from('films')
-            .select('id, title, poster_url, studio_name, trailer_url, synopsis')
+            .select('id, title, poster_url, studio_name, trailer_url, feature_url, synopsis')
             .in('id', node.filmIds)
             .eq('status', 'approved');
 
@@ -322,6 +323,7 @@ export default function DiscoverPage() {
                 studio: f.studio_name ?? '—',
                 duration: '—',
                 trailerUrl: f.trailer_url ?? null,
+                filmUrl: f.feature_url ?? null,
                 synopsis: f.synopsis ?? null,
               })),
             );
@@ -343,13 +345,17 @@ export default function DiscoverPage() {
 
   const playFilm = useCallback(
     (film: LbsFilmEntry) => {
-      const playUrl = film.trailerUrl ?? film.coverUrl;
+      const playUrl = film.filmUrl ?? film.trailerUrl ?? null;
+      if (!playUrl) {
+        showToast('⚠️ 此影片暫無可播放的正片連結', 'error');
+        return;
+      }
       setLbsVideoUrl(playUrl);
       setSelectedNode(null);
       setDetailFilms([]);
       setActiveModal('play');
     },
-    [setLbsVideoUrl, setActiveModal],
+    [setLbsVideoUrl, setActiveModal, showToast],
   );
 
   return (
@@ -630,12 +636,12 @@ export default function DiscoverPage() {
                 </h3>
 
                 {filmsLoading ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {[...Array(3)].map((_, i) => (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+                    {[...Array(4)].map((_, i) => (
                       <div key={i} className="animate-pulse">
-                        <div className="aspect-[2/3] rounded-xl bg-[#1a1a1a] mb-3" />
-                        <div className="h-4 bg-[#1a1a1a] rounded w-3/4 mb-2" />
-                        <div className="h-3 bg-[#1a1a1a] rounded w-1/2" />
+                        <div className="aspect-[2/3] rounded-xl bg-[#1a1a1a] mb-2" />
+                        <div className="h-3 bg-[#1a1a1a] rounded w-3/4 mb-1.5" />
+                        <div className="h-2.5 bg-[#1a1a1a] rounded w-1/2" />
                       </div>
                     ))}
                   </div>
@@ -647,11 +653,11 @@ export default function DiscoverPage() {
                     </span>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
                     {detailFilms.map((film) => (
                       <div
                         key={film.id}
-                        className="group bg-[#111] rounded-2xl border border-white/10 overflow-hidden shadow-2xl hover:-translate-y-1 transition-all duration-300"
+                        className="group bg-[#111] rounded-xl border border-white/10 overflow-hidden shadow-xl hover:-translate-y-0.5 transition-all duration-300"
                       >
                         {/* ── 上半部：海報 ── */}
                         <div className="relative aspect-[2/3] w-full overflow-hidden">
@@ -664,25 +670,30 @@ export default function DiscoverPage() {
                                 'https://images.unsplash.com/photo-1608889175123-8ee362201f81?q=80&w=300';
                             }}
                           />
-                          {/* 底部漸層 */}
                           <div className="absolute inset-0 bg-gradient-to-t from-[#111]/80 via-transparent to-transparent" />
+                          {/* 正片標記 */}
+                          {film.filmUrl && (
+                            <div className="absolute top-1.5 right-1.5 bg-[#CCFF00] text-black text-[8px] font-bold px-1.5 py-0.5 rounded-sm leading-none">
+                              正片
+                            </div>
+                          )}
                         </div>
 
                         {/* ── 下半部：資訊區 ── */}
-                        <div className="p-5 flex flex-col gap-2">
+                        <div className="p-3 flex flex-col gap-1.5">
                           {/* 片名 */}
-                          <h4 className="text-xl md:text-2xl font-black text-white uppercase truncate leading-tight">
+                          <h4 className="text-base md:text-lg font-black text-white uppercase truncate leading-tight">
                             {film.title}
                           </h4>
 
                           {/* 創作者 */}
-                          <p className="text-sm font-mono text-emerald-400 truncate">
+                          <p className="text-xs text-emerald-400 truncate">
                             {film.studio}
                           </p>
 
                           {/* 簡介 */}
                           {film.synopsis && (
-                            <p className="text-sm text-gray-400 line-clamp-2 mt-1 leading-snug">
+                            <p className="text-[11px] md:text-xs text-gray-400 line-clamp-2 leading-snug">
                               {film.synopsis}
                             </p>
                           )}
@@ -690,15 +701,15 @@ export default function DiscoverPage() {
                           {/* 播放正片按鈕 */}
                           <button
                             onClick={() => playFilm(film)}
-                            className="mt-3 w-full bg-white text-black hover:bg-gray-200 active:scale-95 font-bold rounded-xl py-3 text-sm tracking-wide transition-all duration-200 flex items-center justify-center gap-2"
+                            className="mt-2 w-full bg-white text-black hover:bg-[#CCFF00] active:scale-95 font-bold rounded-lg py-2.5 text-xs tracking-wide transition-all duration-200 flex items-center justify-center gap-1.5"
                           >
-                            <span>▶ 播放正片</span>
-                            <span className="font-mono font-normal text-xs text-black/50">PLAY FILM</span>
+                            <i className="fas fa-play text-[10px]" />
+                            <span>播放正片</span>
                           </button>
 
                           {/* 橫屏提示 */}
-                          <p className="text-center text-[10px] font-mono text-gray-500 tracking-wide mt-0.5">
-                            ◱ 建議橫屏觀看 <span className="text-gray-600">Landscape Mode Recommended</span>
+                          <p className="text-center text-[9px] font-mono text-gray-600 tracking-wide">
+                            ◱ 建議橫屏觀看
                           </p>
                         </div>
                       </div>
