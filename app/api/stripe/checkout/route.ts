@@ -172,8 +172,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ sessionId: session.id, url: session.url });
 
   } catch (err: unknown) {
+    console.error('[STRIPE CRITICAL ERROR]:', err);
     logStripeError('[stripe/checkout] Stripe API Error (full details):', err);
     const message = extractErrorMessage(err);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json({ error: message || 'Stripe API 內部錯誤' }, { status: 500 });
   }
 }

@@ -65,6 +65,7 @@ export default function MePage() {
   const [displaySolanaAddress, setDisplaySolanaAddress] = useState<string | null>(null);
   const [isFetchingBalance, setIsFetchingBalance] = useState(false);
   const [isRefreshingAif, setIsRefreshingAif] = useState(false);
+  const [isRefreshingProfile, setIsRefreshingProfile] = useState(false);
 
   // ── Supabase Realtime 狀態 ────────────────────────────────────────────────
   /** WebSocket 是否成功訂閱（用於顯示 LIVE 狀態圓點） */
@@ -111,6 +112,7 @@ export default function MePage() {
       body: JSON.stringify({
         walletAddress: solanaAddress,
       }),
+      cache: 'no-store',
     });
     const data = await res.json();
     if (res.ok && data.address) {
@@ -253,6 +255,7 @@ export default function MePage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user }),
+            cache: 'no-store',
           });
         } catch (err) {
           console.error('Failed to sync', err);
@@ -361,7 +364,7 @@ export default function MePage() {
 
         try {
           const userId = user.id;
-          const filmsRes = await fetch(`/api/user-films?userId=${userId}`);
+          const filmsRes = await fetch(`/api/user-films?userId=${userId}`, { cache: 'no-store' });
           const filmsData = await filmsRes.json();
           if (!filmsData.error && Array.isArray(filmsData.films)) {
             setMySubmissions(filmsData.films);
@@ -462,6 +465,34 @@ export default function MePage() {
       console.error('[handleRefreshBalance] error:', err);
     } finally {
       setIsRefreshingAif(false);
+    }
+  };
+
+  // ── 手動刷新整個錢包區塊（含 deposit_address） ──────────────────────────
+  const handleRefreshProfile = async () => {
+    if (!user?.id || isRefreshingProfile) return;
+    setIsRefreshingProfile(true);
+    try {
+      const { data: profileRow, error } = await supabase
+        .from('users')
+        .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team, deposit_address, wallet_index')
+        .eq('id', user.id)
+        .single();
+
+      if (!error && profileRow) {
+        setDbProfile(profileRow);
+        if (profileRow.deposit_address) {
+          setDepositAddress(profileRow.deposit_address);
+        } else {
+          setDepositAddress(null);
+        }
+      }
+      // 強制 Next.js 失效伺服器端快取
+      router.refresh();
+    } catch (err) {
+      console.error('[handleRefreshProfile] error:', err);
+    } finally {
+      setIsRefreshingProfile(false);
     }
   };
 
@@ -609,7 +640,7 @@ export default function MePage() {
           {/* ── Realtime LIVE 狀態圓點 ── */}
           {!isProfileLoading && (
             <span
-              className="flex items-center gap-1 ml-auto"
+              className="flex items-center gap-1"
               title={isRealtimeConnected ? 'Realtime connected · auto-updating' : 'Connecting to realtime...'}
             >
               <span
@@ -624,6 +655,22 @@ export default function MePage() {
                 {isRealtimeConnected ? 'LIVE' : 'CONNECTING'}
               </span>
             </span>
+          )}
+          {/* ── 手動刷新按鈕（強制重新讀取地址與餘額） ── */}
+          {!isProfileLoading && (
+            <button
+              onClick={handleRefreshProfile}
+              disabled={isRefreshingProfile}
+              title="Refresh wallet & deposit address"
+              className="relative z-10 ml-auto flex items-center gap-1.5 text-[9px] font-mono tracking-widest
+                         border border-signal/30 bg-signal/5 text-signal/60
+                         hover:bg-signal/15 hover:border-signal/60 hover:text-signal
+                         px-2.5 py-1 rounded-lg transition-all active:scale-95
+                         disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <i className={`fas fa-sync-alt text-[8px] ${isRefreshingProfile ? 'animate-spin' : ''}`} />
+              {isRefreshingProfile ? 'REFRESHING...' : 'REFRESH'}
+            </button>
           )}
         </div>
 
