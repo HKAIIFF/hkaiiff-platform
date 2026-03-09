@@ -299,7 +299,7 @@ export default function UploadPage() {
           </div>
         </div>
         <div className="hidden md:block font-mono text-[9px] text-gray-500 bg-[#111] px-3 py-1.5 rounded border border-[#333]">
-          ENTRY FEE: $500 USD
+          ENTRY FEE: $99 USD
         </div>
       </div>
 
@@ -647,7 +647,7 @@ export default function UploadPage() {
                 >
                   <div className="text-left">
                     <div className="font-mono text-[10px] text-gray-500 mb-1 tracking-widest">FIAT PAYMENT</div>
-                    <div className="font-heavy text-5xl text-white leading-none">$500</div>
+                    <div className="font-heavy text-5xl text-white leading-none">$99</div>
                     <div className="font-mono text-[10px] text-gray-400 mt-2">USD · Powered by Stripe</div>
                   </div>
                   <div className="flex flex-col items-end gap-3">

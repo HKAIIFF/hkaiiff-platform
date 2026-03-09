@@ -172,7 +172,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ sessionId: session.id, url: session.url });
 
   } catch (error) {
-    const e = error as { message?: string };
-    return NextResponse.json({ error: e.message ?? 'Unknown server error' }, { status: 500 });
+    return NextResponse.json({ error: (error as Error).message || 'Stripe API Error' }, { status: 500 });
   }
 }

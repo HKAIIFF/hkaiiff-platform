@@ -168,9 +168,7 @@ function PaymentPageContent() {
 
       // Step 4: 檢查後端是否回傳錯誤
       if (!res.ok) {
-        const errMsg = data.error ?? `Server error (${res.status})`;
-        console.error('[Stripe] 後端錯誤:', errMsg);
-        showToast(errMsg, 'error');
+        alert(`Stripe 啟動失敗: ${data.error || '未知錯誤'}`);
         return;
       }
 
