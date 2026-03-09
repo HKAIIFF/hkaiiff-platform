@@ -13,6 +13,16 @@ function randomSeed() {
   return Math.random().toString(36).substring(2, 10).toUpperCase();
 }
 
+function formatDateTime(dateStr: string): string {
+  const d = new Date(dateStr);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const mins = String(d.getMinutes()).padStart(2, '0');
+  return `${year}${month}${day} ${hours}:${mins}`;
+}
+
 const getStatusUI = (status: string) => {
   switch (status) {
     case 'approved':
@@ -77,6 +87,7 @@ export default function MePage() {
   // ── Top-Up Modal State ────────────────────────────────────────────────────
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [copiedFilmId, setCopiedFilmId] = useState<string | null>(null);
 
   const handleTopUpCopy = async () => {
     if (!depositAddress) return;
@@ -638,7 +649,7 @@ export default function MePage() {
             No submissions yet. Mint your first film.
           </div>
         ) : (
-          <div className="flex flex-col">
+          <div className="grid grid-cols-2 gap-3">
             {mySubmissions.map((film) => {
               const filmStatus: string = film?.status || 'pending';
               const statusUI = getStatusUI(filmStatus);
@@ -652,48 +663,84 @@ export default function MePage() {
                 <div
                   key={film.id}
                   onClick={() => setSelectedFilm(film)}
-                  className="flex flex-row items-center gap-4 bg-[#111] border border-[#333] p-3 rounded-lg hover:border-[#CCFF00]/50 transition-colors cursor-pointer mb-3"
+                  className="bg-[#0f0f0f] border border-[#2a2a2a] rounded-xl overflow-hidden
+                             hover:border-[#CCFF00]/50 hover:shadow-[0_0_16px_rgba(204,255,0,0.07)]
+                             transition-all duration-300 cursor-pointer group"
                 >
-                  {/* 左側海報 */}
-                  <div className="w-16 h-24 bg-black rounded overflow-hidden flex-shrink-0">
+                  {/* 垂直海報 aspect-[2/3] */}
+                  <div className="aspect-[2/3] relative overflow-hidden bg-black">
                     {film?.poster_url ? (
                       <img
                         src={film.poster_url}
                         alt={film?.title || 'FILM'}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <i className="fas fa-film text-gray-700 text-xl" />
+                      <div className="w-full h-full flex items-center justify-center bg-[#0a0a0a]">
+                        <i className="fas fa-film text-gray-700 text-2xl" />
                       </div>
                     )}
+                    {/* 狀態角標 */}
+                    <div className={`absolute top-1.5 right-1.5 border px-1.5 py-0.5 rounded text-[8px] font-mono
+                                    flex items-center gap-1 backdrop-blur-sm ${statusUI.color}`}>
+                      <i className={`fas ${statusUI.icon} text-[7px]`} />
+                      {statusLabel}
+                    </div>
+                    {/* 底部漸變遮罩 */}
+                    <div className="absolute bottom-0 left-0 w-full h-10
+                                    bg-gradient-to-t from-[#0f0f0f] to-transparent" />
                   </div>
 
-                  {/* 右側內容 */}
-                  <div className="flex-1 min-w-0 flex flex-col gap-1">
-                    {/* 標題 */}
-                    <div className="font-heavy text-sm text-white tracking-wide truncate uppercase">
+                  {/* 資訊區塊 */}
+                  <div className="p-2.5 space-y-1.5">
+                    {/* 片名 */}
+                    <div className="font-heavy text-[13px] text-white tracking-wide truncate uppercase leading-tight">
                       {film?.title || 'UNTITLED'}
                     </div>
-                    {/* 廠牌 / 核心陣容 */}
-                    <div className="text-[11px] text-gray-500 font-mono truncate">
+
+                    {/* 創作者 */}
+                    <div className="text-[10px] text-gray-500 font-mono truncate">
                       {film?.studio || film?.core_cast || dbProfile?.display_name || '—'}
                     </div>
-                    {/* 底部：日期 + 狀態 Badge（三狀態：pending / approved / rejected） */}
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-[10px] font-mono text-gray-600">
-                        {film?.created_at
-                          ? new Date(film.created_at).toLocaleDateString()
-                          : '—'}
+
+                    {/* 詳細時間 YYYYMMDD HH:mm */}
+                    <div className="text-[9px] font-mono text-gray-700 tracking-wider">
+                      {film?.created_at ? formatDateTime(film.created_at) : '—'}
+                    </div>
+
+                    {/* 流水串號 + 一鍵複製 */}
+                    <div className="flex items-center gap-1 pt-0.5">
+                      <span className="text-[9px] font-mono text-gray-700 flex-1 truncate tracking-wider">
+                        #{(film?.id ?? '').slice(0, 8).toUpperCase()}
                       </span>
-                      <span className={`border px-2 py-0.5 rounded text-[10px] font-mono flex items-center gap-1 ${statusUI.color}`}>
-                        <i className={`fas ${statusUI.icon} text-[9px]`} />
-                        {statusLabel}
-                      </span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigator.clipboard.writeText(film.id ?? '').then(() => {
+                            setCopiedFilmId(film.id);
+                            showToast(lang === 'en' ? 'Serial ID copied!' : '串號已複製！', 'success');
+                            setTimeout(() => setCopiedFilmId(null), 2000);
+                          }).catch(() => {
+                            showToast(lang === 'en' ? 'Copy failed' : '複製失敗', 'error');
+                          });
+                        }}
+                        className="flex-shrink-0 w-5 h-5 flex items-center justify-center
+                                   text-gray-600 hover:text-signal transition-colors rounded"
+                        title="Copy serial ID"
+                      >
+                        {copiedFilmId === film.id ? (
+                          <svg viewBox="0 0 16 16" className="w-3 h-3 text-signal" fill="currentColor">
+                            <path d="M13.78 4.22a.75.75 0 010 1.06l-7.25 7.25a.75.75 0 01-1.06 0L2.22 9.28a.75.75 0 011.06-1.06L6 10.94l6.72-6.72a.75.75 0 011.06 0z"/>
+                          </svg>
+                        ) : (
+                          <svg viewBox="0 0 16 16" className="w-3 h-3" fill="currentColor">
+                            <path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z"/>
+                            <path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z"/>
+                          </svg>
+                        )}
+                      </button>
                     </div>
                   </div>
-
-                  <i className="fas fa-chevron-right text-gray-600 flex-shrink-0 text-xs" />
                 </div>
               );
             })}
