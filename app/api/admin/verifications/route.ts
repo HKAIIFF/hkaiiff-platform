@@ -9,25 +9,28 @@ const supabase = createClient(
 const VALID_STATUSES = ['pending', 'approved', 'rejected'] as const;
 type VerificationStatus = typeof VALID_STATUSES[number];
 
+const SELECT_FIELDS =
+  'id, display_name, name, agent_id, avatar_seed, email, wallet_address, ' +
+  'verification_status, verification_type, verification_payment_method, ' +
+  'verification_submitted_at, bio, tech_stack, core_team, portfolio, ' +
+  'verification_doc_url, rejection_reason';
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const statusParam = searchParams.get('status');
 
-  const selectFields =
-    'id, display_name, name, agent_id, avatar_seed, email, wallet_address, ' +
-    'verification_status, verification_type, verification_payment_method, ' +
-    'verification_submitted_at, bio, tech_stack, core_team, portfolio, ' +
-    'verification_doc_url, rejection_reason';
-
   let query = supabase
     .from('users')
-    .select(selectFields)
+    .select(SELECT_FIELDS)
     .order('verification_submitted_at', { ascending: false });
 
-  if (statusParam && VALID_STATUSES.includes(statusParam as VerificationStatus)) {
+  if (statusParam === 'all') {
+    // 返回所有已提交（非 unverified）的用戶
+    query = query.in('verification_status', ['pending', 'approved', 'rejected']);
+  } else if (statusParam && VALID_STATUSES.includes(statusParam as VerificationStatus)) {
     query = query.eq('verification_status', statusParam);
   } else {
-    // 預設僅顯示待審核
+    // 預設：只返回待審核
     query = query.eq('verification_status', 'pending');
   }
 
