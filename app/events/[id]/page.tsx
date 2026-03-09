@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { ChevronLeft } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/app/context/ToastContext';
 
@@ -134,7 +135,7 @@ export default function EventDetailPage() {
           setFilmsLoading(true);
           const { data: filmData, error: filmError } = await supabase
             .from('films')
-            .select('id, title, poster_url, studio_name, trailer_url, feature_url, main_video_url, film_url, synopsis')
+            .select('id, title, poster_url, studio, trailer_url, video_url, feature_url, main_video_url, synopsis')
             .in('id', ev.film_ids);
           if (!filmError && filmData) {
             setFilms(
@@ -142,13 +143,15 @@ export default function EventDetailPage() {
                 id: String(f.id),
                 title: f.title ?? 'Untitled',
                 coverUrl: f.poster_url ?? '',
-                studio: f.studio_name ?? '—',
+                studio: f.studio ?? '—',
                 synopsis: f.synopsis ?? null,
-                // 依序嘗試正片欄位：main_video_url → feature_url → film_url
-                filmUrl: f.main_video_url ?? f.feature_url ?? f.film_url ?? null,
-                trailerUrl: f.trailer_url ?? null,
+                // 依序嘗試正片欄位：main_video_url → feature_url
+                filmUrl: f.main_video_url ?? f.feature_url ?? null,
+                trailerUrl: f.trailer_url ?? f.video_url ?? null,
               }))
             );
+          } else if (filmError) {
+            console.error('[EventDetail] films fetch error:', filmError);
           }
           setFilmsLoading(false);
         }
@@ -265,9 +268,9 @@ export default function EventDetailPage() {
       {/* ── Standalone floating back button ───────────────────────────── */}
       <button
         onClick={() => router.back()}
-        className="fixed top-4 left-4 z-[100] w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform shadow-lg"
+        className="fixed top-20 left-4 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition cursor-pointer"
       >
-        <i className="fas fa-arrow-left" />
+        <ChevronLeft size={20} />
       </button>
 
       {/* ── Hero (background_url) ──────────────────────────────────────── */}

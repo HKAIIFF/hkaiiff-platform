@@ -1225,14 +1225,22 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
 
   async function uploadLbsImage(file: File, prefix: 'poster' | 'bg'): Promise<string | null> {
     try {
+      const stsRes = await fetch("/api/oss-sts");
+      const stsData = await stsRes.json();
+      if (stsData.error) throw new Error(stsData.error);
+      const client = new OSS({
+        region: stsData.Region || process.env.NEXT_PUBLIC_ALIYUN_REGION || "oss-ap-southeast-1",
+        accessKeyId: stsData.AccessKeyId,
+        accessKeySecret: stsData.AccessKeySecret,
+        stsToken: stsData.SecurityToken,
+        bucket: stsData.Bucket,
+        secure: true,
+      });
       const ext = file.name.split('.').pop() ?? 'jpg';
-      const path = `${prefix}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from('lbs-assets')
-        .upload(path, file, { upsert: true });
-      if (uploadError) throw uploadError;
-      const { data } = supabase.storage.from('lbs-assets').getPublicUrl(path);
-      return data.publicUrl;
+      const key = `lbs/${prefix}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
+      const result = await client.multipartUpload(key, file, { progress: () => {} });
+      const url = (result.res as unknown as { requestUrls: string[] }).requestUrls[0].split("?")[0];
+      return url;
     } catch (err) {
       pushToast(`圖片上傳失敗: ${err instanceof Error ? err.message : '未知錯誤'}`, false);
       return null;
