@@ -33,6 +33,9 @@ interface UserRow {
   deposit_address: string | null;
   created_at: string;
   role?: string;
+  display_name?: string | null;
+  name?: string | null;
+  agent_id?: string | null;
 }
 
 interface LbsNode {
@@ -808,6 +811,13 @@ function EcosystemModule({ t, pushToast, askConfirm }: SharedProps) {
   const [botRows, setBotRows] = useState<UserRow[]>([]);
   const [copiedBot, setCopiedBot] = useState<string | null>(null);
 
+  // ── Search & Pagination state ────────────────────────────────────────────
+  const [humanSearch, setHumanSearch] = useState('');
+  const [humanPage, setHumanPage] = useState(1);
+  const [botSearch, setBotSearch] = useState('');
+  const [botPage, setBotPage] = useState(1);
+  const PAGE_SIZE = 10;
+
   useEffect(() => {
     supabase
       .from("users")
@@ -826,6 +836,9 @@ function EcosystemModule({ t, pushToast, askConfirm }: SharedProps) {
       .then(({ data }) => setBotRows((data as UserRow[]) ?? []));
   }, []);
 
+  useEffect(() => { setHumanPage(1); }, [humanSearch]);
+  useEffect(() => { setBotPage(1); }, [botSearch]);
+
   const copyBotField = useCallback(
     async (text: string, label: string) => {
       try {
@@ -839,6 +852,38 @@ function EcosystemModule({ t, pushToast, askConfirm }: SharedProps) {
     },
     [pushToast],
   );
+
+  // ── Filtered & paginated data ────────────────────────────────────────────
+  const humanFiltered = useMemo(() => {
+    const q = humanSearch.toLowerCase().trim();
+    if (!q) return users;
+    return users.filter((u) =>
+      u.id.toLowerCase().includes(q) ||
+      (u.display_name ?? '').toLowerCase().includes(q) ||
+      (u.name ?? '').toLowerCase().includes(q) ||
+      (u.agent_id ?? '').toLowerCase().includes(q) ||
+      (u.email ?? '').toLowerCase().includes(q) ||
+      (u.wallet_address ?? '').toLowerCase().includes(q)
+    );
+  }, [users, humanSearch]);
+
+  const humanTotal = humanFiltered.length;
+  const humanTotalPages = Math.max(1, Math.ceil(humanTotal / PAGE_SIZE));
+  const humanPaginated = humanFiltered.slice((humanPage - 1) * PAGE_SIZE, humanPage * PAGE_SIZE);
+
+  const botFiltered = useMemo(() => {
+    const q = botSearch.toLowerCase().trim();
+    if (!q) return botRows;
+    return botRows.filter((b) =>
+      b.id.toLowerCase().includes(q) ||
+      (b.wallet_address ?? '').toLowerCase().includes(q) ||
+      (b.deposit_address ?? '').toLowerCase().includes(q)
+    );
+  }, [botRows, botSearch]);
+
+  const botTotal = botFiltered.length;
+  const botTotalPages = Math.max(1, Math.ceil(botTotal / PAGE_SIZE));
+  const botPaginated = botFiltered.slice((botPage - 1) * PAGE_SIZE, botPage * PAGE_SIZE);
 
   const BOT_GRID = "280px 200px 90px 200px 130px 230px";
   const BOT_MIN = "1130px";
@@ -855,190 +900,302 @@ function EcosystemModule({ t, pushToast, askConfirm }: SharedProps) {
         onChange={setSub}
       />
 
+      {/* ══════════════════ 碳基人類 Tab ══════════════════ */}
       {sub === "human" && (
-        <div className={`${CARD} overflow-hidden`}>
-          <div className="overflow-x-auto">
-            <div className="min-w-[1100px]">
-              <div className="grid grid-cols-[2fr_1.2fr_1fr_1.5fr_1fr_220px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
-                {["錢包地址 / 郵箱", "AIF 餘額", "專屬充值地址", "註冊時間", "狀態", "操作"].map((h) => (
-                  <div key={h} className="p-3">
-                    {h}
-                  </div>
+        <div className={`${CARD}`}>
+          {/* ── Action Bar ────────────────────────────────────────────────── */}
+          <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
+            <input
+              type="text"
+              value={humanSearch}
+              onChange={(e) => setHumanSearch(e.target.value)}
+              placeholder="🔍 搜尋用戶名、ID、錢包地址或信箱..."
+              className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm w-full max-w-md focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8] focus:outline-none transition-all"
+            />
+          </div>
+
+          {/* ── Grid Table ────────────────────────────────────────────────── */}
+          <div className="w-full overflow-x-auto">
+            <div className="min-w-[1300px]">
+              <div className="grid grid-cols-[120px_220px_2fr_1fr_1.5fr_120px_1fr_200px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
+                {["用戶名", "用戶 ID", "錢包地址 / 郵箱", "AIF 餘額", "專屬充值地址", "註冊時間", "狀態", "操作"].map((h) => (
+                  <div key={h} className="p-3">{h}</div>
                 ))}
               </div>
-              {users.length === 0 && (
-                <div className="p-6 text-sm text-gray-400">{t.empty}</div>
+              {humanPaginated.length === 0 && (
+                <div className="p-6 text-sm text-gray-400">
+                  {humanSearch ? '無符合條件的記錄' : t.empty}
+                </div>
               )}
-              {users.map((u) => (
-                <div key={u.id} className="grid grid-cols-[2fr_1.2fr_1fr_1.5fr_1fr_220px] border-b border-gray-100 last:border-0">
-                  <div className="p-3 text-xs text-gray-700">
+              {humanPaginated.map((u) => (
+                <div key={u.id} className="grid grid-cols-[120px_220px_2fr_1fr_1.5fr_120px_1fr_200px] border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors">
+                  {/* 用戶名 */}
+                  <div className="p-3">
+                    <span className="font-semibold text-neutral-900 text-sm">
+                      {u.display_name || (u.name && u.name !== 'New Agent' ? u.name : null) || u.agent_id || '-'}
+                    </span>
+                  </div>
+                  {/* 用戶 ID */}
+                  <div className="p-3">
+                    <div className="flex items-center gap-2 text-[10px] sm:text-xs font-mono break-all text-neutral-700">
+                      {u.id}
+                      <i className="fas fa-copy cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors flex-shrink-0"
+                        onClick={() => { navigator.clipboard.writeText(u.id); alert('已複製'); }} />
+                    </div>
+                  </div>
+                  {/* 錢包地址 / 郵箱 */}
+                  <div className="p-3">
                     {u.wallet_address ? (
-                      <span title={u.wallet_address}>{`${u.wallet_address.slice(0, 10)}...${u.wallet_address.slice(-6)}`}</span>
+                      <div className="flex items-center gap-2 text-[10px] sm:text-xs font-mono break-all text-neutral-700">
+                        {u.wallet_address}
+                        <i className="fas fa-copy cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors flex-shrink-0"
+                          onClick={() => { navigator.clipboard.writeText(u.wallet_address!); alert('已複製'); }} />
+                      </div>
+                    ) : u.email ? (
+                      <span className="text-xs text-gray-600">{u.email}</span>
                     ) : (
-                      u.email ?? "-"
+                      <span className="text-xs text-gray-400 italic">未綁定</span>
                     )}
                   </div>
+                  {/* AIF 餘額 */}
                   <div className="p-3 text-xs font-semibold text-blue-700">{(u.aif_balance ?? 0).toLocaleString()} AIF</div>
-                  <div className="p-3 text-xs text-gray-700">
+                  {/* 專屬充值地址 */}
+                  <div className="p-3">
                     {u.deposit_address ? (
-                      <span title={u.deposit_address}>{`${u.deposit_address.slice(0, 8)}...`}</span>
+                      <div className="flex items-center gap-2 text-[10px] sm:text-xs font-mono break-all text-neutral-700">
+                        {u.deposit_address}
+                        <i className="fas fa-copy cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors flex-shrink-0"
+                          onClick={() => { navigator.clipboard.writeText(u.deposit_address!); alert('已複製'); }} />
+                      </div>
                     ) : (
-                      <span className="text-gray-400">未分配</span>
+                      <span className="text-xs text-gray-400">未分配</span>
                     )}
                   </div>
-                  <div className="p-3 text-xs text-gray-700">{new Date(u.created_at).toLocaleString("zh-HK")}</div>
-                  <div className="p-3 text-xs text-green-700">Active</div>
-                  <div className="p-3 flex gap-2">
-                    <button className={`${BTN} !px-2 !py-1 bg-red-600 text-white`} onClick={() => askConfirm({ title: t.ban, body: "確認封禁？", danger: true, onConfirm: () => pushToast("已封禁") })}>{t.ban}</button>
-                    <button className={`${BTN} !px-2 !py-1 bg-red-600 text-white`} onClick={() => askConfirm({ title: t.forceOffline, body: "確認強制下線？", danger: true, onConfirm: () => pushToast("已強制下線") })}>{t.forceOffline}</button>
-                    <button className={`${BTN} !px-2 !py-1 bg-red-600 text-white`} onClick={() => askConfirm({ title: t.clear, body: "確認清空數據？", danger: true, onConfirm: () => pushToast("已清空") })}>{t.clear}</button>
+                  {/* 註冊時間 */}
+                  <div className="p-3 text-xs text-gray-500 font-mono whitespace-nowrap">
+                    {formatBotDate(u.created_at)}
+                  </div>
+                  {/* 狀態 */}
+                  <div className="p-3 text-xs text-green-700 font-medium">Active</div>
+                  {/* 操作 */}
+                  <div className="p-3 flex gap-1.5 flex-wrap">
+                    <button
+                      className="border border-rose-300 text-rose-600 rounded-full px-3 py-1 text-xs hover:bg-rose-50 transition-colors"
+                      onClick={() => askConfirm({ title: t.ban, body: "確認封禁？", danger: true, onConfirm: () => pushToast("已封禁") })}
+                    >{t.ban}</button>
+                    <button
+                      className="border border-neutral-300 text-neutral-700 rounded-full px-3 py-1 text-xs hover:bg-neutral-100 transition-colors"
+                      onClick={() => askConfirm({ title: t.forceOffline, body: "確認強制下線？", danger: true, onConfirm: () => pushToast("已強制下線") })}
+                    >{t.forceOffline}</button>
+                    <button
+                      className="border border-red-200 text-red-500 rounded-full px-3 py-1 text-xs hover:bg-red-50 transition-colors"
+                      onClick={() => askConfirm({ title: t.clear, body: "確認清空數據？", danger: true, onConfirm: () => pushToast("已清空") })}
+                    >{t.clear}</button>
                   </div>
                 </div>
               ))}
             </div>
           </div>
+
+          {/* ── Pagination Footer ──────────────────────────────────────────── */}
+          <div className="flex justify-between items-center py-4 px-6 border-t border-neutral-200 bg-white rounded-b-2xl">
+            <span className="text-xs text-neutral-500 font-mono">
+              {humanTotal === 0
+                ? '暫無記錄'
+                : `顯示第 ${(humanPage - 1) * PAGE_SIZE + 1} 至 ${Math.min(humanPage * PAGE_SIZE, humanTotal)} 筆，總計 ${humanTotal.toLocaleString()} 名註冊用戶（共 ${humanTotalPages} 頁）`
+              }
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                className="px-3 py-1.5 border border-neutral-300 rounded-lg text-xs text-neutral-600 hover:bg-neutral-100 disabled:opacity-50 transition-colors"
+                onClick={() => setHumanPage((p) => Math.max(1, p - 1))}
+                disabled={humanPage === 1}
+              >上一頁</button>
+              <span className="px-3 py-1.5 text-xs text-neutral-700 font-mono font-semibold">
+                {humanPage} / {humanTotalPages}
+              </span>
+              <button
+                className="px-3 py-1.5 border border-neutral-300 rounded-lg text-xs text-neutral-600 hover:bg-neutral-100 disabled:opacity-50 transition-colors"
+                onClick={() => setHumanPage((p) => Math.min(humanTotalPages, p + 1))}
+                disabled={humanPage === humanTotalPages}
+              >下一頁</button>
+            </div>
+          </div>
         </div>
       )}
 
+      {/* ══════════════════ 硅基數字人 Tab ══════════════════ */}
       {sub === "bot" && (
-        <div className={`${CARD} overflow-x-auto`}>
-          <div style={{ minWidth: BOT_MIN }}>
+        <div className={`${CARD}`}>
+          {/* ── Action Bar ────────────────────────────────────────────────── */}
+          <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
+            <input
+              type="text"
+              value={botSearch}
+              onChange={(e) => setBotSearch(e.target.value)}
+              placeholder="🔍 搜尋 BOT DID、錢包地址或專屬充值地址..."
+              className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm w-full max-w-md focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8] focus:outline-none transition-all"
+            />
+          </div>
 
-            {/* ── Table Header ──────────────────────────────────────────────── */}
-            <div
-              className="grid text-[10px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50/70 border-b border-gray-100"
-              style={{ gridTemplateColumns: BOT_GRID }}
-            >
-              {BOT_HEADERS.map((h) => (
-                <div key={h} className="px-3 py-3 whitespace-nowrap">{h}</div>
-              ))}
-            </div>
-
-            {/* ── Empty State ───────────────────────────────────────────────── */}
-            {botRows.length === 0 && (
-              <div className="py-16 text-center">
-                <div className="text-4xl mb-2 text-gray-200">◎</div>
-                <div className="text-sm text-gray-400">暫無硅基數字人登錄</div>
-              </div>
-            )}
-
-            {/* ── Bot Rows ──────────────────────────────────────────────────── */}
-            {botRows.map((bot) => (
+          {/* ── Grid Table ────────────────────────────────────────────────── */}
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: BOT_MIN }}>
               <div
-                key={bot.id}
-                className="grid border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors duration-100"
+                className="grid text-[10px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50/70 border-b border-gray-100"
                 style={{ gridTemplateColumns: BOT_GRID }}
               >
+                {BOT_HEADERS.map((h) => (
+                  <div key={h} className="px-3 py-3 whitespace-nowrap">{h}</div>
+                ))}
+              </div>
 
-                {/* ① BOT DID */}
-                <div className="px-3 py-3 flex items-start gap-2">
-                  <span
-                    className="flex-shrink-0 mt-[5px] w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"
-                    title="Online"
-                  />
-                  <div className="flex items-start gap-1 min-w-0">
-                    <span className={`text-[10px] sm:text-xs font-mono break-all text-neutral-600 transition-colors ${copiedBot === bot.id ? "text-[#1a73e8]" : ""}`}>
-                      {bot.id}
+              {botPaginated.length === 0 && (
+                <div className="py-16 text-center">
+                  <div className="text-4xl mb-2 text-gray-200">◎</div>
+                  <div className="text-sm text-gray-400">
+                    {botSearch ? '無符合條件的記錄' : '暫無硅基數字人登錄'}
+                  </div>
+                </div>
+              )}
+
+              {botPaginated.map((bot) => (
+                <div
+                  key={bot.id}
+                  className="grid border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors duration-100"
+                  style={{ gridTemplateColumns: BOT_GRID }}
+                >
+                  {/* ① BOT DID */}
+                  <div className="px-3 py-3 flex items-start gap-2">
+                    <div className="flex items-start gap-1 min-w-0">
+                      <i className="fas fa-robot text-emerald-500 mr-1 animate-pulse flex-shrink-0 mt-0.5" />
+                      <span className={`text-[10px] sm:text-xs font-mono break-all text-neutral-600 transition-colors ${copiedBot === bot.id ? "text-[#1a73e8]" : ""}`}>
+                        {bot.id}
+                      </span>
+                      <button
+                        onClick={() => copyBotField(bot.id, "BOT DID")}
+                        className="flex-shrink-0 cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors mt-0.5"
+                        title="複製 BOT DID"
+                      >
+                        <BotCopyIcon />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ② 錢包地址 / 綁定身份 */}
+                  <div className="px-3 py-3 flex items-start pt-3.5">
+                    {bot.wallet_address ? (
+                      <div className="flex items-start gap-1 w-full min-w-0">
+                        <span className={`text-[10px] sm:text-xs font-mono break-all text-neutral-600 transition-colors ${copiedBot === bot.wallet_address ? "text-[#1a73e8]" : ""}`}>
+                          {bot.wallet_address}
+                        </span>
+                        <button
+                          onClick={() => copyBotField(bot.wallet_address!, "錢包地址")}
+                          className="flex-shrink-0 cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors mt-0.5"
+                          title="複製錢包地址"
+                        >
+                          <BotCopyIcon />
+                        </button>
+                      </div>
+                    ) : bot.email ? (
+                      <span className="text-[10px] sm:text-xs break-all text-neutral-600">{bot.email}</span>
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
+                    )}
+                  </div>
+
+                  {/* ③ AIF 餘額 */}
+                  <div className="px-3 py-3 flex items-center">
+                    <div className="flex flex-col gap-0.5">
+                      <span className={`text-sm font-bold ${(bot.aif_balance ?? 0) > 0 ? "text-green-600" : "text-gray-300"}`}>
+                        {bot.aif_balance != null ? bot.aif_balance.toLocaleString() : "—"}
+                      </span>
+                      {(bot.aif_balance ?? 0) > 0 && (
+                        <span className="text-[10px] text-green-400 font-medium">AIF</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ④ 專屬充值地址 */}
+                  <div className="px-3 py-3 flex items-start pt-3.5">
+                    {bot.deposit_address ? (
+                      <div className="flex items-start gap-1 w-full min-w-0">
+                        <span className={`text-[10px] sm:text-xs font-mono break-all text-neutral-600 transition-colors ${copiedBot === bot.deposit_address ? "text-[#1a73e8]" : ""}`}>
+                          {bot.deposit_address}
+                        </span>
+                        <button
+                          onClick={() => copyBotField(bot.deposit_address!, "充值地址")}
+                          className="flex-shrink-0 cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors mt-0.5"
+                          title="複製充值地址"
+                        >
+                          <BotCopyIcon />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="flex items-center gap-1.5 text-xs text-gray-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-200 flex-shrink-0" />
+                        未分配
+                      </span>
+                    )}
+                  </div>
+
+                  {/* ⑤ 註冊時間 */}
+                  <div className="px-3 py-3 flex items-center">
+                    <span className="text-xs text-gray-500 whitespace-nowrap font-mono">
+                      {bot.created_at ? formatBotDate(bot.created_at) : "—"}
                     </span>
+                  </div>
+
+                  {/* ⑥ 操作 */}
+                  <div className="px-3 py-3 flex items-center gap-2 flex-wrap">
                     <button
-                      onClick={() => copyBotField(bot.id, "BOT DID")}
-                      className="flex-shrink-0 cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors mt-0.5"
-                      title="複製 BOT DID"
+                      className="border border-neutral-300 text-neutral-700 hover:bg-neutral-100 rounded-full px-3 py-1 text-xs transition-colors whitespace-nowrap"
+                      onClick={() =>
+                        askConfirm({
+                          title: "凍結權限",
+                          body: `確認凍結 Bot ${bot.id.slice(-8)} 的所有權限？`,
+                          danger: true,
+                          onConfirm: () => pushToast(`已凍結 Bot ${bot.id.slice(-8)}`),
+                        })
+                      }
                     >
-                      <BotCopyIcon />
+                      凍結權限
+                    </button>
+                    <button
+                      className="border border-neutral-300 text-neutral-700 hover:bg-neutral-100 rounded-full px-3 py-1 text-xs transition-colors whitespace-nowrap"
+                      onClick={() => pushToast(`Bot 緩存已清除`)}
+                    >
+                      清除緩存
                     </button>
                   </div>
                 </div>
+              ))}
+            </div>
+          </div>
 
-                {/* ② 錢包地址 / 綁定身份 */}
-                <div className="px-3 py-3 flex items-start pt-3.5">
-                  {bot.wallet_address ? (
-                    <div className="flex items-start gap-1 w-full min-w-0">
-                      <span className={`text-[10px] sm:text-xs font-mono break-all text-neutral-600 transition-colors ${copiedBot === bot.wallet_address ? "text-[#1a73e8]" : ""}`}>
-                        {bot.wallet_address}
-                      </span>
-                      <button
-                        onClick={() => copyBotField(bot.wallet_address!, "錢包地址")}
-                        className="flex-shrink-0 cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors mt-0.5"
-                        title="複製錢包地址"
-                      >
-                        <BotCopyIcon />
-                      </button>
-                    </div>
-                  ) : bot.email ? (
-                    <span className="text-[10px] sm:text-xs break-all text-neutral-600">{bot.email}</span>
-                  ) : (
-                    <span className="text-xs text-gray-300">—</span>
-                  )}
-                </div>
-
-                {/* ③ AIF 餘額 */}
-                <div className="px-3 py-3 flex items-center">
-                  <div className="flex flex-col gap-0.5">
-                    <span className={`text-sm font-bold ${(bot.aif_balance ?? 0) > 0 ? "text-green-600" : "text-gray-300"}`}>
-                      {bot.aif_balance != null ? bot.aif_balance.toLocaleString() : "—"}
-                    </span>
-                    {(bot.aif_balance ?? 0) > 0 && (
-                      <span className="text-[10px] text-green-400 font-medium">AIF</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* ④ 專屬充值地址 */}
-                <div className="px-3 py-3 flex items-start pt-3.5">
-                  {bot.deposit_address ? (
-                    <div className="flex items-start gap-1 w-full min-w-0">
-                      <span className={`text-[10px] sm:text-xs font-mono break-all text-neutral-600 transition-colors ${copiedBot === bot.deposit_address ? "text-[#1a73e8]" : ""}`}>
-                        {bot.deposit_address}
-                      </span>
-                      <button
-                        onClick={() => copyBotField(bot.deposit_address!, "充值地址")}
-                        className="flex-shrink-0 cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors mt-0.5"
-                        title="複製充值地址"
-                      >
-                        <BotCopyIcon />
-                      </button>
-                    </div>
-                  ) : (
-                    <span className="flex items-center gap-1.5 text-xs text-gray-300">
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-200 flex-shrink-0" />
-                      未分配
-                    </span>
-                  )}
-                </div>
-
-                {/* ⑤ 註冊時間 */}
-                <div className="px-3 py-3 flex items-center">
-                  <span className="text-xs text-gray-500 whitespace-nowrap font-mono">
-                    {bot.created_at ? formatBotDate(bot.created_at) : "—"}
-                  </span>
-                </div>
-
-                {/* ⑥ 操作 */}
-                <div className="px-3 py-3 flex items-center gap-2 flex-wrap">
-                  <button
-                    className="border border-neutral-300 text-neutral-700 hover:bg-neutral-100 rounded-full px-3 py-1 text-xs transition-colors whitespace-nowrap"
-                    onClick={() =>
-                      askConfirm({
-                        title: "凍結權限",
-                        body: `確認凍結 Bot ${bot.id.slice(-8)} 的所有權限？`,
-                        danger: true,
-                        onConfirm: () => pushToast(`已凍結 Bot ${bot.id.slice(-8)}`),
-                      })
-                    }
-                  >
-                    凍結權限
-                  </button>
-                  <button
-                    className="border border-neutral-300 text-neutral-700 hover:bg-neutral-100 rounded-full px-3 py-1 text-xs transition-colors whitespace-nowrap"
-                    onClick={() => pushToast(`Bot 緩存已清除`)}
-                  >
-                    清除緩存
-                  </button>
-                </div>
-
-              </div>
-            ))}
+          {/* ── Pagination Footer ──────────────────────────────────────────── */}
+          <div className="flex justify-between items-center py-4 px-6 border-t border-neutral-200 bg-white rounded-b-2xl">
+            <span className="text-xs text-neutral-500 font-mono">
+              {botTotal === 0
+                ? '暫無記錄'
+                : `顯示第 ${(botPage - 1) * PAGE_SIZE + 1} 至 ${Math.min(botPage * PAGE_SIZE, botTotal)} 筆，總計 ${botTotal.toLocaleString()} 個 Bot（共 ${botTotalPages} 頁）`
+              }
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                className="px-3 py-1.5 border border-neutral-300 rounded-lg text-xs text-neutral-600 hover:bg-neutral-100 disabled:opacity-50 transition-colors"
+                onClick={() => setBotPage((p) => Math.max(1, p - 1))}
+                disabled={botPage === 1}
+              >上一頁</button>
+              <span className="px-3 py-1.5 text-xs text-neutral-700 font-mono font-semibold">
+                {botPage} / {botTotalPages}
+              </span>
+              <button
+                className="px-3 py-1.5 border border-neutral-300 rounded-lg text-xs text-neutral-600 hover:bg-neutral-100 disabled:opacity-50 transition-colors"
+                onClick={() => setBotPage((p) => Math.min(botTotalPages, p + 1))}
+                disabled={botPage === botTotalPages}
+              >下一頁</button>
+            </div>
           </div>
         </div>
       )}

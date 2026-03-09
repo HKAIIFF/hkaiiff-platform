@@ -33,6 +33,9 @@ interface UserRow {
   email: string | null;
   aif_balance: number | null;
   deposit_address: string | null;
+  display_name?: string | null;
+  name?: string | null;
+  agent_id?: string | null;
 }
 interface LbsNode {
   id: string; title: string; location: string | null; lat: number | null; lng: number | null;
@@ -2110,6 +2113,16 @@ function EcoHumanTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  const formatTime = (dateStr: string | null): string => {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -2133,23 +2146,30 @@ function EcoHumanTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string
   }, []);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery]);
 
-  function formatAddress(addr: string | null): string {
-    if (!addr) return '—';
-    if (addr.length > 16) return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-    return addr;
-  }
+  const filtered = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return users;
+    return users.filter((u) =>
+      u.id.toLowerCase().includes(q) ||
+      (u.display_name ?? '').toLowerCase().includes(q) ||
+      (u.name ?? '').toLowerCase().includes(q) ||
+      (u.agent_id ?? '').toLowerCase().includes(q) ||
+      (u.email ?? '').toLowerCase().includes(q) ||
+      (u.wallet_address ?? '').toLowerCase().includes(q)
+    );
+  }, [users, searchQuery]);
 
-  function getBindingIdentity(u: UserRow): string {
-    if (u.wallet_address) return formatAddress(u.wallet_address);
-    if (u.email) return u.email;
-    return '未綁定';
-  }
+  const totalUsers = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalUsers / PAGE_SIZE));
+  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
-  const TABLE_HEADERS = ['用戶 ID', '錢包地址 / 綁定身份', 'AIF 餘額', '專屬充值地址', '註冊時間', '操作'];
+  const TABLE_HEADERS = ['用戶名', '用戶 ID', '錢包地址 / 綁定身份', 'AIF 餘額', '專屬充值地址', '註冊時間', '操作'];
 
   return (
-    <div className={`${CARD} overflow-hidden`}>
+    <div className={`${CARD}`}>
+      {/* ── Card Header ─────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between p-3 border-b border-neutral-100">
         <div className="flex items-center gap-2">
           <span className="text-xs font-semibold text-neutral-500">碳基人類檔案</span>
@@ -2162,14 +2182,26 @@ function EcoHumanTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string
         </button>
       </div>
 
+      {/* ── Action Bar ──────────────────────────────────────────────────── */}
+      <div className="px-4 py-3 border-b border-neutral-100 bg-neutral-50/50">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="🔍 搜尋用戶名、ID、錢包地址或信箱..."
+          className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm w-full max-w-md focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8] focus:outline-none transition-all"
+        />
+      </div>
+
       {fetchError && (
         <div className="mx-3 mt-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-700">
           ⚠ {fetchError}
         </div>
       )}
 
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[960px] text-sm">
+      {/* ── Table ───────────────────────────────────────────────────────── */}
+      <div className="w-full overflow-x-auto">
+        <table className="w-full min-w-[1100px] text-sm">
           <thead>
             <tr className="bg-neutral-50 border-b border-neutral-100 text-[10px] text-neutral-500 font-medium uppercase tracking-wider">
               {TABLE_HEADERS.map((h) => (
@@ -2178,7 +2210,7 @@ function EcoHumanTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string
             </tr>
           </thead>
           <tbody>
-            {users.length === 0 && !fetchError && (
+            {paginated.length === 0 && !fetchError && (
               <tr>
                 <td colSpan={TABLE_HEADERS.length} className="p-8 text-neutral-400 text-center">
                   {loading ? (
@@ -2186,45 +2218,65 @@ function EcoHumanTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string
                       <span className="w-4 h-4 border-2 border-neutral-300 border-t-blue-500 rounded-full animate-spin" />
                       {t.loading}
                     </span>
-                  ) : t.empty}
+                  ) : searchQuery ? '無符合條件的記錄' : t.empty}
                 </td>
               </tr>
             )}
-            {users.map((u) => (
+            {paginated.map((u) => (
               <tr key={u.id} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/70 transition-colors">
-                <td className="px-4 py-4 text-xs text-neutral-500 font-mono truncate max-w-[120px]" title={u.id}>
-                  {u.id.slice(0, 8)}...
-                </td>
+                {/* 用戶名 */}
                 <td className="px-4 py-4">
-                  <div className="flex flex-col gap-0.5">
-                    {u.wallet_address ? (
-                      <span className="text-xs text-neutral-800 font-mono font-semibold" title={u.wallet_address}>
-                        {formatAddress(u.wallet_address)}
-                      </span>
-                    ) : null}
-                    {u.email ? (
-                      <span className="text-xs text-neutral-500">{u.email}</span>
-                    ) : null}
-                    {!u.wallet_address && !u.email && (
-                      <span className="text-xs text-neutral-400 italic">未綁定</span>
-                    )}
+                  <span className="font-semibold text-neutral-900 text-sm">
+                    {u.display_name || (u.name && u.name !== 'New Agent' ? u.name : null) || u.agent_id || '-'}
+                  </span>
+                </td>
+                {/* 用戶 ID */}
+                <td className="px-4 py-4">
+                  <div className="flex items-center gap-2 text-[10px] sm:text-xs font-mono break-all text-neutral-700">
+                    {u.id}
+                    <i className="fas fa-copy cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors flex-shrink-0"
+                      onClick={() => { navigator.clipboard.writeText(u.id); alert('已複製'); }} />
                   </div>
                 </td>
+                {/* 錢包地址 / 綁定身份 */}
+                <td className="px-4 py-4">
+                  {u.wallet_address ? (
+                    <div className="flex items-center gap-2 text-[10px] sm:text-xs font-mono break-all text-neutral-700">
+                      {u.wallet_address}
+                      <i className="fas fa-copy cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors flex-shrink-0"
+                        onClick={() => { navigator.clipboard.writeText(u.wallet_address!); alert('已複製'); }} />
+                    </div>
+                  ) : u.email ? (
+                    <span className="text-xs text-neutral-500">{u.email}</span>
+                  ) : (
+                    <span className="text-xs text-neutral-400 italic">未綁定</span>
+                  )}
+                </td>
+                {/* AIF 餘額 */}
                 <td className="px-4 py-4">
                   <span className={`text-sm font-bold ${(u.aif_balance ?? 0) > 0 ? 'text-blue-700' : 'text-neutral-400'}`}>
                     {(u.aif_balance ?? 0).toLocaleString()} AIF
                   </span>
                 </td>
-                <td className="px-4 py-4 text-xs text-neutral-600 font-mono" title={u.deposit_address ?? ''}>
-                  {u.deposit_address ? formatAddress(u.deposit_address) : (
+                {/* 專屬充值地址 */}
+                <td className="px-4 py-4">
+                  {u.deposit_address ? (
+                    <div className="flex items-center gap-2 text-[10px] sm:text-xs font-mono break-all text-neutral-700">
+                      {u.deposit_address}
+                      <i className="fas fa-copy cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors flex-shrink-0"
+                        onClick={() => { navigator.clipboard.writeText(u.deposit_address!); alert('已複製'); }} />
+                    </div>
+                  ) : (
                     <span className="text-neutral-300 italic">未分配</span>
                   )}
                 </td>
-                <td className="px-4 py-4 text-xs text-neutral-500 whitespace-nowrap">
-                  {u.created_at ? new Date(u.created_at).toLocaleString('zh-HK', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
+                {/* 註冊時間 */}
+                <td className="px-4 py-4 text-xs text-neutral-500 whitespace-nowrap font-mono">
+                  {formatTime(u.created_at)}
                 </td>
+                {/* 操作 */}
                 <td className="px-4 py-4">
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 flex-wrap">
                     <button
                       className={`${BTN_SM} border border-rose-300 text-rose-600 bg-white hover:bg-rose-50`}
                       onClick={() => askConfirm({ title: t.ban, body: `確認封禁此用戶？`, danger: true, onConfirm: () => pushToast('已封禁') })}
@@ -2244,47 +2296,232 @@ function EcoHumanTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string
           </tbody>
         </table>
       </div>
+
+      {/* ── Pagination Footer ────────────────────────────────────────────── */}
+      <div className="flex justify-between items-center py-4 px-6 border-t border-neutral-200 bg-white rounded-b-2xl">
+        <span className="text-xs text-neutral-500 font-mono">
+          {totalUsers === 0
+            ? '暫無記錄'
+            : `顯示第 ${(currentPage - 1) * PAGE_SIZE + 1} 至 ${Math.min(currentPage * PAGE_SIZE, totalUsers)} 筆，總計 ${totalUsers.toLocaleString()} 名註冊用戶（共 ${totalPages} 頁）`
+          }
+        </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            className="px-3 py-1.5 border border-neutral-300 rounded-lg text-xs text-neutral-600 hover:bg-neutral-100 disabled:opacity-50 transition-colors"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >上一頁</button>
+          <span className="px-3 py-1.5 text-xs text-neutral-700 font-mono font-semibold">
+            {currentPage} / {totalPages}
+          </span>
+          <button
+            className="px-3 py-1.5 border border-neutral-300 rounded-lg text-xs text-neutral-600 hover:bg-neutral-100 disabled:opacity-50 transition-colors"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >下一頁</button>
+        </div>
+      </div>
     </div>
   );
 }
 
-function EcoBotTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
-  const bots = [
-    { id: "BOT-001", human: "alice@aif.bot", brain: "Gemini 3.1", hands: "Render Engine", skills: "Review / QC", status: "Running" },
-    { id: "BOT-002", human: "wallet:fiebk...xros", brain: "OpenAI 5.4", hands: "Chain Writer", skills: "Ops / Finance", status: "Idle" },
-    { id: "BOT-003", human: "bob@curator.io", brain: "Gemini 3.1", hands: "Notify", skills: "Curator / MSG", status: "Sleep" },
-  ];
-  const statusColor = (s: string) => s === "Running" ? "text-neutral-700 bg-neutral-100" : s === "Idle" ? "text-neutral-500 bg-neutral-100" : "text-neutral-400 bg-neutral-100";
+function EcoBotTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string, ok?: boolean) => void; askConfirm: (c: ConfirmConfig) => void }) {
+  const [bots, setBots] = useState<UserRow[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  const formatTime = (dateStr: string | null): string => {
+    if (!dateStr) return '—';
+    const d = new Date(dateStr);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const fetchBots = useCallback(async () => {
+    setLoading(true);
+    setFetchError(null);
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('role', 'bot')
+        .order('created_at', { ascending: false });
+      if (error) { setFetchError(error.message); setBots([]); return; }
+      setBots((data as UserRow[]) ?? []);
+    } catch (err: unknown) {
+      setFetchError(err instanceof Error ? err.message : '網絡請求失敗');
+      setBots([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchBots(); }, [fetchBots]);
+  useEffect(() => { setCurrentPage(1); }, [searchQuery]);
+
+  const filtered = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
+    if (!q) return bots;
+    return bots.filter((b) =>
+      b.id.toLowerCase().includes(q) ||
+      (b.wallet_address ?? '').toLowerCase().includes(q) ||
+      (b.deposit_address ?? '').toLowerCase().includes(q)
+    );
+  }, [bots, searchQuery]);
+
+  const totalBots = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalBots / PAGE_SIZE));
+  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const BOT_HEADERS = ['BOT DID', '錢包地址 / 綁定身份', 'AIF 餘額', '專屬充值地址', '註冊時間', '操作'];
+
   return (
-    <div className={`${CARD} overflow-hidden`}>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[900px] text-sm">
+    <div className={`${CARD}`}>
+      {/* ── Card Header ─────────────────────────────────────────────────── */}
+      <div className="flex items-center justify-between p-3 border-b border-neutral-100">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-neutral-500">硅基數字人檔案</span>
+          {bots.length > 0 && (
+            <span className="text-xs bg-emerald-50 text-emerald-600 font-bold px-2 py-0.5 rounded-full">{bots.length} 個</span>
+          )}
+        </div>
+        <button className={BTN_GHOST} onClick={fetchBots} disabled={loading}>
+          {loading ? t.loading : t.refresh}
+        </button>
+      </div>
+
+      {/* ── Action Bar ──────────────────────────────────────────────────── */}
+      <div className="px-4 py-3 border-b border-neutral-100 bg-neutral-50/50">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="🔍 搜尋 BOT DID、錢包地址或專屬充值地址..."
+          className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm w-full max-w-md focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8] focus:outline-none transition-all"
+        />
+      </div>
+
+      {fetchError && (
+        <div className="mx-3 mt-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-700">
+          ⚠ {fetchError}
+        </div>
+      )}
+
+      {/* ── Table ───────────────────────────────────────────────────────── */}
+      <div className="w-full overflow-x-auto">
+        <table className="w-full min-w-[960px] text-sm">
           <thead>
             <tr className="bg-neutral-50 border-b border-neutral-100 text-[10px] text-neutral-500 font-medium uppercase tracking-wider">
-              {["Bot ID", "歸屬人類", "Brain 模塊", "Hands 模塊", "Skills 模塊", "運行狀態", "操作"].map((h) => (
+              {BOT_HEADERS.map((h) => (
                 <th key={h} className="px-4 py-3.5 text-left">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {bots.map((b) => (
-              <tr key={b.id} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/70 transition-colors">
-                <td className="px-4 py-4 font-mono text-sm text-neutral-800 font-semibold">{b.id}</td>
-                <td className="px-4 py-4 text-xs text-neutral-600">{b.human}</td>
-                <td className="p-3 text-xs text-purple-700 font-medium">{b.brain}</td>
-                <td className="p-3 text-xs text-indigo-700 font-medium">{b.hands}</td>
-                <td className="p-3 text-xs text-teal-700 font-medium">{b.skills}</td>
-                <td className="px-4 py-4"><span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusColor(b.status)}`}>{b.status}</span></td>
+            {paginated.length === 0 && !fetchError && (
+              <tr>
+                <td colSpan={BOT_HEADERS.length} className="p-8 text-neutral-400 text-center">
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-4 h-4 border-2 border-neutral-300 border-t-blue-500 rounded-full animate-spin" />
+                      {t.loading}
+                    </span>
+                  ) : searchQuery ? '無符合條件的記錄' : t.empty}
+                </td>
+              </tr>
+            )}
+            {paginated.map((bot) => (
+              <tr key={bot.id} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/70 transition-colors">
+                {/* BOT DID */}
                 <td className="px-4 py-4">
-                  <div className="flex gap-2">
-                    <button className={`${BTN_SM} border border-neutral-200 text-neutral-700 hover:bg-neutral-50`} onClick={() => pushToast(`${b.id} 已休眠`)}>{t.sleep}</button>
-                    <button className={`${BTN_SM} border border-neutral-200 text-neutral-700 hover:bg-neutral-50`} onClick={() => pushToast(`${b.id} 已重置`)}>{t.reset}</button>
+                  <div className="flex items-center gap-2 text-[10px] sm:text-xs font-mono break-all text-neutral-700">
+                    <i className="fas fa-robot text-emerald-500 animate-pulse flex-shrink-0" />
+                    {bot.id}
+                    <i className="fas fa-copy cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors flex-shrink-0"
+                      onClick={() => { navigator.clipboard.writeText(bot.id); alert('已複製'); }} />
+                  </div>
+                </td>
+                {/* 錢包地址 / 綁定身份 */}
+                <td className="px-4 py-4">
+                  {bot.wallet_address ? (
+                    <div className="flex items-center gap-2 text-[10px] sm:text-xs font-mono break-all text-neutral-700">
+                      {bot.wallet_address}
+                      <i className="fas fa-copy cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors flex-shrink-0"
+                        onClick={() => { navigator.clipboard.writeText(bot.wallet_address!); alert('已複製'); }} />
+                    </div>
+                  ) : bot.email ? (
+                    <span className="text-xs text-neutral-500">{bot.email}</span>
+                  ) : (
+                    <span className="text-xs text-neutral-400 italic">未綁定</span>
+                  )}
+                </td>
+                {/* AIF 餘額 */}
+                <td className="px-4 py-4">
+                  <span className={`text-sm font-bold ${(bot.aif_balance ?? 0) > 0 ? 'text-emerald-600' : 'text-neutral-400'}`}>
+                    {(bot.aif_balance ?? 0).toLocaleString()} AIF
+                  </span>
+                </td>
+                {/* 專屬充值地址 */}
+                <td className="px-4 py-4">
+                  {bot.deposit_address ? (
+                    <div className="flex items-center gap-2 text-[10px] sm:text-xs font-mono break-all text-neutral-700">
+                      {bot.deposit_address}
+                      <i className="fas fa-copy cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors flex-shrink-0"
+                        onClick={() => { navigator.clipboard.writeText(bot.deposit_address!); alert('已複製'); }} />
+                    </div>
+                  ) : (
+                    <span className="text-neutral-300 italic">未分配</span>
+                  )}
+                </td>
+                {/* 註冊時間 */}
+                <td className="px-4 py-4 text-xs text-neutral-500 whitespace-nowrap font-mono">
+                  {formatTime(bot.created_at)}
+                </td>
+                {/* 操作 */}
+                <td className="px-4 py-4">
+                  <div className="flex gap-1 flex-wrap">
+                    <button
+                      className="border border-neutral-300 text-neutral-700 rounded-full px-3 py-1 text-xs hover:bg-neutral-100 transition-colors"
+                      onClick={() => askConfirm({ title: '凍結權限', body: `確認凍結 Bot ${bot.id} 的所有權限？`, danger: true, onConfirm: () => pushToast(`已凍結 ${bot.id}`) })}
+                    >凍結權限</button>
+                    <button
+                      className="border border-neutral-300 text-neutral-700 rounded-full px-3 py-1 text-xs hover:bg-neutral-100 transition-colors"
+                      onClick={() => pushToast(`${bot.id} 緩存已清除`)}
+                    >清除緩存</button>
                   </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* ── Pagination Footer ────────────────────────────────────────────── */}
+      <div className="flex justify-between items-center py-4 px-6 border-t border-neutral-200 bg-white rounded-b-2xl">
+        <span className="text-xs text-neutral-500 font-mono">
+          {totalBots === 0
+            ? '暫無記錄'
+            : `顯示第 ${(currentPage - 1) * PAGE_SIZE + 1} 至 ${Math.min(currentPage * PAGE_SIZE, totalBots)} 筆，總計 ${totalBots.toLocaleString()} 個 Bot（共 ${totalPages} 頁）`
+          }
+        </span>
+        <div className="flex items-center gap-1.5">
+          <button
+            className="px-3 py-1.5 border border-neutral-300 rounded-lg text-xs text-neutral-600 hover:bg-neutral-100 disabled:opacity-50 transition-colors"
+            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >上一頁</button>
+          <span className="px-3 py-1.5 text-xs text-neutral-700 font-mono font-semibold">
+            {currentPage} / {totalPages}
+          </span>
+          <button
+            className="px-3 py-1.5 border border-neutral-300 rounded-lg text-xs text-neutral-600 hover:bg-neutral-100 disabled:opacity-50 transition-colors"
+            onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >下一頁</button>
+        </div>
       </div>
     </div>
   );
@@ -2808,7 +3045,7 @@ export default function AdminPage() {
       case "dist:online": return <DistOnlineTab t={t} />;
       case "dist:official": return <DistOfficialTab pushToast={pushToast} />;
       case "eco:human": return <EcoHumanTab t={t} pushToast={pushToast} askConfirm={askConfirm} />;
-      case "eco:bot": return <EcoBotTab t={t} pushToast={pushToast} />;
+      case "eco:bot": return <EcoBotTab t={t} pushToast={pushToast} askConfirm={askConfirm} />;
       case "ai:models": return <AiModelsTab t={t} pushToast={pushToast} />;
       case "ai:prompts": return <AiPromptsTab t={t} pushToast={pushToast} />;
       case "ai:assembly": return <AiAssemblyTab t={t} pushToast={pushToast} />;
