@@ -307,10 +307,10 @@ export default function OfficialReleasePage() {
     }
   };
 
-  const inputCls = "w-full px-3 py-2 text-sm rounded-lg bg-white border border-gray-200 text-gray-900 placeholder-gray-300 outline-none focus:ring-2 focus:ring-[#1a73e8]/20 focus:border-[#1a73e8]/40 transition-all";
+  const inputCls = "w-full px-3 py-2 text-sm rounded-xl bg-white border border-neutral-300 text-neutral-900 placeholder-neutral-300 outline-none focus:ring-2 focus:ring-[#1a73e8]/20 focus:border-[#1a73e8]/40 transition-all";
 
   return (
-    <div className="p-5 space-y-6 min-h-screen bg-[#f8f9fa]">
+    <div className="p-5 space-y-6 min-h-screen bg-white">
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div>
@@ -321,9 +321,9 @@ export default function OfficialReleasePage() {
       </div>
 
       {/* ── Warning Banner ───────────────────────────────────────────────── */}
-      <div className="flex items-start gap-3 border border-amber-200 bg-amber-50 rounded-xl px-4 py-3">
-        <span className="text-amber-500 text-sm mt-0.5 flex-shrink-0">⚠</span>
-        <p className="text-xs text-amber-700 leading-relaxed">
+      <div className="flex items-start gap-3 border border-neutral-200 bg-neutral-50 rounded-xl px-4 py-3">
+        <span className="text-neutral-400 text-sm mt-0.5 flex-shrink-0">⚠</span>
+        <p className="text-xs text-neutral-600 leading-relaxed">
           本頁面用於管理員以官方名義代為發行影片。所有提交將自動標記{" "}
           <span className="font-semibold">payment_status: paid · payment_method: official_waived</span>，
           跳過常規支付流程。文件上傳至 Aliyun OSS，提交後進入待審核狀態。

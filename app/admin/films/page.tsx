@@ -235,7 +235,7 @@ export default function FilmsReviewPage() {
   const displayed = filter === "all" ? films : films.filter((f) => f.status === filter);
 
   return (
-    <div className="p-5 space-y-4 min-h-screen bg-[#f8f9fa]">
+    <div className="p-5 space-y-4 min-h-screen bg-white">
       {/* ── Page Header ─────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between">
         <div>

@@ -62,9 +62,9 @@ interface MenuItem {
 }
 
 const MENU: MenuItem[] = [
-  { id: "dashboard", icon: "📊", zh: "指揮大盤", en: "Dashboard", sub: [] },
+  { id: "dashboard", icon: "dashboard", zh: "指揮大盤", en: "Dashboard", sub: [] },
   {
-    id: "review", icon: "⚖️", zh: "審核與風控", en: "Review Center",
+    id: "review", icon: "review", zh: "審核與風控", en: "Review Center",
     sub: [
       { id: "review:films", zh: "參展作品審核", en: "Film Review" },
       { id: "review:lbs", zh: "LBS影展審核", en: "LBS Festival" },
@@ -72,7 +72,7 @@ const MENU: MenuItem[] = [
     ],
   },
   {
-    id: "distribution", icon: "🎬", zh: "發行與策展", en: "Distribution & Curation",
+    id: "distribution", icon: "distribution", zh: "發行與策展", en: "Distribution & Curation",
     sub: [
       { id: "dist:lbs", zh: "官方LBS院線部署", en: "Official LBS Cinemas" },
       { id: "dist:online", zh: "線上首映流管理", en: "Online Premiere Streams" },
@@ -80,14 +80,14 @@ const MENU: MenuItem[] = [
     ],
   },
   {
-    id: "ecosystem", icon: "👥", zh: "矩陣生態", en: "Ecosystem Users",
+    id: "ecosystem", icon: "ecosystem", zh: "矩陣生態", en: "Ecosystem Users",
     sub: [
       { id: "eco:human", zh: "碳基人類檔案", en: "Carbon Humans" },
       { id: "eco:bot", zh: "硅基數字人檔案", en: "Silicon Bots" },
     ],
   },
   {
-    id: "ai", icon: "🤖", zh: "AI引擎與插件庫", en: "AI Orchestration",
+    id: "ai", icon: "ai", zh: "AI引擎與插件庫", en: "AI Orchestration",
     sub: [
       { id: "ai:models", zh: "核心大模型管理", en: "Model Management" },
       { id: "ai:prompts", zh: "提示詞工程庫", en: "Prompt Library" },
@@ -95,7 +95,7 @@ const MENU: MenuItem[] = [
     ],
   },
   {
-    id: "finance", icon: "💰", zh: "財務與智能合約", en: "Finance & Treasury",
+    id: "finance", icon: "finance", zh: "財務與智能合約", en: "Finance & Treasury",
     sub: [
       { id: "fin:ledger", zh: "全局財務流水", en: "Global Ledger" },
       { id: "fin:treasury", zh: "平台金庫監控", en: "Platform Treasury" },
@@ -103,7 +103,7 @@ const MENU: MenuItem[] = [
     ],
   },
   {
-    id: "ops", icon: "📢", zh: "運營與系統", en: "Ops & Settings",
+    id: "ops", icon: "ops", zh: "運營與系統", en: "Ops & Settings",
     sub: [
       { id: "ops:assets", zh: "官方物料庫", en: "Asset Library" },
       { id: "ops:tower", zh: "全局消息塔", en: "Message Tower" },
@@ -112,6 +112,53 @@ const MENU: MenuItem[] = [
     ],
   },
 ];
+
+// ─── 側邊欄幾何細線 SVG 圖標集 ───────────────────────────────────────────────
+const MENU_ICONS: Record<ModuleId, React.ReactNode> = {
+  dashboard: (
+    <svg viewBox="0 0 24 24" className="w-[15px] h-[15px] shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+      <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+    </svg>
+  ),
+  review: (
+    <svg viewBox="0 0 24 24" className="w-[15px] h-[15px] shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>
+    </svg>
+  ),
+  distribution: (
+    <svg viewBox="0 0 24 24" className="w-[15px] h-[15px] shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/>
+      <line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/>
+      <line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/>
+      <line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/>
+    </svg>
+  ),
+  ecosystem: (
+    <svg viewBox="0 0 24 24" className="w-[15px] h-[15px] shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
+      <path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>
+    </svg>
+  ),
+  ai: (
+    <svg viewBox="0 0 24 24" className="w-[15px] h-[15px] shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2a4 4 0 014 4v1h1a3 3 0 013 3v6a3 3 0 01-3 3H7a3 3 0 01-3-3V10a3 3 0 013-3h1V6a4 4 0 014-4z"/>
+      <circle cx="9" cy="13" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="13" r="1" fill="currentColor" stroke="none"/>
+      <path d="M9 17c.83.65 2.17 1 3 1s2.17-.35 3-1"/>
+    </svg>
+  ),
+  finance: (
+    <svg viewBox="0 0 24 24" className="w-[15px] h-[15px] shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+    </svg>
+  ),
+  ops: (
+    <svg viewBox="0 0 24 24" className="w-[15px] h-[15px] shrink-0" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+    </svg>
+  ),
+};
 
 // ─── 雙語字典 ────────────────────────────────────────────────────────────────
 const DICT = {
@@ -172,13 +219,13 @@ const DICT = {
 type T = (typeof DICT)[Lang];
 
 // ─── 公共樣式常量 ─────────────────────────────────────────────────────────────
-const CARD = "bg-white border border-gray-200/80 rounded-2xl";
-const INPUT = "w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/20";
-const BTN_BASE = "rounded-full px-4 py-1.5 text-sm font-semibold transition-all";
-const BTN_PRIMARY = `${BTN_BASE} bg-[#1a73e8] text-white hover:opacity-90`;
-const BTN_DANGER = `${BTN_BASE} bg-red-500 text-white hover:opacity-90`;
-const BTN_GHOST = `${BTN_BASE} border border-gray-200 text-gray-600 hover:bg-gray-50`;
-const BTN_SM = "rounded-full px-3 py-1 text-xs font-semibold transition-all";
+const CARD = "bg-white border border-neutral-200 rounded-2xl";
+const INPUT = "w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/20 transition-colors duration-200";
+const BTN_BASE = "rounded-full px-4 py-1.5 text-sm font-semibold transition-colors duration-200 active:scale-[0.98]";
+const BTN_PRIMARY = `${BTN_BASE} bg-[#1a73e8] text-white hover:opacity-95`;
+const BTN_DANGER = `${BTN_BASE} bg-red-500 text-white hover:opacity-95`;
+const BTN_GHOST = `${BTN_BASE} border border-neutral-300 text-neutral-600 hover:bg-neutral-50`;
+const BTN_SM = "rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-200 active:scale-[0.98]";
 
 // ─── Toast 堆疊 ──────────────────────────────────────────────────────────────
 function ToastStack({ items }: { items: ToastItem[] }) {
@@ -201,12 +248,12 @@ function Modal({ title, children, onClose, footer }: {
     <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-gray-900/30 backdrop-blur-sm" onClick={onClose} />
       <div className={`${CARD} relative z-10 w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col`}>
-        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between shrink-0">
-          <h3 className="font-bold text-gray-900">{title}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 text-lg leading-none">✕</button>
+        <div className="border-b border-neutral-200 px-6 py-4 flex items-center justify-between shrink-0">
+          <h3 className="font-bold text-neutral-900">{title}</h3>
+          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700 text-lg leading-none">✕</button>
         </div>
         <div className="p-6 overflow-y-auto flex-1">{children}</div>
-        {footer && <div className="border-t border-gray-200 px-6 py-4 shrink-0">{footer}</div>}
+        {footer && <div className="border-t border-neutral-200 px-6 py-4 shrink-0">{footer}</div>}
       </div>
     </div>
   );
@@ -215,15 +262,15 @@ function Modal({ title, children, onClose, footer }: {
 // ─── 上傳虛線框 UI ────────────────────────────────────────────────────────────
 function UploadBox({ label, value, onPick, hint }: { label: string; value: string; onPick: (n: string) => void; hint?: string }) {
   return (
-    <label className="block cursor-pointer border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-blue-400 transition-colors">
+    <label className="block cursor-pointer border-2 border-dashed border-neutral-300 rounded-xl p-4 text-center hover:border-blue-400 transition-colors">
       <input type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) onPick(f.name); }} />
       <div className="text-2xl mb-1">🖼</div>
-      <p className="text-sm font-semibold text-gray-700">{label}</p>
-      {hint && <p className="mt-0.5 text-[10px] text-gray-400">{hint}</p>}
+      <p className="text-sm font-semibold text-neutral-700">{label}</p>
+      {hint && <p className="mt-0.5 text-[10px] text-neutral-400">{hint}</p>}
       {value ? (
         <p className="mt-1 text-xs text-blue-600 font-medium truncate">✓ {value}</p>
       ) : (
-        <p className="mt-1 text-xs text-gray-400">拖曳或點擊上傳 (Mock)</p>
+        <p className="mt-1 text-xs text-neutral-400">拖曳或點擊上傳 (Mock)</p>
       )}
     </label>
   );
@@ -253,35 +300,36 @@ function DashboardModule({ t }: { t: T }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {t.dashboardCards.map((label, i) => (
           <div key={label} className={`${CARD} p-5`}>
-            <p className="text-xs text-gray-500">{label}</p>
-            <p className="mt-2 text-lg font-black text-gray-900 leading-tight">{t.dashboardVals[i]}</p>
-            <p className="mt-1 text-xs text-blue-600">↑ 實時更新</p>
+            <p className="text-xs text-neutral-500">{label}</p>
+            <p className="mt-2 text-lg font-black text-neutral-900 leading-tight">{t.dashboardVals[i]}</p>
+            <p className="mt-1 text-xs text-[#1a73e8]">↑ 實時更新</p>
           </div>
         ))}
       </div>
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <div className={`${CARD} p-5`}>
-          <h3 className="font-bold text-gray-900 mb-4">{t.todoCenter}</h3>
-          <div className="space-y-3">
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 flex items-center justify-between">
-              <span className="text-amber-800 text-sm font-medium">⚠ {t.pendingFilms}</span>
-              <span className="bg-amber-500 text-white text-xs font-bold rounded-full px-2 py-0.5">12</span>
-            </div>
-            <div className="rounded-xl border border-red-200 bg-red-50 p-3 flex items-center justify-between">
-              <span className="text-red-700 text-sm font-medium">🔴 {t.pendingWithdraw}</span>
-              <span className="bg-red-500 text-white text-xs font-bold rounded-full px-2 py-0.5">4</span>
-            </div>
-            <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 flex items-center justify-between">
-              <span className="text-blue-700 text-sm font-medium">🔵 KYC 待審核</span>
-              <span className="bg-blue-500 text-white text-xs font-bold rounded-full px-2 py-0.5">7</span>
-            </div>
+          <h3 className="font-bold text-neutral-900 mb-4">{t.todoCenter}</h3>
+          <div className="space-y-2">
+            {[
+              { label: t.pendingFilms, count: 12, dot: "bg-[#fbbc04]" },
+              { label: t.pendingWithdraw, count: 4, dot: "bg-[#ea4335]" },
+              { label: "KYC 待審核", count: 7, dot: "bg-[#1a73e8]" },
+            ].map(({ label, count, dot }) => (
+              <div key={label} className="rounded-xl border border-neutral-200 bg-white p-3 flex items-center justify-between hover:bg-neutral-50 transition-colors duration-150">
+                <span className="flex items-center gap-2 text-sm font-medium text-neutral-700">
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
+                  {label}
+                </span>
+                <span className="bg-neutral-100 text-neutral-600 text-xs font-bold rounded-full px-2.5 py-0.5">{count}</span>
+              </div>
+            ))}
           </div>
         </div>
         <div className={`${CARD} p-5`}>
-          <h3 className="font-bold text-gray-900 mb-4">{t.aiBriefing}</h3>
+          <h3 className="font-bold text-neutral-900 mb-4">{t.aiBriefing}</h3>
           <div className="h-72 overflow-y-auto space-y-1.5 pr-1">
             {briefing.map((item) => (
-              <div key={item} className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-600">{item}</div>
+              <div key={item} className="rounded-lg bg-neutral-50 px-3 py-2 text-xs text-neutral-600">{item}</div>
             ))}
           </div>
         </div>
@@ -304,12 +352,12 @@ function fmtAdminDate(dateStr: string): string {
 // ─── 支付方式友善標籤 ─────────────────────────────────────────────────────────
 function fmtPaymentMethod(method: string | null | undefined): { label: string; cls: string } {
   if (method === "fiat" || method === "USD")
-    return { label: "法幣 (Stripe)", cls: "text-blue-700 bg-blue-50 border-blue-200" };
+    return { label: "法幣 (Stripe)", cls: "text-neutral-700 bg-neutral-100 border-neutral-200" };
   if (method === "aif" || method === "AIF")
-    return { label: "AIF (Web3)", cls: "text-purple-700 bg-purple-50 border-purple-200" };
+    return { label: "AIF (Web3)", cls: "text-[#1a73e8] bg-[#e8f0fe] border-[#c5d9fb]" };
   if (method === "official_waived")
-    return { label: "官方免除", cls: "text-amber-700 bg-amber-50 border-amber-200" };
-  return { label: method ?? "—", cls: "text-gray-500 bg-gray-50 border-gray-200" };
+    return { label: "官方免除", cls: "text-neutral-600 bg-neutral-100 border-neutral-200" };
+  return { label: method ?? "—", cls: "text-neutral-500 bg-neutral-50 border-neutral-200" };
 }
 
 // ─── AdminOssUploader：拖曳上傳組件（淺色 Admin 主題）────────────────────────
@@ -382,7 +430,7 @@ function AdminOssUploader({
 
   return (
     <div className="space-y-1">
-      <label className="text-xs font-semibold text-gray-700">
+      <label className="text-xs font-semibold text-neutral-700">
         {label}{required && <span className="text-red-500 ml-0.5">*</span>}
       </label>
 
@@ -393,19 +441,19 @@ function AdminOssUploader({
           onDrop={handleDrop}
           onClick={() => inputRef.current?.click()}
           className={`flex items-center gap-3 px-4 py-3 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-            isDragging ? "border-blue-400 bg-blue-50" : "border-gray-200 bg-gray-50 hover:border-blue-300 hover:bg-blue-50/40"
+            isDragging ? "border-blue-400 bg-blue-50" : "border-neutral-200 bg-neutral-50 hover:border-blue-300 hover:bg-blue-50/40"
           }`}
         >
           <input ref={inputRef} type="file" accept={accept} onChange={handleChange} className="hidden" />
-          <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 shrink-0 transition-colors ${isDragging ? "text-blue-500" : "text-gray-400"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 shrink-0 transition-colors ${isDragging ? "text-blue-500" : "text-neutral-400"}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
             <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
             <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
           </svg>
           <div>
-            <div className={`text-xs font-semibold transition-colors ${isDragging ? "text-blue-600" : "text-gray-500"}`}>
+            <div className={`text-xs font-semibold transition-colors ${isDragging ? "text-blue-600" : "text-neutral-500"}`}>
               點擊選擇 / 拖曳上傳
             </div>
-            <div className="text-[10px] text-gray-400 mt-0.5">{hint}</div>
+            <div className="text-[10px] text-neutral-400 mt-0.5">{hint}</div>
           </div>
         </div>
       )}
@@ -432,7 +480,7 @@ function AdminOssUploader({
             <div className="text-xs font-semibold text-green-700 truncate">{fileName || value.split("/").pop() || "已上傳"}</div>
             <div className="text-[10px] text-green-600/70 truncate mt-0.5">{value}</div>
           </div>
-          <button onClick={reset} className="text-xs text-gray-400 hover:text-red-500 transition-colors shrink-0 font-semibold ml-2">更換</button>
+          <button onClick={reset} className="text-xs text-neutral-400 hover:text-red-500 transition-colors shrink-0 font-semibold ml-2">更換</button>
         </div>
       )}
 
@@ -442,7 +490,7 @@ function AdminOssUploader({
             <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
           </svg>
           <span className="text-xs font-semibold text-red-600 flex-1">上傳失敗，請重試</span>
-          <button onClick={reset} className="text-xs text-gray-500 hover:text-gray-700 font-semibold">重試</button>
+          <button onClick={reset} className="text-xs text-neutral-500 hover:text-neutral-700 font-semibold">重試</button>
         </div>
       )}
     </div>
@@ -595,12 +643,12 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
     return (
       <button
         onClick={onChange}
-        className={`group flex items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors active:scale-95 ${on ? "hover:bg-blue-50" : "hover:bg-slate-100"}`}
+        className={`group flex items-center gap-1.5 rounded-md px-1.5 py-1 transition-colors duration-200 active:scale-[0.98] ${on ? "hover:bg-blue-50" : "hover:bg-neutral-100"}`}
       >
-        <span className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors duration-200 ${on ? "bg-blue-500" : "bg-slate-300"}`}>
+        <span className={`relative inline-flex h-4 w-7 shrink-0 items-center rounded-full transition-colors duration-200 ${on ? "bg-blue-500" : "bg-neutral-300"}`}>
           <span className={`inline-block h-3 w-3 transform rounded-full bg-white shadow transition-transform duration-200 ${on ? "translate-x-3.5" : "translate-x-0.5"}`} />
         </span>
-        <span className={`text-[10px] font-medium whitespace-nowrap transition-colors ${on ? "text-blue-600" : "text-slate-400"}`}>{label}</span>
+        <span className={`text-[10px] font-medium whitespace-nowrap transition-colors ${on ? "text-blue-600" : "text-neutral-400"}`}>{label}</span>
       </button>
     );
   }
@@ -610,7 +658,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
       <button
         onClick={() => copyToClipboard(text, label)}
         title={`複製 ${label}`}
-        className="inline-flex shrink-0 items-center justify-center rounded p-0.5 text-slate-300 transition-colors hover:bg-blue-50 hover:text-blue-500 active:scale-90"
+        className="inline-flex shrink-0 items-center justify-center rounded p-0.5 text-neutral-300 transition-colors duration-200 hover:bg-blue-50 hover:text-blue-500 active:scale-90"
       >
         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
           <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
@@ -621,7 +669,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
   }
 
   function LinkChip({ href, label, accent }: { href: string | null | undefined; label: string; accent?: boolean }) {
-    if (!href) return <span className="text-[10px] text-slate-300 italic">無{label.replace(" ↗", "")}</span>;
+    if (!href) return <span className="text-[10px] text-neutral-300 italic">無{label.replace(" ↗", "")}</span>;
     const url = href.startsWith("http") ? href : `https://${href}`;
     return (
       <a
@@ -645,7 +693,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
     const end = new Date(start.getTime() + 9 * 60000);
     if (now < start) return <span className="text-[9px] font-bold text-amber-600 bg-amber-50 px-1 py-0.5 rounded">QUEUED</span>;
     if (now < end) return <span className="text-[9px] font-bold text-green-700 bg-green-100 px-1 py-0.5 rounded">LIVE</span>;
-    return <span className="text-[9px] text-gray-400 bg-gray-100 px-1 py-0.5 rounded">EXP</span>;
+    return <span className="text-[9px] text-neutral-400 bg-neutral-100 px-1 py-0.5 rounded">EXP</span>;
   }
 
   const hasFilters = !!(searchQuery || orderQuery || statusFilter !== "all" || paymentFilter !== "all" || dateFrom || dateTo);
@@ -660,27 +708,27 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
       {/* ── Stats Cards ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         {[
-          { label: "總報名數", value: stats.total, color: "text-slate-900", bg: "bg-white", border: "border-slate-200", dot: "bg-slate-400" },
-          { label: "待審核",   value: stats.pending,  color: "text-amber-700",   bg: "bg-amber-50",   border: "border-amber-200",   dot: "bg-amber-400" },
-          { label: "已通過",   value: stats.approved, color: "text-emerald-700", bg: "bg-emerald-50", border: "border-emerald-200", dot: "bg-emerald-500" },
-          { label: "已駁回",   value: stats.rejected, color: "text-rose-700",    bg: "bg-rose-50",    border: "border-rose-200",    dot: "bg-rose-500" },
+          { label: "總報名數", value: stats.total,    dot: "bg-neutral-400" },
+          { label: "待審核",   value: stats.pending,  dot: "bg-[#fbbc04]" },
+          { label: "已通過",   value: stats.approved, dot: "bg-[#34a853]" },
+          { label: "已駁回",   value: stats.rejected, dot: "bg-[#ea4335]" },
         ].map((card) => (
-          <div key={card.label} className={`${card.bg} border ${card.border} rounded-xl px-5 py-4 shadow-sm flex items-center gap-3`}>
+          <div key={card.label} className="bg-white border border-neutral-200 rounded-2xl px-5 py-4 flex items-center gap-3 transition-all duration-200">
             <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${card.dot}`} />
             <div>
-              <p className="text-xs font-medium text-slate-500">{card.label}</p>
-              <p className={`text-3xl font-black mt-0.5 leading-none ${card.color}`}>{card.value}</p>
+              <p className="text-xs font-medium text-neutral-500">{card.label}</p>
+              <p className="text-3xl font-black mt-0.5 leading-none text-neutral-900">{card.value}</p>
             </div>
           </div>
         ))}
       </div>
 
       {/* ── Action Bar ── */}
-      <div className="bg-white border border-slate-200 rounded-xl p-3 mb-4 shadow-sm space-y-2">
+      <div className="bg-white border border-neutral-200 rounded-2xl p-4 mb-4 space-y-3">
         <div className="flex flex-col sm:flex-row gap-2">
           {/* 片名 / 用戶搜尋 */}
           <div className="relative flex-1 min-w-0">
-            <svg className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="pointer-events-none absolute left-4 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-neutral-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
             </svg>
             <input
@@ -688,12 +736,12 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
               placeholder="搜尋片名、Email 或錢包地址…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white transition-colors"
+              className="w-full rounded-full border border-neutral-300 bg-neutral-50 py-2.5 pl-10 pr-4 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/20 focus:bg-white transition-colors duration-200"
             />
           </div>
           {/* 流水號搜尋 */}
           <div className="relative sm:w-44">
-            <svg className="pointer-events-none absolute left-3 top-1/2 h-3 w-3 -translate-y-1/2 text-slate-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="pointer-events-none absolute left-4 top-1/2 h-3 w-3 -translate-y-1/2 text-neutral-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <rect x="5" y="2" width="14" height="20" rx="2"/><line x1="9" y1="7" x2="15" y2="7"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="15" x2="12" y2="15"/>
             </svg>
             <input
@@ -701,11 +749,11 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
               placeholder="流水號…"
               value={orderQuery}
               onChange={(e) => setOrderQuery(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-8 pr-3 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:bg-white transition-colors"
+              className="w-full rounded-full border border-neutral-300 bg-neutral-50 py-2.5 pl-9 pr-4 text-sm text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/20 focus:bg-white transition-colors duration-200"
             />
           </div>
           <button
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 transition-colors active:scale-95 shrink-0"
+            className="rounded-full border border-neutral-300 bg-white px-4 py-2.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-50 transition-colors duration-200 active:scale-[0.98] shrink-0"
             onClick={fetchFilms}
           >
             {loading ? "讀取中…" : "↺ 刷新"}
@@ -717,7 +765,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            className="rounded-full border border-neutral-300 bg-white px-4 py-1.5 text-sm text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/20 transition-colors duration-200"
           >
             <option value="all">全部狀態</option>
             <option value="pending">待審核</option>
@@ -728,7 +776,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
           <select
             value={paymentFilter}
             onChange={(e) => setPaymentFilter(e.target.value as typeof paymentFilter)}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            className="rounded-full border border-neutral-300 bg-white px-4 py-1.5 text-sm text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/20 transition-colors duration-200"
           >
             <option value="all">全部支付方式</option>
             <option value="fiat">法幣 (Fiat)</option>
@@ -737,63 +785,63 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
           </select>
           {/* 日期範圍 */}
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-slate-500 shrink-0">從</span>
+            <span className="text-xs text-neutral-500 shrink-0">從</span>
             <input
               type="date"
               value={dateFrom}
               onChange={(e) => setDateFrom(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              className="rounded-xl border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/20 transition-colors duration-200"
             />
-            <span className="text-xs text-slate-500 shrink-0">至</span>
+            <span className="text-xs text-neutral-500 shrink-0">至</span>
             <input
               type="date"
               value={dateTo}
               onChange={(e) => setDateTo(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              className="rounded-xl border border-neutral-300 bg-white px-3 py-1.5 text-sm text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/20 transition-colors duration-200"
             />
           </div>
           {hasFilters && (
             <button
               onClick={clearFilters}
-              className="text-xs text-blue-500 hover:text-blue-700 hover:underline transition-colors ml-1"
+              className="text-xs text-[#1a73e8] hover:text-blue-700 hover:underline transition-colors ml-1"
             >
               清除所有篩選
             </button>
           )}
-          <span className="ml-auto text-[11px] text-slate-400">
-            顯示 <strong className="text-slate-600">{filteredFilms.length}</strong> / {films.length} 條記錄
+          <span className="ml-auto text-[11px] text-neutral-400">
+            顯示 <strong className="text-neutral-600">{filteredFilms.length}</strong> / {films.length} 條記錄
           </span>
         </div>
       </div>
 
       {/* ── Table ── */}
-      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+      <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1160px]">
             <thead>
-              <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                <th className="w-[130px] px-4 py-3 text-left">報名時間</th>
-                <th className="w-[160px] px-4 py-3 text-left">流水串號</th>
-                <th className="w-[110px] px-4 py-3 text-left">支付方式</th>
-                <th className="px-4 py-3 text-left">影片與創作者</th>
-                <th className="w-[210px] px-4 py-3 text-left">審核資料池</th>
-                <th className="w-[180px] px-4 py-3 text-left">決策中心</th>
-                <th className="w-[150px] px-4 py-3 text-left">展映大盤</th>
+              <tr className="border-b border-neutral-100 bg-neutral-50 text-[10px] font-medium uppercase tracking-wider text-neutral-500">
+                <th className="w-[130px] px-4 py-3.5 text-left">報名時間</th>
+                <th className="w-[160px] px-4 py-3.5 text-left">流水串號</th>
+                <th className="w-[110px] px-4 py-3.5 text-left">支付方式</th>
+                <th className="px-4 py-3.5 text-left">影片與創作者</th>
+                <th className="w-[210px] px-4 py-3.5 text-left">審核資料池</th>
+                <th className="w-[180px] px-4 py-3.5 text-left">決策中心</th>
+                <th className="w-[150px] px-4 py-3.5 text-left">展映大盤</th>
               </tr>
             </thead>
             <tbody>
               {filteredFilms.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="p-10 text-center text-sm text-slate-400">
+                  <td colSpan={7} className="p-10 text-center text-sm text-neutral-400">
                     {loading ? "讀取中…" : hasFilters ? "無符合條件的結果" : "暫無資料"}
                   </td>
                 </tr>
               ) : filteredFilms.map((film) => (
-                <tr key={film.id} className="border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50/70">
+                <tr key={film.id} className="border-b border-neutral-100 transition-colors last:border-0 hover:bg-neutral-50/70">
 
                   {/* ── 報名時間 ── */}
                   <td className="px-4 py-4 align-middle">
-                    <span className="font-mono text-[11px] text-slate-600 whitespace-nowrap">
+                    <span className="font-mono text-[11px] text-neutral-600 whitespace-nowrap">
                       {fmtAdminDate(film.created_at)}
                     </span>
                   </td>
@@ -802,13 +850,13 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                   <td className="px-3 py-4 align-middle">
                     {film.order_number ? (
                       <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-[11px] font-semibold text-slate-800 truncate max-w-[130px]" title={film.order_number}>
+                        <span className="font-mono text-[11px] font-semibold text-neutral-800 truncate max-w-[130px]" title={film.order_number}>
                           {film.order_number}
                         </span>
                         <CopyBtn text={film.order_number} label="流水號" />
                       </div>
                     ) : (
-                      <span className="text-[10px] text-slate-300 italic">未設定</span>
+                      <span className="text-[10px] text-neutral-300 italic">未設定</span>
                     )}
                   </td>
 
@@ -817,7 +865,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                     {(() => {
                       const { label, cls } = fmtPaymentMethod(film.payment_method);
                       return (
-                        <span className={`inline-block rounded-md border px-2 py-1 text-[10px] font-semibold leading-tight ${cls}`}>
+                        <span className={`inline-block rounded-full border px-2.5 py-0.5 text-[10px] font-semibold leading-tight ${cls}`}>
                           {label}
                         </span>
                       );
@@ -827,22 +875,22 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                   {/* ── 影片與創作者 ── */}
                   <td className="px-4 py-4 align-middle">
                     <div className="flex items-center gap-1.5">
-                      <p className="max-w-[200px] truncate text-[13px] font-semibold leading-snug text-slate-900" title={film.title ?? "-"}>
+                      <p className="max-w-[200px] truncate text-[13px] font-semibold leading-snug text-neutral-900" title={film.title ?? "-"}>
                         {film.title ?? "-"}
                       </p>
                       {film.title && <CopyBtn text={film.title} label="片名" />}
                     </div>
                     {film.studio && (
-                      <p className="mt-0.5 mb-1.5 text-[10px] leading-tight text-slate-500">{film.studio}</p>
+                      <p className="mt-0.5 mb-1.5 text-[10px] leading-tight text-neutral-500">{film.studio}</p>
                     )}
                     <div className="mt-1 flex items-center gap-1">
-                      <p className="max-w-[200px] truncate text-[10px] text-slate-500" title={film.users?.email ?? "-"}>
+                      <p className="max-w-[200px] truncate text-[10px] text-neutral-500" title={film.users?.email ?? "-"}>
                         {film.users?.email ?? "-"}
                       </p>
                       {film.users?.email && <CopyBtn text={film.users.email} label="Email" />}
                     </div>
                     <div className="flex items-center gap-1">
-                      <p className="max-w-[200px] truncate font-mono text-[10px] text-slate-400" title={film.users?.wallet_address ?? ""}>
+                      <p className="max-w-[200px] truncate font-mono text-[10px] text-neutral-400" title={film.users?.wallet_address ?? ""}>
                         {film.users?.wallet_address ? `${film.users.wallet_address.slice(0, 12)}…` : "-"}
                       </p>
                       {film.users?.wallet_address && <CopyBtn text={film.users.wallet_address} label="錢包" />}
@@ -855,7 +903,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                       <span className={`text-[13px] font-black ${(film.ai_ratio ?? 0) >= 51 ? "text-emerald-600" : "text-rose-500"}`}>
                         {Math.round(film.ai_ratio ?? 0)}%
                       </span>
-                      <span className={`rounded-md px-1.5 py-0.5 text-[9px] font-bold ${(film.ai_ratio ?? 0) >= 51 ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-600"}`}>
+                      <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold ${(film.ai_ratio ?? 0) >= 51 ? "bg-neutral-100 text-neutral-700" : "bg-neutral-100 text-neutral-500"}`}>
                         {(film.ai_ratio ?? 0) >= 51 ? "✓ 達標" : "✗ 不足"}
                       </span>
                     </div>
@@ -863,13 +911,13 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                       {(film.trailer_url || film.video_url) ? (
                         <LinkChip href={film.trailer_url || film.video_url} label="預告 ↗" />
                       ) : (
-                        <span className="text-[10px] text-slate-300">無預告</span>
+                        <span className="text-[10px] text-neutral-300">無預告</span>
                       )}
                       <LinkChip href={film.poster_url} label="海報" />
                       {(film.main_video_url || film.feature_url) ? (
                         <LinkChip href={film.main_video_url || film.feature_url} label="正片" accent />
                       ) : (
-                        <span className="text-[10px] text-slate-300">無正片</span>
+                        <span className="text-[10px] text-neutral-300">無正片</span>
                       )}
                       {film.copyright_url && <LinkChip href={film.copyright_url} label="版權" />}
                     </div>
@@ -882,13 +930,13 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                     </span>
                     <div className="flex gap-2">
                       <button
-                        className="rounded-md bg-emerald-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-emerald-600 active:scale-95"
+                        className="rounded-full border border-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-white hover:bg-emerald-50 transition-colors duration-200 active:scale-[0.98]"
                         onClick={() => approveFilm(film)}
                       >
                         {t.approve}
                       </button>
                       <button
-                        className="rounded-md bg-rose-500 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-all hover:bg-rose-600 active:scale-95"
+                        className="rounded-full border border-rose-300 px-3 py-1.5 text-xs font-semibold text-rose-600 bg-white hover:bg-rose-50 transition-colors duration-200 active:scale-[0.98]"
                         onClick={() => { setRejectTarget(film); setRejectReason(t.rejectReasons[0]); }}
                       >
                         {t.reject}
@@ -937,7 +985,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
             </div>
           }
         >
-          <label className="mb-2 block text-sm font-semibold text-gray-700">{t.reason}</label>
+          <label className="mb-2 block text-sm font-semibold text-neutral-700">{t.reason}</label>
           <select value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} className={INPUT}>
             {t.rejectReasons.map((r) => <option key={r} value={r}>{r}</option>)}
           </select>
@@ -966,7 +1014,7 @@ function ReviewLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bool
   }
 
   const statusBadge = (s: keyof typeof t.lbsEventStatus) => {
-    const map = { pending: "bg-amber-100 text-amber-700", scheduled: "bg-blue-100 text-blue-700", live: "bg-green-100 text-green-700", offline: "bg-gray-100 text-gray-500" };
+    const map = { pending: "bg-neutral-100 text-neutral-600", scheduled: "bg-[#e8f0fe] text-[#1a73e8]", live: "bg-neutral-100 text-neutral-700", offline: "bg-neutral-100 text-neutral-400" };
     return map[s];
   };
 
@@ -975,30 +1023,30 @@ function ReviewLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bool
       <div className="overflow-x-auto">
         <table className="w-full min-w-[780px] text-sm">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 font-semibold">
-              <th className="p-3 text-left">活動 ID</th>
-              <th className="p-3 text-left">活動名稱</th>
-              <th className="p-3 text-left">策展人</th>
-              <th className="p-3 text-left">場地</th>
-              <th className="p-3 text-left">日期</th>
-              <th className="p-3 text-left">狀態</th>
-              <th className="p-3 text-left">操作</th>
+            <tr className="bg-neutral-50 border-b border-neutral-100 text-[10px] text-neutral-500 font-medium uppercase tracking-wider">
+              <th className="px-4 py-3.5 text-left">活動 ID</th>
+              <th className="px-4 py-3.5 text-left">活動名稱</th>
+              <th className="px-4 py-3.5 text-left">策展人</th>
+              <th className="px-4 py-3.5 text-left">場地</th>
+              <th className="px-4 py-3.5 text-left">日期</th>
+              <th className="px-4 py-3.5 text-left">狀態</th>
+              <th className="px-4 py-3.5 text-left">操作</th>
             </tr>
           </thead>
           <tbody>
             {events.map((ev) => (
-              <tr key={ev.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
-                <td className="p-3 text-xs text-gray-500 font-mono">{ev.id}</td>
-                <td className="p-3 font-semibold text-gray-900">{ev.title}</td>
-                <td className="p-3 text-gray-600 text-xs">{ev.curator}</td>
-                <td className="p-3 text-gray-600 text-xs">{ev.venue}</td>
-                <td className="p-3 text-gray-600 text-xs">{ev.date}</td>
-                <td className="p-3"><span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusBadge(ev.status)}`}>{t.lbsEventStatus[ev.status]}</span></td>
-                <td className="p-3">
+              <tr key={ev.id} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/70 transition-colors">
+                <td className="px-4 py-4 text-xs text-neutral-500 font-mono">{ev.id}</td>
+                <td className="px-4 py-4 font-semibold text-neutral-900">{ev.title}</td>
+                <td className="px-4 py-4 text-neutral-600 text-xs">{ev.curator}</td>
+                <td className="px-4 py-4 text-neutral-600 text-xs">{ev.venue}</td>
+                <td className="px-4 py-4 text-neutral-600 text-xs">{ev.date}</td>
+                <td className="px-4 py-4"><span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusBadge(ev.status)}`}>{t.lbsEventStatus[ev.status]}</span></td>
+                <td className="px-4 py-4">
                   {ev.status !== "offline" && (
-                    <button className={`${BTN_SM} bg-blue-600 text-white hover:bg-blue-700`} onClick={() => advance(ev.id)}>推進狀態 →</button>
+                    <button className={`${BTN_SM} border border-[#1a73e8] text-[#1a73e8] bg-white hover:bg-[#e8f0fe]`} onClick={() => advance(ev.id)}>推進狀態 →</button>
                   )}
-                  {ev.status === "offline" && <span className="text-xs text-gray-400">已完結</span>}
+                  {ev.status === "offline" && <span className="text-xs text-neutral-400">已完結</span>}
                 </td>
               </tr>
             ))}
@@ -1011,8 +1059,8 @@ function ReviewLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bool
 
 function ReviewKycTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
   const typeBadge = (tp: string) => {
-    const map: Record<string, string> = { creator: "bg-purple-100 text-purple-700", label: "bg-orange-100 text-orange-700", curator: "bg-teal-100 text-teal-700" };
-    return map[tp] ?? "bg-gray-100 text-gray-500";
+    const map: Record<string, string> = { creator: "bg-neutral-100 text-neutral-700", label: "bg-neutral-100 text-neutral-700", curator: "bg-neutral-100 text-neutral-700" };
+    return map[tp] ?? "bg-neutral-100 text-neutral-500";
   };
   const [apps, setApps] = useState([
     { id: "KYC-001", name: "Alice Chen", email: "alice@example.com", wallet: "0x1234...abcd", type: "creator", status: "pending" },
@@ -1033,39 +1081,39 @@ function ReviewKycTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bool
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px] text-sm">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 font-semibold">
-              <th className="p-3 text-left">ID</th>
-              <th className="p-3 text-left">姓名 / 機構</th>
-              <th className="p-3 text-left">信箱</th>
-              <th className="p-3 text-left">錢包</th>
-              <th className="p-3 text-left">身份類型</th>
-              <th className="p-3 text-left">狀態</th>
-              <th className="p-3 text-left">操作</th>
+            <tr className="bg-neutral-50 border-b border-neutral-100 text-[10px] text-neutral-500 font-medium uppercase tracking-wider">
+              <th className="px-4 py-3.5 text-left">ID</th>
+              <th className="px-4 py-3.5 text-left">姓名 / 機構</th>
+              <th className="px-4 py-3.5 text-left">信箱</th>
+              <th className="px-4 py-3.5 text-left">錢包</th>
+              <th className="px-4 py-3.5 text-left">身份類型</th>
+              <th className="px-4 py-3.5 text-left">狀態</th>
+              <th className="px-4 py-3.5 text-left">操作</th>
             </tr>
           </thead>
           <tbody>
             {apps.map((a) => (
-              <tr key={a.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
-                <td className="p-3 text-xs text-gray-500 font-mono">{a.id}</td>
-                <td className="p-3 font-semibold text-gray-900">{a.name}</td>
-                <td className="p-3 text-gray-600 text-xs">{a.email}</td>
-                <td className="p-3 text-gray-600 text-xs font-mono">{a.wallet}</td>
-                <td className="p-3">
-                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${typeBadge(a.type)}`}>
+              <tr key={a.id} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/70 transition-colors">
+                <td className="px-4 py-4 text-xs text-neutral-500 font-mono">{a.id}</td>
+                <td className="px-4 py-4 font-semibold text-neutral-900">{a.name}</td>
+                <td className="px-4 py-4 text-neutral-600 text-xs">{a.email}</td>
+                <td className="px-4 py-4 text-neutral-600 text-xs font-mono">{a.wallet}</td>
+                <td className="px-4 py-4">
+                  <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${typeBadge(a.type)}`}>
                     {t.kycTypes[a.type as keyof typeof t.kycTypes] ?? a.type}
                   </span>
                 </td>
-                <td className="p-3">
-                  <span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusColor(a.status)}`}>{a.status}</span>
+                <td className="px-4 py-4">
+                  <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusColor(a.status)}`}>{a.status}</span>
                 </td>
-                <td className="p-3">
+                <td className="px-4 py-4">
                   {a.status === "pending" && (
                     <div className="flex gap-2">
-                      <button className={`${BTN_SM} bg-green-600 text-white hover:bg-green-700`} onClick={() => decide(a.id, "approved")}>{t.approve}</button>
-                      <button className={`${BTN_SM} bg-red-600 text-white hover:bg-red-700`} onClick={() => decide(a.id, "rejected")}>{t.reject}</button>
+                      <button className={`${BTN_SM} border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50`} onClick={() => decide(a.id, "approved")}>{t.approve}</button>
+                      <button className={`${BTN_SM} border border-rose-300 text-rose-600 bg-white hover:bg-rose-50`} onClick={() => decide(a.id, "rejected")}>{t.reject}</button>
                     </div>
                   )}
-                  {a.status !== "pending" && <span className="text-xs text-gray-400">已處理</span>}
+                  {a.status !== "pending" && <span className="text-xs text-neutral-400">已處理</span>}
                 </td>
               </tr>
             ))}
@@ -1263,14 +1311,14 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
     <div className="grid grid-cols-1 xl:grid-cols-[420px_1fr] gap-5">
       {/* 影展建立表單 */}
       <form onSubmit={createNode} className={`${CARD} p-5 space-y-3`}>
-        <h3 className="font-bold text-gray-900 mb-1">創建 LBS 展映影展</h3>
+        <h3 className="font-bold text-neutral-900 mb-1">創建 LBS 展映影展</h3>
 
         {/* 影展標題 */}
         <input className={INPUT} placeholder="影展標題" value={f.title} onChange={(e) => setF("title", e.target.value)} />
 
         {/* 地址三欄 */}
         <div className="space-y-2">
-          <label className="text-xs font-semibold text-gray-600 block">展映地點</label>
+          <label className="text-xs font-semibold text-neutral-600 block">展映地點</label>
           <input className={INPUT} placeholder="國家 / 地區（如：Hong Kong）" value={f.country} onChange={(e) => setF("country", e.target.value)} />
           <input className={INPUT} placeholder="城市（如：Hong Kong Island）" value={f.city} onChange={(e) => setF("city", e.target.value)} />
           <input className={INPUT} placeholder="詳細場地名稱（如：HKCEC Hall 3）" value={f.venue} onChange={(e) => setF("venue", e.target.value)} />
@@ -1292,18 +1340,18 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
         {/* GPS 坐標（只讀） */}
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">GPS Lat（自動填入）</label>
+            <label className="text-xs text-neutral-500 mb-1 block">GPS Lat（自動填入）</label>
             <input
-              className={`${INPUT} bg-gray-100 text-gray-500 cursor-not-allowed`}
+              className={`${INPUT} bg-neutral-100 text-neutral-500 cursor-not-allowed`}
               placeholder="自動獲取"
               value={f.lat}
               readOnly
             />
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">GPS Lng（自動填入）</label>
+            <label className="text-xs text-neutral-500 mb-1 block">GPS Lng（自動填入）</label>
             <input
-              className={`${INPUT} bg-gray-100 text-gray-500 cursor-not-allowed`}
+              className={`${INPUT} bg-neutral-100 text-neutral-500 cursor-not-allowed`}
               placeholder="自動獲取"
               value={f.lng}
               readOnly
@@ -1317,18 +1365,18 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
         {/* 開始 / 結束時間 */}
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-xs font-semibold text-gray-600 mb-1 block">開始時間</label>
+            <label className="text-xs font-semibold text-neutral-600 mb-1 block">開始時間</label>
             <input className={INPUT} type="datetime-local" value={f.start_time} onChange={(e) => setF("start_time", e.target.value)} />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-600 mb-1 block">結束時間</label>
+            <label className="text-xs font-semibold text-neutral-600 mb-1 block">結束時間</label>
             <input className={INPUT} type="datetime-local" value={f.end_time} onChange={(e) => setF("end_time", e.target.value)} />
           </div>
         </div>
 
         {/* 影展詳細介紹 */}
         <div>
-          <label className="text-xs font-semibold text-gray-600 mb-1 block">影展詳細介紹</label>
+          <label className="text-xs font-semibold text-neutral-600 mb-1 block">影展詳細介紹</label>
           <textarea
             className={`${INPUT} resize-none`}
             rows={4}
@@ -1337,12 +1385,12 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
             value={f.description}
             onChange={(e) => setF("description", e.target.value)}
           />
-          <div className="text-[10px] text-gray-400 mt-1">最佳顯示效果為 100-200 字，最多限制 500 字。</div>
+          <div className="text-[10px] text-neutral-400 mt-1">最佳顯示效果為 100-200 字，最多限制 500 字。</div>
         </div>
 
         {/* 智能合約策略 */}
         <div>
-          <label className="text-xs font-semibold text-gray-600 mb-1 block">{t.contractPolicy}</label>
+          <label className="text-xs font-semibold text-neutral-600 mb-1 block">{t.contractPolicy}</label>
           <select className={INPUT} value={f.contractPolicy} onChange={(e) => setF("contractPolicy", e.target.value)}>
             {t.contractOptions.map((op) => <option key={op} value={op}>{op}</option>)}
           </select>
@@ -1357,7 +1405,7 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
         {/* 圖片上傳 */}
         <div className="grid grid-cols-2 gap-2">
           {/* 影展海報 */}
-          <label className="block cursor-pointer border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-blue-400 transition-colors">
+          <label className="block cursor-pointer border-2 border-dashed border-neutral-300 rounded-xl p-4 text-center hover:border-blue-400 transition-colors">
             <input
               type="file"
               accept="image/*"
@@ -1374,8 +1422,8 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
               }}
             />
             <div className="text-2xl mb-1">🖼</div>
-            <p className="text-sm font-semibold text-gray-700">{t.uploadPoster}</p>
-            <p className="mt-0.5 text-[10px] text-gray-400">最佳比例 2:3，推薦 800x1200 px</p>
+            <p className="text-sm font-semibold text-neutral-700">{t.uploadPoster}</p>
+            <p className="mt-0.5 text-[10px] text-neutral-400">最佳比例 2:3，推薦 800x1200 px</p>
             {posterUploading ? (
               <p className="mt-1 text-xs text-blue-500 font-medium flex items-center justify-center gap-1">
                 <span className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin inline-block" />
@@ -1384,12 +1432,12 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
             ) : poster ? (
               <p className="mt-1 text-xs text-green-600 font-medium">✓ 已上傳</p>
             ) : (
-              <p className="mt-1 text-xs text-gray-400">拖曳或點擊上傳</p>
+              <p className="mt-1 text-xs text-neutral-400">拖曳或點擊上傳</p>
             )}
           </label>
 
           {/* 背景圖 */}
-          <label className="block cursor-pointer border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-blue-400 transition-colors">
+          <label className="block cursor-pointer border-2 border-dashed border-neutral-300 rounded-xl p-4 text-center hover:border-blue-400 transition-colors">
             <input
               type="file"
               accept="image/*"
@@ -1406,8 +1454,8 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
               }}
             />
             <div className="text-2xl mb-1">🖼</div>
-            <p className="text-sm font-semibold text-gray-700">{t.uploadBg}</p>
-            <p className="mt-0.5 text-[10px] text-gray-400">最佳比例 16:9，推薦 1920x1080 px</p>
+            <p className="text-sm font-semibold text-neutral-700">{t.uploadBg}</p>
+            <p className="mt-0.5 text-[10px] text-neutral-400">最佳比例 16:9，推薦 1920x1080 px</p>
             {bgUploading ? (
               <p className="mt-1 text-xs text-blue-500 font-medium flex items-center justify-center gap-1">
                 <span className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin inline-block" />
@@ -1416,7 +1464,7 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
             ) : bgImage ? (
               <p className="mt-1 text-xs text-green-600 font-medium">✓ 已上傳</p>
             ) : (
-              <p className="mt-1 text-xs text-gray-400">拖曳或點擊上傳</p>
+              <p className="mt-1 text-xs text-neutral-400">拖曳或點擊上傳</p>
             )}
           </label>
         </div>
@@ -1449,37 +1497,37 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
           </select>
         </div>
 
-        {filteredNodes.length === 0 && <div className={`${CARD} p-4 text-sm text-gray-400`}>{t.empty}</div>}
+        {filteredNodes.length === 0 && <div className={`${CARD} p-4 text-sm text-neutral-400`}>{t.empty}</div>}
         {filteredNodes.map((n) => (
           <div key={n.id} className={`${CARD} p-4 flex items-start justify-between gap-3`}>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <p className="font-bold text-gray-900 truncate">{n.title}</p>
+                <p className="font-bold text-neutral-900 truncate">{n.title}</p>
                 {n.status && (
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${n.status === "active" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0 ${n.status === "active" ? "bg-green-100 text-green-700" : "bg-neutral-100 text-neutral-500"}`}>
                     {n.status === "active" ? "🟢 上線" : "⚫ 下線"}
                   </span>
                 )}
               </div>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-neutral-500 mt-1">
                 📍 {[n.country, n.city, n.venue].filter(Boolean).join(" ") || n.location || "-"}
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-neutral-500">
                 🗓 {n.start_time ?? "-"} — {n.end_time ?? "-"}
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-neutral-500">
                 🎟 {(n.ticket_price_aif ?? 0) > 0 ? `付費 (AIF ${n.ticket_price_aif})` : "免費"} | 🎬 影片數量: {(n.film_ids ?? []).length} 部
               </p>
             </div>
             <div className="flex flex-col gap-1.5 shrink-0">
               <button
-                className={`${BTN_SM} bg-indigo-600 text-white hover:bg-indigo-700 whitespace-nowrap`}
+                className={`${BTN_SM} border border-indigo-300 text-indigo-700 bg-white hover:bg-indigo-50 whitespace-nowrap`}
                 onClick={() => { setPoolNode(n); setPickedFilmIds(n.film_ids ?? []); }}
               >
                 {t.poolBtn}
               </button>
               <button
-                className={`${BTN_SM} border border-blue-300 text-blue-600 hover:bg-blue-50 whitespace-nowrap`}
+                className={`${BTN_SM} border border-[#1a73e8]/30 text-[#1a73e8] hover:bg-[#e8f0fe] whitespace-nowrap`}
                 onClick={() => {
                   setEditingLbsData(n);
                   setEditForm({
@@ -1496,13 +1544,13 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
                 ✏️ 編輯
               </button>
               <button
-                className={`${BTN_SM} whitespace-nowrap ${(n.status ?? "active") === "active" ? "border border-gray-300 text-gray-700 hover:bg-gray-50" : "bg-green-600 text-white hover:bg-green-700"}`}
+                className={`${BTN_SM} whitespace-nowrap ${(n.status ?? "active") === "active" ? "border border-neutral-300 text-neutral-700 bg-white hover:bg-neutral-50" : "border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50"}`}
                 onClick={() => toggleNodeStatus(n)}
               >
                 {(n.status ?? "active") === "active" ? "⬇ 下線" : "⬆ 上線"}
               </button>
               <button
-                className={`${BTN_SM} bg-red-600 text-white hover:bg-red-700 whitespace-nowrap`}
+                className={`${BTN_SM} border border-rose-300 text-rose-600 bg-white hover:bg-rose-50 whitespace-nowrap`}
                 onClick={() => deleteNode(n)}
               >
                 🗑 刪除
@@ -1519,15 +1567,15 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
             <button className={BTN_GHOST} onClick={() => setPoolNode(null)}>{t.cancel}</button>
             <button className={BTN_PRIMARY} onClick={savePool}>{t.savePool}</button>
           </div>}>
-          <p className="text-sm text-gray-500 mb-3">從已通過影片庫中勾選掛載</p>
+          <p className="text-sm text-neutral-500 mb-3">從已通過影片庫中勾選掛載</p>
           <div className="space-y-2 max-h-72 overflow-y-auto">
-            {approvedFilms.length === 0 && <p className="text-sm text-gray-400">{t.empty}</p>}
+            {approvedFilms.length === 0 && <p className="text-sm text-neutral-400">{t.empty}</p>}
             {approvedFilms.map((film) => (
-              <label key={film.id} className="flex items-center gap-3 rounded-lg border border-gray-200 p-3 cursor-pointer hover:bg-gray-50">
+              <label key={film.id} className="flex items-center gap-3 rounded-lg border border-neutral-200 p-3 cursor-pointer hover:bg-neutral-50">
                 <input type="checkbox" checked={pickedFilmIds.includes(film.id)}
                   onChange={() => setPickedFilmIds((prev) => prev.includes(film.id) ? prev.filter((id) => id !== film.id) : [...prev, film.id])} />
-                <span className="text-sm text-gray-800 font-medium">{film.title ?? "-"}</span>
-                <span className="text-xs text-gray-500 ml-auto">{film.studio ?? "-"}</span>
+                <span className="text-sm text-neutral-800 font-medium">{film.title ?? "-"}</span>
+                <span className="text-xs text-neutral-500 ml-auto">{film.studio ?? "-"}</span>
               </label>
             ))}
           </div>
@@ -1548,58 +1596,58 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
         >
           <form onSubmit={handleUpdateLbs} className="space-y-5">
             {/* ── 唯讀區塊：被鎖死的地理位置 ── */}
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+            <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-4 space-y-3">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-black text-gray-500 uppercase tracking-wider">🔒 地理位置（不可修改）</span>
-                <span className="text-[10px] bg-gray-200 text-gray-500 px-2 py-0.5 rounded-full font-semibold">Locked</span>
+                <span className="text-xs font-black text-neutral-500 uppercase tracking-wider">🔒 地理位置（不可修改）</span>
+                <span className="text-[10px] bg-neutral-200 text-neutral-500 px-2 py-0.5 rounded-full font-semibold">Locked</span>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">國家 / 地區</label>
+                  <label className="text-xs text-neutral-500 mb-1 block">國家 / 地區</label>
                   <input
-                    className="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-400 cursor-not-allowed"
+                    className="w-full rounded-lg border border-neutral-200 bg-neutral-100 px-3 py-2 text-sm text-neutral-400 cursor-not-allowed"
                     value={editingLbsData.country ?? "—"}
                     disabled
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">城市</label>
+                  <label className="text-xs text-neutral-500 mb-1 block">城市</label>
                   <input
-                    className="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-400 cursor-not-allowed"
+                    className="w-full rounded-lg border border-neutral-200 bg-neutral-100 px-3 py-2 text-sm text-neutral-400 cursor-not-allowed"
                     value={editingLbsData.city ?? "—"}
                     disabled
                   />
                 </div>
               </div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">詳細場地地址</label>
+                <label className="text-xs text-neutral-500 mb-1 block">詳細場地地址</label>
                 <input
-                  className="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-400 cursor-not-allowed"
+                  className="w-full rounded-lg border border-neutral-200 bg-neutral-100 px-3 py-2 text-sm text-neutral-400 cursor-not-allowed"
                   value={editingLbsData.venue ?? editingLbsData.location ?? "—"}
                   disabled
                 />
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">GPS Lat</label>
+                  <label className="text-xs text-neutral-500 mb-1 block">GPS Lat</label>
                   <input
-                    className="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-400 cursor-not-allowed font-mono"
+                    className="w-full rounded-lg border border-neutral-200 bg-neutral-100 px-3 py-2 text-sm text-neutral-400 cursor-not-allowed font-mono"
                     value={editingLbsData.lat ?? "—"}
                     disabled
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">GPS Lng</label>
+                  <label className="text-xs text-neutral-500 mb-1 block">GPS Lng</label>
                   <input
-                    className="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-400 cursor-not-allowed font-mono"
+                    className="w-full rounded-lg border border-neutral-200 bg-neutral-100 px-3 py-2 text-sm text-neutral-400 cursor-not-allowed font-mono"
                     value={editingLbsData.lng ?? "—"}
                     disabled
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 mb-1 block">解鎖半徑（米）</label>
+                  <label className="text-xs text-neutral-500 mb-1 block">解鎖半徑（米）</label>
                   <input
-                    className="w-full rounded-lg border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-400 cursor-not-allowed"
+                    className="w-full rounded-lg border border-neutral-200 bg-neutral-100 px-3 py-2 text-sm text-neutral-400 cursor-not-allowed"
                     value={editingLbsData.radius != null ? `${editingLbsData.radius} m` : "—"}
                     disabled
                   />
@@ -1609,11 +1657,11 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
 
             {/* ── 可編輯區塊：營運資料 ── */}
             <div className="space-y-3">
-              <p className="text-xs font-black text-gray-600 uppercase tracking-wider">✏️ 可修改的營運資料</p>
+              <p className="text-xs font-black text-neutral-600 uppercase tracking-wider">✏️ 可修改的營運資料</p>
 
               {/* 影展標題 */}
               <div>
-                <label className="text-xs font-semibold text-gray-700 mb-1 block">影展標題</label>
+                <label className="text-xs font-semibold text-neutral-700 mb-1 block">影展標題</label>
                 <input
                   className={INPUT}
                   placeholder="影展標題"
@@ -1626,7 +1674,7 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
               {/* 開始 / 結束時間 */}
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs font-semibold text-gray-700 mb-1 block">開始時間</label>
+                  <label className="text-xs font-semibold text-neutral-700 mb-1 block">開始時間</label>
                   <input
                     className={INPUT}
                     type="datetime-local"
@@ -1635,7 +1683,7 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-gray-700 mb-1 block">結束時間</label>
+                  <label className="text-xs font-semibold text-neutral-700 mb-1 block">結束時間</label>
                   <input
                     className={INPUT}
                     type="datetime-local"
@@ -1647,7 +1695,7 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
 
               {/* 影展詳細介紹 */}
               <div>
-                <label className="text-xs font-semibold text-gray-700 mb-1 block">影展詳細介紹</label>
+                <label className="text-xs font-semibold text-neutral-700 mb-1 block">影展詳細介紹</label>
                 <textarea
                   className={`${INPUT} resize-none`}
                   rows={4}
@@ -1656,13 +1704,13 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
                   value={editForm.description}
                   onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
                 />
-                <div className="text-[10px] text-gray-400 mt-1">{editForm.description.length} / 500 字</div>
+                <div className="text-[10px] text-neutral-400 mt-1">{editForm.description.length} / 500 字</div>
               </div>
 
               {/* 圖片上傳 */}
               <div className="grid grid-cols-2 gap-2">
                 {/* 影展海報 */}
-                <label className="block cursor-pointer border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-blue-400 transition-colors">
+                <label className="block cursor-pointer border-2 border-dashed border-neutral-300 rounded-xl p-4 text-center hover:border-blue-400 transition-colors">
                   <input
                     type="file"
                     accept="image/*"
@@ -1679,8 +1727,8 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
                     }}
                   />
                   <div className="text-2xl mb-1">🖼</div>
-                  <p className="text-sm font-semibold text-gray-700">{t.uploadPoster}</p>
-                  <p className="mt-0.5 text-[10px] text-gray-400">最佳比例 2:3，推薦 800x1200 px</p>
+                  <p className="text-sm font-semibold text-neutral-700">{t.uploadPoster}</p>
+                  <p className="mt-0.5 text-[10px] text-neutral-400">最佳比例 2:3，推薦 800x1200 px</p>
                   {editPosterUploading ? (
                     <p className="mt-1 text-xs text-blue-500 font-medium flex items-center justify-center gap-1">
                       <span className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin inline-block" />
@@ -1689,12 +1737,12 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
                   ) : editPoster ? (
                     <p className="mt-1 text-xs text-green-600 font-medium truncate">✓ {editPoster.split("/").pop()}</p>
                   ) : (
-                    <p className="mt-1 text-xs text-gray-400">拖曳或點擊上傳</p>
+                    <p className="mt-1 text-xs text-neutral-400">拖曳或點擊上傳</p>
                   )}
                 </label>
 
                 {/* 背景圖 */}
-                <label className="block cursor-pointer border-2 border-dashed border-gray-300 rounded-xl p-4 text-center hover:border-blue-400 transition-colors">
+                <label className="block cursor-pointer border-2 border-dashed border-neutral-300 rounded-xl p-4 text-center hover:border-blue-400 transition-colors">
                   <input
                     type="file"
                     accept="image/*"
@@ -1711,8 +1759,8 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
                     }}
                   />
                   <div className="text-2xl mb-1">🖼</div>
-                  <p className="text-sm font-semibold text-gray-700">{t.uploadBg}</p>
-                  <p className="mt-0.5 text-[10px] text-gray-400">最佳比例 16:9，推薦 1920x1080 px</p>
+                  <p className="text-sm font-semibold text-neutral-700">{t.uploadBg}</p>
+                  <p className="mt-0.5 text-[10px] text-neutral-400">最佳比例 16:9，推薦 1920x1080 px</p>
                   {editBgUploading ? (
                     <p className="mt-1 text-xs text-blue-500 font-medium flex items-center justify-center gap-1">
                       <span className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin inline-block" />
@@ -1721,7 +1769,7 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
                   ) : editBgImage ? (
                     <p className="mt-1 text-xs text-green-600 font-medium truncate">✓ {editBgImage.split("/").pop()}</p>
                   ) : (
-                    <p className="mt-1 text-xs text-gray-400">拖曳或點擊上傳</p>
+                    <p className="mt-1 text-xs text-neutral-400">拖曳或點擊上傳</p>
                   )}
                 </label>
               </div>
@@ -1741,35 +1789,35 @@ function DistOnlineTab({ t }: { t: T }) {
   ];
   return (
     <div className="space-y-4">
-      <div className={`${CARD} p-4 bg-blue-50 border-blue-200`}>
-        <p className="text-sm font-semibold text-blue-800">📡 線上首映流管理 — 管理 Feed 流推薦權重與直播排程</p>
+      <div className={`${CARD} p-4`}>
+        <p className="text-sm font-semibold text-neutral-700">線上首映流管理 — 管理 Feed 流推薦權重與直播排程</p>
       </div>
       <div className={`${CARD} overflow-hidden`}>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 font-semibold">
-                <th className="p-3 text-left">Stream ID</th>
-                <th className="p-3 text-left">名稱</th>
-                <th className="p-3 text-left">Bitrate</th>
-                <th className="p-3 text-left">在線人數</th>
-                <th className="p-3 text-left">狀態</th>
-                <th className="p-3 text-left">推薦權重</th>
+              <tr className="bg-neutral-50 border-b border-neutral-100 text-[10px] text-neutral-500 font-medium uppercase tracking-wider">
+                <th className="px-4 py-3.5 text-left">Stream ID</th>
+                <th className="px-4 py-3.5 text-left">名稱</th>
+                <th className="px-4 py-3.5 text-left">Bitrate</th>
+                <th className="px-4 py-3.5 text-left">在線人數</th>
+                <th className="px-4 py-3.5 text-left">狀態</th>
+                <th className="px-4 py-3.5 text-left">推薦權重</th>
               </tr>
             </thead>
             <tbody>
               {streams.map((s) => (
-                <tr key={s.id} className="border-b border-gray-100 last:border-0">
-                  <td className="p-3 text-xs text-gray-500 font-mono">{s.id}</td>
-                  <td className="p-3 font-semibold text-gray-900">{s.title}</td>
-                  <td className="p-3 text-gray-700">{s.bitrate}</td>
-                  <td className="p-3 text-gray-700">{s.viewers.toLocaleString()}</td>
-                  <td className="p-3">
-                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${s.status === "LIVE" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                <tr key={s.id} className="border-b border-neutral-100 last:border-0">
+                  <td className="px-4 py-4 text-xs text-neutral-500 font-mono">{s.id}</td>
+                  <td className="px-4 py-4 font-semibold text-neutral-900">{s.title}</td>
+                  <td className="px-4 py-4 text-neutral-700">{s.bitrate}</td>
+                  <td className="px-4 py-4 text-neutral-700">{s.viewers.toLocaleString()}</td>
+                  <td className="px-4 py-4">
+                    <span className={`text-xs font-semibold px-2 py-1 rounded-full ${s.status === "LIVE" ? "bg-green-100 text-green-700" : "bg-neutral-100 text-neutral-500"}`}>
                       {t.streamStatus[s.status as keyof typeof t.streamStatus] ?? s.status}
                     </span>
                   </td>
-                  <td className="p-3">
+                  <td className="px-4 py-4">
                     <input type="range" min={0} max={10} defaultValue={s.status === "LIVE" ? 9 : 5} className="w-24" />
                   </td>
                 </tr>
@@ -1862,7 +1910,7 @@ function DistOfficialTab({ pushToast }: { pushToast: (s: string, ok?: boolean) =
     resetForm();
   }
 
-  const FIELD_LABEL = "block text-xs font-semibold text-gray-600 mb-1";
+  const FIELD_LABEL = "block text-xs font-semibold text-neutral-600 mb-1";
   const REQUIRED_STAR = <span className="text-red-500 ml-0.5">*</span>;
 
   return (
@@ -1881,7 +1929,7 @@ function DistOfficialTab({ pushToast }: { pushToast: (s: string, ok?: boolean) =
 
       {/* 區塊一：指定發行帳號 */}
       <div className={`${CARD} p-5`}>
-        <h3 className="text-sm font-black text-gray-900 mb-3 flex items-center gap-2">
+        <h3 className="text-sm font-black text-neutral-900 mb-3 flex items-center gap-2">
           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black">1</span>
           指定發行帳號
           {REQUIRED_STAR}
@@ -1910,7 +1958,7 @@ function DistOfficialTab({ pushToast }: { pushToast: (s: string, ok?: boolean) =
 
       {/* 區塊二：基本資料 */}
       <div className={`${CARD} p-5`}>
-        <h3 className="text-sm font-black text-gray-900 mb-4 flex items-center gap-2">
+        <h3 className="text-sm font-black text-neutral-900 mb-4 flex items-center gap-2">
           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black">2</span>
           基本資料
         </h3>
@@ -1956,10 +2004,10 @@ function DistOfficialTab({ pushToast }: { pushToast: (s: string, ok?: boolean) =
 
       {/* 區塊三：素材上傳（拖曳 / 點擊 → Aliyun OSS）*/}
       <div className={`${CARD} p-5`}>
-        <h3 className="text-sm font-black text-gray-900 mb-4 flex items-center gap-2">
+        <h3 className="text-sm font-black text-neutral-900 mb-4 flex items-center gap-2">
           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-600 text-white text-[10px] font-black">3</span>
           素材上傳
-          <span className="text-[10px] font-normal text-gray-400 ml-1">檔案將即時上傳至 Aliyun OSS</span>
+          <span className="text-[10px] font-normal text-neutral-400 ml-1">檔案將即時上傳至 Aliyun OSS</span>
         </h3>
         <div className="space-y-4">
           <AdminOssUploader
@@ -2010,9 +2058,9 @@ function DistOfficialTab({ pushToast }: { pushToast: (s: string, ok?: boolean) =
         </div>
 
         {/* 系統自動注入字段說明 */}
-        <div className="mt-5 rounded-lg bg-gray-50 border border-gray-200 p-3 space-y-1">
-          <p className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">隱藏字段 · 系統自動注入</p>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-gray-500 font-mono">
+        <div className="mt-5 rounded-lg bg-neutral-50 border border-neutral-200 p-3 space-y-1">
+          <p className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider mb-1.5">隱藏字段 · 系統自動注入</p>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-neutral-500 font-mono">
             <span>status</span><span className="text-amber-600 font-semibold">→ &quot;pending&quot;</span>
             <span>payment_status</span><span className="text-green-600 font-semibold">→ &quot;paid&quot;</span>
             <span>payment_method</span><span className="text-blue-600 font-semibold">→ &quot;official_waived&quot;</span>
@@ -2094,11 +2142,11 @@ function EcoHumanTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string
 
   return (
     <div className={`${CARD} overflow-hidden`}>
-      <div className="flex items-center justify-between p-3 border-b border-gray-100">
+      <div className="flex items-center justify-between p-3 border-b border-neutral-100">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-gray-500">碳基人類檔案</span>
+          <span className="text-xs font-semibold text-neutral-500">碳基人類檔案</span>
           {users.length > 0 && (
-            <span className="text-xs bg-blue-50 text-blue-600 font-bold px-2 py-0.5 rounded-full">{users.length} 人</span>
+            <span className="text-xs bg-neutral-100 text-neutral-600 font-bold px-2 py-0.5 rounded-full">{users.length} 人</span>
           )}
         </div>
         <button className={BTN_GHOST} onClick={fetchUsers} disabled={loading}>
@@ -2107,7 +2155,7 @@ function EcoHumanTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string
       </div>
 
       {fetchError && (
-        <div className="mx-3 mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mx-3 mt-3 rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-700">
           ⚠ {fetchError}
         </div>
       )}
@@ -2115,19 +2163,19 @@ function EcoHumanTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string
       <div className="overflow-x-auto">
         <table className="w-full min-w-[960px] text-sm">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 font-semibold">
+            <tr className="bg-neutral-50 border-b border-neutral-100 text-[10px] text-neutral-500 font-medium uppercase tracking-wider">
               {TABLE_HEADERS.map((h) => (
-                <th key={h} className="p-3 text-left">{h}</th>
+                <th key={h} className="px-4 py-3.5 text-left">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {users.length === 0 && !fetchError && (
               <tr>
-                <td colSpan={TABLE_HEADERS.length} className="p-8 text-gray-400 text-center">
+                <td colSpan={TABLE_HEADERS.length} className="p-8 text-neutral-400 text-center">
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
-                      <span className="w-4 h-4 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin" />
+                      <span className="w-4 h-4 border-2 border-neutral-300 border-t-blue-500 rounded-full animate-spin" />
                       {t.loading}
                     </span>
                   ) : t.empty}
@@ -2135,50 +2183,50 @@ function EcoHumanTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string
               </tr>
             )}
             {users.map((u) => (
-              <tr key={u.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
-                <td className="p-3 text-xs text-gray-500 font-mono truncate max-w-[120px]" title={u.id}>
+              <tr key={u.id} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/70 transition-colors">
+                <td className="px-4 py-4 text-xs text-neutral-500 font-mono truncate max-w-[120px]" title={u.id}>
                   {u.id.slice(0, 8)}...
                 </td>
-                <td className="p-3">
+                <td className="px-4 py-4">
                   <div className="flex flex-col gap-0.5">
                     {u.wallet_address ? (
-                      <span className="text-xs text-gray-800 font-mono font-semibold" title={u.wallet_address}>
+                      <span className="text-xs text-neutral-800 font-mono font-semibold" title={u.wallet_address}>
                         {formatAddress(u.wallet_address)}
                       </span>
                     ) : null}
                     {u.email ? (
-                      <span className="text-xs text-gray-500">{u.email}</span>
+                      <span className="text-xs text-neutral-500">{u.email}</span>
                     ) : null}
                     {!u.wallet_address && !u.email && (
-                      <span className="text-xs text-gray-400 italic">未綁定</span>
+                      <span className="text-xs text-neutral-400 italic">未綁定</span>
                     )}
                   </div>
                 </td>
-                <td className="p-3">
-                  <span className={`text-sm font-bold ${(u.aif_balance ?? 0) > 0 ? 'text-blue-700' : 'text-gray-400'}`}>
+                <td className="px-4 py-4">
+                  <span className={`text-sm font-bold ${(u.aif_balance ?? 0) > 0 ? 'text-blue-700' : 'text-neutral-400'}`}>
                     {(u.aif_balance ?? 0).toLocaleString()} AIF
                   </span>
                 </td>
-                <td className="p-3 text-xs text-gray-600 font-mono" title={u.deposit_address ?? ''}>
+                <td className="px-4 py-4 text-xs text-neutral-600 font-mono" title={u.deposit_address ?? ''}>
                   {u.deposit_address ? formatAddress(u.deposit_address) : (
-                    <span className="text-gray-300 italic">未分配</span>
+                    <span className="text-neutral-300 italic">未分配</span>
                   )}
                 </td>
-                <td className="p-3 text-xs text-gray-500 whitespace-nowrap">
+                <td className="px-4 py-4 text-xs text-neutral-500 whitespace-nowrap">
                   {u.created_at ? new Date(u.created_at).toLocaleString('zh-HK', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
                 </td>
-                <td className="p-3">
+                <td className="px-4 py-4">
                   <div className="flex gap-1">
                     <button
-                      className={`${BTN_SM} bg-red-600 text-white hover:bg-red-700`}
+                      className={`${BTN_SM} border border-rose-300 text-rose-600 bg-white hover:bg-rose-50`}
                       onClick={() => askConfirm({ title: t.ban, body: `確認封禁此用戶？`, danger: true, onConfirm: () => pushToast('已封禁') })}
                     >{t.ban}</button>
                     <button
-                      className={`${BTN_SM} bg-orange-500 text-white hover:bg-orange-600`}
+                      className={`${BTN_SM} border border-neutral-300 text-neutral-600 bg-white hover:bg-neutral-50`}
                       onClick={() => askConfirm({ title: t.forceOffline, body: '確認強制下線？', danger: true, onConfirm: () => pushToast('已強制下線') })}
                     >{t.forceOffline}</button>
                     <button
-                      className={`${BTN_SM} border border-red-300 text-red-600 hover:bg-red-50`}
+                      className={`${BTN_SM} border border-red-200 text-red-500 bg-white hover:bg-red-50`}
                       onClick={() => askConfirm({ title: t.clearData, body: '確認清空用戶數據？此操作不可逆！', danger: true, onConfirm: () => pushToast('已清空') })}
                     >{t.clearData}</button>
                   </div>
@@ -2198,31 +2246,31 @@ function EcoBotTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolean
     { id: "BOT-002", human: "wallet:fiebk...xros", brain: "OpenAI 5.4", hands: "Chain Writer", skills: "Ops / Finance", status: "Idle" },
     { id: "BOT-003", human: "bob@curator.io", brain: "Gemini 3.1", hands: "Notify", skills: "Curator / MSG", status: "Sleep" },
   ];
-  const statusColor = (s: string) => s === "Running" ? "text-green-700 bg-green-50" : s === "Idle" ? "text-blue-700 bg-blue-50" : "text-gray-500 bg-gray-100";
+  const statusColor = (s: string) => s === "Running" ? "text-neutral-700 bg-neutral-100" : s === "Idle" ? "text-neutral-500 bg-neutral-100" : "text-neutral-400 bg-neutral-100";
   return (
     <div className={`${CARD} overflow-hidden`}>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px] text-sm">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 font-semibold">
+            <tr className="bg-neutral-50 border-b border-neutral-100 text-[10px] text-neutral-500 font-medium uppercase tracking-wider">
               {["Bot ID", "歸屬人類", "Brain 模塊", "Hands 模塊", "Skills 模塊", "運行狀態", "操作"].map((h) => (
-                <th key={h} className="p-3 text-left">{h}</th>
+                <th key={h} className="px-4 py-3.5 text-left">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {bots.map((b) => (
-              <tr key={b.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
-                <td className="p-3 font-mono text-sm text-gray-800 font-semibold">{b.id}</td>
-                <td className="p-3 text-xs text-gray-600">{b.human}</td>
+              <tr key={b.id} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/70 transition-colors">
+                <td className="px-4 py-4 font-mono text-sm text-neutral-800 font-semibold">{b.id}</td>
+                <td className="px-4 py-4 text-xs text-neutral-600">{b.human}</td>
                 <td className="p-3 text-xs text-purple-700 font-medium">{b.brain}</td>
                 <td className="p-3 text-xs text-indigo-700 font-medium">{b.hands}</td>
                 <td className="p-3 text-xs text-teal-700 font-medium">{b.skills}</td>
-                <td className="p-3"><span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusColor(b.status)}`}>{b.status}</span></td>
-                <td className="p-3">
+                <td className="px-4 py-4"><span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusColor(b.status)}`}>{b.status}</span></td>
+                <td className="px-4 py-4">
                   <div className="flex gap-2">
-                    <button className={`${BTN_SM} border border-gray-200 text-gray-700 hover:bg-gray-50`} onClick={() => pushToast(`${b.id} 已休眠`)}>{t.sleep}</button>
-                    <button className={`${BTN_SM} border border-gray-200 text-gray-700 hover:bg-gray-50`} onClick={() => pushToast(`${b.id} 已重置`)}>{t.reset}</button>
+                    <button className={`${BTN_SM} border border-neutral-200 text-neutral-700 hover:bg-neutral-50`} onClick={() => pushToast(`${b.id} 已休眠`)}>{t.sleep}</button>
+                    <button className={`${BTN_SM} border border-neutral-200 text-neutral-700 hover:bg-neutral-50`} onClick={() => pushToast(`${b.id} 已重置`)}>{t.reset}</button>
                   </div>
                 </td>
               </tr>
@@ -2252,21 +2300,21 @@ function AiModelsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boole
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] text-sm">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 font-semibold">
+            <tr className="bg-neutral-50 border-b border-neutral-100 text-[10px] text-neutral-500 font-medium uppercase tracking-wider">
               {["模型名稱", "API Key (遮罩)", "24H Token 消耗", "24H 費用 (USD)", "狀態", "開關"].map((h) => (
-                <th key={h} className="p-3 text-left">{h}</th>
+                <th key={h} className="px-4 py-3.5 text-left">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {models.map((m) => (
-              <tr key={m.name} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
-                <td className="p-3 font-semibold text-gray-900">{m.name}</td>
-                <td className="p-3 text-xs text-gray-600 font-mono">{m.api}</td>
-                <td className="p-3 text-gray-700">{m.usage24h}</td>
-                <td className="p-3 text-gray-700 font-medium">{m.costUsd}</td>
-                <td className="p-3"><span className={`text-xs font-semibold px-2 py-1 rounded-full ${m.enabled ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>{m.enabled ? "啟用中" : "已停用"}</span></td>
-                <td className="p-3">
+              <tr key={m.name} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/70 transition-colors">
+                <td className="px-4 py-4 font-semibold text-neutral-900">{m.name}</td>
+                <td className="px-4 py-4 text-xs text-neutral-600 font-mono">{m.api}</td>
+                <td className="px-4 py-4 text-neutral-700">{m.usage24h}</td>
+                <td className="px-4 py-4 text-neutral-700 font-medium">{m.costUsd}</td>
+                <td className="px-4 py-4"><span className={`text-xs font-semibold px-2 py-1 rounded-full ${m.enabled ? "bg-green-100 text-green-700" : "bg-neutral-100 text-neutral-500"}`}>{m.enabled ? "啟用中" : "已停用"}</span></td>
+                <td className="px-4 py-4">
                   <button onClick={() => toggle(m.name)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${m.enabled ? "bg-blue-600" : "bg-gray-300"}`}>
                     <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${m.enabled ? "translate-x-4" : "translate-x-1"}`} />
                   </button>
@@ -2292,17 +2340,17 @@ function AiPromptsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bool
       {prompts.map((p) => (
         <div key={p.id} className={`${CARD} p-4 flex items-start justify-between gap-4`}>
           <div className="flex items-start gap-3">
-            <span className="text-xs font-black text-blue-600 bg-blue-50 px-2 py-1 rounded font-mono">{p.id}</span>
+                  <span className="text-xs font-black text-neutral-600 bg-neutral-100 px-2 py-1 rounded font-mono">{p.id}</span>
             <div>
-              <p className="font-bold text-gray-900">{p.title}</p>
-              <p className="text-xs text-gray-500 mt-0.5">綁定模型: {p.model}</p>
-              <p className="text-sm text-gray-600 mt-1">{p.desc}</p>
+              <p className="font-bold text-neutral-900">{p.title}</p>
+              <p className="text-xs text-neutral-500 mt-0.5">綁定模型: {p.model}</p>
+              <p className="text-sm text-neutral-600 mt-1">{p.desc}</p>
             </div>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-xs text-gray-400">累計調用</p>
-            <p className="font-bold text-gray-800">{p.uses.toLocaleString()}</p>
-            <button className={`${BTN_SM} border border-gray-200 text-gray-600 hover:bg-gray-50 mt-2`} onClick={() => pushToast(`${p.id} 已編輯`)}>編輯</button>
+            <p className="text-xs text-neutral-400">累計調用</p>
+            <p className="font-bold text-neutral-800">{p.uses.toLocaleString()}</p>
+            <button className={`${BTN_SM} border border-neutral-200 text-neutral-600 hover:bg-neutral-50 mt-2`} onClick={() => pushToast(`${p.id} 已編輯`)}>編輯</button>
           </div>
         </div>
       ))}
@@ -2319,14 +2367,14 @@ function AiAssemblyTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boo
   return (
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
       <div className={`${CARD} p-5 space-y-3`}>
-        <h3 className="font-bold text-gray-900">🔧 Bot 組裝台</h3>
-        <p className="text-sm text-gray-500">選擇模型 API + 提示詞 → 封裝生成可執行 Bot</p>
+        <h3 className="font-bold text-neutral-900">🔧 Bot 組裝台</h3>
+        <p className="text-sm text-neutral-500">選擇模型 API + 提示詞 → 封裝生成可執行 Bot</p>
         <div>
-          <label className="text-xs font-semibold text-gray-600 mb-1 block">Bot 名稱</label>
+          <label className="text-xs font-semibold text-neutral-600 mb-1 block">Bot 名稱</label>
           <input className={INPUT} placeholder="e.g. 版權審核 Bot" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
         </div>
         <div>
-          <label className="text-xs font-semibold text-gray-600 mb-1 block">模型 API</label>
+          <label className="text-xs font-semibold text-neutral-600 mb-1 block">模型 API</label>
           <select className={INPUT} value={form.model} onChange={(e) => setForm((p) => ({ ...p, model: e.target.value }))}>
             <option>Gemini 3.1</option>
             <option>OpenAI 5.4</option>
@@ -2334,7 +2382,7 @@ function AiAssemblyTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boo
           </select>
         </div>
         <div>
-          <label className="text-xs font-semibold text-gray-600 mb-1 block">提示詞</label>
+          <label className="text-xs font-semibold text-neutral-600 mb-1 block">提示詞</label>
           <select className={INPUT} value={form.prompt} onChange={(e) => setForm((p) => ({ ...p, prompt: e.target.value }))}>
             <option value="P1">P1 – 侵權檢測</option>
             <option value="P2">P2 – 摘要生成</option>
@@ -2353,15 +2401,15 @@ function AiAssemblyTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boo
         </button>
       </div>
       <div className={`${CARD} p-5`}>
-        <h3 className="font-bold text-gray-900 mb-3">已封裝 Bot 列表</h3>
+        <h3 className="font-bold text-neutral-900 mb-3">已封裝 Bot 列表</h3>
         <div className="space-y-2">
           {bots.map((b, i) => (
-            <div key={i} className="rounded-xl border border-gray-200 p-3 flex items-center justify-between">
+            <div key={i} className="rounded-xl border border-neutral-200 p-3 flex items-center justify-between">
               <div>
-                <p className="font-semibold text-gray-900">{b.name}</p>
-                <p className="text-xs text-gray-500">{b.model} + {b.prompt} · {b.created}</p>
+                <p className="font-semibold text-neutral-900">{b.name}</p>
+                <p className="text-xs text-neutral-500">{b.model} + {b.prompt} · {b.created}</p>
               </div>
-              <span className="text-xs font-semibold text-green-700 bg-green-50 px-2 py-1 rounded-full">Active</span>
+              <span className="text-xs font-semibold text-neutral-700 bg-neutral-100 px-2 py-1 rounded-full">Active</span>
             </div>
           ))}
         </div>
@@ -2385,21 +2433,21 @@ function FinLedgerTab() {
       <div className="overflow-x-auto">
         <table className="w-full min-w-[800px] text-sm">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 font-semibold">
+            <tr className="bg-neutral-50 border-b border-neutral-100 text-[10px] text-neutral-500 font-medium uppercase tracking-wider">
               {["Tx ID", "類型", "Fiat (雙幣)", "Crypto (AIF)", "時間", "用戶"].map((h) => (
-                <th key={h} className="p-3 text-left">{h}</th>
+                <th key={h} className="px-4 py-3.5 text-left">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.tx} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
-                <td className="p-3 font-mono text-xs text-gray-500">{r.tx}</td>
-                <td className="p-3 text-gray-700 font-medium">{r.type}</td>
-                <td className="p-3 text-gray-900 font-semibold">{r.fiat}</td>
+              <tr key={r.tx} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/70 transition-colors">
+                <td className="px-4 py-4 font-mono text-xs text-neutral-500">{r.tx}</td>
+                <td className="px-4 py-4 text-neutral-700 font-medium">{r.type}</td>
+                <td className="p-3 text-neutral-900 font-semibold">{r.fiat}</td>
                 <td className="p-3 text-blue-700 font-semibold">{r.crypto}</td>
-                <td className="p-3 text-xs text-gray-500">{r.time}</td>
-                <td className="p-3 text-xs text-gray-600">{r.user}</td>
+                <td className="p-3 text-xs text-neutral-500">{r.time}</td>
+                <td className="px-4 py-4 text-xs text-neutral-600">{r.user}</td>
               </tr>
             ))}
           </tbody>
@@ -2413,20 +2461,20 @@ function FinTreasuryTab({ t }: { t: T }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
       <div className={`${CARD} p-6`}>
-        <p className="text-xs text-gray-500 mb-1">{t.treasuryLabel}</p>
-        <p className="text-4xl font-black text-gray-900">12.84</p>
-        <p className="text-lg text-gray-600 font-semibold">SOL</p>
+        <p className="text-xs text-neutral-500 mb-1">{t.treasuryLabel}</p>
+        <p className="text-4xl font-black text-neutral-900">12.84</p>
+        <p className="text-lg text-neutral-600 font-semibold">SOL</p>
         <p className="mt-2 text-xs text-green-600">≈ USD $1,542.80 · 正常</p>
       </div>
       <div className={`${CARD} p-6`}>
-        <p className="text-xs text-gray-500 mb-1">平台 AIF 金庫</p>
-        <p className="text-4xl font-black text-gray-900">1.84M</p>
-        <p className="text-lg text-gray-600 font-semibold">AIF</p>
+        <p className="text-xs text-neutral-500 mb-1">平台 AIF 金庫</p>
+        <p className="text-4xl font-black text-neutral-900">1.84M</p>
+        <p className="text-lg text-neutral-600 font-semibold">AIF</p>
         <p className="mt-2 text-xs text-blue-600">≈ USD $92,000 · 流動佔比 43%</p>
       </div>
       <div className={`${CARD} p-6`}>
-        <p className="text-xs text-gray-500 mb-1">Gas 費用儲備</p>
-        <p className="text-4xl font-black text-gray-900">0.32</p>
+        <p className="text-xs text-neutral-500 mb-1">Gas 費用儲備</p>
+        <p className="text-4xl font-black text-neutral-900">0.32</p>
         <p className="text-lg text-orange-600 font-semibold">SOL ⚠</p>
         <p className="mt-2 text-xs text-orange-600">{t.gasWarn} · 建議補充 ≥ 2 SOL</p>
       </div>
@@ -2450,29 +2498,29 @@ function FinSettlementTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: 
       <div className="overflow-x-auto">
         <table className="w-full min-w-[700px] text-sm">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 font-semibold">
+            <tr className="bg-neutral-50 border-b border-neutral-100 text-[10px] text-neutral-500 font-medium uppercase tracking-wider">
               {["申請 ID", "角色", "申請人", "AIF 金額", "USD 等值", "狀態", "操作"].map((h) => (
-                <th key={h} className="p-3 text-left">{h}</th>
+                <th key={h} className="px-4 py-3.5 text-left">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {settlements.map((s) => (
-              <tr key={s.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
-                <td className="p-3 font-mono text-xs text-gray-500">{s.id}</td>
-                <td className="p-3 text-gray-700 font-medium">{s.role}</td>
-                <td className="p-3 text-xs text-gray-600">{s.user}</td>
-                <td className="p-3 font-bold text-blue-700">{s.aif}</td>
-                <td className="p-3 text-gray-700">{s.usd}</td>
-                <td className="p-3"><span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusColor(s.status)}`}>{s.status}</span></td>
-                <td className="p-3">
+              <tr key={s.id} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/70 transition-colors">
+                <td className="px-4 py-4 font-mono text-xs text-neutral-500">{s.id}</td>
+                <td className="px-4 py-4 text-neutral-700 font-medium">{s.role}</td>
+                <td className="px-4 py-4 text-xs text-neutral-600">{s.user}</td>
+                <td className="px-4 py-4 font-bold text-blue-700">{s.aif}</td>
+                <td className="px-4 py-4 text-neutral-700">{s.usd}</td>
+                <td className="px-4 py-4"><span className={`text-xs font-semibold px-2 py-1 rounded-full ${statusColor(s.status)}`}>{s.status}</span></td>
+                <td className="px-4 py-4">
                   {s.status === "pending" && (
                     <div className="flex gap-2">
-                      <button className={`${BTN_SM} bg-green-600 text-white hover:bg-green-700`} onClick={() => decide(s.id, "approved")}>批准</button>
-                      <button className={`${BTN_SM} bg-red-600 text-white hover:bg-red-700`} onClick={() => decide(s.id, "rejected")}>拒絕</button>
+                      <button className={`${BTN_SM} border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50`} onClick={() => decide(s.id, "approved")}>批准</button>
+                      <button className={`${BTN_SM} border border-rose-300 text-rose-600 bg-white hover:bg-rose-50`} onClick={() => decide(s.id, "rejected")}>拒絕</button>
                     </div>
                   )}
-                  {s.status !== "pending" && <span className="text-xs text-gray-400">已處理</span>}
+                  {s.status !== "pending" && <span className="text-xs text-neutral-400">已處理</span>}
                 </td>
               </tr>
             ))}
@@ -2503,19 +2551,19 @@ function OpsAssetsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bool
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-xs text-gray-500 font-semibold">
-                {["檔案名稱", "類型", "標籤", "大小", "上傳日期", "操作"].map((h) => <th key={h} className="p-3 text-left">{h}</th>)}
+              <tr className="bg-neutral-50 border-b border-neutral-100 text-[10px] text-neutral-500 font-medium uppercase tracking-wider">
+                {["檔案名稱", "類型", "標籤", "大小", "上傳日期", "操作"].map((h) => <th key={h} className="px-4 py-3.5 text-left">{h}</th>)}
               </tr>
             </thead>
             <tbody>
               {assets.map((a) => (
-                <tr key={a.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
-                  <td className="p-3 text-gray-900 font-medium text-xs">{a.name}</td>
-                  <td className="p-3 text-xs text-gray-600">{a.type}</td>
-                  <td className="p-3"><span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">{a.tag}</span></td>
-                  <td className="p-3 text-xs text-gray-600">{a.size}</td>
-                  <td className="p-3 text-xs text-gray-500">{a.uploaded}</td>
-                  <td className="p-3"><button className={`${BTN_SM} border border-red-200 text-red-600 hover:bg-red-50`} onClick={() => setAssets((p) => p.filter((x) => x.id !== a.id))}>刪除</button></td>
+                <tr key={a.id} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/70 transition-colors">
+                  <td className="px-4 py-4 text-neutral-900 font-medium text-xs">{a.name}</td>
+                  <td className="px-4 py-4 text-xs text-neutral-600">{a.type}</td>
+                  <td className="px-4 py-4"><span className="text-xs bg-neutral-100 text-neutral-600 px-2 py-0.5 rounded-full">{a.tag}</span></td>
+                  <td className="px-4 py-4 text-xs text-neutral-600">{a.size}</td>
+                  <td className="p-3 text-xs text-neutral-500">{a.uploaded}</td>
+                  <td className="px-4 py-4"><button className={`${BTN_SM} border border-red-200 text-red-600 hover:bg-red-50`} onClick={() => setAssets((p) => p.filter((x) => x.id !== a.id))}>刪除</button></td>
                 </tr>
               ))}
             </tbody>
@@ -2530,25 +2578,25 @@ function OpsTowerTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boole
   const [msg, setMsg] = useState({ channel: "System", title: "", body: "" });
   return (
     <div className={`${CARD} p-5 max-w-2xl space-y-4`}>
-      <h3 className="font-bold text-gray-900">📡 全局消息塔</h3>
-      <p className="text-sm text-gray-500">向前台 MSG 模塊推送系統通知，選擇頻道後廣播</p>
+      <h3 className="font-bold text-neutral-900">📡 全局消息塔</h3>
+      <p className="text-sm text-neutral-500">向前台 MSG 模塊推送系統通知，選擇頻道後廣播</p>
       <div>
-        <label className="text-xs font-semibold text-gray-600 mb-2 block">推送頻道</label>
+        <label className="text-xs font-semibold text-neutral-600 mb-2 block">推送頻道</label>
         <div className="flex gap-4">
           {["System", "Renders", "On-Chain"].map((ch) => (
             <label key={ch} className="flex items-center gap-2 cursor-pointer">
               <input type="radio" name="channel" value={ch} checked={msg.channel === ch} onChange={() => setMsg((p) => ({ ...p, channel: ch }))} />
-              <span className="text-sm text-gray-700">{ch}</span>
+              <span className="text-sm text-neutral-700">{ch}</span>
             </label>
           ))}
         </div>
       </div>
       <div>
-        <label className="text-xs font-semibold text-gray-600 mb-1 block">標題</label>
+        <label className="text-xs font-semibold text-neutral-600 mb-1 block">標題</label>
         <input className={INPUT} placeholder="通知標題" value={msg.title} onChange={(e) => setMsg((p) => ({ ...p, title: e.target.value }))} />
       </div>
       <div>
-        <label className="text-xs font-semibold text-gray-600 mb-1 block">內容</label>
+        <label className="text-xs font-semibold text-neutral-600 mb-1 block">內容</label>
         <textarea className={INPUT} rows={4} placeholder="通知內容" value={msg.body} onChange={(e) => setMsg((p) => ({ ...p, body: e.target.value }))} />
       </div>
       <button className={BTN_PRIMARY}
@@ -2569,23 +2617,23 @@ function OpsParamsTab({ t, lang, setLang, pushToast }: { t: T; lang: Lang; setLa
   const [threshold, setThreshold] = useState(51);
   return (
     <div className={`${CARD} p-5 max-w-2xl space-y-6`}>
-      <h3 className="font-bold text-gray-900">⚙️ 系統參數</h3>
+      <h3 className="font-bold text-neutral-900">⚙️ 系統參數</h3>
       <div>
-        <label className="block font-semibold text-gray-800 mb-2">{t.aiThreshold}</label>
+        <label className="block font-semibold text-neutral-800 mb-2">{t.aiThreshold}</label>
         <div className="flex items-center gap-4">
           <input type="range" min={0} max={100} value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} className="flex-1" />
           <span className={`text-xl font-black w-16 text-right ${threshold >= 51 ? "text-green-600" : "text-red-600"}`}>{threshold}%</span>
         </div>
-        <div className="mt-2 h-2 rounded-full bg-gray-200 overflow-hidden">
+        <div className="mt-2 h-2 rounded-full bg-neutral-200 overflow-hidden">
           <div className={`h-full rounded-full transition-all ${threshold >= 51 ? "bg-green-500" : "bg-red-500"}`} style={{ width: `${threshold}%` }} />
         </div>
         <button className={`${BTN_PRIMARY} mt-3`} onClick={() => pushToast(`✅ AI 及格線已設為 ${threshold}%`)}>儲存設置</button>
       </div>
-      <div className="border-t border-gray-200 pt-5">
-        <label className="block font-semibold text-gray-800 mb-2">界面語言</label>
+      <div className="border-t border-neutral-200 pt-5">
+        <label className="block font-semibold text-neutral-800 mb-2">界面語言</label>
         <div className="flex gap-2">
-          <button className={`${BTN_BASE} ${lang === "zh" ? "bg-blue-600 text-white" : "border border-gray-200 text-gray-700 hover:bg-gray-50"}`} onClick={() => setLang("zh")}>繁中</button>
-          <button className={`${BTN_BASE} ${lang === "en" ? "bg-blue-600 text-white" : "border border-gray-200 text-gray-700 hover:bg-gray-50"}`} onClick={() => setLang("en")}>EN</button>
+          <button className={`${BTN_BASE} ${lang === "zh" ? "bg-[#1a73e8] text-white" : "border border-neutral-300 text-neutral-700 hover:bg-neutral-50"}`} onClick={() => setLang("zh")}>繁中</button>
+          <button className={`${BTN_BASE} ${lang === "en" ? "bg-[#1a73e8] text-white" : "border border-neutral-300 text-neutral-700 hover:bg-neutral-50"}`} onClick={() => setLang("en")}>EN</button>
         </div>
       </div>
     </div>
@@ -2615,14 +2663,14 @@ function OpsRbacTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
     <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
       {/* 角色管理 */}
       <div className={`${CARD} p-5 space-y-4`}>
-        <h3 className="font-bold text-gray-900">{t.rbacRole}</h3>
+        <h3 className="font-bold text-neutral-900">{t.rbacRole}</h3>
         <div className="space-y-2">
           {roles.map((r) => (
-            <div key={r.id} className="rounded-xl border border-gray-200 p-3 flex items-start justify-between">
+            <div key={r.id} className="rounded-xl border border-neutral-200 p-3 flex items-start justify-between">
               <div>
-                <p className="font-semibold text-gray-900 text-sm">{r.name}</p>
+                <p className="font-semibold text-neutral-900 text-sm">{r.name}</p>
                 <div className="flex flex-wrap gap-1 mt-1">
-                  {r.perms.map((p) => <span key={p} className="text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{p}</span>)}
+                  {r.perms.map((p) => <span key={p} className="text-xs bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded">{p}</span>)}
                 </div>
               </div>
               <button className={`${BTN_SM} border border-red-200 text-red-600 hover:bg-red-50`}
@@ -2630,12 +2678,12 @@ function OpsRbacTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
             </div>
           ))}
         </div>
-        <div className="rounded-xl border border-gray-200 p-3 space-y-2 bg-gray-50">
-          <p className="text-xs font-bold text-gray-700 mb-1">新增角色</p>
+        <div className="rounded-xl border border-neutral-200 p-3 space-y-2 bg-neutral-50">
+          <p className="text-xs font-bold text-neutral-700 mb-1">新增角色</p>
           <input className={INPUT} placeholder="自定義角色名稱" value={newRole.name} onChange={(e) => setNewRole((p) => ({ ...p, name: e.target.value }))} />
           <div className="grid grid-cols-2 gap-1">
             {menuOptions.map((m) => (
-              <label key={m} className="text-sm text-gray-700 flex items-center gap-2 cursor-pointer">
+              <label key={m} className="text-sm text-neutral-700 flex items-center gap-2 cursor-pointer">
                 <input type="checkbox" checked={newRole.perms.includes(m)} onChange={() => togglePerm(m)} />
                 {m}
               </label>
@@ -2655,9 +2703,9 @@ function OpsRbacTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
 
       {/* 人員管理 */}
       <div className={`${CARD} p-5 space-y-4`}>
-        <h3 className="font-bold text-gray-900">{t.rbacPeople}</h3>
-        <div className="rounded-xl border border-gray-200 p-3 space-y-2 bg-gray-50">
-          <p className="text-xs font-bold text-gray-700 mb-1">邀請成員</p>
+        <h3 className="font-bold text-neutral-900">{t.rbacPeople}</h3>
+        <div className="rounded-xl border border-neutral-200 p-3 space-y-2 bg-neutral-50">
+          <p className="text-xs font-bold text-neutral-700 mb-1">邀請成員</p>
           <input className={INPUT} placeholder="邀請內部信箱 / 錢包地址" value={invite.account} onChange={(e) => setInvite((p) => ({ ...p, account: e.target.value }))} />
           <select className={INPUT} value={invite.role} onChange={(e) => setInvite((p) => ({ ...p, role: e.target.value }))}>
             {roles.map((r) => <option key={r.id}>{r.name}</option>)}
@@ -2674,13 +2722,13 @@ function OpsRbacTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
         </div>
         <div className="space-y-2">
           {members.map((m) => (
-            <div key={m.id} className={`rounded-xl border p-3 flex items-center justify-between ${m.disabled ? "border-gray-100 bg-gray-50 opacity-70" : "border-gray-200"}`}>
+            <div key={m.id} className={`rounded-xl border p-3 flex items-center justify-between ${m.disabled ? "border-neutral-100 bg-neutral-50 opacity-70" : "border-neutral-200"}`}>
               <div>
-                <p className="text-sm font-semibold text-gray-900">{m.account}</p>
-                <p className="text-xs text-gray-500">角色: {m.role} {m.disabled ? "· 已停用" : ""}</p>
+                <p className="text-sm font-semibold text-neutral-900">{m.account}</p>
+                <p className="text-xs text-neutral-500">角色: {m.role} {m.disabled ? "· 已停用" : ""}</p>
               </div>
               <button
-                className={`${BTN_SM} ${m.disabled ? "border border-green-300 text-green-700 hover:bg-green-50" : "bg-red-600 text-white hover:bg-red-700"}`}
+                className={`${BTN_SM} ${m.disabled ? "border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50" : "border border-rose-300 text-rose-600 bg-white hover:bg-rose-50"}`}
                 onClick={() => setMembers((prev) => prev.map((x) => x.id === m.id ? { ...x, disabled: !x.disabled } : x))}>
                 {m.disabled ? t.enableAccount : t.disableAccount}
               </button>
@@ -2772,13 +2820,13 @@ export default function AdminPage() {
     return (
       <div className="flex flex-col h-full">
         {/* Logo */}
-        <div className="px-5 py-5 border-b border-gray-200 shrink-0">
-          <p className="text-lg font-black text-gray-900">{t.brand}</p>
-          <p className="text-xs text-gray-400">Admin Control Center</p>
+        <div className="px-5 py-5 border-b border-neutral-200 shrink-0">
+          <p className="text-lg font-black text-neutral-900">{t.brand}</p>
+          <p className="text-xs text-neutral-500 tracking-wide">Admin Control Center</p>
         </div>
 
         {/* 手風琴菜單 */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2">
+        <nav className="flex-1 overflow-y-auto py-3 px-3">
           {MENU.map((m) => {
             const isModuleOpen = openModule === m.id;
             const label = lang === "zh" ? m.zh : m.en;
@@ -2788,35 +2836,35 @@ export default function AdminPage() {
               <div key={m.id}>
                 {/* 一級菜單按鈕 */}
                 <button
-                  className={`w-full flex items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors mb-0.5 ${
+                  className={`w-full flex items-center justify-between rounded-full px-3 py-2.5 text-sm transition-colors duration-200 mb-0.5 ${
                     isActive
-                      ? "bg-[#1a73e8]/8 text-[#1a73e8] font-semibold"
-                      : "text-gray-600 hover:bg-gray-100 font-medium"
+                      ? "bg-[#e8eaed] text-neutral-900 font-semibold"
+                      : "text-neutral-700 hover:bg-[#e8eaed] font-medium"
                   }`}
                   onClick={() => handleModuleClick(m)}
                 >
                   <span className="flex items-center gap-2.5">
-                    <span className="text-base leading-none">{m.icon}</span>
+                    <span className="flex items-center text-current">{MENU_ICONS[m.id]}</span>
                     <span className="text-[13px]">{label}</span>
                   </span>
                   {m.sub.length > 0 && (
-                    <span className={`text-xs text-gray-400 transition-transform duration-200 ${isModuleOpen ? "rotate-90" : ""}`}>›</span>
+                    <span className={`text-xs text-neutral-400 transition-transform duration-200 ${isModuleOpen ? "rotate-90" : ""}`}>›</span>
                   )}
                 </button>
 
                 {/* 二級子菜單（展開） */}
                 {m.sub.length > 0 && isModuleOpen && (
-                  <div className="ml-4 mb-1 space-y-0.5 border-l border-gray-100 pl-3">
+                  <div className="ml-4 mb-1 space-y-0.5 border-l border-neutral-200 pl-3">
                     {m.sub.map((s) => {
                       const subLabel = lang === "zh" ? s.zh : s.en;
                       const subActive = activeSubMenu === s.id;
                       return (
                         <button
                           key={s.id}
-                          className={`w-full text-left rounded-lg px-2.5 py-2 text-xs transition-colors ${
+                          className={`w-full text-left rounded-full px-3 py-2 text-xs transition-colors duration-200 ${
                             subActive
-                              ? "bg-[#1a73e8]/10 text-[#1a73e8] font-semibold"
-                              : "text-gray-500 hover:bg-gray-100 hover:text-gray-800 font-medium"
+                              ? "bg-[#e8eaed] text-neutral-900 font-semibold"
+                              : "text-neutral-600 hover:bg-[#e8eaed] hover:text-neutral-900 font-medium"
                           }`}
                           onClick={() => handleSubMenuClick(s.id)}
                         >
@@ -2832,17 +2880,17 @@ export default function AdminPage() {
         </nav>
 
         {/* 管理員卡片 + 退出 */}
-        <div className="mt-auto border-t border-gray-100 p-4 space-y-3 shrink-0">
-          <div className="rounded-xl bg-gray-50 px-3 py-3">
-            <p className="text-[10px] text-gray-400 font-medium uppercase tracking-wider">Admin</p>
-            <p className="text-sm font-semibold text-gray-800 truncate mt-0.5">{userShort}</p>
-            <div className="flex items-center gap-1.5 mt-1">
+        <div className="mt-auto border-t border-neutral-200 p-4 space-y-3 shrink-0">
+          <div className="rounded-2xl bg-white border border-neutral-200 px-4 py-3 shadow-sm">
+            <p className="text-[10px] text-neutral-400 font-medium uppercase tracking-wider">Admin</p>
+            <p className="text-sm font-semibold text-neutral-900 truncate mt-0.5">{userShort}</p>
+            <div className="flex items-center gap-1.5 mt-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-              <span className="text-xs text-gray-400">Online</span>
+              <span className="text-xs text-neutral-500">Online</span>
             </div>
           </div>
           <button
-            className="w-full rounded-full border border-red-200 text-red-500 text-sm font-medium py-2 hover:bg-red-50 transition-colors"
+            className="w-full rounded-full border border-neutral-300 text-neutral-600 text-sm font-medium py-2 hover:bg-neutral-100 transition-colors duration-200 active:scale-[0.98]"
             onClick={handleLogout}
           >
             {t.logout}
@@ -2853,9 +2901,9 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="h-screen overflow-hidden flex bg-[#f8f9fa] text-gray-900">
+    <div className="h-screen overflow-hidden flex bg-neutral-50 text-neutral-900">
       {/* ── 桌面 Sidebar ── */}
-      <aside className="hidden md:flex flex-col w-64 h-screen shrink-0 bg-white border-r border-gray-200">
+      <aside className="hidden md:flex flex-col w-64 h-screen shrink-0 bg-[#f8f9fa] border-r border-neutral-200">
         <SidebarContent />
       </aside>
 
@@ -2863,7 +2911,7 @@ export default function AdminPage() {
       {mobileSidebarOpen && (
         <div className="md:hidden fixed inset-0 z-[1200]">
           <div className="absolute inset-0 bg-black/20 backdrop-blur-sm" onClick={() => setMobileSidebarOpen(false)} />
-          <aside className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-white border-r border-gray-200 flex flex-col z-10">
+          <aside className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-[#f8f9fa] border-r border-neutral-200 flex flex-col z-10">
             <SidebarContent />
           </aside>
         </div>
@@ -2872,23 +2920,23 @@ export default function AdminPage() {
       {/* ── 主內容區 ── */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* TopBar */}
-        <header className="shrink-0 h-14 bg-white border-b border-gray-100 px-4 sm:px-6 flex items-center justify-between gap-3">
+        <header className="shrink-0 h-14 bg-white border-b border-neutral-100 px-4 sm:px-6 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <button
-              className="md:hidden rounded-lg border border-gray-200 p-2 text-gray-500 hover:bg-gray-50"
+              className="md:hidden rounded-full border border-neutral-200 p-2 text-neutral-500 hover:bg-neutral-50 transition-colors duration-200"
               onClick={() => setMobileSidebarOpen(true)}
               aria-label="Open sidebar"
             >
               ☰
             </button>
-            <nav className="text-sm text-gray-400 truncate">
+            <nav className="text-sm text-neutral-400 truncate">
               <span>{t.adminConsole}</span>
-              <span className="mx-1.5 text-gray-200">/</span>
-              <span className="font-medium text-gray-900">{breadcrumb}</span>
+              <span className="mx-1.5 text-neutral-200">/</span>
+              <span className="font-medium text-neutral-900">{breadcrumb}</span>
             </nav>
           </div>
           <button
-            className="shrink-0 rounded-full border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
+            className="shrink-0 rounded-full border border-neutral-200 px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50 transition-colors duration-200 active:scale-[0.98]"
             onClick={() => setLang((p) => p === "zh" ? "en" : "zh")}
           >
             EN / 繁中
@@ -2921,7 +2969,7 @@ export default function AdminPage() {
             </div>
           }
         >
-          <p className="text-sm text-gray-600">{confirmCfg.body}</p>
+          <p className="text-sm text-neutral-600">{confirmCfg.body}</p>
         </Modal>
       )}
     </div>

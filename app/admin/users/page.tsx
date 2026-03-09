@@ -127,7 +127,7 @@ export default function UsersPage() {
   const withBalance = users.filter((u) => (u.aif_balance ?? 0) > 0).length;
 
   return (
-    <div className="p-5 space-y-4 min-h-screen bg-[#f8f9fa]">
+    <div className="p-5 space-y-4 min-h-screen bg-white">
 
       {/* ── Page Header ───────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-4 flex-wrap">

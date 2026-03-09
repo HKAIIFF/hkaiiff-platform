@@ -109,10 +109,10 @@ function Field({
         onChange={onChange ? (e) => onChange(e.target.value) : undefined}
         disabled={disabled}
         placeholder={placeholder}
-        className={`w-full px-3 py-2 text-sm rounded-lg outline-none transition-colors border ${
+        className={`w-full px-3 py-2 text-sm rounded-xl outline-none transition-colors border ${
           disabled
-            ? "bg-gray-50 border-gray-100 text-gray-400 cursor-not-allowed"
-            : "bg-white border-gray-200 text-gray-900 focus:ring-2 focus:ring-[#1a73e8]/20 focus:border-[#1a73e8]/40"
+            ? "bg-neutral-50 border-neutral-200 text-neutral-400 cursor-not-allowed"
+            : "bg-white border-neutral-300 text-neutral-900 focus:ring-2 focus:ring-[#1a73e8]/20 focus:border-[#1a73e8]/40"
         }`}
       />
     </div>
@@ -202,8 +202,8 @@ function EditModal({
         <div className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
 
           {/* ── Locked geo section ───────────────────────────────────────── */}
-          <div className="border border-red-100 bg-red-50/50 px-4 py-3 rounded-xl space-y-3">
-            <div className="text-xs font-medium text-red-400 flex items-center gap-1.5">
+          <div className="border border-neutral-200 bg-neutral-50 px-4 py-3 rounded-xl space-y-3">
+            <div className="text-xs font-medium text-neutral-400 flex items-center gap-1.5">
               <span>⊘</span> 地理核驗欄位 — 唯讀
             </div>
             <div className="grid grid-cols-2 gap-3">
@@ -415,7 +415,7 @@ export default function LBSNodesPage() {
   const offlineCount = nodes.filter((n) => n.status === "offline").length;
 
   return (
-    <div className="p-5 space-y-4 min-h-screen bg-[#f8f9fa]">
+    <div className="p-5 space-y-4 min-h-screen bg-white">
 
       {/* ── Page Header ─────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
