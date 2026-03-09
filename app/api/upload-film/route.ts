@@ -35,19 +35,27 @@ export async function POST(req: Request) {
         trailer_url,
         feature_url:    full_film_url,
         copyright_url:  null,
-        status:         'pending_payment',
+        status:         'pending',
         payment_status: 'unpaid',
       }])
       .select()
       .single();
 
-    if (filmError) throw filmError;
+    if (filmError) {
+      console.error('[UPLOAD API] Supabase filmError:', filmError);
+      throw new Error(filmError.message ?? JSON.stringify(filmError));
+    }
 
     // 交易流水由對應的支付 API（/api/stripe/checkout 或 /api/pay/aif）在支付確認後記錄
     return NextResponse.json({ success: true, film });
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[upload-film] API Error:', message);
+    console.error('[UPLOAD API CRASH]:', error);
+    const message =
+      error instanceof Error
+        ? error.message
+        : typeof (error as { message?: string })?.message === 'string'
+          ? (error as { message: string }).message
+          : String(error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
