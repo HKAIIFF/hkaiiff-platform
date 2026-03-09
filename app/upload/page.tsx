@@ -252,8 +252,8 @@ export default function UploadPage() {
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        alert('Stripe 失敗原因: ' + (err.error || '未知'));
+        const errText = await res.text();
+        alert("【後端 API 報錯】\n狀態碼: " + res.status + "\n詳細原因: " + errText);
         return;
       }
 
@@ -264,9 +264,7 @@ export default function UploadPage() {
         throw new Error('Stripe 未回傳付款頁面 URL，請重試');
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setUploadStatus(msg);
-      showToast(msg, 'error');
+      alert("【前端執行崩潰】\n詳細原因: " + String((err as Error)?.message || err));
     } finally {
       setIsSubmitting(false);
     }
@@ -291,15 +289,17 @@ export default function UploadPage() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ filmId, userId: user.id }),
       });
-      const payData = await payRes.json();
-      if (!payRes.ok) throw new Error(payData.error ?? 'AIF payment failed');
+
+      if (!payRes.ok) {
+        const errText = await payRes.text();
+        alert("【後端 API 報錯】\n狀態碼: " + payRes.status + "\n詳細原因: " + errText);
+        return;
+      }
 
       showToast('AIF payment confirmed! Minting...', 'success');
       setStep('processing');
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setUploadStatus(msg);
-      showToast(msg, 'error');
+      alert("【前端執行崩潰】\n詳細原因: " + String((err as Error)?.message || err));
     } finally {
       setIsSubmitting(false);
     }
