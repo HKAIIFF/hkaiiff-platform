@@ -8,6 +8,7 @@ import { useToast } from '@/app/context/ToastContext';
 interface FilmForPlay {
   id: string;
   title: string;
+  main_video_url: string | null;
   feature_url: string | null;
   trailer_url: string | null;
   poster_url: string | null;
@@ -33,7 +34,7 @@ export default function PlayPage() {
       try {
         const { data, error } = await supabase
           .from('films')
-          .select('id, title, feature_url, trailer_url, poster_url')
+          .select('id, title, main_video_url, feature_url, trailer_url, poster_url')
           .eq('id', id)
           .single();
         if (error) throw error;
@@ -83,11 +84,11 @@ export default function PlayPage() {
     );
   }
 
-  const videoUrl = film?.feature_url ?? film?.trailer_url ?? null;
+  const videoUrl = film?.main_video_url ?? film?.feature_url ?? film?.trailer_url ?? null;
 
   if (!film || !videoUrl) {
     return (
-      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-4 px-6">
+      <div className="fixed inset-0 z-[9999] bg-black w-screen h-screen flex flex-col items-center justify-center gap-4 px-6">
         <i className="fas fa-exclamation-triangle text-3xl text-gray-600" />
         <div className="text-gray-400 font-mono text-sm text-center">
           {film ? '此影片暫無可播放的連結' : '影片不存在'}
@@ -104,14 +105,14 @@ export default function PlayPage() {
   }
 
   return (
-    <div className="fixed inset-0 bg-black select-none">
+    <div className="fixed inset-0 z-[9999] bg-black w-screen h-screen overflow-hidden flex flex-col select-none">
 
       {/* ── Video player ────────────────────────────────────────────────── */}
       <video
         ref={videoRef}
         key={videoUrl}
         src={videoUrl}
-        className="absolute inset-0 w-full h-full object-contain bg-black"
+        className="w-full h-full object-contain bg-black"
         controls
         autoPlay
         playsInline
@@ -136,41 +137,23 @@ export default function PlayPage() {
         </div>
       )}
 
-      {/* ── Top controls ────────────────────────────────────────────────── */}
-      <div className="absolute top-0 left-0 right-0 z-20 p-4 pt-12 flex justify-between items-start pointer-events-none">
+      {/* ── Back button — frosted glass, top-left ────────────────────────── */}
+      <button
+        onClick={handleBack}
+        aria-label="返回"
+        className="absolute top-6 left-6 z-[10000] w-10 h-10 bg-white/10 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-white/20 transition-all cursor-pointer active:scale-90"
+      >
+        <i className="fas fa-chevron-left text-sm" />
+      </button>
 
-        {/* Back / close button — uses router.back() or goes to event page */}
-        <button
-          onClick={handleBack}
-          className="pointer-events-auto w-10 h-10 bg-black/60 backdrop-blur-md rounded-full text-white flex items-center justify-center border border-white/20 hover:bg-white/20 active:scale-90 transition-all shadow-lg"
-          aria-label="返回"
-        >
-          <i className="fas fa-chevron-down" />
-        </button>
-
-        {/* Right badges */}
-        <div className="pointer-events-none flex flex-col items-end gap-2">
-          <div className="bg-red-900/40 border border-red-500/50 px-3 py-1.5 rounded text-red-400 text-[9px] font-bold tracking-widest animate-pulse flex items-center gap-2 backdrop-blur-md">
-            <i className="fas fa-circle text-[6px]" />
-            <span>FULL FEATURE PLAYING</span>
-          </div>
-          <div className="bg-black/50 border border-[#333] px-2 py-1 rounded text-[8px] font-mono text-gray-400 backdrop-blur-sm flex items-center gap-1.5">
-            <i className="fas fa-satellite-dish text-[#CCFF00]" />
-            LBS EXCLUSIVE
-          </div>
-        </div>
-      </div>
-
-      {/* ── Bottom fullscreen button ─────────────────────────────────────── */}
-      <div className="absolute bottom-0 left-0 right-0 z-20 px-4 pb-8 flex justify-end pointer-events-none">
-        <button
-          onClick={handleFullscreen}
-          className="pointer-events-auto flex items-center gap-2 bg-black/70 backdrop-blur-md border border-white/20 hover:border-[#CCFF00] hover:bg-[#CCFF00]/10 active:scale-95 transition-all px-4 py-2.5 rounded-xl text-white hover:text-[#CCFF00] text-sm font-bold shadow-lg"
-        >
-          <i className="fas fa-expand-arrows-alt text-base" />
-          <span>全螢幕 / 橫屏播放</span>
-        </button>
-      </div>
+      {/* ── Fullscreen button — bottom right ─────────────────────────────── */}
+      <button
+        onClick={handleFullscreen}
+        className="absolute bottom-8 right-4 z-[10000] flex items-center gap-2 bg-black/50 backdrop-blur-md border border-white/10 hover:border-white/30 active:scale-95 transition-all px-3 py-2 rounded-xl text-white/60 hover:text-white text-xs font-mono"
+      >
+        <i className="fas fa-expand-arrows-alt" />
+        <span>FULLSCREEN</span>
+      </button>
 
     </div>
   );

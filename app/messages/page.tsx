@@ -659,28 +659,6 @@ export default function MessagesPage() {
             </div>
           </div>
 
-          {/* Global Partners */}
-          <div>
-            <h2 className="font-heavy text-lg text-white mb-4 flex items-center gap-2">
-              <i className="fas fa-network-wired text-blue-400" /> Global Cooperative Resources
-            </h2>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { name: "OpenAI / Google", sub: "Sora, GPT-4, Gemini", hover: "hover:border-blue-400" },
-                { name: "NVIDIA / Meta", sub: "GPU Compute, Llama", hover: "hover:border-signal" },
-                { name: "Solana / Polygon", sub: "Blockchain Infrastructure", hover: "hover:border-[#9D00FF]" },
-                { name: "Netflix / IMAX", sub: "Global Distribution", hover: "hover:border-red-500" },
-              ].map((p) => (
-                <div
-                  key={p.name}
-                  className={`bg-[#111] border border-[#222] p-4 rounded-xl text-center transition-colors ${p.hover}`}
-                >
-                  <div className="font-bold text-white text-sm mb-1">{p.name}</div>
-                  <div className="text-[10px] text-gray-500 font-mono">{p.sub}</div>
-                </div>
-              ))}
-            </div>
-          </div>
 
           {/* Contact */}
           <div>
@@ -728,7 +706,83 @@ export default function MessagesPage() {
             </button>
           </div>
 
-          <footer className="w-full flex flex-col items-center justify-center py-10 mt-12 border-t border-white/5 gap-1.5">
+          {/* ── Global Ecosystem & Resources — Marquee Logo Wall ──────────── */}
+          <div className="pt-8 pb-4">
+            <p className="text-center font-mono text-[10px] text-gray-500 tracking-widest mb-6 uppercase">
+              Global Ecosystem &amp; Backing
+            </p>
+
+            {/* Row 1 — LTR */}
+            <div className="overflow-hidden mb-4">
+              <div className="flex gap-x-8 whitespace-nowrap animate-marquee-ltr opacity-40 hover:opacity-70 transition-opacity">
+                {[
+                  "NVIDIA", "OpenAI", "Midjourney", "Runway", "Luma AI", "Pika Labs",
+                  "Stability AI", "Anthropic", "Google DeepMind", "Meta", "Apple", "AWS",
+                  "Alibaba Cloud", "Tencent AI", "SenseTime",
+                  "NVIDIA", "OpenAI", "Midjourney", "Runway", "Luma AI", "Pika Labs",
+                  "Stability AI", "Anthropic", "Google DeepMind", "Meta", "Apple", "AWS",
+                  "Alibaba Cloud", "Tencent AI", "SenseTime",
+                ].map((name, i) => (
+                  <span
+                    key={`r1-${i}`}
+                    className="font-heavy text-lg md:text-xl text-gray-400 hover:text-white transition-colors cursor-default grayscale hover:grayscale-0 shrink-0"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Row 2 — RTL */}
+            <div className="overflow-hidden mb-4">
+              <div className="flex gap-x-8 whitespace-nowrap animate-marquee-rtl opacity-40 hover:opacity-70 transition-opacity">
+                {[
+                  "Solana", "Arweave", "Filecoin", "Polygon", "Chainlink",
+                  "IMAX", "Dolby", "Netflix", "A24", "Sony Pictures",
+                  "HKADC", "HKUST", "HKU", "MIT Media Lab", "Hugging Face", "xAI", "Epic Games",
+                  "Solana", "Arweave", "Filecoin", "Polygon", "Chainlink",
+                  "IMAX", "Dolby", "Netflix", "A24", "Sony Pictures",
+                  "HKADC", "HKUST", "HKU", "MIT Media Lab", "Hugging Face", "xAI", "Epic Games",
+                ].map((name, i) => (
+                  <span
+                    key={`r2-${i}`}
+                    className="font-heavy text-lg md:text-xl text-gray-400 hover:text-white transition-colors cursor-default grayscale hover:grayscale-0 shrink-0"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Row 3 — LTR slower */}
+            <div className="overflow-hidden">
+              <div className="flex gap-x-8 whitespace-nowrap animate-marquee-ltr2 opacity-40 hover:opacity-70 transition-opacity">
+                {[
+                  "Anthropic", "xAI", "Epic Games", "IMAX", "Dolby",
+                  "NVIDIA", "Runway", "Luma AI", "Hugging Face", "Midjourney",
+                  "Filecoin", "Solana", "Polygon", "A24", "Netflix", "Sony Pictures",
+                  "Anthropic", "xAI", "Epic Games", "IMAX", "Dolby",
+                  "NVIDIA", "Runway", "Luma AI", "Hugging Face", "Midjourney",
+                  "Filecoin", "Solana", "Polygon", "A24", "Netflix", "Sony Pictures",
+                ].map((name, i) => (
+                  <span
+                    key={`r3-${i}`}
+                    className="font-heavy text-lg md:text-xl text-gray-400 hover:text-white transition-colors cursor-default grayscale hover:grayscale-0 shrink-0"
+                  >
+                    {name}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center gap-3">
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+              <span className="font-mono text-[8px] text-gray-700 tracking-widest uppercase">32 Global Partners</span>
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+            </div>
+          </div>
+
+          <footer className="w-full flex flex-col items-center justify-center py-10 mt-4 border-t border-white/5 gap-1.5">
             <p className="text-[10px] text-gray-500 tracking-widest uppercase">© 2026 All Rights Reserved.</p>
             <p className="text-[11px] text-gray-400 font-medium tracking-widest mt-1">香港人工智能國際電影節協會</p>
             <p className="text-[9px] text-gray-600 tracking-widest uppercase">Hong Kong AI International Film Festival Association</p>
