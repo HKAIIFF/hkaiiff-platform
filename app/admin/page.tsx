@@ -4599,101 +4599,408 @@ function OpsParamsTab({ t, lang, setLang, pushToast }: { t: T; lang: Lang; setLa
   );
 }
 
-function OpsRbacTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
-  const menuOptions = ["Dashboard", "Review", "Distribution", "Ecosystem", "AI", "Finance", "Ops"];
-  const [roles, setRoles] = useState([
-    { id: 1, name: "初級審核員", perms: ["Dashboard", "Review"] },
-    { id: 2, name: "財務助理", perms: ["Dashboard", "Finance"] },
-    { id: 3, name: "策展管理員", perms: ["Dashboard", "Distribution", "Ecosystem"] },
-  ]);
-  const [newRole, setNewRole] = useState({ name: "", perms: [] as string[] });
-  const [members, setMembers] = useState([
-    { id: 1, account: "reviewer@hkaiiff.ai", role: "初級審核員", disabled: false },
-    { id: 2, account: "wallet:fiebkz...xros", role: "財務助理", disabled: false },
-    { id: 3, account: "curator@web3.io", role: "策展管理員", disabled: true },
-  ]);
-  const [invite, setInvite] = useState({ account: "", role: "初級審核員" });
+// ─── RBAC 精細權限系統：類型、常量與工具 ──────────────────────────────────────
+type RbacPermission =
+  | "core:dashboard"
+  | "review:film" | "review:identity" | "review:lbs"
+  | "finance:view" | "finance:operate"
+  | "ops:msg" | "ops:system";
 
-  function togglePerm(perm: string) {
-    setNewRole((p) => ({ ...p, perms: p.perms.includes(perm) ? p.perms.filter((x) => x !== perm) : [...p.perms, perm] }));
+const RBAC_PERM_META: Record<RbacPermission, { label: string; short: string }> = {
+  "core:dashboard":  { label: "大盤概覽",     short: "大盤" },
+  "review:film":     { label: "作品審核",     short: "影審" },
+  "review:identity": { label: "身份認證審批", short: "KYC"  },
+  "review:lbs":      { label: "LBS影展審批",  short: "LBS"  },
+  "finance:view":    { label: "查看財務流水", short: "查帳" },
+  "finance:operate": { label: "財務高危操作", short: "財操" },
+  "ops:msg":         { label: "發送全局廣播", short: "廣播" },
+  "ops:system":      { label: "修改系統參數", short: "系統" },
+};
+
+const RBAC_PERM_GROUPS: {
+  label: string; color: string; border: string; bg: string; perms: RbacPermission[];
+}[] = [
+  { label: "核心",  color: "text-sky-700",     border: "border-sky-200",     bg: "bg-sky-50",     perms: ["core:dashboard"] },
+  { label: "審核",  color: "text-violet-700",  border: "border-violet-200",  bg: "bg-violet-50",  perms: ["review:film", "review:identity", "review:lbs"] },
+  { label: "財務",  color: "text-amber-700",   border: "border-amber-200",   bg: "bg-amber-50",   perms: ["finance:view", "finance:operate"] },
+  { label: "運營",  color: "text-emerald-700", border: "border-emerald-200", bg: "bg-emerald-50", perms: ["ops:msg", "ops:system"] },
+];
+
+interface RbacRole {
+  id: number; name: string; permissions: RbacPermission[]; isSystem?: boolean;
+}
+interface HumanMember {
+  id: number; account: string; roleId: number; status: "active" | "disabled"; createdAt: string;
+}
+interface BotMember {
+  id: number; name: string; roleId: number; apiKey: string; status: "active" | "disabled"; createdAt: string;
+}
+
+const SUPER_ADMIN_ROLE: RbacRole = {
+  id: 0, name: "Super Admin", isSystem: true,
+  permissions: ["core:dashboard", "review:film", "review:identity", "review:lbs", "finance:view", "finance:operate", "ops:msg", "ops:system"],
+};
+
+function maskApiKey(key: string): string {
+  if (key.length <= 14) return key.slice(0, 6) + "••••••••";
+  return key.slice(0, 14) + "•••••••••••••" + key.slice(-4);
+}
+
+function generateApiKey(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
+  let key = "hkaiiff_sk_";
+  for (let i = 0; i < 32; i++) key += chars[Math.floor(Math.random() * chars.length)];
+  return key;
+}
+
+function RbacPermPill({ perm, compact }: { perm: RbacPermission; compact?: boolean }) {
+  const isDanger = perm === "finance:operate";
+  const meta = RBAC_PERM_META[perm];
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${
+      isDanger ? "bg-red-50 border-red-200 text-red-700" : "bg-neutral-100 border-neutral-200 text-neutral-600"
+    }`}>
+      {isDanger && <span className="mr-0.5 text-[9px]">⚠</span>}
+      {compact ? meta.short : meta.label}
+    </span>
+  );
+}
+
+function OpsRbacTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
+  const [roles, setRoles] = useState<RbacRole[]>([
+    SUPER_ADMIN_ROLE,
+    { id: 1, name: "初級審核員",  permissions: ["core:dashboard", "review:film"] },
+    { id: 2, name: "財務助理",    permissions: ["core:dashboard", "finance:view"] },
+    { id: 3, name: "策展管理員",  permissions: ["core:dashboard", "review:film", "review:lbs"] },
+    { id: 4, name: "財務主管",    permissions: ["core:dashboard", "finance:view", "finance:operate"] },
+  ]);
+  const [newRole, setNewRole] = useState<{ name: string; permissions: RbacPermission[] }>({ name: "", permissions: [] });
+  const [humanMembers, setHumanMembers] = useState<HumanMember[]>([
+    { id: 1, account: "reviewer@hkaiiff.ai",  roleId: 1, status: "active",   createdAt: "2026-01-10" },
+    { id: 2, account: "wallet:FieBkz…xRoS",   roleId: 2, status: "active",   createdAt: "2026-01-15" },
+    { id: 3, account: "curator@web3.io",       roleId: 3, status: "disabled", createdAt: "2026-02-01" },
+  ]);
+  const [botMembers, setBotMembers] = useState<BotMember[]>([
+    { id: 1, name: "AIF.BOT · 審核自動化",  roleId: 1, apiKey: "hkaiiff_sk_AuToReViEwBoT2026xHKAIIFFSecretKey", status: "active", createdAt: "2026-01-01" },
+    { id: 2, name: "LEDGER.BOT · 財務同步", roleId: 2, apiKey: "hkaiiff_sk_LeD9eRbOt20260310xSyncKeyHKAIIFF",   status: "active", createdAt: "2026-02-05" },
+  ]);
+  const [invite, setInvite] = useState({ account: "", roleId: 1 });
+  const [newBot, setNewBot] = useState({ name: "", roleId: 1 });
+  const [memberTab, setMemberTab] = useState<"human" | "bot">("human");
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+
+  const nonSystemRoles = roles.filter((r) => !r.isSystem);
+  const getRoleName = (id: number) => roles.find((r) => r.id === id)?.name ?? "—";
+  const hasDangerPerm = (r: RbacRole) => r.permissions.includes("finance:operate");
+
+  function toggleNewPerm(p: RbacPermission) {
+    setNewRole((prev) => ({
+      ...prev,
+      permissions: prev.permissions.includes(p)
+        ? prev.permissions.filter((x) => x !== p)
+        : [...prev.permissions, p],
+    }));
+  }
+
+  function handleAddRole() {
+    if (!newRole.name.trim()) { pushToast("請輸入角色名稱", false); return; }
+    setRoles((prev) => [...prev, { id: Date.now(), name: newRole.name.trim(), permissions: newRole.permissions }]);
+    setNewRole({ name: "", permissions: [] });
+    pushToast("✅ 角色已創建");
+  }
+
+  function handleDeleteRole(id: number) {
+    setRoles((prev) => prev.filter((r) => r.id !== id));
+    pushToast("角色已刪除");
+  }
+
+  function handleInviteHuman() {
+    if (!invite.account.trim()) { pushToast("請輸入邀請賬號", false); return; }
+    setHumanMembers((prev) => [...prev, {
+      id: Date.now(), account: invite.account.trim(), roleId: invite.roleId,
+      status: "active", createdAt: new Date().toISOString().slice(0, 10),
+    }]);
+    setInvite((p) => ({ ...p, account: "" }));
+    pushToast("✅ 邀請已發送");
+  }
+
+  function handleCreateBot() {
+    if (!newBot.name.trim()) { pushToast("請輸入節點名稱", false); return; }
+    setBotMembers((prev) => [...prev, {
+      id: Date.now(), name: newBot.name.trim(), roleId: newBot.roleId,
+      apiKey: generateApiKey(), status: "active", createdAt: new Date().toISOString().slice(0, 10),
+    }]);
+    setNewBot((p) => ({ ...p, name: "" }));
+    pushToast("✅ 硅基節點已創建，API Key 已生成");
+  }
+
+  async function copyKey(key: string, id: number) {
+    try {
+      await navigator.clipboard.writeText(key);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+      pushToast("✅ API Key 已複製到剪貼板");
+    } catch {
+      pushToast("複製失敗，請手動複製", false);
+    }
   }
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-      {/* 角色管理 */}
-      <div className={`${CARD} p-5 space-y-4`}>
-        <h3 className="font-bold text-neutral-900">{t.rbacRole}</h3>
-        <div className="space-y-2">
-          {roles.map((r) => (
-            <div key={r.id} className="rounded-xl border border-neutral-200 p-3 flex items-start justify-between">
-              <div>
-                <p className="font-semibold text-neutral-900 text-sm">{r.name}</p>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {r.perms.map((p) => <span key={p} className="text-xs bg-neutral-100 text-neutral-600 px-1.5 py-0.5 rounded">{p}</span>)}
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] gap-5">
+
+      {/* ── 左列：角色管理 ─────────────────────────────────────────────────── */}
+      <div className="space-y-5">
+
+        {/* 角色列表 */}
+        <div className={`${CARD} p-5`}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-neutral-900">{t.rbacRole}</h3>
+            <span className="text-xs text-neutral-400 bg-neutral-100 rounded-full px-2 py-0.5">{roles.length} 個角色</span>
+          </div>
+          <div className="space-y-2">
+            {roles.map((role) => (
+              <div key={role.id} className={`rounded-xl border p-3 transition-colors ${
+                role.isSystem
+                  ? "border-[#1a73e8]/25 bg-[#1a73e8]/[0.03]"
+                  : hasDangerPerm(role)
+                  ? "border-red-200/70 bg-red-50/40"
+                  : "border-neutral-200 hover:border-neutral-300"
+              }`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {role.isSystem && (
+                        <span className="text-[10px] font-bold text-[#1a73e8] border border-[#1a73e8]/30 bg-[#1a73e8]/5 px-1.5 py-0.5 rounded-full leading-none">
+                          SYSTEM
+                        </span>
+                      )}
+                      {hasDangerPerm(role) && !role.isSystem && (
+                        <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-red-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" title="⚠ 包含高危財務操作權限">
+                          <path d="M8 1L1 4v5c0 4 3.25 6.5 7 7 3.75-.5 7-3 7-7V4L8 1z"/>
+                          <path d="M8 6v3m0 2v.5" strokeLinecap="round"/>
+                        </svg>
+                      )}
+                      <p className="font-semibold text-neutral-900 text-sm">{role.name}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {role.permissions.slice(0, 3).map((p) => <RbacPermPill key={p} perm={p} compact />)}
+                      {role.permissions.length > 3 && (
+                        <span className="text-[10px] font-semibold text-neutral-400 bg-neutral-100 border border-neutral-200 px-1.5 py-0.5 rounded-full">
+                          +{role.permissions.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {role.isSystem
+                    ? <span className="text-[11px] text-neutral-400 font-medium bg-neutral-100 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">🔒 鎖定</span>
+                    : <button className={`${BTN_SM} border border-red-200 text-red-600 hover:bg-red-50 shrink-0`} onClick={() => handleDeleteRole(role.id)}>刪除</button>
+                  }
                 </div>
               </div>
-              <button className={`${BTN_SM} border border-red-200 text-red-600 hover:bg-red-50`}
-                onClick={() => { setRoles((prev) => prev.filter((x) => x.id !== r.id)); pushToast("角色已刪除"); }}>刪除</button>
-            </div>
-          ))}
-        </div>
-        <div className="rounded-xl border border-neutral-200 p-3 space-y-2 bg-neutral-50">
-          <p className="text-xs font-bold text-neutral-700 mb-1">新增角色</p>
-          <input className={INPUT} placeholder="自定義角色名稱" value={newRole.name} onChange={(e) => setNewRole((p) => ({ ...p, name: e.target.value }))} />
-          <div className="grid grid-cols-2 gap-1">
-            {menuOptions.map((m) => (
-              <label key={m} className="text-sm text-neutral-700 flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={newRole.perms.includes(m)} onChange={() => togglePerm(m)} />
-                {m}
-              </label>
             ))}
           </div>
-          <button className={BTN_PRIMARY}
-            onClick={() => {
-              if (!newRole.name) { pushToast("請輸入角色名稱", false); return; }
-              setRoles((p) => [...p, { id: Date.now(), name: newRole.name, perms: newRole.perms }]);
-              setNewRole({ name: "", perms: [] });
-              pushToast("✅ 角色已創建");
-            }}>
-            {t.addRole}
-          </button>
+        </div>
+
+        {/* 新增角色 + 分組 Checkbox 矩陣 */}
+        <div className={`${CARD} p-5 space-y-4`}>
+          <h4 className="font-bold text-neutral-900 text-sm">新增自定義角色</h4>
+          <input
+            className={INPUT}
+            placeholder='角色名稱，如「LBS 策展官」'
+            value={newRole.name}
+            onChange={(e) => setNewRole((p) => ({ ...p, name: e.target.value }))}
+          />
+          <div className="space-y-2.5">
+            {RBAC_PERM_GROUPS.map((grp) => (
+              <div key={grp.label} className={`rounded-xl border ${grp.border} ${grp.bg} p-3`}>
+                <p className={`text-[11px] font-bold uppercase tracking-wide mb-2.5 ${grp.color}`}>{grp.label}</p>
+                <div className="space-y-2">
+                  {grp.perms.map((perm) => {
+                    const checked = newRole.permissions.includes(perm);
+                    const isDanger = perm === "finance:operate";
+                    return (
+                      <label key={perm} className="flex items-center gap-2.5 cursor-pointer select-none">
+                        <div
+                          role="checkbox"
+                          aria-checked={checked}
+                          onClick={() => toggleNewPerm(perm)}
+                          className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all shrink-0 ${
+                            checked
+                              ? isDanger ? "bg-red-500 border-red-500" : "bg-[#1a73e8] border-[#1a73e8]"
+                              : "border-neutral-300 bg-white"
+                          }`}>
+                          {checked && (
+                            <svg viewBox="0 0 10 8" className="w-2.5 h-2" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="1,4 3.5,6.5 9,1" />
+                            </svg>
+                          )}
+                        </div>
+                        <span className={`text-xs font-medium flex-1 ${isDanger ? "text-red-700" : "text-neutral-800"}`}>
+                          {isDanger && <span className="mr-0.5">⚠️</span>}{RBAC_PERM_META[perm].label}
+                        </span>
+                        <code className="text-[10px] text-neutral-400">{perm}</code>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+          <button className={BTN_PRIMARY} onClick={handleAddRole}>{t.addRole}</button>
         </div>
       </div>
 
-      {/* 人員管理 */}
+      {/* ── 右列：成員管理（碳基 / 硅基 Tab）─────────────────────────────── */}
       <div className={`${CARD} p-5 space-y-4`}>
-        <h3 className="font-bold text-neutral-900">{t.rbacPeople}</h3>
-        <div className="rounded-xl border border-neutral-200 p-3 space-y-2 bg-neutral-50">
-          <p className="text-xs font-bold text-neutral-700 mb-1">邀請成員</p>
-          <input className={INPUT} placeholder="邀請內部信箱 / 錢包地址" value={invite.account} onChange={(e) => setInvite((p) => ({ ...p, account: e.target.value }))} />
-          <select className={INPUT} value={invite.role} onChange={(e) => setInvite((p) => ({ ...p, role: e.target.value }))}>
-            {roles.map((r) => <option key={r.id}>{r.name}</option>)}
-          </select>
-          <button className={BTN_PRIMARY}
-            onClick={() => {
-              if (!invite.account) { pushToast("請輸入邀請賬號", false); return; }
-              setMembers((p) => [...p, { id: Date.now(), account: invite.account, role: invite.role, disabled: false }]);
-              setInvite((p) => ({ ...p, account: "" }));
-              pushToast("✅ 邀請已發送");
-            }}>
-            {t.invite}
-          </button>
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-neutral-900">{t.rbacPeople}</h3>
+          {/* Human / Bot Tab 切換 */}
+          <div className="flex rounded-xl border border-neutral-200 bg-neutral-50 overflow-hidden text-xs font-semibold">
+            <button
+              onClick={() => setMemberTab("human")}
+              className={`px-3 py-1.5 flex items-center gap-1.5 transition-colors ${
+                memberTab === "human" ? "bg-white text-neutral-900 border-r border-neutral-200" : "text-neutral-500 hover:text-neutral-700"
+              }`}>
+              <svg viewBox="0 0 16 16" className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <path d="M8 7a3 3 0 100-6 3 3 0 000 6z"/><path d="M2 15a6 6 0 0112 0"/>
+              </svg>
+              團隊成員
+            </button>
+            <button
+              onClick={() => setMemberTab("bot")}
+              className={`px-3 py-1.5 flex items-center gap-1.5 transition-colors ${
+                memberTab === "bot" ? "bg-white text-neutral-900" : "text-neutral-500 hover:text-neutral-700"
+              }`}>
+              <svg viewBox="0 0 16 16" className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <rect x="3" y="5" width="10" height="9" rx="2"/>
+                <circle cx="5.5" cy="9" r="0.75" fill="currentColor" stroke="none"/>
+                <circle cx="10.5" cy="9" r="0.75" fill="currentColor" stroke="none"/>
+                <path d="M8 5V2m-3 0h6"/>
+              </svg>
+              硅基節點
+            </button>
+          </div>
         </div>
-        <div className="space-y-2">
-          {members.map((m) => (
-            <div key={m.id} className={`rounded-xl border p-3 flex items-center justify-between ${m.disabled ? "border-neutral-100 bg-neutral-50 opacity-70" : "border-neutral-200"}`}>
-              <div>
-                <p className="text-sm font-semibold text-neutral-900">{m.account}</p>
-                <p className="text-xs text-neutral-500">角色: {m.role} {m.disabled ? "· 已停用" : ""}</p>
-              </div>
-              <button
-                className={`${BTN_SM} ${m.disabled ? "border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50" : "border border-rose-300 text-rose-600 bg-white hover:bg-rose-50"}`}
-                onClick={() => setMembers((prev) => prev.map((x) => x.id === m.id ? { ...x, disabled: !x.disabled } : x))}>
-                {m.disabled ? t.enableAccount : t.disableAccount}
-              </button>
+
+        {memberTab === "human" ? (
+          <>
+            {/* 邀請碳基成員 */}
+            <div className="rounded-xl border border-neutral-200 p-3 space-y-2 bg-neutral-50">
+              <p className="text-xs font-bold text-neutral-700">邀請碳基成員 (Human Staff)</p>
+              <input
+                className={INPUT}
+                placeholder="Email / DID / 錢包地址"
+                value={invite.account}
+                onChange={(e) => setInvite((p) => ({ ...p, account: e.target.value }))}
+              />
+              <select
+                className={INPUT}
+                value={invite.roleId}
+                onChange={(e) => setInvite((p) => ({ ...p, roleId: Number(e.target.value) }))}>
+                {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+              <button className={BTN_PRIMARY} onClick={handleInviteHuman}>{t.invite}</button>
             </div>
-          ))}
-        </div>
+            {/* 碳基成員列表 */}
+            <div className="space-y-2">
+              {humanMembers.map((m) => (
+                <div key={m.id} className={`rounded-xl border p-3 flex items-center justify-between gap-2 ${
+                  m.status === "disabled" ? "border-neutral-100 bg-neutral-50 opacity-60" : "border-neutral-200"
+                }`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-neutral-900 truncate">{m.account}</p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-xs text-neutral-500">{getRoleName(m.roleId)}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${
+                        m.status === "active"
+                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                          : "bg-neutral-100 text-neutral-500 border-neutral-200"
+                      }`}>{m.status === "active" ? "活躍" : "已停用"}</span>
+                    </div>
+                  </div>
+                  <button
+                    className={`${BTN_SM} shrink-0 ${
+                      m.status === "disabled"
+                        ? "border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50"
+                        : "border border-rose-300 text-rose-600 bg-white hover:bg-rose-50"
+                    }`}
+                    onClick={() => setHumanMembers((prev) => prev.map((x) => x.id === m.id ? { ...x, status: x.status === "active" ? "disabled" : "active" } : x))}>
+                    {m.status === "disabled" ? t.enableAccount : t.disableAccount}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <>
+            {/* 創建硅基節點 */}
+            <div className="rounded-xl border border-neutral-200 p-3 space-y-2 bg-neutral-50">
+              <p className="text-xs font-bold text-neutral-700">注冊硅基節點 (Bot & API Services)</p>
+              <input
+                className={INPUT}
+                placeholder="節點名稱，如「AIF.BOT · 審核自動化」"
+                value={newBot.name}
+                onChange={(e) => setNewBot((p) => ({ ...p, name: e.target.value }))}
+              />
+              <select
+                className={INPUT}
+                value={newBot.roleId}
+                onChange={(e) => setNewBot((p) => ({ ...p, roleId: Number(e.target.value) }))}>
+                {nonSystemRoles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+              <button className={BTN_PRIMARY} onClick={handleCreateBot}>生成 API Key 並綁定角色</button>
+            </div>
+            {/* 硅基節點列表 */}
+            <div className="space-y-2">
+              {botMembers.map((bot) => (
+                <div key={bot.id} className={`rounded-xl border p-3 ${
+                  bot.status === "disabled" ? "border-neutral-100 bg-neutral-50 opacity-60" : "border-neutral-200"
+                }`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                          <rect x="3" y="5" width="10" height="9" rx="2"/>
+                          <circle cx="5.5" cy="9" r="0.75" fill="currentColor" stroke="none"/>
+                          <circle cx="10.5" cy="9" r="0.75" fill="currentColor" stroke="none"/>
+                          <path d="M8 5V2m-3 0h6"/>
+                        </svg>
+                        <p className="text-sm font-semibold text-neutral-900 truncate">{bot.name}</p>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${
+                          bot.status === "active"
+                            ? "bg-cyan-50 text-cyan-700 border-cyan-200"
+                            : "bg-neutral-100 text-neutral-500 border-neutral-200"
+                        }`}>{bot.status === "active" ? "運行中" : "已停用"}</span>
+                      </div>
+                      <p className="text-xs text-neutral-500 mt-0.5">角色: {getRoleName(bot.roleId)}</p>
+                      {/* API Key 遮蔽行 */}
+                      <div className="flex items-center gap-1.5 mt-1.5 rounded-lg bg-neutral-100 px-2 py-1.5">
+                        <svg viewBox="0 0 16 16" className="w-3 h-3 text-neutral-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                          <rect x="2" y="6" width="12" height="8" rx="1.5"/><path d="M5 6V4.5a3 3 0 016 0V6"/>
+                        </svg>
+                        <code className="text-[10px] font-mono text-neutral-600 flex-1 truncate">{maskApiKey(bot.apiKey)}</code>
+                        <button
+                          onClick={() => copyKey(bot.apiKey, bot.id)}
+                          className="text-[10px] font-semibold text-[#1a73e8] hover:text-[#1558b0] shrink-0 transition-colors px-1">
+                          {copiedId === bot.id ? "✓ 已複製" : "複製"}
+                        </button>
+                      </div>
+                    </div>
+                    <button
+                      className={`${BTN_SM} mt-0.5 shrink-0 ${
+                        bot.status === "disabled"
+                          ? "border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50"
+                          : "border border-rose-300 text-rose-600 bg-white hover:bg-rose-50"
+                      }`}
+                      onClick={() => setBotMembers((prev) => prev.map((x) => x.id === bot.id ? { ...x, status: x.status === "active" ? "disabled" : "active" } : x))}>
+                      {bot.status === "disabled" ? "啟用" : "禁用"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
