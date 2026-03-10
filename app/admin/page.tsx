@@ -3355,37 +3355,343 @@ function AiAssemblyTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boo
 // ────────────────────────────────────────────────────────────────────────────
 // 模塊六：財務與智能合約
 // ────────────────────────────────────────────────────────────────────────────
-function FinLedgerTab() {
-  const rows = [
-    { tx: "TX-001", type: "門票購買", fiat: "HKD $500", crypto: "2,500 AIF", time: "2025-05-12 14:23", user: "alice@aif.bot" },
-    { tx: "TX-002", type: "報名費", fiat: "USD $220", crypto: "1,100 AIF", time: "2025-05-12 11:05", user: "wallet:ab12...ef56" },
-    { tx: "TX-003", type: "門票購買", fiat: "HKD $300", crypto: "1,500 AIF", time: "2025-05-11 20:40", user: "bob@curator.io" },
-    { tx: "TX-004", type: "報名費", fiat: "USD $420", crypto: "2,100 AIF", time: "2025-05-11 09:15", user: "studio@xyz.com" },
-  ];
+
+// ─── 全局流水：型別 ───────────────────────────────────────────────────────────
+
+interface FinLedgerRow {
+  id: string;
+  user_id: string | null;
+  user_email: string | null;
+  related_film_id: string | null;
+  related_film_title: string | null;
+  related_lbs_id: string | null;
+  related_lbs_title: string | null;
+  related_deposit_address: string | null;
+  tx_type: string | null;
+  tx_hash: string | null;
+  stripe_charge_id: string | null;
+  amount: number | null;
+  currency: string | null;
+  payment_method: string | null;
+  status: string | null;
+  created_at: string;
+}
+
+interface FinLedgerSummary {
+  total_usd: number;
+  total_aif: number;
+  total_tx: number;
+}
+
+// ─── 全局流水：常量 ───────────────────────────────────────────────────────────
+
+const FIN_TX_TYPES: { value: string; label: string }[] = [
+  { value: "", label: "全部業務類型" },
+  { value: "creator_cert", label: "創作者認證" },
+  { value: "submission_fee", label: "參展報名" },
+  { value: "lbs_license", label: "LBS 授權" },
+  { value: "aif_topup", label: "AIF 充值" },
+  { value: "sweep", label: "金庫歸集" },
+  { value: "funding", label: "墊付手續費" },
+  { value: "dust_sweep", label: "SOL 殘留歸集" },
+];
+
+const FIN_TX_TYPE_LABELS: Record<string, string> = {
+  creator_cert: "創作者認證",
+  submission_fee: "參展報名費",
+  lbs_license: "LBS 授權費",
+  aif_topup: "AIF 充值",
+  sweep: "金庫歸集",
+  funding: "墊付手續費",
+  dust_sweep: "SOL 殘留歸集",
+};
+
+const FIN_PAYMENT_METHODS: { value: string; label: string }[] = [
+  { value: "", label: "全部支付方式" },
+  { value: "stripe", label: "Stripe" },
+  { value: "solana", label: "Solana On-Chain" },
+];
+
+// ─── 全局流水：工具函數 ────────────────────────────────────────────────────────
+
+function finFormatDate(iso: string | null) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+function finShortHash(h: string | null) {
+  if (!h) return null;
+  return `${h.slice(0, 8)}…${h.slice(-6)}`;
+}
+
+function finFormatNumber(n: number, decimals = 2) {
+  return new Intl.NumberFormat("en-US", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(n);
+}
+
+function finExportCsv(rows: FinLedgerRow[]) {
+  const headers = ["TX ID", "Stripe/TxHash", "業務類型", "金額", "幣種", "支付方式", "用戶", "關聯資源", "時間", "狀態"];
+  const lines = rows.map((r) => [
+    r.id,
+    r.stripe_charge_id ?? r.tx_hash ?? "",
+    r.tx_type ?? "",
+    r.amount ?? "",
+    r.currency ?? "",
+    r.payment_method ?? "",
+    r.user_email ?? r.user_id ?? "",
+    r.related_film_title ?? r.related_lbs_title ?? r.related_deposit_address ?? "",
+    r.created_at,
+    r.status ?? "",
+  ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
+  const csv = [headers.join(","), ...lines].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `finance-ledger-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ─── 全局流水：子組件 ─────────────────────────────────────────────────────────
+
+function FinKpiCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
-    <div className={`${CARD} overflow-hidden`}>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[800px] text-sm">
-          <thead>
-            <tr className="bg-neutral-50 border-b border-neutral-100 text-[10px] text-neutral-500 font-medium uppercase tracking-wider">
-              {["Tx ID", "類型", "Fiat (雙幣)", "Crypto (AIF)", "時間", "用戶"].map((h) => (
-                <th key={h} className="px-4 py-3.5 text-left">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.tx} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/70 transition-colors">
-                <td className="px-4 py-4 font-mono text-xs text-neutral-500">{r.tx}</td>
-                <td className="px-4 py-4 text-neutral-700 font-medium">{r.type}</td>
-                <td className="p-3 text-neutral-900 font-semibold">{r.fiat}</td>
-                <td className="p-3 text-blue-700 font-semibold">{r.crypto}</td>
-                <td className="p-3 text-xs text-neutral-500">{r.time}</td>
-                <td className="px-4 py-4 text-xs text-neutral-600">{r.user}</td>
+    <div className="flex-1 min-w-[160px] border border-neutral-200 rounded-2xl px-5 py-4 bg-white">
+      <p className="text-[11px] text-neutral-500 font-medium uppercase tracking-wider mb-1">{label}</p>
+      <p className="text-2xl font-semibold text-neutral-900 leading-none">{value}</p>
+      {sub && <p className="text-[11px] text-neutral-400 mt-1">{sub}</p>}
+    </div>
+  );
+}
+
+function FinStatusPill({ status }: { status: string | null }) {
+  const s = status?.toLowerCase() ?? "";
+  if (s === "success") return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-700">Success</span>;
+  if (s === "pending") return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-50 text-yellow-700">Pending</span>;
+  if (s === "failed") return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-700">Failed</span>;
+  return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-neutral-100 text-neutral-500">{status ?? "—"}</span>;
+}
+
+function FinPaymentBadge({ method }: { method: string | null }) {
+  const m = method?.toLowerCase() ?? "";
+  if (m === "stripe") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700">Stripe</span>;
+  if (m === "solana") return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-violet-50 text-violet-700">Solana</span>;
+  return <span className="text-[10px] text-neutral-400">{method ?? "—"}</span>;
+}
+
+function FinTxTypePill({ txType }: { txType: string | null }) {
+  const label = txType ? (FIN_TX_TYPE_LABELS[txType] ?? txType) : "—";
+  return <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium border border-neutral-200 text-neutral-600 bg-neutral-50">{label}</span>;
+}
+
+function FinInlineCopy({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={async (e) => {
+        e.stopPropagation();
+        try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ }
+      }}
+      className={`font-mono text-[10px] transition-colors ${copied ? "text-green-600" : "text-neutral-400 hover:text-[#1a73e8]"}`}
+      title="點擊複製"
+    >
+      {finShortHash(text) ?? text}
+    </button>
+  );
+}
+
+// ─── 全局流水：主組件 ─────────────────────────────────────────────────────────
+
+function FinLedgerTab() {
+  const [rows, setRows] = useState<FinLedgerRow[]>([]);
+  const [summary, setSummary] = useState<FinLedgerSummary>({ total_usd: 0, total_aif: 0, total_tx: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [txType, setTxType] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+
+  const buildUrl = useCallback(() => {
+    const params = new URLSearchParams();
+    if (txType) params.set("tx_type", txType);
+    if (paymentMethod) params.set("payment_method", paymentMethod);
+    if (startDate) params.set("startDate", startDate);
+    if (endDate) params.set("endDate", endDate);
+    const qs = params.toString();
+    return `/api/admin/finance/ledger${qs ? `?${qs}` : ""}`;
+  }, [txType, paymentMethod, startDate, endDate]);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(buildUrl());
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json() as { summary: FinLedgerSummary; data: FinLedgerRow[] };
+      setSummary(json.summary);
+      setRows(json.data);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "加載失敗");
+    } finally {
+      setLoading(false);
+    }
+  }, [buildUrl]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const SELECT_CLS = "rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/20 transition-colors";
+
+  return (
+    <div className="space-y-4">
+      {/* ── KPI 大盤 ── */}
+      <div className="flex flex-wrap gap-3">
+        <FinKpiCard
+          label="法幣總收入 (USD)"
+          value={loading ? "…" : `$${finFormatNumber(summary.total_usd)}`}
+          sub="基於當前篩選條件"
+        />
+        <FinKpiCard
+          label="加密資產總計 (AIF)"
+          value={loading ? "…" : `${finFormatNumber(summary.total_aif, 0)} AIF`}
+          sub="鏈上 AIF 流水"
+        />
+        <FinKpiCard
+          label="總交易筆數"
+          value={loading ? "…" : String(summary.total_tx)}
+          sub="含所有業務類型"
+        />
+      </div>
+
+      {/* ── 篩選器工具列 ── */}
+      <div className={`${CARD} p-4`}>
+        <div className="flex flex-wrap gap-3 items-end">
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-neutral-500 font-medium uppercase tracking-wider">業務類型</label>
+            <select value={txType} onChange={(e) => setTxType(e.target.value)} className={SELECT_CLS}>
+              {FIN_TX_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-neutral-500 font-medium uppercase tracking-wider">支付方式</label>
+            <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className={SELECT_CLS}>
+              {FIN_PAYMENT_METHODS.map((m) => <option key={m.value} value={m.value}>{m.label}</option>)}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-neutral-500 font-medium uppercase tracking-wider">開始日期</label>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className={SELECT_CLS} />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-neutral-500 font-medium uppercase tracking-wider">結束日期</label>
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className={SELECT_CLS} />
+          </div>
+          <button onClick={fetchData} className={`${BTN_PRIMARY} h-[38px]`}>查詢</button>
+          <button
+            onClick={() => finExportCsv(rows)}
+            disabled={rows.length === 0}
+            className={`${BTN_GHOST} h-[38px] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5`}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            導出 CSV
+          </button>
+        </div>
+      </div>
+
+      {/* ── 流水表格 ── */}
+      <div className={`${CARD} overflow-hidden`}>
+        {error && (
+          <div className="px-6 py-4 text-sm text-red-600 bg-red-50 border-b border-red-100">
+            加載失敗：{error}
+            <button onClick={fetchData} className="ml-3 underline text-red-700 hover:opacity-80">重試</button>
+          </div>
+        )}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[960px] text-sm">
+            <thead>
+              <tr className="bg-neutral-50 border-b border-neutral-100 text-[10px] text-neutral-500 font-medium uppercase tracking-wider">
+                {["TX ID", "業務類型", "金額", "支付方式", "用戶", "時間", "狀態"].map((h) => (
+                  <th key={h} className="px-4 py-3.5 text-left whitespace-nowrap">{h}</th>
+                ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {loading && (
+                Array.from({ length: 5 }).map((_, i) => (
+                  <tr key={i} className="border-b border-neutral-100">
+                    {Array.from({ length: 7 }).map((__, j) => (
+                      <td key={j} className="px-4 py-4">
+                        <div className="h-3 rounded bg-neutral-100 animate-pulse" style={{ width: `${60 + (j * 13) % 40}%` }} />
+                      </td>
+                    ))}
+                  </tr>
+                ))
+              )}
+              {!loading && rows.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-4 py-12 text-center text-sm text-neutral-400">暫無交易記錄</td>
+                </tr>
+              )}
+              {!loading && rows.map((r) => {
+                const isAif = r.currency?.toUpperCase() === "AIF";
+                const isSolLamports = r.currency?.toUpperCase() === "SOL_LAMPORTS";
+                const displayAmt = r.amount != null
+                  ? isAif
+                    ? `+ ${finFormatNumber(r.amount, 2)} AIF`
+                    : isSolLamports
+                      ? `+ ${finFormatNumber(r.amount / 1e9, 4)} SOL`
+                      : `+ $${finFormatNumber(r.amount)} USD`
+                  : "—";
+                const refId = r.stripe_charge_id ?? r.tx_hash ?? null;
+                const subTitle = r.related_film_title ?? r.related_lbs_title ?? (r.related_deposit_address ? finShortHash(r.related_deposit_address) : null);
+                const userLabel = r.user_email ?? (r.user_id ? `${r.user_id.slice(0, 14)}…` : "—");
+
+                return (
+                  <tr key={r.id} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/60 transition-colors">
+                    {/* TX ID */}
+                    <td className="px-4 py-3.5">
+                      <div className="font-mono text-xs text-neutral-700">{r.id.slice(0, 8)}…</div>
+                      {refId && (
+                        <div className="mt-0.5 flex items-center gap-1">
+                          <FinInlineCopy text={refId} />
+                        </div>
+                      )}
+                    </td>
+                    {/* 業務類型 */}
+                    <td className="px-4 py-3.5">
+                      <FinTxTypePill txType={r.tx_type} />
+                    </td>
+                    {/* 金額 */}
+                    <td className="px-4 py-3.5 font-semibold whitespace-nowrap">
+                      <span className={isAif ? "text-emerald-600" : "text-neutral-900"}>{displayAmt}</span>
+                    </td>
+                    {/* 支付方式 */}
+                    <td className="px-4 py-3.5">
+                      <FinPaymentBadge method={r.payment_method} />
+                    </td>
+                    {/* 用戶 */}
+                    <td className="px-4 py-3.5">
+                      <div className="text-xs text-neutral-700 max-w-[160px] truncate" title={r.user_email ?? r.user_id ?? ""}>{userLabel}</div>
+                      {subTitle && <div className="text-[10px] text-neutral-400 mt-0.5 max-w-[160px] truncate">{subTitle}</div>}
+                    </td>
+                    {/* 時間 */}
+                    <td className="px-4 py-3.5 text-xs text-neutral-500 whitespace-nowrap">{finFormatDate(r.created_at)}</td>
+                    {/* 狀態 */}
+                    <td className="px-4 py-3.5"><FinStatusPill status={r.status} /></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
