@@ -4,63 +4,95 @@ import { createClient } from '@supabase/supabase-js';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+function getAdminClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceRoleKey) {
+    throw new Error('Missing Supabase env config');
+  }
+  return createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false },
+  });
+}
+
+// ── GET: 获取消息列表 ──────────────────────────────────────────────────────────
+
 export async function GET(req: Request) {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !serviceRoleKey) {
-      return NextResponse.json({ error: 'Missing Supabase env config' }, { status: 500 });
-    }
-
-    const adminSupabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false },
-    });
-
+    const adminSupabase = getAdminClient();
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get('userId');
 
     let query = adminSupabase
       .from('messages')
-      .select('id, type, title, body, is_read, user_id, created_at')
+      .select('id, type, title, content, is_read, user_id, action_link, created_at')
       .order('created_at', { ascending: false });
 
     if (userId) {
-      // 返回全局廣播（user_id IS NULL）和該用戶的個人通知
       query = query.or(`user_id.is.null,user_id.eq.${userId}`);
     } else {
-      // 未登錄：只返回全局廣播
       query = query.is('user_id', null);
     }
 
     const { data, error } = await query;
-
     if (error) {
-      console.error('[API/messages] query error:', error);
+      console.error('[API/messages] GET error:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-
     return NextResponse.json({ messages: data ?? [] });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('[API/messages] exception:', message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
-export async function PATCH(req: Request) {
-  try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// ── POST: 插入单条消息（供服务端内部调用） ─────────────────────────────────────
 
-    if (!supabaseUrl || !serviceRoleKey) {
-      return NextResponse.json({ error: 'Missing Supabase env config' }, { status: 500 });
+export async function POST(req: Request) {
+  try {
+    const adminSupabase = getAdminClient();
+    const body = await req.json() as {
+      userId?: string | null;
+      type?: string;
+      title?: string;
+      content?: string;
+      actionLink?: string | null;
+    };
+
+    const { userId, type, title, content, actionLink } = body;
+
+    if (!type || !title || !content) {
+      return NextResponse.json(
+        { error: 'Missing required fields: type, title, content' },
+        { status: 400 }
+      );
     }
 
-    const adminSupabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false },
+    const { error } = await adminSupabase.from('messages').insert({
+      user_id: userId ?? null,
+      type,
+      title,
+      content,
+      ...(actionLink != null ? { action_link: actionLink } : {}),
     });
 
+    if (error) {
+      console.error('[API/messages] POST error:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+// ── PATCH: 标记已读 ───────────────────────────────────────────────────────────
+
+export async function PATCH(req: Request) {
+  try {
+    const adminSupabase = getAdminClient();
     const body = await req.json();
     const { id, userId } = body as { id?: string; userId?: string };
 
@@ -69,7 +101,6 @@ export async function PATCH(req: Request) {
     }
 
     if (id) {
-      // 標記單條消息為已讀
       const { error } = await adminSupabase
         .from('messages')
         .update({ is_read: true })
@@ -77,7 +108,6 @@ export async function PATCH(req: Request) {
         .eq('user_id', userId);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     } else {
-      // 標記該用戶所有消息為已讀
       const { error } = await adminSupabase
         .from('messages')
         .update({ is_read: true })
@@ -93,19 +123,11 @@ export async function PATCH(req: Request) {
   }
 }
 
+// ── DELETE: 删除消息 ──────────────────────────────────────────────────────────
+
 export async function DELETE(req: Request) {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !serviceRoleKey) {
-      return NextResponse.json({ error: 'Missing Supabase env config' }, { status: 500 });
-    }
-
-    const adminSupabase = createClient(supabaseUrl, serviceRoleKey, {
-      auth: { persistSession: false },
-    });
-
+    const adminSupabase = getAdminClient();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     const userId = searchParams.get('userId');

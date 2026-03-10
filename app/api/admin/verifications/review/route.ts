@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { sendMessage } from '@/lib/actions/message';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -34,13 +35,12 @@ export async function POST(req: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // 發送「身份認證成功」站內信
-    await supabase.from('messages').insert({
-      user_id: userId,
+    await sendMessage({
+      userId,
+      type: 'system',
       title: '身份認證成功通知',
-      body: '恭喜！您提交的身份認證申請已通過 HKAIIFF 團隊的審核，您的認證名稱已正式鎖定。',
-      type: 'verification',
-    });
+      content: '恭喜！您提交的身份認證申請已通過 HKAIIFF 團隊的審核，您的認證名稱已正式鎖定。',
+    }).catch((err) => console.error('[review] sendMessage approve failed:', err));
 
   } else if (action === 'reject') {
     const reason = rejectionReason?.trim() as RejectionReason | undefined;
@@ -64,13 +64,12 @@ export async function POST(req: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // 發送「身份認證退回」站內信
-    await supabase.from('messages').insert({
-      user_id: userId,
+    await sendMessage({
+      userId,
+      type: 'system',
       title: '身份認證退回通知',
-      body: `您的身份認證申請未通過。原因：${reason}。請修改後重新提交。`,
-      type: 'verification',
-    });
+      content: `您的身份認證申請未通過。原因：${reason}。請修改後重新提交。`,
+    }).catch((err) => console.error('[review] sendMessage reject failed:', err));
 
   } else {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

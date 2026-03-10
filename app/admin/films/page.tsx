@@ -196,10 +196,38 @@ export default function FilmsReviewPage() {
     const { error } = await supabase.from("films").update({ status }).eq("id", id);
     if (error) {
       showToast("狀態更新失敗", "error");
-    } else {
-      showToast(`FILM ${status.toUpperCase()} ✓`, "success");
-      setFilms((p) => p.map((f) => (f.id === id ? { ...f, status } : f)));
+      setProcessing(null);
+      return;
     }
+
+    showToast(`FILM ${status.toUpperCase()} ✓`, "success");
+    setFilms((p) => p.map((f) => (f.id === id ? { ...f, status } : f)));
+
+    // 查找影片所有者 user_id 以发送站内信
+    const targetFilm = films.find((f) => f.id === id);
+    if (targetFilm?.user_id) {
+      const msgPayload =
+        status === "approved"
+          ? {
+              userId: targetFilm.user_id,
+              type: "system",
+              title: "影片審核通過通知",
+              content: `您的影片《${targetFilm.title ?? id}》已通過 HKAIIFF 團隊審核，正式進入節目單流程。`,
+            }
+          : {
+              userId: targetFilm.user_id,
+              type: "system",
+              title: "影片審核未通過通知",
+              content: `您的影片《${targetFilm.title ?? id}》未通過本次審核，如有疑問請聯繫 support@hkaiiff.org。`,
+            };
+
+      fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(msgPayload),
+      }).catch((err) => console.error("[films] sendMessage failed:", err));
+    }
+
     setProcessing(null);
   }
 

@@ -3150,40 +3150,91 @@ function OpsAssetsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bool
   );
 }
 
+const TOWER_CHANNELS: { label: string; value: "system" | "render" | "chain" }[] = [
+  { label: "System", value: "system" },
+  { label: "Renders", value: "render" },
+  { label: "On-Chain", value: "chain" },
+];
+
 function OpsTowerTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
-  const [msg, setMsg] = useState({ channel: "System", title: "", body: "" });
+  const [msg, setMsg] = useState<{ channel: "system" | "render" | "chain"; title: string; body: string }>({
+    channel: "system", title: "", body: "",
+  });
+  const [sending, setSending] = useState(false);
+
+  async function handleSend() {
+    if (!msg.title.trim() || !msg.body.trim()) {
+      pushToast("請填寫標題和內容", false);
+      return;
+    }
+    setSending(true);
+    try {
+      const res = await fetch("/api/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: null,
+          type: msg.channel,
+          title: msg.title.trim(),
+          content: msg.body.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        pushToast(d.error ?? "發送失敗", false);
+        return;
+      }
+      pushToast(`✅ 廣播發送成功: [${msg.channel}] ${msg.title}`);
+      setMsg((p) => ({ ...p, title: "", body: "" }));
+    } catch {
+      pushToast("網絡錯誤，請稍後重試", false);
+    } finally {
+      setSending(false);
+    }
+  }
+
   return (
     <div className={`${CARD} p-5 max-w-2xl space-y-4`}>
       <h3 className="font-bold text-neutral-900">📡 全局消息塔</h3>
-      <p className="text-sm text-neutral-500">向前台 MSG 模塊推送系統通知，選擇頻道後廣播</p>
+      <p className="text-sm text-neutral-500">向前台 MSG 模塊推送系統通知，選擇頻道後廣播全站</p>
       <div>
         <label className="text-xs font-semibold text-neutral-600 mb-2 block">推送頻道</label>
         <div className="flex gap-4">
-          {["System", "Renders", "On-Chain"].map((ch) => (
-            <label key={ch} className="flex items-center gap-2 cursor-pointer">
-              <input type="radio" name="channel" value={ch} checked={msg.channel === ch} onChange={() => setMsg((p) => ({ ...p, channel: ch }))} />
-              <span className="text-sm text-neutral-700">{ch}</span>
+          {TOWER_CHANNELS.map((ch) => (
+            <label key={ch.value} className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="channel"
+                value={ch.value}
+                checked={msg.channel === ch.value}
+                onChange={() => setMsg((p) => ({ ...p, channel: ch.value }))}
+              />
+              <span className="text-sm text-neutral-700">{ch.label}</span>
             </label>
           ))}
         </div>
       </div>
       <div>
         <label className="text-xs font-semibold text-neutral-600 mb-1 block">標題</label>
-        <input className={INPUT} placeholder="通知標題" value={msg.title} onChange={(e) => setMsg((p) => ({ ...p, title: e.target.value }))} />
+        <input
+          className={INPUT}
+          placeholder="通知標題"
+          value={msg.title}
+          onChange={(e) => setMsg((p) => ({ ...p, title: e.target.value }))}
+        />
       </div>
       <div>
         <label className="text-xs font-semibold text-neutral-600 mb-1 block">內容</label>
-        <textarea className={INPUT} rows={4} placeholder="通知內容" value={msg.body} onChange={(e) => setMsg((p) => ({ ...p, body: e.target.value }))} />
+        <textarea
+          className={INPUT}
+          rows={4}
+          placeholder="通知內容"
+          value={msg.body}
+          onChange={(e) => setMsg((p) => ({ ...p, body: e.target.value }))}
+        />
       </div>
-      <button className={BTN_PRIMARY}
-        onClick={async () => {
-          if (!msg.title || !msg.body) { pushToast("請填寫標題和內容", false); return; }
-          const { error } = await supabase.from("messages").insert([{ user_id: null, type: msg.channel, title: msg.title, content: msg.body }]);
-          if (error) { pushToast(error.message, false); return; }
-          pushToast(`✅ ${t.sendMsg}: [${msg.channel}] ${msg.title}`);
-          setMsg((p) => ({ ...p, title: "", body: "" }));
-        }}>
-        {t.sendMsg}
+      <button className={BTN_PRIMARY} onClick={handleSend} disabled={sending}>
+        {sending ? "發送中…" : t.sendMsg}
       </button>
     </div>
   );

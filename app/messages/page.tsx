@@ -15,9 +15,10 @@ interface DbMessage {
   id: string;
   type: MsgType;
   title: string;
-  body: string;
+  content: string;
   is_read: boolean;
   user_id: string | null;
+  action_link: string | null;
   created_at: string;
 }
 
@@ -172,7 +173,7 @@ function MsgCard({ msg, isGlobalRead, onDelete, onRead }: MsgCardProps) {
           {msg.title}
         </p>
         <p className="text-[11px] text-gray-400 leading-relaxed font-mono line-clamp-2">
-          {msg.body}
+          {msg.content}
         </p>
         <div className="flex items-center gap-2 mt-3">
           <span className="text-[9px] text-gray-600 font-mono uppercase tracking-wider">

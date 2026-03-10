@@ -15,6 +15,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { PrivyClient } from '@privy-io/server-auth';
+import { sendMessage } from '@/lib/actions/message';
 
 // ── 服務端 Supabase 客戶端（繞過 RLS） ────────────────────────────────────────
 const adminSupabase = createClient(
@@ -222,6 +223,15 @@ export async function POST(req: Request) {
         tx_type: 'submission_fee',
         status: 'success',
       }]);
+
+    // ── Step 7: 發送「鑄造上鏈成功」站內信 ───────────────────────────────────
+    await sendMessage({
+      userId: verifiedUserId,
+      type: 'chain',
+      title: '鑄造上鏈成功',
+      content: `您的影片《${film.title ?? filmId}》已完成 AIF 支付（${AIF_FEE} AIF），影片進入審核流程，上鏈確認後合約地址將在此通知中更新。`,
+      actionLink: `/me`,
+    }).catch((err) => console.error('[pay/aif] sendMessage failed:', err));
 
     return NextResponse.json({
       success: true,
