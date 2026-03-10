@@ -4603,27 +4603,39 @@ function OpsParamsTab({ t, lang, setLang, pushToast }: { t: T; lang: Lang; setLa
 type RbacPermission =
   | "core:dashboard"
   | "review:film" | "review:identity" | "review:lbs"
-  | "finance:view" | "finance:operate"
-  | "ops:msg" | "ops:system";
+  | "distribution:view" | "distribution:manage"
+  | "ecosystem:view"    | "ecosystem:manage"
+  | "ai:view"           | "ai:manage"
+  | "finance:view"      | "finance:operate"
+  | "ops:msg"           | "ops:system";
 
 const RBAC_PERM_META: Record<RbacPermission, { label: string; short: string }> = {
-  "core:dashboard":  { label: "大盤概覽",     short: "大盤" },
-  "review:film":     { label: "作品審核",     short: "影審" },
-  "review:identity": { label: "身份認證審批", short: "KYC"  },
-  "review:lbs":      { label: "LBS影展審批",  short: "LBS"  },
-  "finance:view":    { label: "查看財務流水", short: "查帳" },
-  "finance:operate": { label: "財務高危操作", short: "財操" },
-  "ops:msg":         { label: "發送全局廣播", short: "廣播" },
-  "ops:system":      { label: "修改系統參數", short: "系統" },
+  "core:dashboard":       { label: "大盤概覽",       short: "大盤" },
+  "review:film":          { label: "作品審核",       short: "影審" },
+  "review:identity":      { label: "身份認證審批",   short: "KYC"  },
+  "review:lbs":           { label: "LBS影展審批",    short: "LBS"  },
+  "distribution:view":    { label: "查看發行策展",   short: "發行" },
+  "distribution:manage":  { label: "管理發行策展",   short: "發管" },
+  "ecosystem:view":       { label: "查看矩陣生態",   short: "生態" },
+  "ecosystem:manage":     { label: "管理矩陣生態",   short: "生管" },
+  "ai:view":              { label: "查看AI引擎庫",   short: "AI覽" },
+  "ai:manage":            { label: "管理AI引擎庫",   short: "AI管" },
+  "finance:view":         { label: "查看財務流水",   short: "查帳" },
+  "finance:operate":      { label: "財務高危操作",   short: "財操" },
+  "ops:msg":              { label: "發送全局廣播",   short: "廣播" },
+  "ops:system":           { label: "修改系統參數",   short: "系統" },
 };
 
 const RBAC_PERM_GROUPS: {
   label: string; color: string; border: string; bg: string; perms: RbacPermission[];
 }[] = [
-  { label: "核心",  color: "text-sky-700",     border: "border-sky-200",     bg: "bg-sky-50",     perms: ["core:dashboard"] },
-  { label: "審核",  color: "text-violet-700",  border: "border-violet-200",  bg: "bg-violet-50",  perms: ["review:film", "review:identity", "review:lbs"] },
-  { label: "財務",  color: "text-amber-700",   border: "border-amber-200",   bg: "bg-amber-50",   perms: ["finance:view", "finance:operate"] },
-  { label: "運營",  color: "text-emerald-700", border: "border-emerald-200", bg: "bg-emerald-50", perms: ["ops:msg", "ops:system"] },
+  { label: "核心大盤", color: "text-sky-700",      border: "border-sky-200",      bg: "bg-sky-50",      perms: ["core:dashboard"] },
+  { label: "審核風控", color: "text-violet-700",   border: "border-violet-200",   bg: "bg-violet-50",   perms: ["review:film", "review:identity", "review:lbs"] },
+  { label: "發行策展", color: "text-indigo-700",   border: "border-indigo-200",   bg: "bg-indigo-50",   perms: ["distribution:view", "distribution:manage"] },
+  { label: "矩陣生態", color: "text-teal-700",     border: "border-teal-200",     bg: "bg-teal-50",     perms: ["ecosystem:view", "ecosystem:manage"] },
+  { label: "AI 引擎",  color: "text-purple-700",   border: "border-purple-200",   bg: "bg-purple-50",   perms: ["ai:view", "ai:manage"] },
+  { label: "財務金庫", color: "text-amber-700",    border: "border-amber-200",    bg: "bg-amber-50",    perms: ["finance:view", "finance:operate"] },
+  { label: "運營系統", color: "text-emerald-700",  border: "border-emerald-200",  bg: "bg-emerald-50",  perms: ["ops:msg", "ops:system"] },
 ];
 
 interface RbacRole {
@@ -4633,24 +4645,25 @@ interface HumanMember {
   id: number; account: string; roleId: number; status: "active" | "disabled"; createdAt: string;
 }
 interface BotMember {
-  id: number; name: string; roleId: number; apiKey: string; status: "active" | "disabled"; createdAt: string;
+  id: number; name: string; roleId: number; keyPreview: string; status: "active" | "disabled"; createdAt: string;
 }
 
 const SUPER_ADMIN_ROLE: RbacRole = {
   id: 0, name: "Super Admin", isSystem: true,
-  permissions: ["core:dashboard", "review:film", "review:identity", "review:lbs", "finance:view", "finance:operate", "ops:msg", "ops:system"],
+  permissions: [
+    "core:dashboard",
+    "review:film", "review:identity", "review:lbs",
+    "distribution:view", "distribution:manage",
+    "ecosystem:view", "ecosystem:manage",
+    "ai:view", "ai:manage",
+    "finance:view", "finance:operate",
+    "ops:msg", "ops:system",
+  ],
 };
 
-function maskApiKey(key: string): string {
-  if (key.length <= 14) return key.slice(0, 6) + "••••••••";
-  return key.slice(0, 14) + "•••••••••••••" + key.slice(-4);
-}
-
-function generateApiKey(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-  let key = "hkaiiff_sk_";
-  for (let i = 0; i < 32; i++) key += chars[Math.floor(Math.random() * chars.length)];
-  return key;
+/** key_preview 格式由後端統一返回，已是脫敏形式，直接展示即可 */
+function displayKeyPreview(preview: string): string {
+  return preview || "hkaiiff_sk_...????";
 }
 
 function RbacPermPill({ perm, compact }: { perm: RbacPermission; compact?: boolean }) {
@@ -4666,12 +4679,105 @@ function RbacPermPill({ perm, compact }: { perm: RbacPermission; compact?: boole
   );
 }
 
+/** 閱後即焚 Modal — 只在創建成功瞬間展示明文 Key */
+function OtpKeyModal({
+  botName, plaintextKey, onClose,
+}: { botName: string; plaintextKey: string; onClose: () => void }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(plaintextKey);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // fallback: select text
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-2xl border border-amber-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        {/* 警告頭部 */}
+        <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4 flex items-center gap-3">
+          <svg viewBox="0 0 24 24" className="w-6 h-6 text-white shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          <div>
+            <p className="text-white font-bold text-base">安全警告：請立即複製此密鑰</p>
+            <p className="text-amber-100 text-xs mt-0.5">節點「{botName}」已成功創建</p>
+          </div>
+        </div>
+
+        {/* 內容 */}
+        <div className="px-6 py-5 space-y-4">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-xs font-bold text-amber-800 mb-2 uppercase tracking-wide">您的 API Secret Key</p>
+            <div className="flex items-center gap-2">
+              <code className="flex-1 text-xs font-mono text-neutral-800 bg-white border border-neutral-200 rounded-lg px-3 py-2 break-all select-all leading-relaxed">
+                {plaintextKey}
+              </code>
+            </div>
+          </div>
+
+          <button
+            onClick={handleCopy}
+            className={`w-full rounded-xl py-2.5 text-sm font-bold transition-all duration-200 flex items-center justify-center gap-2 ${
+              copied
+                ? "bg-emerald-500 text-white"
+                : "bg-[#1a73e8] text-white hover:opacity-90 active:scale-[0.98]"
+            }`}>
+            {copied ? (
+              <>
+                <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <polyline points="2,8 6,12 14,4"/>
+                </svg>
+                已複製到剪貼板！
+              </>
+            ) : (
+              <>
+                <svg viewBox="0 0 16 16" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                  <rect x="5" y="5" width="9" height="11" rx="1.5"/><path d="M3 11V3a1 1 0 011-1h8"/>
+                </svg>
+                一鍵複製 API Key
+              </>
+            )}
+          </button>
+
+          <div className="rounded-xl bg-red-50 border border-red-200 p-3 space-y-1">
+            <p className="text-xs font-bold text-red-700 flex items-center gap-1.5">
+              <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+                <rect x="2" y="7" width="12" height="8" rx="1.5"/><path d="M5 7V5a3 3 0 016 0v2"/>
+              </svg>
+              閱後即焚警告
+            </p>
+            <p className="text-xs text-red-600 leading-relaxed">
+              基於安全規範，關閉此視窗後您將<strong>永遠無法再次查看</strong>此密鑰的完整內容。
+              系統僅存儲哈希值，無法恢復。若遺失請立即前往列表執行「重置 Key」操作。
+            </p>
+          </div>
+        </div>
+
+        {/* 底部確認 */}
+        <div className="px-6 pb-5">
+          <button
+            onClick={onClose}
+            className="w-full rounded-xl border border-neutral-300 bg-neutral-50 hover:bg-neutral-100 py-2.5 text-sm font-semibold text-neutral-700 transition-colors">
+            我已妥善保存，關閉此視窗
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function OpsRbacTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
   const [roles, setRoles] = useState<RbacRole[]>([
     SUPER_ADMIN_ROLE,
     { id: 1, name: "初級審核員",  permissions: ["core:dashboard", "review:film"] },
     { id: 2, name: "財務助理",    permissions: ["core:dashboard", "finance:view"] },
-    { id: 3, name: "策展管理員",  permissions: ["core:dashboard", "review:film", "review:lbs"] },
+    { id: 3, name: "策展管理員",  permissions: ["core:dashboard", "review:film", "review:lbs", "distribution:view"] },
     { id: 4, name: "財務主管",    permissions: ["core:dashboard", "finance:view", "finance:operate"] },
   ]);
   const [newRole, setNewRole] = useState<{ name: string; permissions: RbacPermission[] }>({ name: "", permissions: [] });
@@ -4681,13 +4787,14 @@ function OpsRbacTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
     { id: 3, account: "curator@web3.io",       roleId: 3, status: "disabled", createdAt: "2026-02-01" },
   ]);
   const [botMembers, setBotMembers] = useState<BotMember[]>([
-    { id: 1, name: "AIF.BOT · 審核自動化",  roleId: 1, apiKey: "hkaiiff_sk_AuToReViEwBoT2026xHKAIIFFSecretKey", status: "active", createdAt: "2026-01-01" },
-    { id: 2, name: "LEDGER.BOT · 財務同步", roleId: 2, apiKey: "hkaiiff_sk_LeD9eRbOt20260310xSyncKeyHKAIIFF",   status: "active", createdAt: "2026-02-05" },
+    { id: 1, name: "AIF.BOT · 審核自動化",  roleId: 1, keyPreview: "hkaiiff_sk_...3f9a", status: "active", createdAt: "2026-01-01" },
+    { id: 2, name: "LEDGER.BOT · 財務同步", roleId: 2, keyPreview: "hkaiiff_sk_...b2e7", status: "active", createdAt: "2026-02-05" },
   ]);
   const [invite, setInvite] = useState({ account: "", roleId: 1 });
   const [newBot, setNewBot] = useState({ name: "", roleId: 1 });
   const [memberTab, setMemberTab] = useState<"human" | "bot">("human");
-  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [isCreatingBot, setIsCreatingBot] = useState(false);
+  const [otpModal, setOtpModal] = useState<{ botName: string; plaintextKey: string } | null>(null);
 
   const nonSystemRoles = roles.filter((r) => !r.isSystem);
   const getRoleName = (id: number) => roles.find((r) => r.id === id)?.name ?? "—";
@@ -4724,285 +4831,359 @@ function OpsRbacTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
     pushToast("✅ 邀請已發送");
   }
 
-  function handleCreateBot() {
+  async function handleCreateBot() {
     if (!newBot.name.trim()) { pushToast("請輸入節點名稱", false); return; }
-    setBotMembers((prev) => [...prev, {
-      id: Date.now(), name: newBot.name.trim(), roleId: newBot.roleId,
-      apiKey: generateApiKey(), status: "active", createdAt: new Date().toISOString().slice(0, 10),
-    }]);
-    setNewBot((p) => ({ ...p, name: "" }));
-    pushToast("✅ 硅基節點已創建，API Key 已生成");
+    setIsCreatingBot(true);
+    try {
+      const res = await fetch("/api/admin/rbac", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity: "bot", name: newBot.name.trim(), roleId: newBot.roleId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Unknown error");
+
+      const created = json.data as { id: number; name: string; role_id: number; key_preview: string; status: string; created_at: string };
+      setBotMembers((prev) => [...prev, {
+        id:         created.id,
+        name:       created.name,
+        roleId:     created.role_id,
+        keyPreview: created.key_preview,
+        status:     created.status as "active" | "disabled",
+        createdAt:  created.created_at.slice(0, 10),
+      }]);
+      setNewBot((p) => ({ ...p, name: "" }));
+      // 觸發「閱後即焚」Modal，明文 Key 只在此刻展示
+      setOtpModal({ botName: created.name, plaintextKey: json.plaintext_key as string });
+    } catch (err) {
+      pushToast(`創建失敗：${err instanceof Error ? err.message : "請稍後重試"}`, false);
+    } finally {
+      setIsCreatingBot(false);
+    }
   }
 
-  async function copyKey(key: string, id: number) {
+  async function handleResetKey(bot: BotMember) {
     try {
-      await navigator.clipboard.writeText(key);
-      setCopiedId(id);
-      setTimeout(() => setCopiedId(null), 2000);
-      pushToast("✅ API Key 已複製到剪貼板");
-    } catch {
-      pushToast("複製失敗，請手動複製", false);
+      const res = await fetch("/api/admin/rbac", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ entity: "bot", id: bot.id, resetKey: true }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Unknown error");
+
+      const updated = json.data as { key_preview: string };
+      setBotMembers((prev) => prev.map((b) => b.id === bot.id ? { ...b, keyPreview: updated.key_preview } : b));
+      setOtpModal({ botName: bot.name, plaintextKey: json.plaintext_key as string });
+    } catch (err) {
+      pushToast(`重置失敗：${err instanceof Error ? err.message : "請稍後重試"}`, false);
     }
   }
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] gap-5">
+    <>
+      {/* 閱後即焚 Modal */}
+      {otpModal && (
+        <OtpKeyModal
+          botName={otpModal.botName}
+          plaintextKey={otpModal.plaintextKey}
+          onClose={() => setOtpModal(null)}
+        />
+      )}
 
-      {/* ── 左列：角色管理 ─────────────────────────────────────────────────── */}
-      <div className="space-y-5">
+      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)] gap-5">
 
-        {/* 角色列表 */}
-        <div className={`${CARD} p-5`}>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-neutral-900">{t.rbacRole}</h3>
-            <span className="text-xs text-neutral-400 bg-neutral-100 rounded-full px-2 py-0.5">{roles.length} 個角色</span>
-          </div>
-          <div className="space-y-2">
-            {roles.map((role) => (
-              <div key={role.id} className={`rounded-xl border p-3 transition-colors ${
-                role.isSystem
-                  ? "border-[#1a73e8]/25 bg-[#1a73e8]/[0.03]"
-                  : hasDangerPerm(role)
-                  ? "border-red-200/70 bg-red-50/40"
-                  : "border-neutral-200 hover:border-neutral-300"
-              }`}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {role.isSystem && (
-                        <span className="text-[10px] font-bold text-[#1a73e8] border border-[#1a73e8]/30 bg-[#1a73e8]/5 px-1.5 py-0.5 rounded-full leading-none">
-                          SYSTEM
-                        </span>
-                      )}
-                      {hasDangerPerm(role) && !role.isSystem && (
-                        <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-red-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" title="⚠ 包含高危財務操作權限">
-                          <path d="M8 1L1 4v5c0 4 3.25 6.5 7 7 3.75-.5 7-3 7-7V4L8 1z"/>
-                          <path d="M8 6v3m0 2v.5" strokeLinecap="round"/>
-                        </svg>
-                      )}
-                      <p className="font-semibold text-neutral-900 text-sm">{role.name}</p>
-                    </div>
-                    <div className="flex flex-wrap gap-1 mt-1.5">
-                      {role.permissions.slice(0, 3).map((p) => <RbacPermPill key={p} perm={p} compact />)}
-                      {role.permissions.length > 3 && (
-                        <span className="text-[10px] font-semibold text-neutral-400 bg-neutral-100 border border-neutral-200 px-1.5 py-0.5 rounded-full">
-                          +{role.permissions.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  {role.isSystem
-                    ? <span className="text-[11px] text-neutral-400 font-medium bg-neutral-100 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">🔒 鎖定</span>
-                    : <button className={`${BTN_SM} border border-red-200 text-red-600 hover:bg-red-50 shrink-0`} onClick={() => handleDeleteRole(role.id)}>刪除</button>
-                  }
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
+        {/* ── 左列：角色管理 ─────────────────────────────────────────────────── */}
+        <div className="space-y-5">
 
-        {/* 新增角色 + 分組 Checkbox 矩陣 */}
-        <div className={`${CARD} p-5 space-y-4`}>
-          <h4 className="font-bold text-neutral-900 text-sm">新增自定義角色</h4>
-          <input
-            className={INPUT}
-            placeholder='角色名稱，如「LBS 策展官」'
-            value={newRole.name}
-            onChange={(e) => setNewRole((p) => ({ ...p, name: e.target.value }))}
-          />
-          <div className="space-y-2.5">
-            {RBAC_PERM_GROUPS.map((grp) => (
-              <div key={grp.label} className={`rounded-xl border ${grp.border} ${grp.bg} p-3`}>
-                <p className={`text-[11px] font-bold uppercase tracking-wide mb-2.5 ${grp.color}`}>{grp.label}</p>
-                <div className="space-y-2">
-                  {grp.perms.map((perm) => {
-                    const checked = newRole.permissions.includes(perm);
-                    const isDanger = perm === "finance:operate";
-                    return (
-                      <label key={perm} className="flex items-center gap-2.5 cursor-pointer select-none">
-                        <div
-                          role="checkbox"
-                          aria-checked={checked}
-                          onClick={() => toggleNewPerm(perm)}
-                          className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all shrink-0 ${
-                            checked
-                              ? isDanger ? "bg-red-500 border-red-500" : "bg-[#1a73e8] border-[#1a73e8]"
-                              : "border-neutral-300 bg-white"
-                          }`}>
-                          {checked && (
-                            <svg viewBox="0 0 10 8" className="w-2.5 h-2" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="1,4 3.5,6.5 9,1" />
-                            </svg>
-                          )}
-                        </div>
-                        <span className={`text-xs font-medium flex-1 ${isDanger ? "text-red-700" : "text-neutral-800"}`}>
-                          {isDanger && <span className="mr-0.5">⚠️</span>}{RBAC_PERM_META[perm].label}
-                        </span>
-                        <code className="text-[10px] text-neutral-400">{perm}</code>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-          <button className={BTN_PRIMARY} onClick={handleAddRole}>{t.addRole}</button>
-        </div>
-      </div>
-
-      {/* ── 右列：成員管理（碳基 / 硅基 Tab）─────────────────────────────── */}
-      <div className={`${CARD} p-5 space-y-4`}>
-        <div className="flex items-center justify-between">
-          <h3 className="font-bold text-neutral-900">{t.rbacPeople}</h3>
-          {/* Human / Bot Tab 切換 */}
-          <div className="flex rounded-xl border border-neutral-200 bg-neutral-50 overflow-hidden text-xs font-semibold">
-            <button
-              onClick={() => setMemberTab("human")}
-              className={`px-3 py-1.5 flex items-center gap-1.5 transition-colors ${
-                memberTab === "human" ? "bg-white text-neutral-900 border-r border-neutral-200" : "text-neutral-500 hover:text-neutral-700"
-              }`}>
-              <svg viewBox="0 0 16 16" className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                <path d="M8 7a3 3 0 100-6 3 3 0 000 6z"/><path d="M2 15a6 6 0 0112 0"/>
-              </svg>
-              團隊成員
-            </button>
-            <button
-              onClick={() => setMemberTab("bot")}
-              className={`px-3 py-1.5 flex items-center gap-1.5 transition-colors ${
-                memberTab === "bot" ? "bg-white text-neutral-900" : "text-neutral-500 hover:text-neutral-700"
-              }`}>
-              <svg viewBox="0 0 16 16" className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                <rect x="3" y="5" width="10" height="9" rx="2"/>
-                <circle cx="5.5" cy="9" r="0.75" fill="currentColor" stroke="none"/>
-                <circle cx="10.5" cy="9" r="0.75" fill="currentColor" stroke="none"/>
-                <path d="M8 5V2m-3 0h6"/>
-              </svg>
-              硅基節點
-            </button>
-          </div>
-        </div>
-
-        {memberTab === "human" ? (
-          <>
-            {/* 邀請碳基成員 */}
-            <div className="rounded-xl border border-neutral-200 p-3 space-y-2 bg-neutral-50">
-              <p className="text-xs font-bold text-neutral-700">邀請碳基成員 (Human Staff)</p>
-              <input
-                className={INPUT}
-                placeholder="Email / DID / 錢包地址"
-                value={invite.account}
-                onChange={(e) => setInvite((p) => ({ ...p, account: e.target.value }))}
-              />
-              <select
-                className={INPUT}
-                value={invite.roleId}
-                onChange={(e) => setInvite((p) => ({ ...p, roleId: Number(e.target.value) }))}>
-                {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-              <button className={BTN_PRIMARY} onClick={handleInviteHuman}>{t.invite}</button>
+          {/* 角色列表 */}
+          <div className={`${CARD} p-5`}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-neutral-900">{t.rbacRole}</h3>
+              <span className="text-xs text-neutral-400 bg-neutral-100 rounded-full px-2 py-0.5">{roles.length} 個角色</span>
             </div>
-            {/* 碳基成員列表 */}
             <div className="space-y-2">
-              {humanMembers.map((m) => (
-                <div key={m.id} className={`rounded-xl border p-3 flex items-center justify-between gap-2 ${
-                  m.status === "disabled" ? "border-neutral-100 bg-neutral-50 opacity-60" : "border-neutral-200"
-                }`}>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-neutral-900 truncate">{m.account}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-xs text-neutral-500">{getRoleName(m.roleId)}</span>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${
-                        m.status === "active"
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          : "bg-neutral-100 text-neutral-500 border-neutral-200"
-                      }`}>{m.status === "active" ? "活躍" : "已停用"}</span>
-                    </div>
-                  </div>
-                  <button
-                    className={`${BTN_SM} shrink-0 ${
-                      m.status === "disabled"
-                        ? "border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50"
-                        : "border border-rose-300 text-rose-600 bg-white hover:bg-rose-50"
-                    }`}
-                    onClick={() => setHumanMembers((prev) => prev.map((x) => x.id === m.id ? { ...x, status: x.status === "active" ? "disabled" : "active" } : x))}>
-                    {m.status === "disabled" ? t.enableAccount : t.disableAccount}
-                  </button>
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <>
-            {/* 創建硅基節點 */}
-            <div className="rounded-xl border border-neutral-200 p-3 space-y-2 bg-neutral-50">
-              <p className="text-xs font-bold text-neutral-700">注冊硅基節點 (Bot & API Services)</p>
-              <input
-                className={INPUT}
-                placeholder="節點名稱，如「AIF.BOT · 審核自動化」"
-                value={newBot.name}
-                onChange={(e) => setNewBot((p) => ({ ...p, name: e.target.value }))}
-              />
-              <select
-                className={INPUT}
-                value={newBot.roleId}
-                onChange={(e) => setNewBot((p) => ({ ...p, roleId: Number(e.target.value) }))}>
-                {nonSystemRoles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-              <button className={BTN_PRIMARY} onClick={handleCreateBot}>生成 API Key 並綁定角色</button>
-            </div>
-            {/* 硅基節點列表 */}
-            <div className="space-y-2">
-              {botMembers.map((bot) => (
-                <div key={bot.id} className={`rounded-xl border p-3 ${
-                  bot.status === "disabled" ? "border-neutral-100 bg-neutral-50 opacity-60" : "border-neutral-200"
+              {roles.map((role) => (
+                <div key={role.id} className={`rounded-xl border p-3 transition-colors ${
+                  role.isSystem
+                    ? "border-[#1a73e8]/25 bg-[#1a73e8]/[0.03]"
+                    : hasDangerPerm(role)
+                    ? "border-red-200/70 bg-red-50/40"
+                    : "border-neutral-200 hover:border-neutral-300"
                 }`}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                          <rect x="3" y="5" width="10" height="9" rx="2"/>
-                          <circle cx="5.5" cy="9" r="0.75" fill="currentColor" stroke="none"/>
-                          <circle cx="10.5" cy="9" r="0.75" fill="currentColor" stroke="none"/>
-                          <path d="M8 5V2m-3 0h6"/>
-                        </svg>
-                        <p className="text-sm font-semibold text-neutral-900 truncate">{bot.name}</p>
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${
-                          bot.status === "active"
-                            ? "bg-cyan-50 text-cyan-700 border-cyan-200"
-                            : "bg-neutral-100 text-neutral-500 border-neutral-200"
-                        }`}>{bot.status === "active" ? "運行中" : "已停用"}</span>
+                        {role.isSystem && (
+                          <span className="text-[10px] font-bold text-[#1a73e8] border border-[#1a73e8]/30 bg-[#1a73e8]/5 px-1.5 py-0.5 rounded-full leading-none">
+                            SYSTEM
+                          </span>
+                        )}
+                        {hasDangerPerm(role) && !role.isSystem && (
+                          <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-red-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" title="⚠ 包含高危財務操作權限">
+                            <path d="M8 1L1 4v5c0 4 3.25 6.5 7 7 3.75-.5 7-3 7-7V4L8 1z"/>
+                            <path d="M8 6v3m0 2v.5" strokeLinecap="round"/>
+                          </svg>
+                        )}
+                        <p className="font-semibold text-neutral-900 text-sm">{role.name}</p>
                       </div>
-                      <p className="text-xs text-neutral-500 mt-0.5">角色: {getRoleName(bot.roleId)}</p>
-                      {/* API Key 遮蔽行 */}
-                      <div className="flex items-center gap-1.5 mt-1.5 rounded-lg bg-neutral-100 px-2 py-1.5">
-                        <svg viewBox="0 0 16 16" className="w-3 h-3 text-neutral-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
-                          <rect x="2" y="6" width="12" height="8" rx="1.5"/><path d="M5 6V4.5a3 3 0 016 0V6"/>
-                        </svg>
-                        <code className="text-[10px] font-mono text-neutral-600 flex-1 truncate">{maskApiKey(bot.apiKey)}</code>
-                        <button
-                          onClick={() => copyKey(bot.apiKey, bot.id)}
-                          className="text-[10px] font-semibold text-[#1a73e8] hover:text-[#1558b0] shrink-0 transition-colors px-1">
-                          {copiedId === bot.id ? "✓ 已複製" : "複製"}
-                        </button>
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {role.permissions.slice(0, 4).map((p) => <RbacPermPill key={p} perm={p} compact />)}
+                        {role.permissions.length > 4 && (
+                          <span className="text-[10px] font-semibold text-neutral-400 bg-neutral-100 border border-neutral-200 px-1.5 py-0.5 rounded-full">
+                            +{role.permissions.length - 4}
+                          </span>
+                        )}
                       </div>
                     </div>
-                    <button
-                      className={`${BTN_SM} mt-0.5 shrink-0 ${
-                        bot.status === "disabled"
-                          ? "border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50"
-                          : "border border-rose-300 text-rose-600 bg-white hover:bg-rose-50"
-                      }`}
-                      onClick={() => setBotMembers((prev) => prev.map((x) => x.id === bot.id ? { ...x, status: x.status === "active" ? "disabled" : "active" } : x))}>
-                      {bot.status === "disabled" ? "啟用" : "禁用"}
-                    </button>
+                    {role.isSystem
+                      ? <span className="text-[11px] text-neutral-400 font-medium bg-neutral-100 px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1">🔒 鎖定</span>
+                      : <button className={`${BTN_SM} border border-red-200 text-red-600 hover:bg-red-50 shrink-0`} onClick={() => handleDeleteRole(role.id)}>刪除</button>
+                    }
                   </div>
                 </div>
               ))}
             </div>
-          </>
-        )}
+          </div>
+
+          {/* 新增角色 + 分組 Checkbox 矩陣（Grid 佈局） */}
+          <div className={`${CARD} p-5 space-y-4`}>
+            <h4 className="font-bold text-neutral-900 text-sm">新增自定義角色</h4>
+            <input
+              className={INPUT}
+              placeholder='角色名稱，如「LBS 策展官」'
+              value={newRole.name}
+              onChange={(e) => setNewRole((p) => ({ ...p, name: e.target.value }))}
+            />
+            {/* 7 大模塊 2 列 Grid 佈局 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {RBAC_PERM_GROUPS.map((grp) => (
+                <div key={grp.label} className={`rounded-xl border ${grp.border} ${grp.bg} p-3`}>
+                  <p className={`text-[11px] font-bold uppercase tracking-wide mb-2 ${grp.color}`}>{grp.label}</p>
+                  <div className="space-y-1.5">
+                    {grp.perms.map((perm) => {
+                      const checked = newRole.permissions.includes(perm);
+                      const isDanger = perm === "finance:operate";
+                      return (
+                        <label key={perm} className="flex items-center gap-2 cursor-pointer select-none">
+                          <div
+                            role="checkbox"
+                            aria-checked={checked}
+                            onClick={() => toggleNewPerm(perm)}
+                            className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all shrink-0 ${
+                              checked
+                                ? isDanger ? "bg-red-500 border-red-500" : "bg-[#1a73e8] border-[#1a73e8]"
+                                : "border-neutral-300 bg-white"
+                            }`}>
+                            {checked && (
+                              <svg viewBox="0 0 10 8" className="w-2.5 h-2" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                                <polyline points="1,4 3.5,6.5 9,1" />
+                              </svg>
+                            )}
+                          </div>
+                          <span className={`text-xs font-medium flex-1 leading-tight ${isDanger ? "text-red-700" : "text-neutral-800"}`}>
+                            {isDanger && <span className="mr-0.5">⚠️</span>}{RBAC_PERM_META[perm].label}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* 已選摘要 */}
+            {newRole.permissions.length > 0 && (
+              <div className="flex flex-wrap gap-1 pt-1 border-t border-neutral-100">
+                {newRole.permissions.map((p) => <RbacPermPill key={p} perm={p} compact />)}
+              </div>
+            )}
+            <button className={BTN_PRIMARY} onClick={handleAddRole}>{t.addRole}</button>
+          </div>
+        </div>
+
+        {/* ── 右列：成員管理（碳基 / 硅基 Tab）─────────────────────────────── */}
+        <div className={`${CARD} p-5 space-y-4`}>
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-neutral-900">{t.rbacPeople}</h3>
+            <div className="flex rounded-xl border border-neutral-200 bg-neutral-50 overflow-hidden text-xs font-semibold">
+              <button
+                onClick={() => setMemberTab("human")}
+                className={`px-3 py-1.5 flex items-center gap-1.5 transition-colors ${
+                  memberTab === "human" ? "bg-white text-neutral-900 border-r border-neutral-200" : "text-neutral-500 hover:text-neutral-700"
+                }`}>
+                <svg viewBox="0 0 16 16" className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                  <path d="M8 7a3 3 0 100-6 3 3 0 000 6z"/><path d="M2 15a6 6 0 0112 0"/>
+                </svg>
+                團隊成員
+              </button>
+              <button
+                onClick={() => setMemberTab("bot")}
+                className={`px-3 py-1.5 flex items-center gap-1.5 transition-colors ${
+                  memberTab === "bot" ? "bg-white text-neutral-900" : "text-neutral-500 hover:text-neutral-700"
+                }`}>
+                <svg viewBox="0 0 16 16" className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                  <rect x="3" y="5" width="10" height="9" rx="2"/>
+                  <circle cx="5.5" cy="9" r="0.75" fill="currentColor" stroke="none"/>
+                  <circle cx="10.5" cy="9" r="0.75" fill="currentColor" stroke="none"/>
+                  <path d="M8 5V2m-3 0h6"/>
+                </svg>
+                硅基節點
+              </button>
+            </div>
+          </div>
+
+          {memberTab === "human" ? (
+            <>
+              {/* 邀請碳基成員 */}
+              <div className="rounded-xl border border-neutral-200 p-3 space-y-2 bg-neutral-50">
+                <p className="text-xs font-bold text-neutral-700">邀請碳基成員 (Human Staff)</p>
+                <input
+                  className={INPUT}
+                  placeholder="Email / DID / 錢包地址"
+                  value={invite.account}
+                  onChange={(e) => setInvite((p) => ({ ...p, account: e.target.value }))}
+                />
+                <select
+                  className={INPUT}
+                  value={invite.roleId}
+                  onChange={(e) => setInvite((p) => ({ ...p, roleId: Number(e.target.value) }))}>
+                  {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+                <button className={BTN_PRIMARY} onClick={handleInviteHuman}>{t.invite}</button>
+              </div>
+              {/* 碳基成員列表 */}
+              <div className="space-y-2">
+                {humanMembers.map((m) => (
+                  <div key={m.id} className={`rounded-xl border p-3 flex items-center justify-between gap-2 ${
+                    m.status === "disabled" ? "border-neutral-100 bg-neutral-50 opacity-60" : "border-neutral-200"
+                  }`}>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-neutral-900 truncate">{m.account}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-xs text-neutral-500">{getRoleName(m.roleId)}</span>
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${
+                          m.status === "active"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-neutral-100 text-neutral-500 border-neutral-200"
+                        }`}>{m.status === "active" ? "活躍" : "已停用"}</span>
+                      </div>
+                    </div>
+                    <button
+                      className={`${BTN_SM} shrink-0 ${
+                        m.status === "disabled"
+                          ? "border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50"
+                          : "border border-rose-300 text-rose-600 bg-white hover:bg-rose-50"
+                      }`}
+                      onClick={() => setHumanMembers((prev) => prev.map((x) => x.id === m.id ? { ...x, status: x.status === "active" ? "disabled" : "active" } : x))}>
+                      {m.status === "disabled" ? t.enableAccount : t.disableAccount}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <>
+              {/* 創建硅基節點 */}
+              <div className="rounded-xl border border-neutral-200 p-3 space-y-2 bg-neutral-50">
+                <p className="text-xs font-bold text-neutral-700">注冊硅基節點 (Bot & API Services)</p>
+                <input
+                  className={INPUT}
+                  placeholder="節點名稱，如「AIF.BOT · 審核自動化」"
+                  value={newBot.name}
+                  onChange={(e) => setNewBot((p) => ({ ...p, name: e.target.value }))}
+                />
+                <select
+                  className={INPUT}
+                  value={newBot.roleId}
+                  onChange={(e) => setNewBot((p) => ({ ...p, roleId: Number(e.target.value) }))}>
+                  {nonSystemRoles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+                <button
+                  className={`${BTN_PRIMARY} flex items-center justify-center gap-2 ${isCreatingBot ? "opacity-60 cursor-not-allowed" : ""}`}
+                  onClick={handleCreateBot}
+                  disabled={isCreatingBot}>
+                  {isCreatingBot ? (
+                    <>
+                      <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <circle cx="12" cy="12" r="10" strokeOpacity="0.25"/><path d="M12 2a10 10 0 0110 10" strokeLinecap="round"/>
+                      </svg>
+                      生成中…
+                    </>
+                  ) : "生成 API Key 並綁定角色"}
+                </button>
+              </div>
+
+              {/* 安全提示 */}
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 flex items-start gap-2">
+                <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                  <path d="M8 1L1 4v5c0 4 3.25 6.5 7 7 3.75-.5 7-3 7-7V4L8 1z"/>
+                  <path d="M8 6v3m0 2v.5"/>
+                </svg>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  API Key 使用 SHA-256 哈希存儲，系統永不保存明文。創建後請立即複製。列表僅顯示後四碼，若遺失請使用「重置 Key」功能。
+                </p>
+              </div>
+
+              {/* 硅基節點列表 */}
+              <div className="space-y-2">
+                {botMembers.map((bot) => (
+                  <div key={bot.id} className={`rounded-xl border p-3 ${
+                    bot.status === "disabled" ? "border-neutral-100 bg-neutral-50 opacity-60" : "border-neutral-200"
+                  }`}>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                            <rect x="3" y="5" width="10" height="9" rx="2"/>
+                            <circle cx="5.5" cy="9" r="0.75" fill="currentColor" stroke="none"/>
+                            <circle cx="10.5" cy="9" r="0.75" fill="currentColor" stroke="none"/>
+                            <path d="M8 5V2m-3 0h6"/>
+                          </svg>
+                          <p className="text-sm font-semibold text-neutral-900 truncate">{bot.name}</p>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${
+                            bot.status === "active"
+                              ? "bg-cyan-50 text-cyan-700 border-cyan-200"
+                              : "bg-neutral-100 text-neutral-500 border-neutral-200"
+                          }`}>{bot.status === "active" ? "運行中" : "已停用"}</span>
+                        </div>
+                        <p className="text-xs text-neutral-500 mt-0.5">角色: {getRoleName(bot.roleId)}</p>
+                        {/* API Key 脫敏展示（僅後四碼，不提供查看完整密鑰） */}
+                        <div className="flex items-center gap-1.5 mt-1.5 rounded-lg bg-neutral-100 px-2 py-1.5">
+                          <svg viewBox="0 0 16 16" className="w-3 h-3 text-neutral-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                            <rect x="2" y="6" width="12" height="8" rx="1.5"/><path d="M5 6V4.5a3 3 0 016 0V6"/>
+                          </svg>
+                          <code className="text-[10px] font-mono text-neutral-500 flex-1 truncate select-none">
+                            {displayKeyPreview(bot.keyPreview)}
+                          </code>
+                          <span className="text-[9px] text-neutral-400 font-medium shrink-0">SHA-256 存儲</span>
+                        </div>
+                      </div>
+                      {/* 操作按鈕組：只有禁用/啟用 + 重置 Key，絕無「查看完整密鑰」 */}
+                      <div className="flex flex-col gap-1 mt-0.5 shrink-0">
+                        <button
+                          className={`${BTN_SM} ${
+                            bot.status === "disabled"
+                              ? "border border-emerald-300 text-emerald-700 bg-white hover:bg-emerald-50"
+                              : "border border-rose-300 text-rose-600 bg-white hover:bg-rose-50"
+                          }`}
+                          onClick={() => setBotMembers((prev) => prev.map((x) => x.id === bot.id ? { ...x, status: x.status === "active" ? "disabled" : "active" } : x))}>
+                          {bot.status === "disabled" ? "啟用" : "禁用"}
+                        </button>
+                        <button
+                          className={`${BTN_SM} border border-amber-300 text-amber-700 bg-white hover:bg-amber-50`}
+                          onClick={() => handleResetKey(bot)}>
+                          重置 Key
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
