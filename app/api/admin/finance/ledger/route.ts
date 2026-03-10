@@ -58,27 +58,28 @@ export interface LedgerSummary {
 export interface LedgerResponse {
   summary: LedgerSummary;
   data: LedgerRow[];
+  error?: string;
 }
 
 // ─── 工具函數 ─────────────────────────────────────────────────────────────────
 
 /** 根據 currency 判斷是否屬於法幣（USD/HKD/STRIPE），返回 USD 等值 */
 function toUsd(amount: number | null, currency: string | null, payment_method: string | null): number {
-  if (!amount || amount <= 0) return 0;
-  // Stripe 收款：currency 存 'USD' 或 'HKD' 或 'usd' 等，統一折算 USD
+  const safeAmount = Number(amount) || 0;
+  if (safeAmount <= 0) return 0;
   const isStripe = payment_method?.toLowerCase() === 'stripe'
     || currency?.toLowerCase() === 'usd'
     || currency?.toLowerCase() === 'hkd';
   if (!isStripe) return 0;
-  // HKD 簡單折算（1 USD ≈ 7.8 HKD），如有精準匯率可替換
-  if (currency?.toLowerCase() === 'hkd') return amount / 7.8;
-  return amount;
+  if (currency?.toLowerCase() === 'hkd') return safeAmount / 7.8;
+  return safeAmount;
 }
 
 /** 根據 currency 判斷是否屬於 AIF */
 function toAif(amount: number | null, currency: string | null): number {
-  if (!amount || amount <= 0) return 0;
-  return currency?.toUpperCase() === 'AIF' ? amount : 0;
+  const safeAmount = Number(amount) || 0;
+  if (safeAmount <= 0) return 0;
+  return currency?.toUpperCase() === 'AIF' ? safeAmount : 0;
 }
 
 // ─── GET Handler ──────────────────────────────────────────────────────────────
@@ -132,7 +133,12 @@ export async function GET(req: Request) {
     const { data: txRows, error } = await query;
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      console.error('🔥 Ledger API 崩潰原因:', error);
+      return NextResponse.json({
+        summary: { total_usd: 0, total_aif: 0, total_tx: 0 },
+        data: [],
+        error: error.message ?? 'Unknown DB Error',
+      } satisfies LedgerResponse);
     }
 
     const rows = txRows ?? [];
@@ -201,15 +207,19 @@ export async function GET(req: Request) {
 
     // ── 計算匯總 ──────────────────────────────────────────────────────────────
     const summary: LedgerSummary = {
-      total_usd: data.reduce((s, r) => s + toUsd(r.amount, r.currency, r.payment_method), 0),
-      total_aif: data.reduce((s, r) => s + toAif(r.amount, r.currency), 0),
+      total_usd: data.reduce((s, r) => s + (Number(toUsd(r.amount, r.currency, r.payment_method)) || 0), 0),
+      total_aif: data.reduce((s, r) => s + (Number(toAif(r.amount, r.currency)) || 0), 0),
       total_tx: data.length,
     };
 
     return NextResponse.json({ summary, data } satisfies LedgerResponse);
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : '未知錯誤';
-    console.error('[finance/ledger] 錯誤:', message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    const message = err instanceof Error ? err.message : 'Unknown DB Error';
+    console.error('🔥 Ledger API 崩潰原因:', err);
+    return NextResponse.json({
+      summary: { total_usd: 0, total_aif: 0, total_tx: 0 },
+      data: [],
+      error: message,
+    } satisfies LedgerResponse);
   }
 }

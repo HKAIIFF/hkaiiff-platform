@@ -1285,12 +1285,62 @@ function AIModule({ t, pushToast }: SharedProps) {
   );
 }
 
+interface LedgerRow {
+  id: string;
+  user_id: string | null;
+  user_email: string | null;
+  related_film_id: string | null;
+  related_film_title: string | null;
+  related_lbs_id: string | null;
+  related_lbs_title: string | null;
+  related_deposit_address: string | null;
+  tx_type: string | null;
+  tx_hash: string | null;
+  stripe_charge_id: string | null;
+  amount: number | null;
+  currency: string | null;
+  payment_method: string | null;
+  status: string | null;
+  created_at: string;
+}
+
+interface LedgerApiResponse {
+  summary: { total_usd: number; total_aif: number; total_tx: number };
+  data: LedgerRow[];
+  error?: string;
+}
+
 function FinanceModule({ t, pushToast }: SharedProps) {
   const [sub, setSub] = useState<"ledger" | "treasury" | "settlement">("ledger");
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [ledgerData, setLedgerData] = useState<LedgerRow[]>([]);
+  const [ledgerSummary, setLedgerSummary] = useState({ total_usd: 0, total_aif: 0, total_tx: 0 });
+  const [ledgerError, setLedgerError] = useState<string | null>(null);
+
   const settlements = [
     { id: "W-001", role: "Curator", amount: "$1,200 / 6,000 AIF", status: "pending" },
     { id: "W-002", role: "Creator", amount: "$800 / 4,200 AIF", status: "pending" },
   ];
+
+  useEffect(() => {
+    if (sub !== "ledger") return;
+    setLedgerLoading(true);
+    setLedgerError(null);
+    fetch("/api/admin/finance/ledger")
+      .then(async (res) => {
+        const json: LedgerApiResponse = await res.json();
+        if (json.error) {
+          setLedgerError(`DB Error: ${json.error}`);
+        }
+        setLedgerSummary(json.summary ?? { total_usd: 0, total_aif: 0, total_tx: 0 });
+        setLedgerData(json.data ?? []);
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : "網絡請求失敗";
+        setLedgerError(msg);
+      })
+      .finally(() => setLedgerLoading(false));
+  }, [sub]);
 
   return (
     <div>
@@ -1305,28 +1355,68 @@ function FinanceModule({ t, pushToast }: SharedProps) {
       />
 
       {sub === "ledger" && (
-        <div className={`${CARD} overflow-hidden`}>
-          <div className="overflow-x-auto">
-            <div className="min-w-[640px]">
-              <div className="grid grid-cols-4 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
-                <div className="p-3">Tx</div>
-                <div className="p-3">Type</div>
-                <div className="p-3">Fiat</div>
-                <div className="p-3">Crypto</div>
-              </div>
-              <div className="grid grid-cols-4 border-b border-gray-100">
-                <div className="p-3">TX-001</div>
-                <div className="p-3">Deposit</div>
-                <div className="p-3">$500</div>
-                <div className="p-3">2500 AIF</div>
-              </div>
-              <div className="grid grid-cols-4">
-                <div className="p-3">TX-002</div>
-                <div className="p-3">Purchase</div>
-                <div className="p-3">$220</div>
-                <div className="p-3">1100 AIF</div>
-              </div>
+        <div className="space-y-4">
+          {/* 匯總卡片 */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className={`${CARD} p-4`}>
+              <p className="text-xs text-gray-500">總 USD 收入</p>
+              <p className="text-2xl font-black text-gray-900 mt-1">${ledgerSummary.total_usd.toFixed(2)}</p>
             </div>
+            <div className={`${CARD} p-4`}>
+              <p className="text-xs text-gray-500">總 AIF 收入</p>
+              <p className="text-2xl font-black text-gray-900 mt-1">{ledgerSummary.total_aif.toLocaleString()} AIF</p>
+            </div>
+            <div className={`${CARD} p-4`}>
+              <p className="text-xs text-gray-500">總交易筆數</p>
+              <p className="text-2xl font-black text-gray-900 mt-1">{ledgerSummary.total_tx}</p>
+            </div>
+          </div>
+
+          {/* 錯誤訊息顯示 */}
+          {ledgerError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 font-mono">
+              ⚠️ {ledgerError}
+            </div>
+          )}
+
+          {/* 數據表格 */}
+          <div className={`${CARD} overflow-hidden`}>
+            {ledgerLoading ? (
+              <div className="p-8 text-center text-sm text-gray-400">加載中…</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <div className="min-w-[900px]">
+                  <div className="grid grid-cols-[180px_130px_120px_120px_100px_1fr] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
+                    <div className="p-3">用戶</div>
+                    <div className="p-3">業務類型</div>
+                    <div className="p-3">金額</div>
+                    <div className="p-3">幣種</div>
+                    <div className="p-3">狀態</div>
+                    <div className="p-3">時間</div>
+                  </div>
+                  {ledgerData.length === 0 ? (
+                    <div className="p-6 text-center text-sm text-gray-400">
+                      {ledgerError ? "資料加載失敗，請查看上方錯誤詳情" : "暫無數據"}
+                    </div>
+                  ) : (
+                    ledgerData.map((row) => (
+                      <div key={row.id} className="grid grid-cols-[180px_130px_120px_120px_100px_1fr] border-b border-gray-100 last:border-0 text-sm">
+                        <div className="p-3 truncate text-gray-700">{row.user_email ?? row.user_id ?? "—"}</div>
+                        <div className="p-3 text-gray-700">{row.tx_type ?? "—"}</div>
+                        <div className="p-3 font-mono text-gray-900">{row.amount != null ? (Number(row.amount) || 0).toLocaleString() : "—"}</div>
+                        <div className="p-3 text-gray-700">{row.currency ?? "—"}</div>
+                        <div className="p-3">
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${row.status === "completed" ? "bg-green-100 text-green-700" : row.status === "failed" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>
+                            {row.status ?? "—"}
+                          </span>
+                        </div>
+                        <div className="p-3 text-gray-500 text-xs">{new Date(row.created_at).toLocaleString("zh-HK")}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
