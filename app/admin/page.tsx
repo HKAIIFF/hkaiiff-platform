@@ -583,7 +583,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
     const { error } = await supabase.from("films").update({ status: "approved" }).eq("id", film.id);
     if (error) { pushToast(error.message, false); return; }
     if (film.user_id) {
-      await supabase.from("messages").insert([{ user_id: film.user_id, type: "system", title: "Review Passed", content: "Your film passed review and NFT mint process has started." }]);
+      await supabase.from("messages").insert([{ user_id: film.user_id, type: "system", msg_type: "system", title: "Review Passed", content: "Your film passed review and NFT mint process has started." }]);
     }
     setFilms((prev) => prev.map((f) => f.id === film.id ? { ...f, status: "approved" } : f));
     pushToast(t.nftHint);
@@ -631,7 +631,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
     const { error } = await supabase.from("films").update({ status: "rejected" }).eq("id", rejectTarget.id);
     if (error) { pushToast(error.message, false); return; }
     if (rejectTarget.user_id) {
-      await supabase.from("messages").insert([{ user_id: rejectTarget.user_id, type: "system", title: "Review Rejected", content: `${t.reason}: ${rejectReason}` }]);
+      await supabase.from("messages").insert([{ user_id: rejectTarget.user_id, type: "system", msg_type: "system", title: "Review Rejected", content: `${t.reason}: ${rejectReason}` }]);
     }
     setFilms((prev) => prev.map((f) => f.id === rejectTarget.id ? { ...f, status: "rejected" } : f));
     setRejectTarget(null);

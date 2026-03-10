@@ -227,7 +227,7 @@ export async function POST(req: Request) {
     // ── Step 7: 發送「鑄造上鏈成功」站內信 ───────────────────────────────────
     await sendMessage({
       userId: verifiedUserId,
-      type: 'chain',
+      type: 'on-chain',
       title: '鑄造上鏈成功',
       content: `您的影片《${film.title ?? filmId}》已完成 AIF 支付（${AIF_FEE} AIF），影片進入審核流程，上鏈確認後合約地址將在此通知中更新。`,
       actionLink: `/me`,

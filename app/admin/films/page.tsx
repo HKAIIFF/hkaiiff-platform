@@ -211,12 +211,14 @@ export default function FilmsReviewPage() {
           ? {
               userId: targetFilm.user_id,
               type: "system",
+              msgType: "system",
               title: "影片審核通過通知",
               content: `您的影片《${targetFilm.title ?? id}》已通過 HKAIIFF 團隊審核，正式進入節目單流程。`,
             }
           : {
               userId: targetFilm.user_id,
               type: "system",
+              msgType: "system",
               title: "影片審核未通過通知",
               content: `您的影片《${targetFilm.title ?? id}》未通過本次審核，如有疑問請聯繫 support@hkaiiff.org。`,
             };

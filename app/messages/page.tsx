@@ -8,12 +8,13 @@ import { useI18n } from '@/app/context/I18nContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type MsgType = 'render' | 'chain' | 'system' | 'lbs';
-type TabType = 'all' | 'render' | 'chain';
+type MsgType = 'system' | 'renders' | 'on-chain' | 'lbs';
+type TabType = 'all' | 'renders' | 'on-chain';
 
 interface DbMessage {
   id: string;
-  type: MsgType;
+  msg_type: MsgType;
+  type: string;
   title: string;
   content: string;
   is_read: boolean;
@@ -54,13 +55,13 @@ function formatRelativeTime(dateStr: string): string {
 // ─── Icon Config ──────────────────────────────────────────────────────────────
 
 const TYPE_CONFIG: Record<MsgType, { icon: string; ring: string; bg: string; text: string }> = {
-  render: {
+  renders: {
     icon: 'fa-video',
     ring: 'border-[#CCFF00]',
     bg: 'bg-[#CCFF00]/10',
     text: 'text-[#CCFF00]',
   },
-  chain: {
+  'on-chain': {
     icon: 'fa-link',
     ring: 'border-cyan-400',
     bg: 'bg-cyan-400/10',
@@ -68,15 +69,15 @@ const TYPE_CONFIG: Record<MsgType, { icon: string; ring: string; bg: string; tex
   },
   system: {
     icon: 'fa-exclamation-triangle',
-    ring: 'border-yellow-400',
-    bg: 'bg-yellow-400/10',
-    text: 'text-yellow-400',
-  },
-  lbs: {
-    icon: 'fa-map-marker-alt',
     ring: 'border-blue-400',
     bg: 'bg-blue-400/10',
     text: 'text-blue-400',
+  },
+  lbs: {
+    icon: 'fa-map-marker-alt',
+    ring: 'border-green-400',
+    bg: 'bg-green-400/10',
+    text: 'text-green-400',
   },
 };
 
@@ -84,8 +85,8 @@ const TYPE_CONFIG: Record<MsgType, { icon: string; ring: string; bg: string; tex
 
 const TABS: { label: string; value: TabType }[] = [
   { label: 'ALL', value: 'all' },
-  { label: 'RENDERS', value: 'render' },
-  { label: 'ON-CHAIN', value: 'chain' },
+  { label: 'RENDERS', value: 'renders' },
+  { label: 'ON-CHAIN', value: 'on-chain' },
 ];
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -115,7 +116,8 @@ interface MsgCardProps {
 
 function MsgCard({ msg, isGlobalRead, onDelete, onRead }: MsgCardProps) {
   const [hovered, setHovered] = useState(false);
-  const cfg = TYPE_CONFIG[msg.type] ?? TYPE_CONFIG.system;
+  const resolvedType = (msg.msg_type ?? msg.type) as MsgType;
+  const cfg = TYPE_CONFIG[resolvedType] ?? TYPE_CONFIG.system;
   const isGlobal = msg.user_id === null;
   const isUnread = isGlobal ? !isGlobalRead : !msg.is_read;
 
@@ -393,8 +395,9 @@ export default function MessagesPage() {
     .filter((m) => !hiddenGlobalMsgs.includes(m.id))
     .filter((m) => {
       if (activeTab === 'all') return true;
-      if (activeTab === 'render') return m.type === 'render';
-      if (activeTab === 'chain') return m.type === 'chain';
+      const effectiveType = (m.msg_type ?? m.type) as string;
+      if (activeTab === 'renders') return effectiveType === 'renders';
+      if (activeTab === 'on-chain') return effectiveType === 'on-chain';
       return true;
     });
 

@@ -9,12 +9,13 @@ import { createClient } from '@supabase/supabase-js';
 
 // ── 类型定义 ───────────────────────────────────────────────────────────────────
 
-export type MsgType = 'render' | 'chain' | 'system' | 'lbs';
+export type MsgType = 'system' | 'renders' | 'on-chain' | 'lbs';
 
 export interface DbMessage {
   id: string;
   user_id: string | null;
-  type: MsgType;
+  msg_type: MsgType;
+  type: string;
   title: string;
   content: string;
   is_read: boolean;
@@ -56,6 +57,7 @@ export async function sendMessage({
   const { error } = await db.from('messages').insert({
     user_id: userId,
     type,
+    msg_type: type,
     title,
     content,
     ...(actionLink != null ? { action_link: actionLink } : {}),
@@ -72,7 +74,7 @@ export async function getUserMessages(userId: string): Promise<DbMessage[]> {
   const db = getAdminClient();
   const { data, error } = await db
     .from('messages')
-    .select('id, user_id, type, title, content, is_read, action_link, created_at')
+    .select('id, user_id, type, msg_type, title, content, is_read, action_link, created_at')
     .or(`user_id.is.null,user_id.eq.${userId}`)
     .order('created_at', { ascending: false });
 

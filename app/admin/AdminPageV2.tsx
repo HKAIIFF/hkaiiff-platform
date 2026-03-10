@@ -432,6 +432,7 @@ function ReviewModule({ t, pushToast }: SharedProps) {
         {
           user_id: film.user_id,
           type: "system",
+          msg_type: "system",
           title: "Review Passed",
           content: "Your film passed review and NFT mint process has started.",
         },
@@ -453,6 +454,7 @@ function ReviewModule({ t, pushToast }: SharedProps) {
         {
           user_id: rejectFilm.user_id,
           type: "system",
+          msg_type: "system",
           title: "Review Rejected",
           content: `${t.reason}: ${rejectReason}`,
         },
@@ -1424,7 +1426,8 @@ function OpsModule({ t, pushToast, lang, setLang }: SharedProps) {
           <button
             className={`${BTN} bg-blue-600 text-white`}
             onClick={async () => {
-              const { error } = await supabase.from("messages").insert([{ user_id: null, type: message.channel, title: message.title, content: message.body }]);
+              const msgTypeVal = message.channel.toLowerCase() as string;
+              const { error } = await supabase.from("messages").insert([{ user_id: null, type: msgTypeVal, msg_type: msgTypeVal, title: message.title, content: message.body }]);
               if (error) {
                 pushToast(error.message, false);
                 return;

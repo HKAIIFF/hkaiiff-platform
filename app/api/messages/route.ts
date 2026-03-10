@@ -25,7 +25,7 @@ export async function GET(req: Request) {
 
     let query = adminSupabase
       .from('messages')
-      .select('id, type, title, content, is_read, user_id, action_link, created_at')
+      .select('id, type, msg_type, title, content, is_read, user_id, action_link, created_at')
       .order('created_at', { ascending: false });
 
     if (userId) {
@@ -54,23 +54,27 @@ export async function POST(req: Request) {
     const body = await req.json() as {
       userId?: string | null;
       type?: string;
+      msgType?: string;
       title?: string;
       content?: string;
       actionLink?: string | null;
     };
 
-    const { userId, type, title, content, actionLink } = body;
+    const { userId, type, msgType, title, content, actionLink } = body;
 
-    if (!type || !title || !content) {
+    if (!title || !content || (!type && !msgType)) {
       return NextResponse.json(
-        { error: 'Missing required fields: type, title, content' },
+        { error: 'Missing required fields: title, content, and type or msgType' },
         { status: 400 }
       );
     }
 
+    const resolvedMsgType = (msgType ?? type ?? 'system').toLowerCase();
+
     const { error } = await adminSupabase.from('messages').insert({
       user_id: userId ?? null,
-      type,
+      type: resolvedMsgType,
+      msg_type: resolvedMsgType,
       title,
       content,
       ...(actionLink != null ? { action_link: actionLink } : {}),
