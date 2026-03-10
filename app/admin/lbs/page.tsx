@@ -8,10 +8,10 @@ interface LbsNode {
   id: string;
   title: string;
   description: string | null;
-  location: string | null;      // 地址（唯讀）
-  lat: number | null;           // 緯度（唯讀）
-  lng: number | null;           // 經度（唯讀）
-  radius: number | null;        // 解鎖半徑（唯讀）
+  location: string | null;
+  lat: number | null;
+  lng: number | null;
+  radius: number | null;
   start_time: string | null;
   end_time: string | null;
   contract_req: string | null;
@@ -23,6 +23,8 @@ interface LbsNode {
   country: string | null;
   city: string | null;
   venue: string | null;
+  submitted_by: string | null;
+  payment_method: string | null;
   created_at: string;
 }
 
@@ -55,10 +57,12 @@ function formatDate(iso: string | null) {
 
 function StatusBadge({ status }: { status: string | null }) {
   const cfg =
-    status === "active"
-      ? { label: "運行中", cls: "text-green-700 bg-green-50 border-green-200" }
-      : status === "offline"
-      ? { label: "已下線", cls: "text-red-600 bg-red-50 border-red-200" }
+    status === "active" || status === "approved"
+      ? { label: status === "approved" ? "已審核通過" : "運行中", cls: "text-green-700 bg-green-50 border-green-200" }
+      : status === "offline" || status === "rejected"
+      ? { label: status === "rejected" ? "已拒絕" : "已下線", cls: "text-red-600 bg-red-50 border-red-200" }
+      : status === "pending"
+      ? { label: "待審核", cls: "text-orange-600 bg-orange-50 border-orange-200" }
       : { label: "待機", cls: "text-amber-700 bg-amber-50 border-amber-200" };
   return (
     <span className={`px-2 py-0.5 text-[10px] font-semibold border rounded-full whitespace-nowrap ${cfg.cls}`}>
@@ -366,13 +370,95 @@ function NodeCard({
   );
 }
 
+// ─── Pending Application Card ──────────────────────────────────────────────────
+function PendingCard({
+  node,
+  onApprove,
+  onReject,
+  isProcessing,
+}: {
+  node: LbsNode;
+  onApprove: (id: string) => void;
+  onReject: (id: string) => void;
+  isProcessing: boolean;
+}) {
+  return (
+    <div className="bg-white border border-orange-200/60 rounded-2xl overflow-hidden">
+      {node.background_url && (
+        <div
+          className="h-20 bg-cover bg-center"
+          style={{ backgroundImage: `url(${node.background_url})` }}
+        />
+      )}
+      <div className="p-4 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex-1 min-w-0">
+            <p className="text-gray-900 font-semibold text-sm truncate">{node.title || "未命名申請"}</p>
+            <p className="text-orange-500 text-xs mt-0.5 font-mono">{node.location ?? "—"}</p>
+          </div>
+          <StatusBadge status="pending" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-500">
+          <div>
+            <span className="text-gray-400">GPS:</span> {node.lat ?? "—"}, {node.lng ?? "—"}
+          </div>
+          <div>
+            <span className="text-gray-400">半徑:</span> {node.radius ?? "—"}m
+          </div>
+          <div>
+            <span className="text-gray-400">開始:</span> {node.start_time ? new Date(node.start_time).toLocaleDateString() : "—"}
+          </div>
+          <div>
+            <span className="text-gray-400">結束:</span> {node.end_time ? new Date(node.end_time).toLocaleDateString() : "—"}
+          </div>
+          <div className="col-span-2">
+            <span className="text-gray-400">支付:</span>{" "}
+            <span className={`font-semibold ${node.payment_method === "aif" ? "text-green-600" : "text-blue-600"}`}>
+              {node.payment_method === "aif" ? "AIF 鏈上支付" : "Stripe 法幣支付"}
+            </span>
+          </div>
+          {node.submitted_by && (
+            <div className="col-span-2 truncate">
+              <span className="text-gray-400">申請人:</span> {node.submitted_by.slice(0, 20)}...
+            </div>
+          )}
+        </div>
+
+        {node.description && (
+          <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{node.description}</p>
+        )}
+
+        <div className="flex gap-2 pt-1">
+          <button
+            onClick={() => onApprove(node.id)}
+            disabled={isProcessing}
+            className="flex-1 py-2 rounded-full bg-green-600 text-white text-xs font-semibold hover:bg-green-700 transition-colors disabled:opacity-40"
+          >
+            ✓ 通過 (Approve)
+          </button>
+          <button
+            onClick={() => onReject(node.id)}
+            disabled={isProcessing}
+            className="flex-1 py-2 rounded-full border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-50 transition-colors disabled:opacity-40"
+          >
+            ✕ 拒絕 (Reject)
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function LBSNodesPage() {
   const [nodes, setNodes] = useState<LbsNode[]>([]);
+  const [pendingNodes, setPendingNodes] = useState<LbsNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [editNode, setEditNode] = useState<LbsNode | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [search, setSearch] = useState("");
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   const showToast = useCallback((message: string, type: ToastType) => {
     const id = Date.now();
@@ -389,7 +475,9 @@ export default function LBSNodesPage() {
     if (error) {
       showToast(`載入失敗: ${error.message}`, "error");
     } else {
-      setNodes((data as LbsNode[]) ?? []);
+      const allNodes = (data as LbsNode[]) ?? [];
+      setPendingNodes(allNodes.filter((n) => n.status === "pending"));
+      setNodes(allNodes.filter((n) => n.status !== "pending"));
     }
     setLoading(false);
   }, [showToast]);
@@ -402,6 +490,36 @@ export default function LBSNodesPage() {
     showToast("LBS 節點已更新 ✓", "success");
   }, [showToast]);
 
+  const handleApprove = useCallback(async (id: string) => {
+    setProcessingId(id);
+    const { error } = await supabase
+      .from("lbs_nodes")
+      .update({ status: "approved" })
+      .eq("id", id);
+    setProcessingId(null);
+    if (error) {
+      showToast(`審核失敗: ${error.message}`, "error");
+      return;
+    }
+    setPendingNodes((prev) => prev.filter((n) => n.id !== id));
+    showToast("已通過審核，節點狀態設為 approved ✓", "success");
+  }, [showToast]);
+
+  const handleReject = useCallback(async (id: string) => {
+    setProcessingId(id);
+    const { error } = await supabase
+      .from("lbs_nodes")
+      .update({ status: "rejected" })
+      .eq("id", id);
+    setProcessingId(null);
+    if (error) {
+      showToast(`操作失敗: ${error.message}`, "error");
+      return;
+    }
+    setPendingNodes((prev) => prev.filter((n) => n.id !== id));
+    showToast("已拒絕申請 ✓", "success");
+  }, [showToast]);
+
   const filtered = search.trim()
     ? nodes.filter((n) =>
         (n.title ?? "").toLowerCase().includes(search.toLowerCase()) ||
@@ -410,9 +528,9 @@ export default function LBSNodesPage() {
       )
     : nodes;
 
-  const activeCount  = nodes.filter((n) => n.status === "active").length;
+  const activeCount  = nodes.filter((n) => n.status === "active" || n.status === "approved").length;
   const standbyCount = nodes.filter((n) => n.status === "standby" || !n.status).length;
-  const offlineCount = nodes.filter((n) => n.status === "offline").length;
+  const offlineCount = nodes.filter((n) => n.status === "offline" || n.status === "rejected").length;
 
   return (
     <div className="p-5 space-y-4 min-h-screen bg-white">
@@ -421,7 +539,7 @@ export default function LBSNodesPage() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-gray-900 text-base font-semibold">LBS 節點管理</h1>
-          <p className="text-gray-400 text-xs mt-0.5">共 {nodes.length} 個節點</p>
+          <p className="text-gray-400 text-xs mt-0.5">共 {nodes.length + pendingNodes.length} 個節點（{pendingNodes.length} 待審核）</p>
         </div>
         <button
           onClick={fetchNodes}
@@ -432,13 +550,37 @@ export default function LBSNodesPage() {
         </button>
       </div>
 
+      {/* ── Pending Applications Section ───────────────────────────────────── */}
+      {pendingNodes.length > 0 && (
+        <div className="border border-orange-200 bg-orange-50/30 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
+            <h2 className="text-orange-700 text-sm font-semibold">待審核申請</h2>
+            <span className="ml-auto bg-orange-100 border border-orange-200 text-orange-700 text-[10px] font-semibold px-2 py-0.5 rounded-full">
+              {pendingNodes.length} PENDING
+            </span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {pendingNodes.map((node) => (
+              <PendingCard
+                key={node.id}
+                node={node}
+                onApprove={handleApprove}
+                onReject={handleReject}
+                isProcessing={processingId === node.id}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ── Stats Bar ─────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: "節點總數", value: nodes.length, cls: "text-gray-900" },
+          { label: "已審核節點", value: nodes.length, cls: "text-gray-900" },
           { label: "運行中", value: activeCount,  cls: "text-green-600" },
           { label: "待機",   value: standbyCount, cls: "text-amber-600" },
-          { label: "已下線", value: offlineCount, cls: "text-red-500" },
+          { label: "已下線/拒絕", value: offlineCount, cls: "text-red-500" },
         ].map(({ label, value, cls }) => (
           <div key={label} className="bg-white border border-gray-200/80 rounded-2xl px-4 py-3">
             <div className="text-xs text-gray-500">{label}</div>

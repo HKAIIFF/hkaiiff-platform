@@ -630,6 +630,41 @@ export default function MePage() {
         </div>
       )}
 
+      {/* ── LBS Curator Entry Banner ───────────────────────────────────── */}
+      {dbProfile?.verification_status === 'approved' && dbProfile?.verification_type === 'curator' && (
+        <div
+          onClick={() => router.push('/lbs/apply')}
+          className="bg-gradient-to-r from-[#111] to-black border border-[#FFC107] hover:border-[#FFC107]/80 transition-all rounded-xl p-5 mb-6 cursor-pointer group relative overflow-hidden"
+        >
+          {/* Hover glow */}
+          <div
+            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+            style={{ background: 'radial-gradient(ellipse 80% 60% at 20% 50%, rgba(255,193,7,0.08) 0%, transparent 70%)' }}
+          />
+          <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-[#FFC107]/60 via-[#FFC107]/20 to-transparent pointer-events-none" />
+
+          <div className="flex items-center justify-between relative z-10">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#FFC107]/10 border border-[#FFC107]/20 flex items-center justify-center flex-shrink-0 group-hover:bg-[#FFC107]/20 transition-colors">
+                <i className="fas fa-map-marker-alt text-[#FFC107] text-sm" />
+              </div>
+              <div>
+                <div className="text-[9px] font-mono text-[#FFC107]/50 tracking-widest mb-0.5 uppercase">
+                  {lang === 'zh' ? '策展人 · 專屬通道' : 'CURATOR · EXCLUSIVE'}
+                </div>
+                <div className="font-heavy text-white text-sm tracking-wider">
+                  {lang === 'zh' ? 'LBS 影展/影院' : 'LBS FESTIVAL / CINEMA'}
+                </div>
+                <div className="text-[10px] text-gray-500 font-mono mt-0.5">
+                  {lang === 'zh' ? '申請開設 LBS 地理位置展映節點' : 'Apply for LBS Geolocation Screening Node'}
+                </div>
+              </div>
+            </div>
+            <i className="fas fa-chevron-right text-[#FFC107] text-sm group-hover:translate-x-1 transition-transform" />
+          </div>
+        </div>
+      )}
+
       {/* ── Funding Account Panel ──────────────────────────────────────── */}
       <div className="bg-gradient-to-br from-[#0d1a00] to-[#0a0a0a] p-5 rounded-xl border border-signal/30
                       shadow-[0_0_20px_rgba(204,255,0,0.06)] relative overflow-hidden group mb-4 min-h-[100px] shrink-0">

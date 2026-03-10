@@ -209,7 +209,10 @@ export default function DiscoverPage() {
   useEffect(() => {
     async function fetchNodes() {
       try {
-        const { data, error } = await supabase.from('lbs_nodes').select('*');
+        const { data, error } = await supabase
+          .from('lbs_nodes')
+          .select('*')
+          .not('status', 'in', '("pending","rejected")');
         if (error) throw error;
         if (data && data.length > 0) {
           setNodes((data as DbLbsNode[]).map(mapDbNode));
