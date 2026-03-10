@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/app/context/ToastContext';
 import { supabase } from '@/lib/supabase';
+import { buildOssUrl } from '@/lib/utils/oss';
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
@@ -112,7 +113,7 @@ function mapDbNode(db: DbLbsNode): LbsNode {
     location: db.location ?? 'Location TBD',
     coords: coordStr,
     date: db.date_label ?? 'TBD',
-    img: db.image_url ?? 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800',
+    img: buildOssUrl(db.image_url) || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800',
     desc: db.description ?? '',
     req: db.smart_contract_req ?? 'Smart contract conditions pending.',
     icon: cfg.icon,
@@ -135,8 +136,8 @@ function mapDbNode(db: DbLbsNode): LbsNode {
       isCertified: true,
     },
     filmIds: db.film_ids ?? null,
-    background_url: db.background_url ?? null,
-    poster_url: db.poster_url ?? null,
+    background_url: buildOssUrl(db.background_url) || null,
+    poster_url: buildOssUrl(db.poster_url) || null,
   };
 }
 

@@ -2,12 +2,15 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import { usePrivy } from '@privy-io/react-auth';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/app/context/ToastContext';
+import { buildOssUrl, extractOssKey, fetchSignedPlayUrl } from '@/lib/utils/oss';
 
 interface FilmForPlay {
   id: string;
   title: string;
+  status: string;
   main_video_url: string | null;
   feature_url: string | null;
   trailer_url: string | null;
@@ -21,20 +24,24 @@ export default function PlayPage() {
   const eventId = searchParams.get('eventId');
   const router = useRouter();
   const { showToast } = useToast();
+  const { user, getAccessToken } = usePrivy();
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [film, setFilm] = useState<FilmForPlay | null>(null);
   const [loading, setLoading] = useState(true);
   const [videoLoading, setVideoLoading] = useState(true);
+  // 最终播放地址（可能是签名 URL 或直接 OSS URL）
+  const [playUrl, setPlayUrl] = useState<string | null>(null);
+  const [urlLoading, setUrlLoading] = useState(false);
 
-  /* ── Fetch film ──────────────────────────────────────────────────────── */
+  /* ── Fetch film metadata (not binary) ───────────────────────────────── */
   useEffect(() => {
     if (!id) return;
     async function fetchFilm() {
       try {
         const { data, error } = await supabase
           .from('films')
-          .select('id, title, main_video_url, feature_url, trailer_url, poster_url')
+          .select('id, title, status, main_video_url, feature_url, trailer_url, poster_url')
           .eq('id', id)
           .single();
         if (error) throw error;
@@ -50,7 +57,45 @@ export default function PlayPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  /* ── Back navigation — goes back to event page if eventId exists ─────── */
+  /* ── Resolve play URL — 优先使用签名 URL，回退到直接 OSS URL ──────────── */
+  useEffect(() => {
+    if (!film) return;
+
+    const rawUrl = film.main_video_url ?? film.feature_url ?? film.trailer_url;
+    if (!rawUrl) {
+      setPlayUrl(null);
+      return;
+    }
+
+    const ossKey = extractOssKey(rawUrl);
+
+    // 已 approved 的公映影片：优先通过签名 URL 播放（有 accessToken 时）；
+    // 无法获取签名 URL 时降级到直接 OSS URL
+    async function resolveUrl() {
+      setUrlLoading(true);
+      try {
+        if (user) {
+          const token = await getAccessToken();
+          if (token && ossKey) {
+            const signed = await fetchSignedPlayUrl(ossKey, film!.id, token);
+            setPlayUrl(signed);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('[Play] Signed URL failed, falling back to direct URL:', err);
+      } finally {
+        setUrlLoading(false);
+      }
+      // 降级：直接使用 OSS URL
+      setPlayUrl(buildOssUrl(rawUrl));
+    }
+
+    resolveUrl();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [film, user]);
+
+  /* ── Back navigation ─────────────────────────────────────────────────── */
   const handleBack = useCallback(() => {
     if (videoRef.current) videoRef.current.pause();
     if (eventId) {
@@ -75,18 +120,21 @@ export default function PlayPage() {
     }
   }, []);
 
-  /* ── Loading state ───────────────────────────────────────────────────── */
-  if (loading) {
+  /* ── Loading states ──────────────────────────────────────────────────── */
+  if (loading || urlLoading) {
     return (
-      <div className="fixed inset-0 bg-black flex items-center justify-center">
+      <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-3">
         <div className="w-8 h-8 border-2 border-[#CCFF00] border-t-transparent rounded-full animate-spin" />
+        {urlLoading && (
+          <span className="font-mono text-[10px] text-gray-500 tracking-widest animate-pulse">
+            VERIFYING ACCESS…
+          </span>
+        )}
       </div>
     );
   }
 
-  const videoUrl = film?.main_video_url ?? film?.feature_url ?? film?.trailer_url ?? null;
-
-  if (!film || !videoUrl) {
+  if (!film || !playUrl) {
     return (
       <div className="fixed inset-0 z-[9999] bg-black w-screen h-screen flex flex-col items-center justify-center gap-4 px-6">
         <i className="fas fa-exclamation-triangle text-3xl text-gray-600" />
@@ -110,8 +158,9 @@ export default function PlayPage() {
       {/* ── Video player ────────────────────────────────────────────────── */}
       <video
         ref={videoRef}
-        key={videoUrl}
-        src={videoUrl}
+        key={playUrl}
+        src={playUrl}
+        poster={film.poster_url ? buildOssUrl(film.poster_url) : undefined}
         className="w-full h-full object-contain bg-black"
         controls
         autoPlay
@@ -137,7 +186,7 @@ export default function PlayPage() {
         </div>
       )}
 
-      {/* ── Back button — frosted glass, top-left ────────────────────────── */}
+      {/* ── Back button ──────────────────────────────────────────────────── */}
       <button
         onClick={handleBack}
         aria-label="返回"
@@ -146,7 +195,7 @@ export default function PlayPage() {
         <i className="fas fa-chevron-left text-sm" />
       </button>
 
-      {/* ── Fullscreen button — bottom right ─────────────────────────────── */}
+      {/* ── Fullscreen button ─────────────────────────────────────────────── */}
       <button
         onClick={handleFullscreen}
         className="absolute bottom-8 right-4 z-[10000] flex items-center gap-2 bg-black/50 backdrop-blur-md border border-white/10 hover:border-white/30 active:scale-95 transition-all px-3 py-2 rounded-xl text-white/60 hover:text-white text-xs font-mono"

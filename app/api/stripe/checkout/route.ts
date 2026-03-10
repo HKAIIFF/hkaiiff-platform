@@ -169,6 +169,7 @@ export async function POST(req: Request) {
       metadata: {
         userId: verifiedUserId,
         filmId,
+        type: 'film_entry',       // Webhook 路由依赖此字段区分支付类型
       },
     });
 

@@ -7,6 +7,7 @@ import { useToast } from "@/app/context/ToastContext";
 import { usePrivy } from "@privy-io/react-auth";
 import type { Film } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
+import { buildOssUrl } from "@/lib/utils/oss";
 import Link from "next/link";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -170,11 +171,11 @@ function DataInjectionDrawer({
 /** 將 SupabaseFilm 適配成 ModalContext 所需的 Film 類型 */
 function toModalFilm(f: SupabaseFilm): Film {
   return {
-    id: 0, // placeholder，modal 使用 title/creator 顯示即可
+    id: 0,
     title: f.title,
     creator: f.studio ?? "ANONYMOUS",
-    video: f.poster_url ?? "",
-    videoUrl: f.trailer_url ?? f.feature_url ?? f.video_url ?? undefined,
+    video: buildOssUrl(f.poster_url),
+    videoUrl: buildOssUrl(f.trailer_url ?? f.feature_url ?? f.video_url ?? null) || undefined,
     synopsis: f.tech_stack ?? "",
     fullDescription: f.tech_stack ?? "",
     hasInteract: true,
@@ -348,8 +349,11 @@ function FeedItem({
     }
   };
 
-  const videoSrc =
-    film.trailer_url || film.feature_url || film.video_url || undefined;
+  // OSS media URLs — 绝不从 DB 直接渲染，全部通过 buildOssUrl 构建
+  const videoSrc = buildOssUrl(
+    film.trailer_url || film.feature_url || film.video_url || null
+  ) || undefined;
+  const posterSrc = buildOssUrl(film.poster_url) || undefined;
 
   // 使用 users 表最新的 avatar_seed（bottts 風格與 Me 頁保持一致）
   const avatarSeed = film.user_avatar_seed ?? film.studio ?? film.id;
@@ -370,7 +374,7 @@ function FeedItem({
             ref={videoRef}
             className="bg-media"
             src={videoSrc}
-            poster={film.poster_url ?? undefined}
+            poster={posterSrc}
             loop
             muted={isMuted}
             playsInline
@@ -505,7 +509,7 @@ function FeedItem({
         <div
           className="layer-user flex flex-col justify-end pb-24 px-4 bg-cover bg-center"
           style={{
-            backgroundImage: `linear-gradient(to top, #000 0%, transparent 50%), url('${film.poster_url ?? ""}')`,
+            backgroundImage: `linear-gradient(to top, #000 0%, transparent 50%), url('${posterSrc ?? ""}')`,
           }}
         >
           <div className="user-frame" />

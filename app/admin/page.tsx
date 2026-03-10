@@ -4488,11 +4488,50 @@ const TOWER_CHANNELS: { label: string; value: "system" | "render" | "chain" }[] 
   { label: "On-Chain", value: "chain" },
 ];
 
+// ── 消息历史记录行类型 ─────────────────────────────────────────────────────────
+interface MsgHistoryRow {
+  id: string;
+  msg_id: string | null;
+  type: string;
+  msg_type: string;
+  title: string;
+  user_id: string | null;
+  sender_id: string | null;
+  status: string;
+  created_at: string;
+  deleted_at: string | null;
+}
+
 function OpsTowerTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
   const [msg, setMsg] = useState<{ channel: "system" | "render" | "chain"; title: string; body: string }>({
     channel: "system", title: "", body: "",
   });
   const [sending, setSending] = useState(false);
+
+  // ── 历史发送记录 ────────────────────────────────────────────────────────────
+  const [history, setHistory] = useState<MsgHistoryRow[]>([]);
+  const [histLoading, setHistLoading] = useState(false);
+  const [histFrom, setHistFrom] = useState("");
+  const [histTo, setHistTo] = useState("");
+
+  const loadHistory = useCallback(async () => {
+    setHistLoading(true);
+    try {
+      const params = new URLSearchParams({ limit: "50" });
+      if (histFrom) params.set("from", histFrom);
+      if (histTo) params.set("to", histTo);
+      const res = await fetch(`/api/admin/messages/history?${params.toString()}`);
+      if (!res.ok) { pushToast("查詢歷史記錄失敗", false); return; }
+      const data = await res.json();
+      setHistory(data.messages ?? []);
+    } catch {
+      pushToast("網絡錯誤", false);
+    } finally {
+      setHistLoading(false);
+    }
+  }, [histFrom, histTo, pushToast]);
+
+  useEffect(() => { loadHistory(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSend() {
     if (!msg.title.trim() || !msg.body.trim()) {
@@ -4518,6 +4557,8 @@ function OpsTowerTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boole
       }
       pushToast(`✅ 廣播發送成功: [${msg.channel}] ${msg.title}`);
       setMsg((p) => ({ ...p, title: "", body: "" }));
+      // 刷新历史记录
+      loadHistory();
     } catch {
       pushToast("網絡錯誤，請稍後重試", false);
     } finally {
@@ -4525,49 +4566,154 @@ function OpsTowerTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boole
     }
   }
 
+  const CHANNEL_BADGE: Record<string, string> = {
+    system: "bg-blue-100 text-blue-700",
+    render: "bg-yellow-100 text-yellow-700",
+    chain: "bg-purple-100 text-purple-700",
+    lbs: "bg-green-100 text-green-700",
+  };
+
   return (
-    <div className={`${CARD} p-5 max-w-2xl space-y-4`}>
-      <h3 className="font-bold text-neutral-900">📡 全局消息塔</h3>
-      <p className="text-sm text-neutral-500">向前台 MSG 模塊推送系統通知，選擇頻道後廣播全站</p>
-      <div>
-        <label className="text-xs font-semibold text-neutral-600 mb-2 block">推送頻道</label>
-        <div className="flex gap-4">
-          {TOWER_CHANNELS.map((ch) => (
-            <label key={ch.value} className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="radio"
-                name="channel"
-                value={ch.value}
-                checked={msg.channel === ch.value}
-                onChange={() => setMsg((p) => ({ ...p, channel: ch.value }))}
-              />
-              <span className="text-sm text-neutral-700">{ch.label}</span>
-            </label>
-          ))}
+    <div className="space-y-6 max-w-4xl">
+      {/* ── 发送面板 ── */}
+      <div className={`${CARD} p-5 space-y-4`}>
+        <h3 className="font-bold text-neutral-900">📡 全局消息塔</h3>
+        <p className="text-sm text-neutral-500">向前台 MSG 模塊推送系統通知，選擇頻道後廣播全站</p>
+        <div>
+          <label className="text-xs font-semibold text-neutral-600 mb-2 block">推送頻道</label>
+          <div className="flex gap-4">
+            {TOWER_CHANNELS.map((ch) => (
+              <label key={ch.value} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name="channel"
+                  value={ch.value}
+                  checked={msg.channel === ch.value}
+                  onChange={() => setMsg((p) => ({ ...p, channel: ch.value }))}
+                />
+                <span className="text-sm text-neutral-700">{ch.label}</span>
+              </label>
+            ))}
+          </div>
         </div>
+        <div>
+          <label className="text-xs font-semibold text-neutral-600 mb-1 block">標題</label>
+          <input
+            className={INPUT}
+            placeholder="通知標題"
+            value={msg.title}
+            onChange={(e) => setMsg((p) => ({ ...p, title: e.target.value }))}
+          />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-neutral-600 mb-1 block">內容</label>
+          <textarea
+            className={INPUT}
+            rows={4}
+            placeholder="通知內容"
+            value={msg.body}
+            onChange={(e) => setMsg((p) => ({ ...p, body: e.target.value }))}
+          />
+        </div>
+        <button className={BTN_PRIMARY} onClick={handleSend} disabled={sending}>
+          {sending ? "發送中…" : t.sendMsg}
+        </button>
       </div>
-      <div>
-        <label className="text-xs font-semibold text-neutral-600 mb-1 block">標題</label>
-        <input
-          className={INPUT}
-          placeholder="通知標題"
-          value={msg.title}
-          onChange={(e) => setMsg((p) => ({ ...p, title: e.target.value }))}
-        />
+
+      {/* ── 历史发送记录 ── */}
+      <div className={`${CARD} p-5 space-y-4`}>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <h3 className="font-bold text-neutral-900">📋 歷史發送紀錄</h3>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              type="date"
+              className={`${INPUT} text-xs`}
+              value={histFrom}
+              onChange={(e) => setHistFrom(e.target.value)}
+              placeholder="開始日期"
+            />
+            <span className="text-neutral-400 text-xs">至</span>
+            <input
+              type="date"
+              className={`${INPUT} text-xs`}
+              value={histTo}
+              onChange={(e) => setHistTo(e.target.value)}
+              placeholder="結束日期"
+            />
+            <button
+              className={BTN_PRIMARY}
+              onClick={loadHistory}
+              disabled={histLoading}
+            >
+              {histLoading ? "查詢中…" : "查詢"}
+            </button>
+          </div>
+        </div>
+
+        {histLoading ? (
+          <div className="text-center py-8 text-neutral-400 text-sm">載入中…</div>
+        ) : history.length === 0 ? (
+          <div className="text-center py-8 text-neutral-400 text-sm">暫無發送記錄</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-neutral-200 text-neutral-500">
+                  <th className="text-left py-2 pr-3 font-semibold whitespace-nowrap">流水號</th>
+                  <th className="text-left py-2 pr-3 font-semibold whitespace-nowrap">發送頻道</th>
+                  <th className="text-left py-2 pr-3 font-semibold whitespace-nowrap">標題</th>
+                  <th className="text-left py-2 pr-3 font-semibold whitespace-nowrap">發送帳號</th>
+                  <th className="text-left py-2 pr-3 font-semibold whitespace-nowrap">接收對象</th>
+                  <th className="text-left py-2 pr-3 font-semibold whitespace-nowrap">送達狀態</th>
+                  <th className="text-left py-2 pr-3 font-semibold whitespace-nowrap">發送時間</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((row) => (
+                  <tr key={row.id} className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
+                    <td className="py-2 pr-3 font-mono text-neutral-500 whitespace-nowrap">
+                      {row.msg_id ?? <span className="text-neutral-300">—</span>}
+                    </td>
+                    <td className="py-2 pr-3 whitespace-nowrap">
+                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${CHANNEL_BADGE[row.msg_type ?? row.type] ?? "bg-neutral-100 text-neutral-500"}`}>
+                        {(row.msg_type ?? row.type ?? "—").toUpperCase()}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-3 max-w-[200px] truncate text-neutral-700">{row.title}</td>
+                    <td className="py-2 pr-3 font-mono text-neutral-400 whitespace-nowrap truncate max-w-[120px]">
+                      {row.sender_id ? row.sender_id.slice(0, 16) + "…" : <span className="text-blue-400">SYSTEM</span>}
+                    </td>
+                    <td className="py-2 pr-3 whitespace-nowrap">
+                      {row.user_id ? (
+                        <span className="font-mono text-neutral-500 truncate max-w-[100px] inline-block">{row.user_id.slice(0, 14)}…</span>
+                      ) : (
+                        <span className="text-orange-500 font-semibold">全站廣播</span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-3 whitespace-nowrap">
+                      <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        row.status === "sent" || row.status === "delivered"
+                          ? "bg-green-100 text-green-700"
+                          : row.status === "failed"
+                          ? "bg-red-100 text-red-600"
+                          : "bg-neutral-100 text-neutral-500"
+                      }`}>
+                        {row.status === "sent" || row.status === "delivered" ? "✓" : row.status === "failed" ? "✗" : "—"}
+                        {(row.status ?? "—").toUpperCase()}
+                        {row.deleted_at && <span className="ml-1 text-neutral-400">(已刪)</span>}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-3 font-mono text-neutral-400 whitespace-nowrap">
+                      {new Date(row.created_at).toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong" })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-[10px] text-neutral-400 mt-2">共 {history.length} 條記錄（最近 50 條）</p>
+          </div>
+        )}
       </div>
-      <div>
-        <label className="text-xs font-semibold text-neutral-600 mb-1 block">內容</label>
-        <textarea
-          className={INPUT}
-          rows={4}
-          placeholder="通知內容"
-          value={msg.body}
-          onChange={(e) => setMsg((p) => ({ ...p, body: e.target.value }))}
-        />
-      </div>
-      <button className={BTN_PRIMARY} onClick={handleSend} disabled={sending}>
-        {sending ? "發送中…" : t.sendMsg}
-      </button>
     </div>
   );
 }
