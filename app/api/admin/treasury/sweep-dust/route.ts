@@ -70,6 +70,66 @@ function deriveKeypairFromIndex(seedPhrase: string, index: number): Keypair {
   return Keypair.fromSeed(key);
 }
 
+/** GET — 掃描階段：僅查詢可提取地址數量與預估 SOL，不執行鏈上交易 */
+export async function GET() {
+  try {
+    const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com';
+    const adminSupabase = createAdminSupabase();
+    const connection = new Connection(rpcUrl, 'confirmed');
+
+    const { data: sweptUsers } = await adminSupabase
+      .from('users')
+      .select('id, deposit_address, wallet_index, aif_balance')
+      .not('deposit_address', 'is', null)
+      .not('wallet_index', 'is', null)
+      .eq('aif_balance', 0);
+
+    if (!sweptUsers || sweptUsers.length === 0) {
+      return NextResponse.json({ eligibleCount: 0, estimatedSol: 0 });
+    }
+
+    const addresses = sweptUsers.map((u) => u.deposit_address).filter(Boolean);
+    const { data: sweepTxs } = await adminSupabase
+      .from('transactions')
+      .select('related_deposit_address')
+      .in('related_deposit_address', addresses)
+      .eq('tx_type', 'sweep')
+      .eq('status', 'success');
+
+    const sweptAddressSet = new Set((sweepTxs ?? []).map((t) => t.related_deposit_address));
+    const eligibleUsers = sweptUsers.filter((u) => sweptAddressSet.has(u.deposit_address));
+
+    if (eligibleUsers.length === 0) {
+      return NextResponse.json({ eligibleCount: 0, estimatedSol: 0 });
+    }
+
+    const balanceResults = await Promise.all(
+      eligibleUsers.map(async (u) => {
+        const balance = await connection.getBalance(new PublicKey(u.deposit_address)).catch(() => 0);
+        return { ...u, solLamports: balance };
+      })
+    );
+
+    const dustCandidates = balanceResults.filter(
+      (u) => u.solLamports > DUST_MIN_LAMPORTS + TX_FEE_RESERVE_LAMPORTS
+    );
+
+    const totalLamports = dustCandidates.reduce(
+      (sum, u) => sum + u.solLamports - TX_FEE_RESERVE_LAMPORTS,
+      0
+    );
+
+    return NextResponse.json({
+      eligibleCount: dustCandidates.length,
+      estimatedSol: totalLamports / LAMPORTS_PER_SOL,
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : '未知錯誤';
+    console.error('[treasury/sweep-dust] 掃描錯誤:', message);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
 export async function POST() {
   try {
     const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com';

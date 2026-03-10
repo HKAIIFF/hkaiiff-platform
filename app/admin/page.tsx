@@ -3464,30 +3464,29 @@ function TrExtLinkIcon() {
   );
 }
 
-// ─── Treasury: 配置 Modal ────────────────────────────────────────────────────
+// ─── Treasury: 墊付錢包管理 Modal ────────────────────────────────────────────
 
-function TrConfigModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function TrFundingConfigModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [adminEmail, setAdminEmail] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
-  const [newTreasuryAddress, setNewTreasuryAddress] = useState("");
   const [newSeedPhrase, setNewSeedPhrase] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
-  const [currentConfig, setCurrentConfig] = useState<{ treasuryWalletAddress: string; seedMask: string } | null>(null);
+  const [currentConfig, setCurrentConfig] = useState<{ seedMask: string } | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/treasury/config").then((r) => r.json()).then(setCurrentConfig).catch(() => {});
+    fetch("/api/admin/treasury/config").then((r) => r.json()).then((d) => setCurrentConfig({ seedMask: d.seedMask ?? "" })).catch(() => {});
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); setErr("");
     if (!adminEmail || !adminPassword) { setErr("請輸入管理員郵箱與密碼進行二次驗證"); return; }
-    if (!newTreasuryAddress && !newSeedPhrase) { setErr("請至少填寫一個需要更新的欄位"); return; }
+    if (!newSeedPhrase) { setErr("請填寫新的墊付錢包助記詞"); return; }
     setLoading(true);
     try {
       const res = await fetch("/api/admin/treasury/config", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminEmail, adminPassword, newTreasuryAddress: newTreasuryAddress || undefined, newSeedPhrase: newSeedPhrase || undefined }),
+        body: JSON.stringify({ adminEmail, adminPassword, newSeedPhrase }),
       });
       const data = await res.json();
       if (!res.ok) { setErr(data.error ?? "操作失敗"); return; }
@@ -3501,18 +3500,14 @@ function TrConfigModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
       <div className="bg-white rounded-2xl border border-neutral-200 shadow-xl w-full max-w-lg">
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
           <div>
-            <h2 className="text-sm font-semibold text-neutral-900">配置錢包參數</h2>
-            <p className="text-xs text-neutral-400 mt-0.5">所有變更均需二次密碼驗證</p>
+            <h2 className="text-sm font-semibold text-neutral-900">⚙️ 墊付錢包管理</h2>
+            <p className="text-xs text-neutral-400 mt-0.5">更新墊付錢包助記詞，所有變更均需二次密碼驗證</p>
           </div>
           <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-100 text-lg leading-none">×</button>
         </div>
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
           {currentConfig && (
-            <div className="bg-neutral-50 rounded-xl border border-neutral-100 p-4 space-y-2 text-xs text-neutral-500">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-neutral-400 font-medium">當前金庫地址</span>
-                <span className="font-mono text-neutral-600">{trShortAddr(currentConfig.treasuryWalletAddress)}</span>
-              </div>
+            <div className="bg-neutral-50 rounded-xl border border-neutral-100 p-4 text-xs text-neutral-500">
               <div className="flex items-start justify-between gap-2">
                 <span className="text-neutral-400 font-medium flex-shrink-0">當前助記詞狀態</span>
                 <span className="font-mono text-neutral-600 text-right break-all">{currentConfig.seedMask}</span>
@@ -3526,11 +3521,7 @@ function TrConfigModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
             </p>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-neutral-700">金庫錢包地址（Treasury Wallet Address，選填）</label>
-            <input type="text" value={newTreasuryAddress} onChange={(e) => setNewTreasuryAddress(e.target.value)} placeholder="輸入新的 Solana 公鑰地址" className={`${INPUT} text-xs font-mono`} />
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-neutral-700">墊付錢包助記詞（Funding Wallet Mnemonic，選填）</label>
+            <label className="text-xs font-medium text-neutral-700">新墊付錢包助記詞（Funding Wallet Mnemonic）</label>
             <p className="text-[11px] text-neutral-400 -mt-0.5">這將用於推導墊付錢包（Phantom 標準路徑 m/44&apos;/501&apos;/0&apos;/0&apos;）</p>
             <input
               type="password"
@@ -3551,7 +3542,7 @@ function TrConfigModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
           {err && <p className="text-xs text-red-500 flex items-center gap-1.5"><TrAlertIcon size={12} />{err}</p>}
           <div className="flex items-center justify-end gap-2 pt-1">
             <button type="button" onClick={onClose} className={BTN_GHOST + " text-xs"}>取消</button>
-            <button type="submit" disabled={loading} className={BTN_PRIMARY + " text-xs disabled:opacity-50"}>{loading ? "驗證並提交中…" : "確認更新"}</button>
+            <button type="submit" disabled={loading} className={BTN_PRIMARY + " text-xs disabled:opacity-50"}>{loading ? "驗證並提交中…" : "確認更新助記詞"}</button>
           </div>
         </form>
       </div>
@@ -3559,22 +3550,166 @@ function TrConfigModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
   );
 }
 
-// ─── Treasury: Sweep Dust 確認 Modal ─────────────────────────────────────────
+// ─── Treasury: 金庫錢包管理 Modal ────────────────────────────────────────────
 
-function TrSweepDustModal({ onClose, onConfirm, loading }: { onClose: () => void; onConfirm: () => void; loading: boolean }) {
+function TrTreasuryConfigModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [newTreasuryAddress, setNewTreasuryAddress] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [err, setErr] = useState("");
+  const [currentConfig, setCurrentConfig] = useState<{ treasuryWalletAddress: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/treasury/config").then((r) => r.json()).then((d) => setCurrentConfig({ treasuryWalletAddress: d.treasuryWalletAddress ?? "" })).catch(() => {});
+  }, []);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault(); setErr("");
+    if (!adminEmail || !adminPassword) { setErr("請輸入管理員郵箱與密碼進行二次驗證"); return; }
+    if (!newTreasuryAddress) { setErr("請填寫新的金庫錢包地址"); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/treasury/config", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ adminEmail, adminPassword, newTreasuryAddress }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error ?? "操作失敗"); return; }
+      onSuccess(); onClose();
+    } catch { setErr("網絡錯誤，請稍後重試"); }
+    finally { setLoading(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl border border-neutral-200 shadow-xl w-full max-w-lg">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-900">⚙️ 金庫錢包管理</h2>
+            <p className="text-xs text-neutral-400 mt-0.5">更新金庫錢包地址，所有變更均需二次密碼驗證</p>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-100 text-lg leading-none">×</button>
+        </div>
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          {currentConfig && currentConfig.treasuryWalletAddress && (
+            <div className="bg-neutral-50 rounded-xl border border-neutral-100 p-4 text-xs text-neutral-500">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-neutral-400 font-medium">當前金庫地址</span>
+                <span className="font-mono text-neutral-600">{trShortAddr(currentConfig.treasuryWalletAddress)}</span>
+              </div>
+            </div>
+          )}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-neutral-700">新金庫錢包地址（Treasury Wallet Address）</label>
+            <input type="text" value={newTreasuryAddress} onChange={(e) => setNewTreasuryAddress(e.target.value)} placeholder="輸入新的 Solana 公鑰地址" className={`${INPUT} text-xs font-mono`} />
+          </div>
+          <div className="border-t border-dashed border-neutral-200 pt-4 space-y-3">
+            <p className="text-xs font-semibold text-neutral-700 flex items-center gap-1.5">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#1a73e8]" />雙重安全校驗 — 輸入您的登入密碼確認身份
+            </p>
+            <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="管理員郵箱" required autoComplete="email" className={`${INPUT} text-xs`} />
+            <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="登入密碼" required autoComplete="current-password" className={`${INPUT} text-xs`} />
+          </div>
+          {err && <p className="text-xs text-red-500 flex items-center gap-1.5"><TrAlertIcon size={12} />{err}</p>}
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <button type="button" onClick={onClose} className={BTN_GHOST + " text-xs"}>取消</button>
+            <button type="submit" disabled={loading} className={BTN_PRIMARY + " text-xs disabled:opacity-50"}>{loading ? "驗證並提交中…" : "確認更新地址"}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ─── Treasury: Sweep Dust 兩階段 Modal ───────────────────────────────────────
+
+type TrSweepDustPhase = "scanning" | "ready" | "executing" | "error";
+
+function TrSweepDustModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (msg: string) => void }) {
+  const [phase, setPhase] = useState<TrSweepDustPhase>("scanning");
+  const [scanResult, setScanResult] = useState<{ eligibleCount: number; estimatedSol: number } | null>(null);
+  const [errMsg, setErrMsg] = useState("");
+
+  useEffect(() => {
+    async function runScan() {
+      try {
+        const res = await fetch("/api/admin/treasury/sweep-dust");
+        const data = await res.json();
+        if (!res.ok) { setErrMsg(data.error ?? "掃描失敗，請稍後重試"); setPhase("error"); return; }
+        setScanResult(data);
+        setPhase("ready");
+      } catch { setErrMsg("掃描網絡錯誤，請稍後重試"); setPhase("error"); }
+    }
+    runScan();
+  }, []);
+
+  async function handleConfirm() {
+    setPhase("executing");
+    try {
+      const res = await fetch("/api/admin/treasury/sweep-dust", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { setErrMsg(data.error ?? "執行失敗，請稍後重試"); setPhase("error"); return; }
+      onSuccess(data.message ?? `已歸集 ${data.swept} 個地址`);
+      onClose();
+    } catch { setErrMsg("執行網絡錯誤，請稍後重試"); setPhase("error"); }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm p-4">
       <div className="bg-white rounded-2xl border border-neutral-200 shadow-xl w-full max-w-sm p-6 space-y-4">
         <div className="flex items-start gap-3">
-          <div className="w-8 h-8 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center flex-shrink-0"><TrAlertIcon size={14} /></div>
-          <div>
-            <h2 className="text-sm font-semibold text-neutral-900">確認一鍵提取殘留 SOL？</h2>
-            <p className="text-xs text-neutral-500 mt-1.5 leading-relaxed">掃描所有「AIF 已歸集且餘額為 0」的充值地址，將殘留 SOL（扣除手續費後）統一轉回至墊付錢包。此操作不可逆。</p>
+          <div className="w-8 h-8 rounded-full bg-amber-50 border border-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5"><TrAlertIcon size={14} /></div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-sm font-semibold text-neutral-900">一鍵提取殘留 SOL</h2>
+            {phase === "scanning" && (
+              <p className="text-xs text-neutral-500 mt-2 flex items-center gap-2 animate-pulse">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-spin flex-shrink-0"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
+                正在掃描可提取地址…
+              </p>
+            )}
+            {phase === "ready" && scanResult && (
+              <div className="mt-2 space-y-2">
+                {scanResult.eligibleCount === 0 ? (
+                  <p className="text-xs text-neutral-500 leading-relaxed">掃描完成。目前沒有符合條件的空地址，無需執行。</p>
+                ) : (
+                  <>
+                    <div className="bg-amber-50 border border-amber-100 rounded-xl p-3 space-y-1.5">
+                      <p className="text-xs font-semibold text-amber-800">掃描完成，找到可回收地址：</p>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-amber-600">符合條件地址數</span>
+                        <span className="font-bold text-amber-900 tabular-nums">{scanResult.eligibleCount} 個</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-amber-600">預計可回收 SOL</span>
+                        <span className="font-bold text-amber-900 tabular-nums">{scanResult.estimatedSol.toFixed(6)} SOL</span>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-neutral-400 leading-relaxed">SOL 將統一轉回至墊付錢包，此操作不可逆。</p>
+                  </>
+                )}
+              </div>
+            )}
+            {phase === "executing" && (
+              <p className="text-xs text-neutral-500 mt-2 flex items-center gap-2 animate-pulse">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="animate-spin flex-shrink-0"><polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" /><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" /></svg>
+                鏈上交易執行中，請勿關閉…
+              </p>
+            )}
+            {phase === "error" && (
+              <p className="text-xs text-red-500 mt-2 flex items-start gap-1.5"><TrAlertIcon size={12} />{errMsg}</p>
+            )}
           </div>
         </div>
         <div className="flex items-center justify-end gap-2">
-          <button onClick={onClose} disabled={loading} className={BTN_GHOST + " text-xs disabled:opacity-40"}>取消</button>
-          <button onClick={onConfirm} disabled={loading} className="rounded-full px-5 py-1.5 bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 disabled:opacity-50 transition-colors">{loading ? "執行中…" : "確認執行"}</button>
+          <button onClick={onClose} disabled={phase === "executing"} className={BTN_GHOST + " text-xs disabled:opacity-40"}>
+            {phase === "error" || (phase === "ready" && scanResult?.eligibleCount === 0) ? "關閉" : "取消"}
+          </button>
+          {phase === "ready" && scanResult && scanResult.eligibleCount > 0 && (
+            <button onClick={handleConfirm} className="rounded-full px-5 py-1.5 bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600 transition-colors shadow-sm">
+              確認執行提取
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -3602,7 +3737,7 @@ function TrForceSweepModal({ depositAddress, onClose, onConfirm, loading }: { de
 
 // ─── Treasury: 大盤卡片 ───────────────────────────────────────────────────────
 
-function TrDashboardCards({ stats, loading, onConfigOpen }: { stats: TrStats | null; loading: boolean; onConfigOpen: () => void }) {
+function TrDashboardCards({ stats, loading, onFundingConfigOpen, onTreasuryConfigOpen }: { stats: TrStats | null; loading: boolean; onFundingConfigOpen: () => void; onTreasuryConfigOpen: () => void }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {/* 墊付錢包 */}
@@ -3623,6 +3758,7 @@ function TrDashboardCards({ stats, loading, onConfigOpen }: { stats: TrStats | n
             {stats?.fundingWallet.isLow && <p className="text-[10px] text-red-400">餘額低於 2 SOL 安全閾值，請立即充值！</p>}
           </>
         )}
+        <button onClick={onFundingConfigOpen} className="mt-1 w-full text-center text-[11px] text-neutral-500 hover:text-neutral-700 font-medium py-1 rounded-lg hover:bg-neutral-50 transition-all border border-dashed border-neutral-200 hover:border-neutral-300">⚙️ 墊付錢包管理</button>
       </div>
       {/* 金庫錢包 */}
       <div className={`${CARD} px-5 py-4 space-y-2`}>
@@ -3643,6 +3779,7 @@ function TrDashboardCards({ stats, loading, onConfigOpen }: { stats: TrStats | n
             </div>
           </>
         )}
+        <button onClick={onTreasuryConfigOpen} className="mt-1 w-full text-center text-[11px] text-neutral-500 hover:text-neutral-700 font-medium py-1 rounded-lg hover:bg-neutral-50 transition-all border border-dashed border-neutral-200 hover:border-neutral-300">⚙️ 金庫錢包管理</button>
       </div>
       {/* 運營狀態 */}
       <div className={`${CARD} px-5 py-4 space-y-2`}>
@@ -3660,7 +3797,6 @@ function TrDashboardCards({ stats, loading, onConfigOpen }: { stats: TrStats | n
             </div>
           </div>
         )}
-        <button onClick={onConfigOpen} className="mt-1 w-full text-center text-[11px] text-[#1a73e8] hover:text-[#1557b0] font-medium py-1 rounded-lg hover:bg-blue-50 transition-all">配置錢包參數 →</button>
       </div>
     </div>
   );
@@ -3679,6 +3815,27 @@ function TrLedgerTable({ rows, total, page, pageSize, loading, search, onSearch,
 }) {
   const totalPages = Math.ceil(total / pageSize);
   const startIdx = (page - 1) * pageSize;
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const filteredRows = useMemo(() => {
+    if (!dateFrom && !dateTo) return rows;
+    return rows.filter((row) => {
+      if (!row.createdAt) return true;
+      const ts = new Date(row.createdAt).getTime();
+      if (dateFrom && ts < new Date(dateFrom).getTime()) return false;
+      if (dateTo && ts > new Date(dateTo + "T23:59:59").getTime()) return false;
+      return true;
+    });
+  }, [rows, dateFrom, dateTo]);
+
+  const filteredAifTotal = useMemo(
+    () => filteredRows.reduce((sum, r) => sum + r.aifBalance, 0),
+    [filteredRows]
+  );
+
+  const isDateFiltered = !!(dateFrom || dateTo);
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-4 flex-wrap">
@@ -3686,11 +3843,26 @@ function TrLedgerTable({ rows, total, page, pageSize, loading, search, onSearch,
           <h2 className="text-sm font-semibold text-neutral-900">資金流水追蹤</h2>
           <p className="text-xs text-neutral-400 mt-0.5">共 {total} 筆充值地址記錄</p>
         </div>
-        <div className="relative">
-          <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-300 text-sm select-none">⌕</span>
-          <input type="text" value={search} onChange={(e) => onSearch(e.target.value)} placeholder="搜尋地址 / 用戶 / 郵箱"
-            className="bg-white border border-neutral-200 rounded-full pl-9 pr-8 py-2 text-xs text-neutral-700 placeholder-neutral-300 outline-none focus:ring-2 focus:ring-[#1a73e8]/20 focus:border-[#1a73e8]/40 transition-all w-60" />
-          {search && <button onClick={() => onSearch("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-300 hover:text-neutral-500 text-xs">✕</button>}
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <label className="text-[10px] text-neutral-400 whitespace-nowrap">開始日期</label>
+            <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)}
+              className="bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs text-neutral-700 outline-none focus:ring-2 focus:ring-[#1a73e8]/20 focus:border-[#1a73e8]/40 transition-all" />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <label className="text-[10px] text-neutral-400 whitespace-nowrap">結束日期</label>
+            <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)}
+              className="bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs text-neutral-700 outline-none focus:ring-2 focus:ring-[#1a73e8]/20 focus:border-[#1a73e8]/40 transition-all" />
+          </div>
+          {isDateFiltered && (
+            <button onClick={() => { setDateFrom(""); setDateTo(""); }} className="text-[10px] text-neutral-400 hover:text-neutral-600 px-2 py-1 rounded hover:bg-neutral-100 transition-all">✕ 清除</button>
+          )}
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-neutral-300 text-sm select-none">⌕</span>
+            <input type="text" value={search} onChange={(e) => onSearch(e.target.value)} placeholder="搜尋地址 / 用戶 / 郵箱"
+              className="bg-white border border-neutral-200 rounded-full pl-9 pr-8 py-2 text-xs text-neutral-700 placeholder-neutral-300 outline-none focus:ring-2 focus:ring-[#1a73e8]/20 focus:border-[#1a73e8]/40 transition-all w-56" />
+            {search && <button onClick={() => onSearch("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-neutral-300 hover:text-neutral-500 text-xs">✕</button>}
+          </div>
         </div>
       </div>
       <div className={`${CARD} overflow-x-auto`}>
@@ -3699,12 +3871,12 @@ function TrLedgerTable({ rows, total, page, pageSize, loading, search, onSearch,
         </div>
         {loading ? (
           <div className="py-16 text-center text-neutral-400 text-xs animate-pulse" style={{ minWidth: TR_MIN_W }}>載入中…</div>
-        ) : rows.length === 0 ? (
+        ) : filteredRows.length === 0 ? (
           <div className="py-16 text-center" style={{ minWidth: TR_MIN_W }}>
             <div className="text-neutral-200 text-4xl mb-2">◎</div>
-            <div className="text-neutral-400 text-xs">{search ? "找不到匹配記錄" : "暫無充值地址數據"}</div>
+            <div className="text-neutral-400 text-xs">{search || isDateFiltered ? "找不到匹配記錄" : "暫無充值地址數據"}</div>
           </div>
-        ) : rows.map((row, idx) => (
+        ) : filteredRows.map((row, idx) => (
           <div key={row.depositAddress} className="grid border-b border-neutral-100 last:border-b-0 hover:bg-neutral-50/40 transition-colors" style={{ gridTemplateColumns: TR_GRID, minWidth: TR_MIN_W }}>
             <div className="px-3 py-3 flex items-center"><span className="text-[10px] text-neutral-400 font-mono">{startIdx + idx + 1}</span></div>
             <div className="px-3 py-3 flex flex-col gap-0.5 justify-center">
@@ -3736,11 +3908,33 @@ function TrLedgerTable({ rows, total, page, pageSize, loading, search, onSearch,
               <button
                 onClick={() => onForceSweep(row)}
                 disabled={row.swept || sweepingAddr === row.depositAddress || row.aifBalance === 0}
-                className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition-all ${row.swept || row.aifBalance === 0 ? "border-neutral-100 text-neutral-300 cursor-not-allowed" : sweepingAddr === row.depositAddress ? "border-[#1a73e8]/30 text-[#1a73e8] opacity-60 cursor-wait" : "border-[#1a73e8]/30 text-[#1a73e8] hover:bg-blue-50 hover:border-[#1a73e8]/50"}`}
+                className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition-all whitespace-nowrap ${row.swept || row.aifBalance === 0 ? "border-neutral-100 text-neutral-300 cursor-not-allowed" : sweepingAddr === row.depositAddress ? "border-[#1a73e8]/30 text-[#1a73e8] opacity-60 cursor-wait" : "border-[#1a73e8]/30 text-[#1a73e8] hover:bg-blue-50 hover:border-[#1a73e8]/50"}`}
               >{sweepingAddr === row.depositAddress ? "歸集中…" : "手動歸集"}</button>
             </div>
           </div>
         ))}
+        {/* 統計列 */}
+        {!loading && filteredRows.length > 0 && (
+          <div className="grid border-t-2 border-neutral-100 bg-neutral-50/80" style={{ gridTemplateColumns: TR_GRID, minWidth: TR_MIN_W }}>
+            <div className="px-3 py-2.5 col-span-3 flex items-center">
+              <span className="text-[10px] font-semibold text-neutral-500">
+                {isDateFiltered ? `篩選區間（${dateFrom || "…"} ～ ${dateTo || "…"}）` : "當前頁合計"}
+              </span>
+            </div>
+            <div className="px-3 py-2.5 flex items-center">
+              <span className="text-xs font-bold text-[#1a73e8] tabular-nums whitespace-nowrap">
+                {trFormatAIF(filteredAifTotal)} <span className="font-normal text-neutral-400 text-[10px]">AIF</span>
+              </span>
+            </div>
+            <div className="px-3 py-2.5 col-span-3 flex items-center">
+              <span className="text-[10px] text-neutral-400">
+                {isDateFiltered
+                  ? `篩選區間 AIF 總計：${trFormatAIF(filteredAifTotal)} AIF`
+                  : `共 ${filteredRows.length} 筆`}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-xs text-neutral-400">
@@ -3766,9 +3960,9 @@ function FinTreasuryTab({ t: _t }: { t: T }) {
   const [ledgerPage, setLedgerPage] = useState(1);
   const [ledgerSearch, setLedgerSearch] = useState("");
   const [trToasts, setTrToasts] = useState<{ id: number; msg: string; ok: boolean }[]>([]);
-  const [configOpen, setConfigOpen] = useState(false);
+  const [fundingConfigOpen, setFundingConfigOpen] = useState(false);
+  const [treasuryConfigOpen, setTreasuryConfigOpen] = useState(false);
   const [sweepDustOpen, setSweepDustOpen] = useState(false);
-  const [sweepDustLoading, setSweepDustLoading] = useState(false);
   const [forceSweepTarget, setForceSweepTarget] = useState<TrLedgerRow | null>(null);
   const [sweepingAddr, setSweepingAddr] = useState<string | null>(null);
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -3813,18 +4007,6 @@ function FinTreasuryTab({ t: _t }: { t: T }) {
 
   useEffect(() => { fetchLedger(ledgerPage, ledgerSearch); }, [ledgerPage]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleSweepDust() {
-    setSweepDustLoading(true);
-    try {
-      const res = await fetch("/api/admin/treasury/sweep-dust", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) { trToast(`Sweep Dust 失敗: ${data.error ?? "未知錯誤"}`, false); return; }
-      trToast(data.message ?? `已歸集 ${data.swept} 個地址`);
-      fetchStats(); fetchLedger(ledgerPage, ledgerSearch);
-    } catch { trToast("Sweep Dust 操作失敗", false); }
-    finally { setSweepDustLoading(false); setSweepDustOpen(false); }
-  }
-
   async function handleForceSweep() {
     if (!forceSweepTarget) return;
     setSweepingAddr(forceSweepTarget.depositAddress);
@@ -3864,7 +4046,7 @@ function FinTreasuryTab({ t: _t }: { t: T }) {
       </div>
 
       {/* 大盤卡片 */}
-      <TrDashboardCards stats={stats} loading={statsLoading} onConfigOpen={() => setConfigOpen(true)} />
+      <TrDashboardCards stats={stats} loading={statsLoading} onFundingConfigOpen={() => setFundingConfigOpen(true)} onTreasuryConfigOpen={() => setTreasuryConfigOpen(true)} />
 
       {/* 流水表 */}
       <TrLedgerTable
@@ -3875,11 +4057,14 @@ function FinTreasuryTab({ t: _t }: { t: T }) {
       />
 
       {/* Modals */}
-      {configOpen && (
-        <TrConfigModal onClose={() => setConfigOpen(false)} onSuccess={() => { trToast("錢包配置已更新"); fetchStats(); }} />
+      {fundingConfigOpen && (
+        <TrFundingConfigModal onClose={() => setFundingConfigOpen(false)} onSuccess={() => { trToast("墊付錢包助記詞已更新"); fetchStats(); }} />
+      )}
+      {treasuryConfigOpen && (
+        <TrTreasuryConfigModal onClose={() => setTreasuryConfigOpen(false)} onSuccess={() => { trToast("金庫錢包地址已更新"); fetchStats(); }} />
       )}
       {sweepDustOpen && (
-        <TrSweepDustModal onClose={() => setSweepDustOpen(false)} onConfirm={handleSweepDust} loading={sweepDustLoading} />
+        <TrSweepDustModal onClose={() => setSweepDustOpen(false)} onSuccess={(msg) => { trToast(msg); fetchStats(); fetchLedger(ledgerPage, ledgerSearch); }} />
       )}
       {forceSweepTarget && (
         <TrForceSweepModal depositAddress={forceSweepTarget.depositAddress} onClose={() => setForceSweepTarget(null)} onConfirm={handleForceSweep} loading={sweepingAddr === forceSweepTarget.depositAddress} />
