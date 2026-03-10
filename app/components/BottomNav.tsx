@@ -33,7 +33,7 @@ export default function BottomNav() {
   };
 
   return (
-    <div className="lg:hidden fixed bottom-0 left-0 w-full z-40 bg-black/95 backdrop-blur-xl border-t border-[#222] pt-2 px-2 flex justify-between items-center h-[80px]">
+    <div className="md:hidden fixed bottom-0 left-0 w-full z-40 bg-black/95 backdrop-blur-xl border-t border-[#222] pt-2 px-2 flex justify-between items-center h-[80px]">
       {NAV_ITEMS.map((item, i) => {
         const isProtected = PROTECTED_HREFS.has(item.href);
 

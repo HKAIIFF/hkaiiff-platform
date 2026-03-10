@@ -1,6 +1,7 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useModal } from "@/app/context/ModalContext";
 import { useI18n } from "@/app/context/I18nContext";
 import { useToast } from "@/app/context/ToastContext";
@@ -26,7 +27,6 @@ interface SupabaseFilm {
   created_at: string;
   is_parallel_universe?: boolean | null;
   parallel_start_time?: string | null;
-  // 關聯自 users 表
   user_avatar_seed?: string | null;
   user_display_name?: string | null;
 }
@@ -48,8 +48,7 @@ function getCountdownSeconds(parallelStartTime: string | null | undefined, now: 
   if (!parallelStartTime) return 0;
   const startTime = new Date(parallelStartTime);
   const endTime = new Date(startTime.getTime() + 9 * 60000);
-  const remaining = Math.floor((endTime.getTime() - now.getTime()) / 1000);
-  return Math.max(0, remaining);
+  return Math.max(0, Math.floor((endTime.getTime() - now.getTime()) / 1000));
 }
 
 function formatCountdown(seconds: number): string {
@@ -91,76 +90,39 @@ function DataInjectionDrawer({
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-end justify-center">
-      {/* 半透明背景 */}
-      <div
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* 底部抽屜 */}
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
       <div
         className="relative w-full max-w-lg rounded-t-2xl border border-[#2a2a2a] bg-black pb-10 pt-5 px-5"
-        style={{
-          background: "linear-gradient(180deg, #0a0a0a 0%, #000 100%)",
-          boxShadow: "0 -4px 40px rgba(204,255,0,0.08)",
-        }}
+        style={{ background: "linear-gradient(180deg, #0a0a0a 0%, #000 100%)", boxShadow: "0 -4px 40px rgba(204,255,0,0.08)" }}
       >
-        {/* 拖動條 */}
         <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-[#333]" />
-
-        {/* 標題 */}
         <div className="mb-1 flex items-center gap-2">
           <i className="fas fa-satellite-dish text-[#CCFF00] text-sm" />
-          <span className="font-mono text-[11px] text-[#CCFF00] tracking-[0.2em] uppercase">
-            DATA INJECTION CONSOLE
-          </span>
+          <span className="font-mono text-[11px] text-[#CCFF00] tracking-[0.2em] uppercase">DATA INJECTION CONSOLE</span>
         </div>
-        <p className="font-mono text-[10px] text-[#555] mb-5 tracking-widest uppercase truncate">
-          TARGET: {filmTitle}
-        </p>
-
-        {/* 注入類型按鈕網格 */}
+        <p className="font-mono text-[10px] text-[#555] mb-5 tracking-widest uppercase truncate">TARGET: {filmTitle}</p>
         <div className="grid grid-cols-5 gap-3 mb-5">
           {injectTypes.map(({ label, icon, color }) => (
             <button
               key={label}
               onClick={handleInject}
               className="flex flex-col items-center gap-2 rounded-lg border border-[#222] p-3 transition-all active:scale-95 hover:border-[#444]"
-              style={{
-                background: "rgba(255,255,255,0.02)",
-              }}
+              style={{ background: "rgba(255,255,255,0.02)" }}
             >
-              <i
-                className={`fas ${icon} text-xl`}
-                style={{ color, filter: `drop-shadow(0 0 6px ${color}40)` }}
-              />
-              <span
-                className="font-mono text-[9px] font-bold tracking-widest"
-                style={{ color }}
-              >
-                [{label}]
-              </span>
+              <i className={`fas ${icon} text-xl`} style={{ color, filter: `drop-shadow(0 0 6px ${color}40)` }} />
+              <span className="font-mono text-[9px] font-bold tracking-widest" style={{ color }}>[{label}]</span>
             </button>
           ))}
         </div>
-
-        {/* 系統狀態文字 */}
         <div className="rounded-lg border border-[#1a1a1a] bg-[#050505] p-3">
           <p className="font-mono text-[9px] text-[#333] tracking-wider">
-            <span className="text-[#CCFF00]">▶ </span>
-            AWAITING AUTHORIZED INJECTOR...
+            <span className="text-[#CCFF00]">▶ </span>AWAITING AUTHORIZED INJECTOR...
           </p>
           <p className="font-mono text-[9px] text-[#333] tracking-wider mt-1">
-            <span className="text-[#FF6B00]">⚠ </span>
-            INVITATION-ONLY ACCESS PROTOCOL ACTIVE
+            <span className="text-[#FF6B00]">⚠ </span>INVITATION-ONLY ACCESS PROTOCOL ACTIVE
           </p>
         </div>
-
-        {/* 關閉按鈕 */}
-        <button
-          onClick={onClose}
-          className="mt-4 w-full rounded-lg border border-[#333] py-2.5 font-mono text-[10px] text-[#555] tracking-widest hover:border-[#555] hover:text-[#888] transition-colors"
-        >
+        <button onClick={onClose} className="mt-4 w-full rounded-lg border border-[#333] py-2.5 font-mono text-[10px] text-[#555] tracking-widest hover:border-[#555] hover:text-[#888] transition-colors">
           [ESC] ABORT INJECTION
         </button>
       </div>
@@ -197,34 +159,25 @@ function toModalFilm(f: SupabaseFilm): Film {
 
 function LoadingSkeleton() {
   return (
-    <div
-      className="w-full flex-shrink-0 flex flex-col items-center justify-center bg-black"
-      style={{ height: "100dvh" }}
-    >
+    <div className="w-full flex-shrink-0 flex flex-col items-center justify-center bg-black" style={{ height: "100dvh" }}>
       <div className="w-8 h-8 border-2 border-[#CCFF00] border-t-transparent rounded-full animate-spin mb-4" />
-      <span className="text-[#CCFF00] font-mono text-xs tracking-widest uppercase">
-        Loading Feed
-      </span>
+      <span className="text-[#CCFF00] font-mono text-xs tracking-widest uppercase">Loading Feed</span>
     </div>
   );
 }
-
-// ─── Empty State ──────────────────────────────────────────────────────────────
 
 function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-black">
       <i className="fas fa-film text-4xl mb-4 text-[#333]" />
-      <span className="text-gray-500 font-mono tracking-widest">
-        NO FILMS FOUND
-      </span>
+      <span className="text-gray-500 font-mono tracking-widest">NO FILMS FOUND</span>
     </div>
   );
 }
 
-// ─── FeedItem ─────────────────────────────────────────────────────────────────
+// ─── Mobile FeedItem (TikTok) ─────────────────────────────────────────────────
 
-function FeedItem({
+function MobileFeedItem({
   film,
   isMuted,
   onToggleMute,
@@ -240,31 +193,22 @@ function FeedItem({
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
 
-  const { setActiveModal, setSelectedFilm, setSelectedCreator, setSelectedCreatorUserId } =
-    useModal();
+  const { setActiveModal, setSelectedFilm, setSelectedCreator, setSelectedCreatorUserId } = useModal();
   const { lang } = useI18n();
   const { showToast } = useToast();
   const { authenticated, login } = usePrivy();
 
-  // ── 每秒更新當前時間（驅動倒計時）────────────────────────────────────────
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTime(new Date());
-    }, 1000);
+    const interval = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // ── 計算平行宇宙狀態 ─────────────────────────────────────────────────────
   const parallelState = getParallelState(film.parallel_start_time, currentTime);
-  const countdownSeconds = parallelState === "LIVE"
-    ? getCountdownSeconds(film.parallel_start_time, currentTime)
-    : 0;
+  const countdownSeconds = parallelState === "LIVE" ? getCountdownSeconds(film.parallel_start_time, currentTime) : 0;
 
-  // ── IntersectionObserver: auto-play / pause when scrolled into view ──────
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
-
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
@@ -276,16 +220,14 @@ function FeedItem({
       },
       { threshold: [0, 0.6, 1] }
     );
-
     observer.observe(video);
     return () => observer.disconnect();
   }, []);
 
-  // ── Share handler (Web Share API with clipboard fallback) ─────────────────
   const handleShare = async () => {
     const shareData = {
       title: film.title,
-      text: `Check out "${film.title}" at the Hong Kong AI International Film Festival! 香港人工智能國際電影節`,
+      text: `Check out "${film.title}" at the Hong Kong AI International Film Festival!`,
       url: typeof window !== "undefined" ? window.location.origin : "",
     };
     try {
@@ -293,49 +235,23 @@ function FeedItem({
         await navigator.share(shareData);
       } else {
         await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
-        showToast(lang === "en" ? "Link copied to clipboard!" : "鏈接已複製到剪貼板！", "success");
+        showToast(lang === "en" ? "Link copied!" : "鏈接已複製！", "success");
       }
-    } catch (err) {
-      console.log("Error sharing:", err);
-    }
+    } catch {}
   };
 
-  // ── 點擊指紋按鈕：開啟 Data Injection 抽屜（需登錄）────────────────────
   const handleParallelClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!authenticated) {
-      showToast(
-        lang === "en"
-          ? "Please connect wallet to interact."
-          : "請先登錄以進行交互。",
-        "error"
-      );
-      login();
-      return;
-    }
+    if (!authenticated) { showToast(lang === "en" ? "Please connect wallet." : "請先登錄。", "error"); login(); return; }
     setDrawerOpen(true);
   };
 
-  // ── 點擊 MINT TO CHAIN 按鈕（需登錄，鏈上寫入操作）────────────────────
   const handleMintToChain = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!authenticated) {
-      showToast(
-        lang === "en"
-          ? "Please connect wallet to mint."
-          : "請先連接錢包以進行鑄造。",
-        "error"
-      );
-      login();
-      return;
-    }
-    showToast(
-      lang === "en" ? "Minting coming soon..." : "鏈上鑄造功能即將上線。",
-      "info"
-    );
+    if (!authenticated) { showToast(lang === "en" ? "Please connect wallet." : "請先連接錢包。", "error"); login(); return; }
+    showToast(lang === "en" ? "Minting coming soon..." : "鏈上鑄造即將上線。", "info");
   };
 
-  // ── Swipe gesture: left → show parallel universe, right → hide ───────────
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;
@@ -344,32 +260,22 @@ function FeedItem({
   const handleTouchEnd = (e: React.TouchEvent) => {
     const diffX = touchStartX.current - e.changedTouches[0].clientX;
     const diffY = touchStartY.current - e.changedTouches[0].clientY;
-    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 60) {
-      setShowUser(diffX > 0);
-    }
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 60) setShowUser(diffX > 0);
   };
 
-  // OSS media URLs — 绝不从 DB 直接渲染，全部通过 buildOssUrl 构建
-  const videoSrc = buildOssUrl(
-    film.trailer_url || film.feature_url || film.video_url || null
-  ) || undefined;
+  const videoSrc = buildOssUrl(film.trailer_url || film.feature_url || film.video_url || null) || undefined;
   const posterSrc = buildOssUrl(film.poster_url) || undefined;
-
-  // 使用 users 表最新的 avatar_seed（bottts 風格與 Me 頁保持一致）
   const avatarSeed = film.user_avatar_seed ?? film.studio ?? film.id;
   const avatarUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(avatarSeed)}`;
 
   return (
     <>
-      {/* ── feed-item：嚴格對應 index.html .feed-item ── */}
       <div
         className={`feed-item${showUser ? " show-user" : ""}`}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {/* ── layer-original ── */}
         <div className="layer-original">
-          {/* bg-media：視頻元素作為背景 */}
           <video
             ref={videoRef}
             className="bg-media"
@@ -381,31 +287,17 @@ function FeedItem({
             autoPlay
             preload="none"
           />
-
-          {/* 漸變蒙版 — pointer-events-none 確保不攔截按鈕點擊 */}
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-90 pointer-events-none" />
-
-          {/* ── ui-layer：嚴格對應 index.html .ui-layer ── */}
           <div className="ui-layer">
             <div className="ui-content">
-
-              {/* ── ui-left：標題 / 工作室標籤 / 簡介 ── */}
               <div className="ui-left pb-2">
                 <div className="tag bg-white text-black text-[10px] font-bold px-2 py-1 inline-block mb-2 rounded-sm">
                   {film.studio ?? "ANONYMOUS"}
                 </div>
-                <h2 className="font-heavy text-4xl text-white drop-shadow-lg mb-2 leading-none">
-                  {film.title}
-                </h2>
-                <p className="font-mono text-xs text-gray-300 drop-shadow line-clamp-2 w-full">
-                  {film.tech_stack ?? ""}
-                </p>
+                <h2 className="font-heavy text-4xl text-white drop-shadow-lg mb-2 leading-none">{film.title}</h2>
+                <p className="font-mono text-xs text-gray-300 drop-shadow line-clamp-2 w-full">{film.tech_stack ?? ""}</p>
               </div>
-
-              {/* ── ui-right：操作按鈕 ── */}
               <div className="ui-right">
-
-                {/* 按鈕 0 ── 靜音 / 取消靜音 */}
                 <button
                   onClick={(e) => { e.stopPropagation(); onToggleMute(); }}
                   className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
@@ -413,57 +305,34 @@ function FeedItem({
                   <i className={"fas " + (isMuted ? "fa-volume-mute" : "fa-volume-up") + " text-3xl text-white drop-shadow-md"} />
                   <span className="text-[9px] text-white font-mono font-bold">{isMuted ? "UNMUTE" : "MUTED"}</span>
                 </button>
-
-                {/* 按鈕 1 ── 創作者頭像（有 user_id 則跳轉 Creator 頁面） */}
                 {film.user_id ? (
                   <Link
                     href={`/creator/${film.user_id}`}
-                    className="relative mb-2 active:scale-95 transition-transform flex flex-col items-center outline-none focus:outline-none [-webkit-tap-highlight-color:transparent]"
+                    className="relative mb-2 active:scale-95 transition-transform flex flex-col items-center outline-none [-webkit-tap-highlight-color:transparent]"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <img
-                      src={avatarUrl}
-                      alt={film.user_display_name ?? film.studio ?? "creator"}
-                      className="w-12 h-12 border-2 border-white rounded-full bg-black shadow-lg"
-                    />
+                    <img src={avatarUrl} alt={film.user_display_name ?? film.studio ?? "creator"} className="w-12 h-12 border-2 border-white rounded-full bg-black shadow-lg" />
                     <div className="w-2 h-2 rounded-full bg-signal absolute -bottom-0.5 -right-0.5 border border-black" />
                   </Link>
                 ) : (
                   <div className="relative mb-2 flex flex-col items-center">
-                    <img
-                      src={avatarUrl}
-                      alt={film.studio ?? ""}
-                      className="w-12 h-12 border-2 border-white rounded-full bg-black shadow-lg"
-                    />
+                    <img src={avatarUrl} alt={film.studio ?? ""} className="w-12 h-12 border-2 border-white rounded-full bg-black shadow-lg" />
                   </div>
                 )}
-
-                {/* 按鈕 2 ── 平行宇宙指紋按鈕（基於 parallel_start_time 時間戳）*/}
                 {parallelState !== "NONE" && (
                   <div className="flex flex-col items-center relative z-20">
                     {parallelState === "EXPIRED" ? (
-                      /* 已過期 */
                       <button className="flex flex-col items-center gap-1 opacity-50 cursor-not-allowed">
                         <i className="fas fa-ban text-3xl text-gray-500" />
                         <span className="text-[9px] text-gray-500 font-mono font-bold mt-1 tracking-wider">EXPIRED</span>
                       </button>
                     ) : parallelState === "PENDING" ? (
-                      /* 等待中 */
-                      <button
-                        onClick={handleParallelClick}
-                        className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
-                      >
+                      <button onClick={handleParallelClick} className="flex flex-col items-center gap-1 active:scale-90 transition-transform">
                         <i className="fas fa-fingerprint text-3xl text-gray-400 drop-shadow-md" />
-                        <div className="text-[9px] text-gray-400 border border-gray-600 px-1.5 rounded-sm font-mono font-bold mt-1 tracking-wider">
-                          QUEUED
-                        </div>
+                        <div className="text-[9px] text-gray-400 border border-gray-600 px-1.5 rounded-sm font-mono font-bold mt-1 tracking-wider">QUEUED</div>
                       </button>
                     ) : (
-                      /* LIVE 倒計時中 */
-                      <button
-                        onClick={handleParallelClick}
-                        className="flex flex-col items-center gap-1 active:scale-90 transition-transform"
-                      >
+                      <button onClick={handleParallelClick} className="flex flex-col items-center gap-1 active:scale-90 transition-transform">
                         <div className="relative">
                           <i className="fas fa-fingerprint text-3xl text-[#CCFF00] drop-shadow-[0_0_8px_rgba(204,255,0,0.6)]" />
                         </div>
@@ -474,24 +343,14 @@ function FeedItem({
                     )}
                   </div>
                 )}
-
-                {/* 按鈕 3 ── 轉發 (Forward) — Web Share API + clipboard fallback */}
-                <div
-                  onClick={handleShare}
-                  className="cursor-pointer flex flex-col items-center gap-1 active:scale-95 transition-transform"
-                >
+                <div onClick={handleShare} className="cursor-pointer flex flex-col items-center gap-1 active:scale-95 transition-transform">
                   <div className="w-10 h-10 bg-black/60 backdrop-blur border border-[#444] flex items-center justify-center text-white rounded-full shadow-lg">
                     <i className="fas fa-share text-sm" />
                   </div>
                   <span className="text-[9px] font-mono">FORWARD</span>
                 </div>
-
-                {/* 按鈕 4 ── INFO */}
                 <div
-                  onClick={() => {
-                    setSelectedFilm(toModalFilm(film));
-                    setActiveModal("info");
-                  }}
+                  onClick={() => { setSelectedFilm(toModalFilm(film)); setActiveModal("info"); }}
                   className="cursor-pointer flex flex-col items-center gap-1 active:scale-95 transition-transform w-full"
                 >
                   <div className="w-10 h-10 bg-black/60 backdrop-blur border border-[#444] flex items-center justify-center text-white rounded-full shadow-lg">
@@ -499,49 +358,151 @@ function FeedItem({
                   </div>
                   <span className="text-[9px] font-mono text-center">INFO</span>
                 </div>
-
               </div>
             </div>
           </div>
         </div>
-
-        {/* ── layer-user（平行宇宙 — 左滑顯示）── */}
         <div
           className="layer-user flex flex-col justify-end pb-24 px-4 bg-cover bg-center"
-          style={{
-            backgroundImage: `linear-gradient(to top, #000 0%, transparent 50%), url('${posterSrc ?? ""}')`,
-          }}
+          style={{ backgroundImage: `linear-gradient(to top, #000 0%, transparent 50%), url('${posterSrc ?? ""}')` }}
         >
           <div className="user-frame" />
           <h2 className="font-heavy text-4xl text-white mb-1 drop-shadow-md flex items-center gap-2 relative z-10">
             YOUR PARALLEL UNIVERSE
           </h2>
           <p className="font-mono text-xs text-gray-300 mb-4 w-4/5 relative z-10">
-            Rendered based on your specific hash:{" "}
-            <span className="text-[#CCFF00]">{film.id.slice(0, 8)}</span>
+            Rendered based on your specific hash: <span className="text-[#CCFF00]">{film.id.slice(0, 8)}</span>
           </p>
-          <button
-            onClick={handleMintToChain}
-            className="brutal-btn w-full max-w-xs mt-2 text-sm relative z-10 active:scale-95"
-          >
+          <button onClick={handleMintToChain} className="brutal-btn w-full max-w-xs mt-2 text-sm relative z-10 active:scale-95">
             <i className="fas fa-link mr-2" /> MINT TO CHAIN
           </button>
         </div>
       </div>
-
-      {/* ── Data Injection 抽屜 ── */}
-      <DataInjectionDrawer
-        isOpen={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        filmTitle={film.title}
-      />
+      <DataInjectionDrawer isOpen={drawerOpen} onClose={() => setDrawerOpen(false)} filmTitle={film.title} />
     </>
   );
 }
 
-// ─── FeedPage ─────────────────────────────────────────────────────────────────
+// ─── Desktop Grid Card (Masonry-style hover card) ─────────────────────────────
 
-export default function FeedPage() {
+function DesktopGridCard({ film }: { film: SupabaseFilm }) {
+  const { setActiveModal, setSelectedFilm } = useModal();
+  const posterSrc = buildOssUrl(film.poster_url) || undefined;
+  const avatarSeed = film.user_avatar_seed ?? film.studio ?? film.id;
+  const avatarUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(avatarSeed)}`;
+
+  // Vary card heights for masonry visual rhythm
+  const heightClass = (() => {
+    const h = (film.id.charCodeAt(0) + film.id.charCodeAt(1)) % 4;
+    return ["h-48", "h-64", "h-56", "h-72"][h];
+  })();
+
+  const aiRatioPct = film.ai_ratio != null ? `${Math.round(film.ai_ratio * 100)}%` : null;
+
+  return (
+    <div
+      className={`relative overflow-hidden rounded-xl bg-[#111] cursor-pointer group ${heightClass} border border-[#1a1a1a] hover:border-signal/30 transition-all duration-300`}
+      onClick={() => { setSelectedFilm(toModalFilm(film)); setActiveModal("info"); }}
+    >
+      {/* Poster image — fills card */}
+      {posterSrc ? (
+        <img
+          src={posterSrc}
+          alt={film.title}
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          loading="lazy"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] flex items-center justify-center">
+          <i className="fas fa-film text-[#333] text-3xl" />
+        </div>
+      )}
+
+      {/* Hover overlay — slides up from bottom */}
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/70 transition-all duration-300 rounded-xl" />
+      <div className="absolute inset-0 flex flex-col justify-end p-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
+        {/* Creator avatar + name */}
+        <div className="flex items-center gap-2 mb-2">
+          <img src={avatarUrl} alt={film.studio ?? ""} className="w-7 h-7 rounded-full border border-[#555] bg-black shrink-0" />
+          <span className="text-[10px] font-mono text-gray-300 truncate">{film.studio ?? "ANONYMOUS"}</span>
+          {aiRatioPct && (
+            <span className="ml-auto text-[8px] font-mono bg-signal/10 border border-signal/30 text-signal px-1.5 py-0.5 rounded shrink-0">
+              AIF {aiRatioPct}
+            </span>
+          )}
+        </div>
+
+        {/* Title */}
+        <h3 className="font-heavy text-sm text-white leading-tight mb-2 line-clamp-2">{film.title}</h3>
+
+        {/* Play button row */}
+        <div className="flex items-center gap-2">
+          <button
+            className="flex items-center gap-1.5 bg-signal text-black text-[9px] font-bold font-mono px-3 py-1.5 rounded-full hover:bg-white transition-colors"
+            onClick={(e) => { e.stopPropagation(); setSelectedFilm(toModalFilm(film)); setActiveModal("info"); }}
+          >
+            <i className="fas fa-play text-[8px]" /> PLAY
+          </button>
+          {film.tech_stack && (
+            <span className="text-[8px] font-mono text-[#555] truncate">{film.tech_stack.slice(0, 24)}</span>
+          )}
+        </div>
+      </div>
+
+      {/* LIVE badge */}
+      {(() => {
+        const state = getParallelState(film.parallel_start_time, new Date());
+        if (state !== "LIVE") return null;
+        return (
+          <div className="absolute top-2 left-2 bg-signal text-black text-[8px] font-bold font-mono px-2 py-0.5 rounded-full animate-pulse">
+            ● LIVE
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+// ─── Desktop Grid (Masonry layout) ────────────────────────────────────────────
+
+function DesktopGrid({ films, searchQuery }: { films: SupabaseFilm[]; searchQuery: string }) {
+  const filtered = searchQuery.trim()
+    ? films.filter((f) => {
+        const q = searchQuery.toLowerCase();
+        return (
+          f.title.toLowerCase().includes(q) ||
+          (f.studio ?? "").toLowerCase().includes(q) ||
+          (f.tech_stack ?? "").toLowerCase().includes(q)
+        );
+      })
+    : films;
+
+  if (filtered.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-32 gap-4">
+        <i className="fas fa-search text-3xl text-[#333]" />
+        <span className="text-[#555] font-mono text-xs tracking-widest uppercase">No results for "{searchQuery}"</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 2xl:columns-6 gap-3 p-4 pt-6">
+      {filtered.map((film) => (
+        <div key={film.id} className="break-inside-avoid mb-3">
+          <DesktopGridCard film={film} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Inner Feed (needs useSearchParams — must be wrapped in Suspense) ─────────
+
+function FeedInner() {
+  const searchParams = useSearchParams();
+  const searchQuery = searchParams.get("q") ?? "";
+
   const [films, setFilms] = useState<SupabaseFilm[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
@@ -550,28 +511,18 @@ export default function FeedPage() {
   const { showToast } = useToast();
   const { lang } = useI18n();
 
-  // 處理 middleware 重定向後帶來的 authRequired=1 查詢參數，自動觸發登錄框
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("authRequired") === "1") {
-      showToast(
-        lang === "en"
-          ? "Please connect wallet / login first."
-          : "請先登錄或連接錢包。",
-        "error"
-      );
+      showToast(lang === "en" ? "Please connect wallet / login first." : "請先登錄或連接錢包。", "error");
       login();
-      // 清除查詢參數，避免刷新時重複觸發
-      const cleanUrl = window.location.pathname;
-      window.history.replaceState({}, "", cleanUrl);
+      window.history.replaceState({}, "", window.location.pathname);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleToggleMute = useCallback(() => {
-    setIsMuted((prev) => !prev);
-  }, []);
+  const handleToggleMute = useCallback(() => setIsMuted((prev) => !prev), []);
 
   useEffect(() => {
     async function fetchFilms() {
@@ -583,8 +534,6 @@ export default function FeedPage() {
 
       if (data) {
         const films = data as SupabaseFilm[];
-
-        // 批量拉取所有創作者的 avatar_seed（user_id 去重）
         const userIds = [...new Set(films.filter((f) => f.user_id).map((f) => f.user_id as string))];
         let userMap: Record<string, { avatar_seed: string | null; display_name: string | null }> = {};
         if (userIds.length > 0) {
@@ -601,53 +550,58 @@ export default function FeedPage() {
             );
           }
         }
-
-        // 將 user 資料合併到每部影片
         const enriched = films.map((f) => ({
           ...f,
           user_avatar_seed: f.user_id ? (userMap[f.user_id]?.avatar_seed ?? null) : null,
           user_display_name: f.user_id ? (userMap[f.user_id]?.display_name ?? null) : null,
         }));
-
         const now = new Date();
-        // LIVE 影片（正在倒計時的）優先插到最前面
         const sorted = [...enriched].sort((a, b) => {
-          const stateA = getParallelState(a.parallel_start_time, now);
-          const stateB = getParallelState(b.parallel_start_time, now);
-          const priority = (s: ParallelState) =>
-            s === "LIVE" ? 0 : s === "PENDING" ? 1 : 2;
-          return priority(stateA) - priority(stateB);
+          const priority = (s: ParallelState) => (s === "LIVE" ? 0 : s === "PENDING" ? 1 : 2);
+          return priority(getParallelState(a.parallel_start_time, now)) - priority(getParallelState(b.parallel_start_time, now));
         });
         setFilms(sorted);
       }
       setLoading(false);
     }
-
     fetchFilms();
   }, []);
 
-  if (loading) {
-    return <LoadingSkeleton />;
-  }
-
-  if (films.length === 0) {
-    return <EmptyState />;
-  }
+  if (loading) return <LoadingSkeleton />;
+  if (films.length === 0) return <EmptyState />;
 
   return (
-    <div
-      id="feed-scroll"
-      className="no-scrollbar"
-      style={{ height: "100dvh" }}
-    >
-      {films.map((film) => (
-        <FeedItem
-          key={film.id}
-          film={film}
-          isMuted={isMuted}
-          onToggleMute={handleToggleMute}
-        />
-      ))}
-    </div>
+    <>
+      {/* ── Desktop: Masonry Grid (md:+) ── */}
+      <div className="hidden md:block w-full min-h-full">
+        <DesktopGrid films={films} searchQuery={searchQuery} />
+      </div>
+
+      {/* ── Mobile: TikTok vertical feed (<md) ── */}
+      <div
+        id="feed-scroll"
+        className="md:hidden no-scrollbar"
+        style={{ height: "100dvh" }}
+      >
+        {films.map((film) => (
+          <MobileFeedItem
+            key={film.id}
+            film={film}
+            isMuted={isMuted}
+            onToggleMute={handleToggleMute}
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
+// ─── FeedPage ─────────────────────────────────────────────────────────────────
+
+export default function FeedPage() {
+  return (
+    <Suspense fallback={<LoadingSkeleton />}>
+      <FeedInner />
+    </Suspense>
   );
 }

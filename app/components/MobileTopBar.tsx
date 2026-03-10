@@ -7,7 +7,7 @@ export default function MobileTopBar() {
   const { setActiveModal } = useModal();
 
   return (
-    <div className="lg:hidden fixed top-0 left-0 w-full z-30 px-4 pt-12 flex justify-between items-start pointer-events-none">
+    <div className="md:hidden fixed top-0 left-0 w-full z-30 px-4 pt-12 flex justify-between items-start pointer-events-none">
       {/* Logo */}
       <Link
         href="/"

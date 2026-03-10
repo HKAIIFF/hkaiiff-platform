@@ -16,16 +16,16 @@ body {
 }
 
 /* ─── Scrollbar ─────────────────────────────────────────────────────────────── */
-/* Mobile: force hide */
-@media (max-width: 1023px) {
+/* Mobile (<md 768px): force hide */
+@media (max-width: 767px) {
   ::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
   * { scrollbar-width: none; -ms-overflow-style: none; }
 }
-/* Desktop: slim styled */
-@media (min-width: 1024px) {
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
+/* Desktop (md+ 768px): slim styled */
+@media (min-width: 768px) {
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
   ::-webkit-scrollbar-thumb:hover { background: #ccff00; }
 }
 
