@@ -7,17 +7,18 @@
  *  - 必須攜帶有效的 Privy Access Token（Bearer）
  *  - 使用 Supabase Service Role Key（服務端）讀寫數據庫
  *  - 主助記詞 MASTER_SEED_PHRASE 僅在服務端使用，絕不暴露給前端
- *  - 冪等：已有充值地址的用戶直接返回，不重新派生
+ *  - 冪等：已有充值地址的用戶，仍會嘗試補全鏈上 ATA（確保激活完整）
  *
- * 防爆容錯：
- *  - 若 Supabase 中查無此用戶（sync-user 尚未完成等競態情況），
- *    自動以 userId + walletAddress 執行 upsert 創建用戶行，再繼續分配地址。
+ * Vercel Serverless 防護：
+ *  - preActivateUserATA 採用同步阻塞模式（await），確保響應返回前交易已完成
+ *  - withTimeout 設置 15 秒超時上限，RPC 超時時返回用戶友好錯誤信息
+ *  - 交易在響應前完成，進程退出不會造成任何狀態不一致
  */
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { PrivyClient } from '@privy-io/server-auth';
-import { generateUserWallet } from '@/lib/solana/hdWallet';
+import { generateUserWallet, preActivateUserATA } from '@/lib/solana/hdWallet';
 
 // ── 服務端 Supabase 客戶端（繞過 RLS） ─────────────────────────────────────
 const adminSupabase = createClient(
@@ -31,6 +32,23 @@ const privyClient = new PrivyClient(
   process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
   process.env.PRIVY_APP_SECRET!
 );
+
+/**
+ * RPC 超時包裝器：Promise 超過指定毫秒數時自動 reject。
+ * 用於保護 preActivateUserATA，防止 RPC 節點無響應時 Vercel 函數被掛起。
+ */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(
+      () => reject(new Error(`網絡擁堵，RPC 節點響應超過 ${ms / 1000} 秒，請稍後重試`)),
+      ms
+    )
+  );
+  return Promise.race([promise, timeout]);
+}
+
+/** AIF ATA 預激活超時上限（毫秒） */
+const ATA_ACTIVATE_TIMEOUT_MS = 15_000;
 
 export async function POST(req: Request) {
   try {
@@ -100,7 +118,6 @@ export async function POST(req: Request) {
         console.log(`[wallet/assign] 用戶 ${userId} 已自動創建，繼續分配充值地址...`);
         // 新用戶無 deposit_address，直接進入 Step 4
       } else {
-        // 其他意料外的資料庫錯誤
         console.error('[wallet/assign] 查詢用戶失敗 (非 PGRST116):', fetchError);
         return NextResponse.json(
           { error: `Database error: ${fetchError.message}` },
@@ -108,7 +125,19 @@ export async function POST(req: Request) {
         );
       }
     } else if (userData?.deposit_address) {
-      // 用戶已有充值地址，冪等返回（不重複派生）
+      // 用戶已有充值地址 —— 冪等補全：確保 ATA 已激活
+      // 即使上次調用在 preActivate 步驟失敗，此處重試可補全激活狀態
+      console.log(`[wallet/assign] 用戶 ${userId} 已有充值地址，檢查 ATA 激活狀態...`);
+      try {
+        await withTimeout(
+          preActivateUserATA(userData.deposit_address),
+          ATA_ACTIVATE_TIMEOUT_MS
+        );
+      } catch (activateErr: unknown) {
+        const msg = activateErr instanceof Error ? activateErr.message : String(activateErr);
+        console.error(`[wallet/assign] ATA 補全激活失敗（已有地址）: ${msg}`);
+        // 冪等補全失敗不阻塞：用戶仍能獲取已有的充值地址
+      }
       return NextResponse.json({ address: userData.deposit_address });
     }
 
@@ -149,6 +178,34 @@ export async function POST(req: Request) {
     }
 
     console.log(`[wallet/assign] ✅ 充值地址已成功分配 → ${userId}: ${depositAddress}`);
+
+    // ── Step 7: 同步阻塞執行 AIF ATA 預激活（含 15 秒超時保護）────────────
+    // 【重要】必須 await，確保交易在 Vercel 函數退出前完成，防止進程被 Kill
+    try {
+      const result = await withTimeout(
+        preActivateUserATA(depositAddress),
+        ATA_ACTIVATE_TIMEOUT_MS
+      );
+      console.log(
+        `[wallet/assign] ✅ ATA 預激活完成 (${result.status}) | ` +
+        `SOL轉入: ${result.solTransferred} | ATA創建: ${result.ataCreated} | ` +
+        `tx: ${result.txSignature ?? 'skipped'}`
+      );
+    } catch (activateErr: unknown) {
+      const msg = activateErr instanceof Error ? activateErr.message : String(activateErr);
+      console.error(`[wallet/assign] ATA 預激活失敗: ${msg}`);
+      // 充值地址已寫入 DB，用戶下次調用此 API 時會在 Step 3 補全激活
+      // 返回 503 讓前端提示用戶重試，而不是靜默返回可能未激活的地址
+      return NextResponse.json(
+        {
+          error: msg,
+          address: depositAddress,
+          hint: '充值地址已生成，但 ATA 激活暫時失敗。請稍後重試，平台將自動補全激活。',
+        },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json({ address: depositAddress });
 
   } catch (err: unknown) {
