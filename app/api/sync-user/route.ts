@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase';
 
+/** PostgreSQL unique_violation error code */
+const PG_UNIQUE_VIOLATION = '23505';
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { user } = body;
-    if (!user || !user.id) return NextResponse.json({ error: 'No user data' }, { status: 400 });
+    if (!user || !user.id) {
+      return NextResponse.json({ error: 'No user data' }, { status: 400 });
+    }
 
     const email: string | null = user.email?.address || null;
     const now = new Date().toISOString();
@@ -30,7 +35,11 @@ export async function POST(req: Request) {
           .eq('id', existing.id)
           .select()
           .single();
-        if (updateErr) throw updateErr;
+
+        if (updateErr) {
+          console.error('[sync-user] update existing-email record error:', updateErr.message);
+          return NextResponse.json({ error: updateErr.message }, { status: 400 });
+        }
         return NextResponse.json(updated);
       }
     }
@@ -51,12 +60,40 @@ export async function POST(req: Request) {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      // 競態條件：email unique constraint 被另一個並發請求搶先觸發
+      // fallback：改以 email 為條件更新既有記錄，避免 500 崩潰
+      if (error.code === PG_UNIQUE_VIOLATION && email) {
+        console.warn('[sync-user] email unique violation (race condition), falling back to email update');
+
+        const { data: fallback, error: fallbackErr } = await supabase
+          .from('users')
+          .update({
+            wallet_address: user.wallet?.address || null,
+            last_sign_in_at: now,
+          })
+          .eq('email', email)
+          .select()
+          .single();
+
+        if (fallbackErr) {
+          console.error('[sync-user] fallback update error:', fallbackErr.message);
+          return NextResponse.json({ error: fallbackErr.message }, { status: 400 });
+        }
+        return NextResponse.json(fallback);
+      }
+
+      // 其他非唯一性錯誤，記錄後回傳 400（不拋出 500）
+      console.error('[sync-user] upsert error:', error.message);
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
     return NextResponse.json(data);
 
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error('Sync Error:', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error('[sync-user] unexpected error:', msg);
+    // 回傳 400 而非 500，保持 API 穩定性
+    return NextResponse.json({ error: msg }, { status: 400 });
   }
 }
