@@ -13,13 +13,11 @@ import 'server-only';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
-import { getAccount, getAssociatedTokenAddress } from '@solana/spl-token';
-import { derivePath } from 'ed25519-hd-key';
-import { Keypair } from '@solana/web3.js';
-import * as bip39 from 'bip39';
+import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { decryptSeed } from '@/lib/utils/encryption';
+import { getFundingWalletAddressFromSeed } from '@/lib/solana/hdWallet';
 
-const FUNDING_WALLET_PATH = "m/44'/501'/0'/0'";
+// 統一使用 hdWallet.ts 的派生邏輯（Phantom 標準路徑 m/44'/501'/0'/0'）
 const FUNDING_ALARM_THRESHOLD = 2; // SOL，低於此值觸發紅色警告
 
 function createAdminSupabase() {
@@ -30,7 +28,10 @@ function createAdminSupabase() {
   );
 }
 
-/** 從數據庫或環境變量獲取助記詞，派生墊付錢包公鑰 */
+/**
+ * 從數據庫或環境變量獲取助記詞，透過 hdWallet 的標準路徑派生墊付錢包公鑰。
+ * 派生路徑統一為 Phantom 標準：m/44'/501'/0'/0'
+ */
 async function getFundingWalletAddress(): Promise<string> {
   const adminSupabase = createAdminSupabase();
 
@@ -53,10 +54,8 @@ async function getFundingWalletAddress(): Promise<string> {
     throw new Error('助記詞未配置');
   }
 
-  const seed = bip39.mnemonicToSeedSync(seedPhrase);
-  const { key } = derivePath(FUNDING_WALLET_PATH, seed.toString('hex'));
-  const keypair = Keypair.fromSeed(key);
-  return keypair.publicKey.toBase58();
+  // 使用 hdWallet.ts 統一派生邏輯，確保與 preActivateUserATA 使用相同路徑
+  return getFundingWalletAddressFromSeed(seedPhrase);
 }
 
 export async function GET() {
@@ -110,11 +109,11 @@ export async function GET() {
         .not('deposit_address', 'is', null),
     ]);
 
-    // 金庫 AIF 餘額
+    // 金庫 AIF 餘額：使用 getTokenAccountBalance 自動處理精度，直接得到 uiAmount
     let treasuryAifBalance = 0;
     try {
-      const ataInfo = await getAccount(connection, treasuryAta);
-      treasuryAifBalance = Number(ataInfo.amount);
+      const ataBalanceResult = await connection.getTokenAccountBalance(treasuryAta);
+      treasuryAifBalance = ataBalanceResult.value.uiAmount ?? 0;
     } catch {
       // ATA 不存在或查詢失敗，餘額為 0
     }

@@ -3423,9 +3423,7 @@ function trFormatDate(iso: string | null) {
 }
 function trFormatAIF(n: number) {
   if (n === 0) return "0";
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(2)}K`;
-  return n.toLocaleString();
+  return new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(n);
 }
 
 // ─── Treasury: 小圖標 ────────────────────────────────────────────────────────
@@ -3528,12 +3526,20 @@ function TrConfigModal({ onClose, onSuccess }: { onClose: () => void; onSuccess:
             </p>
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-neutral-700">新金庫錢包地址（選填）</label>
+            <label className="text-xs font-medium text-neutral-700">金庫錢包地址（Treasury Wallet Address，選填）</label>
             <input type="text" value={newTreasuryAddress} onChange={(e) => setNewTreasuryAddress(e.target.value)} placeholder="輸入新的 Solana 公鑰地址" className={`${INPUT} text-xs font-mono`} />
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-neutral-700">新墊付錢包助記詞（選填）</label>
-            <textarea value={newSeedPhrase} onChange={(e) => setNewSeedPhrase(e.target.value)} placeholder="輸入 12 或 24 個英文單詞，以空格分隔" rows={3} className={`${INPUT} text-xs font-mono resize-none`} />
+            <label className="text-xs font-medium text-neutral-700">墊付錢包助記詞（Funding Wallet Mnemonic，選填）</label>
+            <p className="text-[11px] text-neutral-400 -mt-0.5">這將用於推導墊付錢包（Phantom 標準路徑 m/44&apos;/501&apos;/0&apos;/0&apos;）</p>
+            <input
+              type="password"
+              value={newSeedPhrase}
+              onChange={(e) => setNewSeedPhrase(e.target.value)}
+              placeholder="word1 word2 word3 … （12 或 24 個英文單詞，空格分隔）"
+              autoComplete="new-password"
+              className={`${INPUT} text-xs font-mono`}
+            />
           </div>
           <div className="border-t border-dashed border-neutral-200 pt-4 space-y-3">
             <p className="text-xs font-semibold text-neutral-700 flex items-center gap-1.5">

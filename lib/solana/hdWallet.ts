@@ -64,17 +64,47 @@ export interface PreActivateResult {
 // ── 私有工具 ───────────────────────────────────────────────────────────────────
 
 /**
- * 從 MASTER_SEED_PHRASE 派生墊付錢包 Keypair（路徑固定 m/44'/501'/0'/0'）。
- * 私有函數，僅供 preActivateUserATA 內部調用，私鑰不對外暴露。
+ * 從指定助記詞派生墊付錢包 Keypair（路徑固定 m/44'/501'/0'/0'，即 Phantom 首個帳號）。
+ * 私有函數，僅供本模塊內部調用，私鑰不對外暴露。
+ *
+ * @param seedPhrase - BIP39 助記詞（明文）；為空時拋出
+ */
+function deriveFundingWalletFromSeed(seedPhrase: string): Keypair {
+  if (!seedPhrase) {
+    throw new Error('[HD Wallet] 助記詞為空，無法派生墊付錢包');
+  }
+  // mnemonicToSeedSync + derivePath 與 Phantom 完全一致（無 passphrase，路徑 m/44'/501'/0'/0'）
+  const seed = bip39.mnemonicToSeedSync(seedPhrase);
+  const { key } = derivePath(FUNDING_WALLET_PATH, seed.toString('hex'));
+  return Keypair.fromSeed(key);
+}
+
+/**
+ * 從環境變量 MASTER_SEED_PHRASE 派生墊付錢包 Keypair。
+ * 私有函數，僅供 preActivateUserATA 內部調用。
  */
 function deriveFundingWallet(): Keypair {
   const seedPhrase = process.env.MASTER_SEED_PHRASE;
   if (!seedPhrase) {
     throw new Error('[HD Wallet] MASTER_SEED_PHRASE 未配置，無法派生墊付錢包');
   }
-  const seed = bip39.mnemonicToSeedSync(seedPhrase);
-  const { key } = derivePath(FUNDING_WALLET_PATH, seed.toString('hex'));
-  return Keypair.fromSeed(key);
+  return deriveFundingWalletFromSeed(seedPhrase);
+}
+
+// ── 公開工具 ───────────────────────────────────────────────────────────────────
+
+/**
+ * 從任意 BIP39 助記詞派生墊付錢包公鑰地址（Phantom 標準路徑 m/44'/501'/0'/0'）。
+ *
+ * 此函數僅返回公鑰，私鑰在函數返回後立即由 GC 回收，絕不外洩。
+ * 供 `/api/admin/treasury/stats` 等服務端路由使用，避免重複實現派生邏輯。
+ *
+ * @param seedPhrase - BIP39 助記詞明文（12 或 24 個英文單詞）
+ * @returns Solana 公鑰 Base58 字串
+ */
+export function getFundingWalletAddressFromSeed(seedPhrase: string): string {
+  const keypair = deriveFundingWalletFromSeed(seedPhrase);
+  return keypair.publicKey.toBase58();
 }
 
 /** 創建服務端 Supabase 管理員客戶端（僅用於寫入系統緊急通知） */
