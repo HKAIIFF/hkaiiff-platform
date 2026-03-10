@@ -28,6 +28,15 @@ interface LbsNode {
   created_at: string;
 }
 
+interface Film {
+  id: string;
+  title: string;
+  director: string | null;
+  creator_name: string | null;
+  play_url: string | null;
+  stream_url: string | null;
+}
+
 type EditableFields = Pick<
   LbsNode,
   | "title"
@@ -55,17 +64,38 @@ function formatDate(iso: string | null) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-function StatusBadge({ status }: { status: string | null }) {
+function formatLbsId(node: LbsNode): string {
+  const d = new Date(node.created_at);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const datePart = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}`;
+  const hex = node.id.replace(/-/g, "").slice(-4);
+  const num = parseInt(hex, 16).toString().padStart(4, "0");
+  return `LBS-${datePart}-${num}`;
+}
+
+function shortDid(did: string | null): string {
+  if (!did) return "—";
+  if (did.length <= 14) return did;
+  return `${did.slice(0, 6)}…${did.slice(-6)}`;
+}
+
+// ─── Status Pill ──────────────────────────────────────────────────────────────
+function StatusPill({ status }: { status: string | null }) {
   const cfg =
-    status === "active" || status === "approved"
-      ? { label: status === "approved" ? "已審核通過" : "運行中", cls: "text-green-700 bg-green-50 border-green-200" }
-      : status === "offline" || status === "rejected"
-      ? { label: status === "rejected" ? "已拒絕" : "已下線", cls: "text-red-600 bg-red-50 border-red-200" }
-      : status === "pending"
+    status === "pending"
       ? { label: "待審核", cls: "text-orange-600 bg-orange-50 border-orange-200" }
-      : { label: "待機", cls: "text-amber-700 bg-amber-50 border-amber-200" };
+      : status === "approved" || status === "standby"
+      ? { label: "排期中", cls: "text-blue-600 bg-blue-50 border-blue-200" }
+      : status === "active"
+      ? { label: "展映中", cls: "text-green-700 bg-green-100 border-green-200" }
+      : status === "offline" || status === "ended"
+      ? { label: "已結束", cls: "text-neutral-500 bg-neutral-100 border-neutral-200" }
+      : status === "rejected"
+      ? { label: "已拒絕", cls: "text-red-600 bg-red-50 border-red-200" }
+      : { label: status ?? "—", cls: "text-neutral-500 bg-neutral-50 border-neutral-200" };
+
   return (
-    <span className={`px-2 py-0.5 text-[10px] font-semibold border rounded-full whitespace-nowrap ${cfg.cls}`}>
+    <span className={`px-2.5 py-0.5 text-[10px] font-semibold border rounded-full whitespace-nowrap ${cfg.cls}`}>
       {cfg.label}
     </span>
   );
@@ -94,7 +124,7 @@ function ToastContainer({ toasts }: { toasts: Toast[] }) {
   );
 }
 
-// ─── Input Component ──────────────────────────────────────────────────────────
+// ─── Field ────────────────────────────────────────────────────────────────────
 function Field({
   label, value, onChange, disabled = false, type = "text", placeholder = "",
 }: {
@@ -104,7 +134,11 @@ function Field({
   return (
     <div className="space-y-1">
       <label className="text-xs font-medium text-gray-500 flex items-center gap-1.5">
-        {disabled && <span className="text-[10px] text-gray-400 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded">鎖定</span>}
+        {disabled && (
+          <span className="text-[10px] text-gray-400 bg-gray-100 border border-gray-200 px-1.5 py-0.5 rounded">
+            鎖定
+          </span>
+        )}
         {label}
       </label>
       <input
@@ -119,6 +153,146 @@ function Field({
             : "bg-white border-neutral-300 text-neutral-900 focus:ring-2 focus:ring-[#1a73e8]/20 focus:border-[#1a73e8]/40"
         }`}
       />
+    </div>
+  );
+}
+
+// ─── Data Pool Modal ──────────────────────────────────────────────────────────
+function DataPoolModal({ node, onClose }: { node: LbsNode; onClose: () => void }) {
+  const data = {
+    地圖座標: { 緯度: node.lat, 經度: node.lng },
+    解鎖半徑: `${node.radius ?? "—"} m`,
+    智能合約策略: node.contract_req ?? "—",
+    票價_AIF: node.ticket_price_aif !== null ? `${node.ticket_price_aif} AIF` : "免費",
+    支付方式: node.payment_method ?? "—",
+    地址: node.location ?? "—",
+    國家城市場地: [node.country, node.city, node.venue].filter(Boolean).join(" · ") || "—",
+    描述: node.description ?? "—",
+    申請時間: node.created_at,
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[300] bg-black/20 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-md bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-lg">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
+          <div>
+            <p className="text-sm font-semibold text-neutral-900">📄 資料池</p>
+            <p className="text-xs text-neutral-400 mt-0.5 truncate max-w-[280px]">{node.title}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded-full border border-neutral-200 text-neutral-400 hover:text-neutral-700 flex items-center justify-center text-xs transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="px-5 py-4 overflow-y-auto max-h-[70vh]">
+          <pre className="text-[11px] font-mono text-neutral-700 bg-neutral-50 border border-neutral-200 rounded-xl p-4 whitespace-pre-wrap break-all leading-relaxed">
+            {JSON.stringify(data, null, 2)}
+          </pre>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Film Pool Modal ──────────────────────────────────────────────────────────
+function FilmPoolModal({ node, onClose }: { node: LbsNode; onClose: () => void }) {
+  const [films, setFilms] = useState<Film[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!node.film_ids?.length) return;
+    setLoading(true);
+    supabase
+      .from("films")
+      .select("id, title, director, creator_name, play_url, stream_url")
+      .in("id", node.film_ids)
+      .then(({ data }) => {
+        setFilms((data as Film[]) ?? []);
+        setLoading(false);
+      });
+  }, [node.film_ids]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[300] bg-black/20 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-lg bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-lg max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 flex-shrink-0">
+          <div>
+            <p className="text-sm font-semibold text-neutral-900">🎬 影片池</p>
+            <p className="text-xs text-neutral-400 mt-0.5">
+              {node.title} · {node.film_ids?.length ?? 0} 部影片
+            </p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded-full border border-neutral-200 text-neutral-400 hover:text-neutral-700 flex items-center justify-center text-xs transition-colors"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1">
+          {loading ? (
+            <div className="py-12 text-center text-neutral-400 text-sm animate-pulse">載入中...</div>
+          ) : films.length === 0 ? (
+            <div className="py-12 text-center text-neutral-400 text-sm">
+              {node.film_ids?.length ? "影片資料載入失敗或片單為空" : "此節點尚未綁定影片"}
+            </div>
+          ) : (
+            <table className="w-full">
+              <thead className="sticky top-0 bg-white">
+                <tr className="border-b border-neutral-100">
+                  <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-neutral-400 uppercase tracking-wide">
+                    影片名稱
+                  </th>
+                  <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-neutral-400 uppercase tracking-wide">
+                    創作者
+                  </th>
+                  <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-neutral-400 uppercase tracking-wide">
+                    播放連結
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {films.map((film, i) => (
+                  <tr
+                    key={film.id}
+                    className={`border-b border-neutral-50 hover:bg-neutral-50/50 transition-colors ${
+                      i % 2 === 1 ? "bg-neutral-50/30" : ""
+                    }`}
+                  >
+                    <td className="px-5 py-3 text-xs text-neutral-900 font-medium">{film.title}</td>
+                    <td className="px-5 py-3 text-xs text-neutral-500">
+                      {film.creator_name ?? film.director ?? "—"}
+                    </td>
+                    <td className="px-5 py-3">
+                      {film.play_url || film.stream_url ? (
+                        <a
+                          href={film.play_url ?? film.stream_url ?? "#"}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] font-semibold text-[#1a73e8] hover:underline"
+                        >
+                          ▶ 播放
+                        </a>
+                      ) : (
+                        <span className="text-[10px] text-neutral-300">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -158,15 +332,15 @@ function EditModal({
     const payload: Partial<LbsNode> = {
       ...form,
       ticket_price_aif: form.ticket_price_aif ? Number(form.ticket_price_aif) : null,
-      start_time: form.start_time || null,
-      end_time: form.end_time || null,
-      description: form.description || null,
-      contract_req: form.contract_req || null,
-      poster_url: form.poster_url || null,
+      start_time:    form.start_time    || null,
+      end_time:      form.end_time      || null,
+      description:   form.description   || null,
+      contract_req:  form.contract_req  || null,
+      poster_url:    form.poster_url    || null,
       background_url: form.background_url || null,
-      country: form.country || null,
-      city: form.city || null,
-      venue: form.venue || null,
+      country:       form.country       || null,
+      city:          form.city          || null,
+      venue:         form.venue         || null,
     };
     const { data, error } = await supabase
       .from("lbs_nodes")
@@ -175,10 +349,7 @@ function EditModal({
       .select()
       .single();
     setSaving(false);
-    if (error) {
-      alert(`保存失敗: ${error.message}`);
-      return;
-    }
+    if (error) { alert(`保存失敗: ${error.message}`); return; }
     onSaved(data as LbsNode);
   };
 
@@ -192,7 +363,9 @@ function EditModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
           <div>
             <p className="text-gray-900 font-semibold text-sm">編輯 LBS 節點</p>
-            <p className="text-gray-400 text-xs mt-0.5">#{node.id.slice(0, 12).toUpperCase()} · 地理欄位已鎖定</p>
+            <p className="text-gray-400 text-xs mt-0.5">
+              #{node.id.slice(0, 12).toUpperCase()} · 地理欄位已鎖定
+            </p>
           </div>
           <button
             onClick={onClose}
@@ -204,32 +377,30 @@ function EditModal({
 
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1 px-6 py-5 space-y-4">
-
-          {/* ── Locked geo section ───────────────────────────────────────── */}
+          {/* Locked geo section */}
           <div className="border border-neutral-200 bg-neutral-50 px-4 py-3 rounded-xl space-y-3">
             <div className="text-xs font-medium text-neutral-400 flex items-center gap-1.5">
               <span>⊘</span> 地理核驗欄位 — 唯讀
             </div>
             <div className="grid grid-cols-2 gap-3">
-              <Field label="緯度"  value={String(node.lat  ?? "")} disabled />
-              <Field label="經度" value={String(node.lng  ?? "")} disabled />
+              <Field label="緯度" value={String(node.lat ?? "")} disabled />
+              <Field label="經度" value={String(node.lng ?? "")} disabled />
             </div>
             <Field label="地址" value={node.location ?? ""} disabled />
-            <Field label="解鎖半徑 (m)"  value={String(node.radius ?? "")} disabled />
+            <Field label="解鎖半徑 (m)" value={String(node.radius ?? "")} disabled />
           </div>
 
-          {/* ── Editable fields ──────────────────────────────────────────── */}
           <Field label="節點名稱 *" value={form.title} onChange={set("title")} placeholder="HKAIIFF ── Central Screening" />
 
           <div className="grid grid-cols-3 gap-3">
-            <Field label="國家"  value={form.country ?? ""} onChange={set("country")} placeholder="HK" />
-            <Field label="城市"     value={form.city    ?? ""} onChange={set("city")}    placeholder="Central" />
-            <Field label="場地"    value={form.venue   ?? ""} onChange={set("venue")}   placeholder="Palace Cinema" />
+            <Field label="國家" value={form.country ?? ""} onChange={set("country")} placeholder="HK" />
+            <Field label="城市" value={form.city ?? ""} onChange={set("city")} placeholder="Central" />
+            <Field label="場地" value={form.venue ?? ""} onChange={set("venue")} placeholder="Palace Cinema" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="開始時間" value={form.start_time ?? ""} onChange={set("start_time")} type="datetime-local" />
-            <Field label="結束時間"   value={form.end_time   ?? ""} onChange={set("end_time")}   type="datetime-local" />
+            <Field label="結束時間" value={form.end_time ?? ""} onChange={set("end_time")} type="datetime-local" />
           </div>
 
           <div className="space-y-1">
@@ -239,16 +410,16 @@ function EditModal({
               onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
               className="w-full px-3 py-2 text-sm rounded-lg bg-white border border-gray-200 text-gray-900 outline-none focus:ring-2 focus:ring-[#1a73e8]/20 focus:border-[#1a73e8]/40"
             >
-              <option value="active">運行中</option>
+              <option value="active">展映中</option>
+              <option value="approved">排期中</option>
               <option value="standby">待機</option>
-              <option value="offline">已下線</option>
+              <option value="offline">已結束</option>
             </select>
           </div>
 
           <Field label="合約策略" value={form.contract_req ?? ""} onChange={set("contract_req")} placeholder="Standard · Public Screening License" />
           <Field label="門票費用 (AIF)" value={String(form.ticket_price_aif ?? "")} onChange={set("ticket_price_aif")} type="number" placeholder="0" />
 
-          {/* Background Image */}
           <div className="space-y-2">
             <Field label="背景圖片 URL" value={form.background_url ?? ""} onChange={set("background_url")} placeholder="https://..." />
             {form.background_url && (
@@ -299,166 +470,17 @@ function EditModal({
   );
 }
 
-// ─── Node Card ────────────────────────────────────────────────────────────────
-function NodeCard({
-  node,
-  onEdit,
-}: {
-  node: LbsNode;
-  onEdit: (n: LbsNode) => void;
-}) {
-  const hasBg = Boolean(node.background_url);
-
-  return (
-    <div className="relative bg-white border border-gray-200/80 rounded-2xl overflow-hidden group">
-      {/* Background image layer */}
-      {hasBg && (
-        <div
-          className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
-          style={{ backgroundImage: `url(${node.background_url})` }}
-        />
-      )}
-      {/* Overlay */}
-      <div className={`absolute inset-0 ${hasBg ? "bg-black/60 group-hover:bg-black/50" : "bg-transparent"} transition-colors`} />
-
-      {/* Content */}
-      <div className="relative z-10 p-5">
-        {/* Top row: status + edit button */}
-        <div className="flex items-start justify-between gap-2 mb-3">
-          <StatusBadge status={node.status} />
-          <button
-            onClick={() => onEdit(node)}
-            className={`text-xs font-semibold px-3 py-1 rounded-full border transition-all flex-shrink-0 ${
-              hasBg
-                ? "border-white/40 text-white hover:bg-white/20"
-                : "border-[#1a73e8]/30 text-[#1a73e8] hover:bg-[#1a73e8]/10"
-            }`}
-          >
-            編輯
-          </button>
-        </div>
-
-        {/* Title */}
-        <p className={`text-sm font-bold mb-1 leading-tight ${hasBg ? "text-white" : "text-gray-900"}`}>
-          {node.title || "未命名節點"}
-        </p>
-
-        {/* Location */}
-        {(node.venue || node.city || node.country) && (
-          <p className={`text-xs mb-2 ${hasBg ? "text-white/70" : "text-[#1a73e8]"}`}>
-            {[node.venue, node.city, node.country].filter(Boolean).join(" · ")}
-          </p>
-        )}
-
-        {/* GPS */}
-        <p className={`text-[10px] font-mono mb-3 ${hasBg ? "text-white/40" : "text-gray-400"}`}>
-          GPS: {node.lat ?? "—"}, {node.lng ?? "—"}
-          {node.radius && <span className="ml-2">R:{node.radius}m</span>}
-        </p>
-
-        {/* Film count */}
-        <div className={`flex items-center justify-between border-t pt-2 mt-2 ${hasBg ? "border-white/10" : "border-gray-100"}`}>
-          <span className={`text-[10px] ${hasBg ? "text-white/50" : "text-gray-400"}`}>
-            {(node.film_ids ?? []).length} 部影片
-          </span>
-          <span className={`text-[10px] ${hasBg ? "text-white/40" : "text-gray-400"}`}>
-            {formatDate(node.start_time)}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ─── Pending Application Card ──────────────────────────────────────────────────
-function PendingCard({
-  node,
-  onApprove,
-  onReject,
-  isProcessing,
-}: {
-  node: LbsNode;
-  onApprove: (id: string) => void;
-  onReject: (id: string) => void;
-  isProcessing: boolean;
-}) {
-  return (
-    <div className="bg-white border border-orange-200/60 rounded-2xl overflow-hidden">
-      {node.background_url && (
-        <div
-          className="h-20 bg-cover bg-center"
-          style={{ backgroundImage: `url(${node.background_url})` }}
-        />
-      )}
-      <div className="p-4 space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex-1 min-w-0">
-            <p className="text-gray-900 font-semibold text-sm truncate">{node.title || "未命名申請"}</p>
-            <p className="text-orange-500 text-xs mt-0.5 font-mono">{node.location ?? "—"}</p>
-          </div>
-          <StatusBadge status="pending" />
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-500">
-          <div>
-            <span className="text-gray-400">GPS:</span> {node.lat ?? "—"}, {node.lng ?? "—"}
-          </div>
-          <div>
-            <span className="text-gray-400">半徑:</span> {node.radius ?? "—"}m
-          </div>
-          <div>
-            <span className="text-gray-400">開始:</span> {node.start_time ? new Date(node.start_time).toLocaleDateString() : "—"}
-          </div>
-          <div>
-            <span className="text-gray-400">結束:</span> {node.end_time ? new Date(node.end_time).toLocaleDateString() : "—"}
-          </div>
-          <div className="col-span-2">
-            <span className="text-gray-400">支付:</span>{" "}
-            <span className={`font-semibold ${node.payment_method === "aif" ? "text-green-600" : "text-blue-600"}`}>
-              {node.payment_method === "aif" ? "AIF 鏈上支付" : "Stripe 法幣支付"}
-            </span>
-          </div>
-          {node.submitted_by && (
-            <div className="col-span-2 truncate">
-              <span className="text-gray-400">申請人:</span> {node.submitted_by.slice(0, 20)}...
-            </div>
-          )}
-        </div>
-
-        {node.description && (
-          <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{node.description}</p>
-        )}
-
-        <div className="flex gap-2 pt-1">
-          <button
-            onClick={() => onApprove(node.id)}
-            disabled={isProcessing}
-            className="flex-1 py-2 rounded-full bg-green-600 text-white text-xs font-semibold hover:bg-green-700 transition-colors disabled:opacity-40"
-          >
-            ✓ 通過 (Approve)
-          </button>
-          <button
-            onClick={() => onReject(node.id)}
-            disabled={isProcessing}
-            className="flex-1 py-2 rounded-full border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-50 transition-colors disabled:opacity-40"
-          >
-            ✕ 拒絕 (Reject)
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function LBSNodesPage() {
-  const [nodes, setNodes] = useState<LbsNode[]>([]);
-  const [pendingNodes, setPendingNodes] = useState<LbsNode[]>([]);
+  const [allNodes, setAllNodes] = useState<LbsNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [editNode, setEditNode] = useState<LbsNode | null>(null);
+  const [dataPoolNode, setDataPoolNode] = useState<LbsNode | null>(null);
+  const [filmPoolNode, setFilmPoolNode] = useState<LbsNode | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [search, setSearch] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const showToast = useCallback((message: string, type: ToastType) => {
     const id = Date.now();
@@ -475,9 +497,7 @@ export default function LBSNodesPage() {
     if (error) {
       showToast(`載入失敗: ${error.message}`, "error");
     } else {
-      const allNodes = (data as LbsNode[]) ?? [];
-      setPendingNodes(allNodes.filter((n) => n.status === "pending"));
-      setNodes(allNodes.filter((n) => n.status !== "pending"));
+      setAllNodes((data as LbsNode[]) ?? []);
     }
     setLoading(false);
   }, [showToast]);
@@ -485,7 +505,7 @@ export default function LBSNodesPage() {
   useEffect(() => { fetchNodes(); }, [fetchNodes]);
 
   const handleSaved = useCallback((updated: LbsNode) => {
-    setNodes((prev) => prev.map((n) => (n.id === updated.id ? updated : n)));
+    setAllNodes((prev) => prev.map((n) => (n.id === updated.id ? updated : n)));
     setEditNode(null);
     showToast("LBS 節點已更新 ✓", "success");
   }, [showToast]);
@@ -497,12 +517,9 @@ export default function LBSNodesPage() {
       .update({ status: "approved" })
       .eq("id", id);
     setProcessingId(null);
-    if (error) {
-      showToast(`審核失敗: ${error.message}`, "error");
-      return;
-    }
-    setPendingNodes((prev) => prev.filter((n) => n.id !== id));
-    showToast("已通過審核，節點狀態設為 approved ✓", "success");
+    if (error) { showToast(`審核失敗: ${error.message}`, "error"); return; }
+    setAllNodes((prev) => prev.map((n) => n.id === id ? { ...n, status: "approved" } : n));
+    showToast("已通過審核，節點狀態設為排期中 ✓", "success");
   }, [showToast]);
 
   const handleReject = useCallback(async (id: string) => {
@@ -512,34 +529,46 @@ export default function LBSNodesPage() {
       .update({ status: "rejected" })
       .eq("id", id);
     setProcessingId(null);
-    if (error) {
-      showToast(`操作失敗: ${error.message}`, "error");
-      return;
-    }
-    setPendingNodes((prev) => prev.filter((n) => n.id !== id));
-    showToast("已拒絕申請 ✓", "success");
+    if (error) { showToast(`操作失敗: ${error.message}`, "error"); return; }
+    setAllNodes((prev) => prev.map((n) => n.id === id ? { ...n, status: "rejected" } : n));
+    showToast("已退回申請 ✓", "success");
   }, [showToast]);
 
+  const handleCopy = useCallback((text: string, nodeId: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId(nodeId);
+      setTimeout(() => setCopiedId(null), 1500);
+    });
+  }, []);
+
   const filtered = search.trim()
-    ? nodes.filter((n) =>
+    ? allNodes.filter((n) =>
         (n.title ?? "").toLowerCase().includes(search.toLowerCase()) ||
         (n.city ?? "").toLowerCase().includes(search.toLowerCase()) ||
-        (n.venue ?? "").toLowerCase().includes(search.toLowerCase())
+        (n.venue ?? "").toLowerCase().includes(search.toLowerCase()) ||
+        (n.submitted_by ?? "").toLowerCase().includes(search.toLowerCase())
       )
-    : nodes;
+    : allNodes;
 
-  const activeCount  = nodes.filter((n) => n.status === "active" || n.status === "approved").length;
-  const standbyCount = nodes.filter((n) => n.status === "standby" || !n.status).length;
-  const offlineCount = nodes.filter((n) => n.status === "offline" || n.status === "rejected").length;
+  const pendingCount   = allNodes.filter((n) => n.status === "pending").length;
+  const scheduledCount = allNodes.filter((n) => n.status === "approved" || n.status === "standby").length;
+  const activeCount    = allNodes.filter((n) => n.status === "active").length;
+  const endedCount     = allNodes.filter((n) => n.status === "offline" || n.status === "rejected" || n.status === "ended").length;
 
   return (
     <div className="p-5 space-y-4 min-h-screen bg-white">
+      <ToastContainer toasts={toasts} />
 
-      {/* ── Page Header ─────────────────────────────────────────────────── */}
+      {/* ── Page Header ─────────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-gray-900 text-base font-semibold">LBS 節點管理</h1>
-          <p className="text-gray-400 text-xs mt-0.5">共 {nodes.length + pendingNodes.length} 個節點（{pendingNodes.length} 待審核）</p>
+          <h1 className="text-gray-900 text-base font-semibold">LBS 影展審核</h1>
+          <p className="text-gray-400 text-xs mt-0.5">
+            共 {allNodes.length} 個節點
+            {pendingCount > 0 && (
+              <span className="ml-1 text-orange-500 font-semibold">· {pendingCount} 待審核</span>
+            )}
+          </p>
         </div>
         <button
           onClick={fetchNodes}
@@ -550,37 +579,13 @@ export default function LBSNodesPage() {
         </button>
       </div>
 
-      {/* ── Pending Applications Section ───────────────────────────────────── */}
-      {pendingNodes.length > 0 && (
-        <div className="border border-orange-200 bg-orange-50/30 rounded-2xl p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-orange-500 animate-pulse" />
-            <h2 className="text-orange-700 text-sm font-semibold">待審核申請</h2>
-            <span className="ml-auto bg-orange-100 border border-orange-200 text-orange-700 text-[10px] font-semibold px-2 py-0.5 rounded-full">
-              {pendingNodes.length} PENDING
-            </span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-            {pendingNodes.map((node) => (
-              <PendingCard
-                key={node.id}
-                node={node}
-                onApprove={handleApprove}
-                onReject={handleReject}
-                isProcessing={processingId === node.id}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Stats Bar ─────────────────────────────────────────────────────── */}
+      {/* ── Stats Bar ───────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: "已審核節點", value: nodes.length, cls: "text-gray-900" },
-          { label: "運行中", value: activeCount,  cls: "text-green-600" },
-          { label: "待機",   value: standbyCount, cls: "text-amber-600" },
-          { label: "已下線/拒絕", value: offlineCount, cls: "text-red-500" },
+          { label: "待審核", value: pendingCount,   cls: "text-orange-500" },
+          { label: "排期中", value: scheduledCount, cls: "text-blue-600"   },
+          { label: "展映中", value: activeCount,    cls: "text-green-600"  },
+          { label: "已結束/拒絕", value: endedCount, cls: "text-neutral-400" },
         ].map(({ label, value, cls }) => (
           <div key={label} className="bg-white border border-gray-200/80 rounded-2xl px-4 py-3">
             <div className="text-xs text-gray-500">{label}</div>
@@ -589,59 +594,224 @@ export default function LBSNodesPage() {
         ))}
       </div>
 
-      {/* ── Search ──────────────────────────────────────────────────────── */}
+      {/* ── Search ──────────────────────────────────────────────────────────── */}
       <div className="relative">
         <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm">⌕</span>
         <input
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="搜尋節點名稱 / 城市 / 場地"
+          placeholder="搜尋節點名稱 / 城市 / 場地 / 策展人"
           className="w-full bg-white border border-gray-200 rounded-full pl-10 pr-4 py-2.5 text-sm text-gray-700 placeholder-gray-300 outline-none focus:ring-2 focus:ring-[#1a73e8]/20 focus:border-[#1a73e8]/40 transition-all"
         />
       </div>
 
-      {/* ── Node Grid ───────────────────────────────────────────────────── */}
+      {/* ── Table ───────────────────────────────────────────────────────────── */}
       {loading ? (
-        <div className="py-20 text-center text-gray-400 text-sm animate-pulse">
-          載入中...
-        </div>
+        <div className="py-20 text-center text-gray-400 text-sm animate-pulse">載入中...</div>
       ) : filtered.length === 0 ? (
         <div className="py-20 text-center bg-white border border-gray-200/80 rounded-2xl">
           <div className="text-gray-200 text-4xl mb-2">◈</div>
           <div className="text-gray-400 text-sm">
             {search ? "找不到匹配節點" : "暫無 LBS 節點"}
           </div>
-          <div className="text-gray-300 text-xs mt-1">
-            請在主控台中創建節點
-          </div>
+          <div className="text-gray-300 text-xs mt-1">請在主控台中創建節點</div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map((node) => (
-            <NodeCard key={node.id} node={node} onEdit={setEditNode} />
-          ))}
+        <div className="overflow-x-auto rounded-2xl border border-gray-200/80">
+          <table className="w-full text-sm bg-white min-w-[1120px]">
+            {/* thead */}
+            <thead>
+              <tr className="border-b border-gray-100 bg-neutral-50/60">
+                {[
+                  "ID",
+                  "LBS 影展/影院名稱",
+                  "資料池",
+                  "影片池",
+                  "策展人",
+                  "地點",
+                  "時間",
+                  "狀態",
+                  "操作",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="text-left px-4 py-3 text-[10px] font-semibold text-neutral-400 uppercase tracking-wide whitespace-nowrap"
+                  >
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+
+            {/* tbody */}
+            <tbody>
+              {filtered.map((node, i) => {
+                const lbsId    = formatLbsId(node);
+                const isPending = node.status === "pending";
+                const isProcessing = processingId === node.id;
+
+                return (
+                  <tr
+                    key={node.id}
+                    className={`border-b border-gray-50 hover:bg-neutral-50/50 transition-colors ${
+                      isPending ? "bg-orange-50/20" : i % 2 === 1 ? "bg-neutral-50/20" : ""
+                    }`}
+                  >
+                    {/* 1 · ID */}
+                    <td className="px-4 py-3 align-top">
+                      <div className="flex items-center gap-1 min-w-[160px]">
+                        <span className="text-[10px] font-mono break-all text-neutral-600">
+                          {lbsId}
+                        </span>
+                        <button
+                          onClick={() => handleCopy(lbsId, node.id)}
+                          title="複製 ID"
+                          className="flex-shrink-0 w-5 h-5 rounded border border-neutral-200 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 flex items-center justify-center text-[9px] transition-colors"
+                        >
+                          {copiedId === node.id ? "✓" : "⎘"}
+                        </button>
+                      </div>
+                    </td>
+
+                    {/* 2 · 名稱 */}
+                    <td className="px-4 py-3 align-top min-w-[140px]">
+                      <span className="font-semibold text-neutral-900 text-xs leading-snug">
+                        {node.title || "—"}
+                      </span>
+                    </td>
+
+                    {/* 3 · 資料池 */}
+                    <td className="px-4 py-3 align-top">
+                      <div className="flex flex-col gap-1">
+                        <button
+                          onClick={() => setDataPoolNode(node)}
+                          className="text-[10px] font-medium text-neutral-600 border border-neutral-200 rounded-full px-2.5 py-0.5 hover:bg-neutral-50 transition-colors whitespace-nowrap w-fit"
+                        >
+                          📄 表單
+                        </button>
+                        <button
+                          onClick={() => {
+                            const url = node.poster_url ?? node.background_url;
+                            if (url) window.open(url, "_blank");
+                          }}
+                          disabled={!node.poster_url && !node.background_url}
+                          className="text-[10px] font-medium text-neutral-600 border border-neutral-200 rounded-full px-2.5 py-0.5 hover:bg-neutral-50 transition-colors whitespace-nowrap w-fit disabled:opacity-30 disabled:cursor-not-allowed"
+                        >
+                          🖼️ 視覺
+                        </button>
+                      </div>
+                    </td>
+
+                    {/* 4 · 影片池 */}
+                    <td className="px-4 py-3 align-top">
+                      <button
+                        onClick={() => setFilmPoolNode(node)}
+                        className="text-[10px] font-medium text-neutral-600 border border-neutral-200 rounded-full px-2.5 py-0.5 hover:bg-neutral-50 transition-colors whitespace-nowrap w-fit"
+                      >
+                        🎬 查閱片單
+                        {(node.film_ids?.length ?? 0) > 0 && (
+                          <span className="ml-1 text-[9px] text-neutral-400">
+                            ({node.film_ids!.length})
+                          </span>
+                        )}
+                      </button>
+                    </td>
+
+                    {/* 5 · 策展人 */}
+                    <td className="px-4 py-3 align-top min-w-[130px]">
+                      {node.submitted_by ? (
+                        <div>
+                          <p className="text-sm text-neutral-900 leading-tight">
+                            {shortDid(node.submitted_by)}
+                          </p>
+                          <p className="text-[10px] font-mono text-neutral-500 break-all max-w-[130px] mt-0.5">
+                            {node.submitted_by}
+                          </p>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-neutral-300">—</span>
+                      )}
+                    </td>
+
+                    {/* 6 · 地點 */}
+                    <td className="px-4 py-3 align-top min-w-[120px]">
+                      <span className="text-xs text-neutral-700 leading-snug">
+                        {[node.venue, node.city, node.country].filter(Boolean).join(", ") ||
+                          node.location ||
+                          "—"}
+                      </span>
+                    </td>
+
+                    {/* 7 · 時間 */}
+                    <td className="px-4 py-3 align-top min-w-[210px]">
+                      <span className="text-[11px] font-mono text-neutral-700 whitespace-nowrap">
+                        {formatDate(node.start_time)}
+                        <span className="text-neutral-400"> – </span>
+                        {formatDate(node.end_time)}
+                      </span>
+                    </td>
+
+                    {/* 8 · 狀態 */}
+                    <td className="px-4 py-3 align-top">
+                      <StatusPill status={node.status} />
+                    </td>
+
+                    {/* 9 · 操作 */}
+                    <td className="px-4 py-3 align-top">
+                      <div className="flex flex-col gap-1.5">
+                        {isPending && (
+                          <>
+                            <button
+                              onClick={() => handleApprove(node.id)}
+                              disabled={isProcessing}
+                              className="text-[10px] font-semibold border border-green-200 text-green-700 rounded-full px-3 py-0.5 hover:bg-green-50 transition-colors disabled:opacity-40 whitespace-nowrap w-fit"
+                            >
+                              ✓ 通過
+                            </button>
+                            <button
+                              onClick={() => handleReject(node.id)}
+                              disabled={isProcessing}
+                              className="text-[10px] font-semibold border border-red-200 text-red-600 rounded-full px-3 py-0.5 hover:bg-red-50 transition-colors disabled:opacity-40 whitespace-nowrap w-fit"
+                            >
+                              ✕ 退回
+                            </button>
+                          </>
+                        )}
+                        <button
+                          onClick={() => setEditNode(node)}
+                          className="text-[10px] font-medium border border-neutral-200 text-neutral-600 rounded-full px-3 py-0.5 hover:bg-neutral-50 transition-colors whitespace-nowrap w-fit"
+                        >
+                          ✎ 編輯
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
-      {/* ── Footer ──────────────────────────────────────────────────────── */}
+      {/* ── Footer ──────────────────────────────────────────────────────────── */}
       {!loading && filtered.length > 0 && (
         <div className="text-gray-400 text-xs flex justify-between">
-          <span>顯示 {filtered.length} / {nodes.length} 個節點</span>
-          <span>點擊「編輯」修改節點資訊 · 地理欄位不可變更</span>
+          <span>顯示 {filtered.length} / {allNodes.length} 個節點</span>
+          <span>地理欄位鎖定不可變更 · 時間格式 YYYY-MM-DD HH:mm</span>
         </div>
       )}
 
-      {/* ── Edit Modal ───────────────────────────────────────────────────── */}
-      {editNode && (
-        <EditModal
-          node={editNode}
-          onClose={() => setEditNode(null)}
-          onSaved={handleSaved}
-        />
+      {/* ── Modals ──────────────────────────────────────────────────────────── */}
+      {dataPoolNode && (
+        <DataPoolModal node={dataPoolNode} onClose={() => setDataPoolNode(null)} />
       )}
-
-      <ToastContainer toasts={toasts} />
+      {filmPoolNode && (
+        <FilmPoolModal node={filmPoolNode} onClose={() => setFilmPoolNode(null)} />
+      )}
+      {editNode && (
+        <EditModal node={editNode} onClose={() => setEditNode(null)} onSaved={handleSaved} />
+      )}
     </div>
   );
 }
