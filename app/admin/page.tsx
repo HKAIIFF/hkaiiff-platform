@@ -44,6 +44,18 @@ interface LbsNode {
   country?: string | null; city?: string | null; venue?: string | null;
   status?: string | null; radius?: number | null; ticket_price_aif?: number | null;
   poster_url?: string | null; background_url?: string | null; description?: string | null;
+  submitted_by?: string | null; payment_method?: string | null;
+}
+interface LbsFilmRow {
+  id: string;
+  title: string | null;
+  creator_name?: string | null;
+  director?: string | null;
+  play_url?: string | null;
+  stream_url?: string | null;
+  feature_url?: string | null;
+  main_video_url?: string | null;
+  users?: { email: string | null; display_name?: string | null } | null;
 }
 
 // ─── 手風琴菜單結構 ──────────────────────────────────────────────────────────
@@ -998,65 +1010,411 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
   );
 }
 
-function ReviewLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
-  const statusOrder: (keyof typeof t.lbsEventStatus)[] = ["pending", "scheduled", "live", "offline"];
-  const [events, setEvents] = useState([
-    { id: "LBS-001", title: "AI Cinema Night HK", curator: "alice@aif.bot", venue: "HKCEC Hall 3", date: "2025-06-15", status: "pending" as keyof typeof t.lbsEventStatus },
-    { id: "LBS-002", title: "Web3 Film Fest SG", curator: "wallet:abcd...ef12", venue: "MBS Convention", date: "2025-07-20", status: "scheduled" as keyof typeof t.lbsEventStatus },
-    { id: "LBS-003", title: "Neural Dreams JP", curator: "bob@aif.bot", venue: "Roppongi Hills", date: "2025-05-10", status: "live" as keyof typeof t.lbsEventStatus },
-    { id: "LBS-004", title: "Digital Realms LA", curator: "curator@web3.io", venue: "ArcLight Cinemas", date: "2025-04-01", status: "offline" as keyof typeof t.lbsEventStatus },
-  ]);
+function ReviewLbsTab({ pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [nodes, setNodes]               = useState<LbsNode[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [copiedId, setCopiedId]         = useState<string | null>(null);
+  const [dataPoolNode, setDataPoolNode] = useState<LbsNode | null>(null);
+  const [filmPoolNode, setFilmPoolNode] = useState<LbsNode | null>(null);
+  const [filmList, setFilmList]         = useState<LbsFilmRow[]>([]);
+  const [filmLoading, setFilmLoading]   = useState(false);
 
-  function advance(id: string) {
-    setEvents((prev) => prev.map((e) => {
-      if (e.id !== id) return e;
-      const idx = statusOrder.indexOf(e.status);
-      if (idx < statusOrder.length - 1) { pushToast(`已推進至：${t.lbsEventStatus[statusOrder[idx + 1]]}`); return { ...e, status: statusOrder[idx + 1] }; }
-      return e;
-    }));
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function fmtDate(iso: string | null | undefined) {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+  function fmtLbsId(node: LbsNode) {
+    const d = new Date(node.created_at);
+    const p = (n: number) => String(n).padStart(2, "0");
+    const date = `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
+    const hex  = node.id.replace(/-/g, "").slice(-4);
+    const num  = parseInt(hex, 16).toString().padStart(4, "0");
+    return `LBS-${date}-${num}`;
+  }
+  function shortDid(did: string | null | undefined) {
+    if (!did) return "—";
+    return did.length > 14 ? `${did.slice(0, 6)}…${did.slice(-6)}` : did;
   }
 
-  const statusBadge = (s: keyof typeof t.lbsEventStatus) => {
-    const map = { pending: "bg-neutral-100 text-neutral-600", scheduled: "bg-[#e8f0fe] text-[#1a73e8]", live: "bg-neutral-100 text-neutral-700", offline: "bg-neutral-100 text-neutral-400" };
-    return map[s];
-  };
+  // ── Fetch ──────────────────────────────────────────────────────────────────
+  const fetchNodes = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("lbs_nodes")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) pushToast(`載入失敗: ${error.message}`, false);
+    else setNodes((data as LbsNode[]) ?? []);
+    setLoading(false);
+  }, [pushToast]);
+
+  useEffect(() => { fetchNodes(); }, [fetchNodes]);
+
+  // ── Actions ────────────────────────────────────────────────────────────────
+  const handleApprove = useCallback(async (id: string) => {
+    setProcessingId(id);
+    const { error } = await supabase.from("lbs_nodes").update({ status: "approved" }).eq("id", id);
+    setProcessingId(null);
+    if (error) { pushToast(`審核失敗: ${error.message}`, false); return; }
+    setNodes(prev => prev.map(n => n.id === id ? { ...n, status: "approved" } : n));
+    pushToast("已通過審核，節點排期中 ✓", true);
+  }, [pushToast]);
+
+  const handleReject = useCallback(async (id: string) => {
+    setProcessingId(id);
+    const { error } = await supabase.from("lbs_nodes").update({ status: "rejected" }).eq("id", id);
+    setProcessingId(null);
+    if (error) { pushToast(`操作失敗: ${error.message}`, false); return; }
+    setNodes(prev => prev.map(n => n.id === id ? { ...n, status: "rejected" } : n));
+    pushToast("已退回申請 ✓", true);
+  }, [pushToast]);
+
+  const handleCopy = useCallback((text: string, nodeId: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId(nodeId);
+      setTimeout(() => setCopiedId(null), 1500);
+    });
+  }, []);
+
+  const openFilmPool = useCallback(async (node: LbsNode) => {
+    setFilmPoolNode(node);
+    setFilmList([]);
+    if (!node.film_ids?.length) return;
+    setFilmLoading(true);
+    const { data } = await supabase
+      .from("films")
+      .select("id, title, creator_name, director, play_url, stream_url, feature_url, main_video_url, users(email, display_name)")
+      .in("id", node.film_ids);
+    setFilmList((data as unknown as LbsFilmRow[]) ?? []);
+    setFilmLoading(false);
+  }, []);
+
+  // ── Status Pill ────────────────────────────────────────────────────────────
+  function StatusPill({ status }: { status: string | null | undefined }) {
+    const s = status ?? "";
+    if (s === "pending")
+      return <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full border whitespace-nowrap text-orange-600 bg-orange-50 border-orange-200">待審核</span>;
+    if (s === "approved" || s === "standby")
+      return <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full border whitespace-nowrap text-blue-600 bg-blue-50 border-blue-200">排期中</span>;
+    if (s === "active")
+      return <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full border whitespace-nowrap text-green-700 bg-green-100 border-green-200">展映中</span>;
+    if (s === "rejected")
+      return <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full border whitespace-nowrap text-red-600 bg-red-50 border-red-200">已拒絕</span>;
+    if (s === "offline" || s === "ended")
+      return <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full border whitespace-nowrap text-neutral-500 bg-neutral-100 border-neutral-200">已結束</span>;
+    return <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full border whitespace-nowrap text-neutral-400 bg-neutral-50 border-neutral-200">{s || "—"}</span>;
+  }
+
+  // ── Ghost Button (資料池/影片池) ────────────────────────────────────────────
+  const GhostBtn = ({ onClick, disabled, children }: { onClick: () => void; disabled?: boolean; children: React.ReactNode }) => (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="text-[10px] font-medium text-neutral-600 border border-neutral-200 rounded-full px-2.5 py-0.5 hover:bg-neutral-50 transition-colors whitespace-nowrap disabled:opacity-30 disabled:cursor-not-allowed"
+    >
+      {children}
+    </button>
+  );
+
+  const pendingCount = nodes.filter(n => n.status === "pending").length;
 
   return (
-    <div className={`${CARD} overflow-hidden`}>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[780px] text-sm">
-          <thead>
-            <tr className="bg-neutral-50 border-b border-neutral-100 text-[10px] text-neutral-500 font-medium uppercase tracking-wider">
-              <th className="px-4 py-3.5 text-left">活動 ID</th>
-              <th className="px-4 py-3.5 text-left">活動名稱</th>
-              <th className="px-4 py-3.5 text-left">策展人</th>
-              <th className="px-4 py-3.5 text-left">場地</th>
-              <th className="px-4 py-3.5 text-left">日期</th>
-              <th className="px-4 py-3.5 text-left">狀態</th>
-              <th className="px-4 py-3.5 text-left">操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            {events.map((ev) => (
-              <tr key={ev.id} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/70 transition-colors">
-                <td className="px-4 py-4 text-xs text-neutral-500 font-mono">{ev.id}</td>
-                <td className="px-4 py-4 font-semibold text-neutral-900">{ev.title}</td>
-                <td className="px-4 py-4 text-neutral-600 text-xs">{ev.curator}</td>
-                <td className="px-4 py-4 text-neutral-600 text-xs">{ev.venue}</td>
-                <td className="px-4 py-4 text-neutral-600 text-xs">{ev.date}</td>
-                <td className="px-4 py-4"><span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${statusBadge(ev.status)}`}>{t.lbsEventStatus[ev.status]}</span></td>
-                <td className="px-4 py-4">
-                  {ev.status !== "offline" && (
-                    <button className={`${BTN_SM} border border-[#1a73e8] text-[#1a73e8] bg-white hover:bg-[#e8f0fe]`} onClick={() => advance(ev.id)}>推進狀態 →</button>
-                  )}
-                  {ev.status === "offline" && <span className="text-xs text-neutral-400">已完結</span>}
-                </td>
+    <>
+      <div className={`${CARD} overflow-hidden`}>
+        {/* ── Sub-header ── */}
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-neutral-100">
+          <span className="text-xs text-neutral-500">
+            共 {nodes.length} 個節點
+            {pendingCount > 0 && (
+              <span className="ml-1 font-semibold text-orange-500">· {pendingCount} 待審核</span>
+            )}
+          </span>
+          <button
+            onClick={fetchNodes}
+            disabled={loading}
+            className="ml-auto text-neutral-400 hover:text-neutral-600 transition-colors disabled:opacity-40"
+            title="刷新"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+            </svg>
+          </button>
+        </div>
+
+        {/* ── Table ── */}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1120px] text-sm">
+            <thead>
+              <tr className="bg-neutral-50 border-b border-neutral-100 text-[10px] text-neutral-500 font-medium uppercase tracking-wider">
+                <th className="px-4 py-3.5 text-left whitespace-nowrap">ID</th>
+                <th className="px-4 py-3.5 text-left whitespace-nowrap">LBS 影展 / 影院名稱</th>
+                <th className="px-4 py-3.5 text-left whitespace-nowrap">資料池</th>
+                <th className="px-4 py-3.5 text-left whitespace-nowrap">影片池</th>
+                <th className="px-4 py-3.5 text-left whitespace-nowrap">策展人</th>
+                <th className="px-4 py-3.5 text-left whitespace-nowrap">地點</th>
+                <th className="px-4 py-3.5 text-left whitespace-nowrap">時間</th>
+                <th className="px-4 py-3.5 text-left whitespace-nowrap">狀態</th>
+                <th className="px-4 py-3.5 text-left whitespace-nowrap">操作</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-12 text-center">
+                    <div className="flex items-center justify-center gap-1.5">
+                      {[0, 1, 2].map(i => (
+                        <span key={i} className="w-1.5 h-1.5 bg-[#1a73e8] rounded-full animate-bounce" style={{ animationDelay: `${i * 0.12}s` }} />
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              ) : nodes.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-12 text-center text-xs text-neutral-400">
+                    暫無 LBS 節點記錄
+                  </td>
+                </tr>
+              ) : nodes.map((node, i) => {
+                const lbsId     = fmtLbsId(node);
+                const isPending = node.status === "pending";
+                const isProc    = processingId === node.id;
+
+                return (
+                  <tr
+                    key={node.id}
+                    className={`border-b border-neutral-100 last:border-0 hover:bg-neutral-50/70 transition-colors ${
+                      isPending ? "bg-orange-50/20" : i % 2 === 1 ? "bg-neutral-50/20" : ""
+                    }`}
+                  >
+                    {/* 1 · ID */}
+                    <td className="px-4 py-4 align-top">
+                      <div className="flex items-center gap-1 min-w-[158px]">
+                        <span className="text-[10px] font-mono text-neutral-600 break-all">{lbsId}</span>
+                        <button
+                          onClick={() => handleCopy(lbsId, node.id)}
+                          title="複製 ID"
+                          className="flex-shrink-0 w-5 h-5 rounded border border-neutral-200 text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 flex items-center justify-center text-[9px] transition-colors"
+                        >
+                          {copiedId === node.id ? "✓" : "⎘"}
+                        </button>
+                      </div>
+                    </td>
+
+                    {/* 2 · 名稱 */}
+                    <td className="px-4 py-4 align-top min-w-[140px]">
+                      <span className="font-semibold text-neutral-900 text-xs leading-snug">
+                        {node.title || "—"}
+                      </span>
+                    </td>
+
+                    {/* 3 · 資料池 */}
+                    <td className="px-4 py-4 align-top">
+                      <div className="flex flex-col gap-1">
+                        <GhostBtn onClick={() => setDataPoolNode(node)}>📄 表單</GhostBtn>
+                        <GhostBtn
+                          onClick={() => {
+                            const url = node.poster_url ?? node.background_url;
+                            if (url) window.open(url, "_blank");
+                          }}
+                          disabled={!node.poster_url && !node.background_url}
+                        >
+                          🖼️ 視覺
+                        </GhostBtn>
+                      </div>
+                    </td>
+
+                    {/* 4 · 影片池 */}
+                    <td className="px-4 py-4 align-top">
+                      <GhostBtn onClick={() => openFilmPool(node)}>
+                        🎬 查閱片單
+                        {(node.film_ids?.length ?? 0) > 0 && (
+                          <span className="ml-1 text-[9px] text-neutral-400">({node.film_ids!.length})</span>
+                        )}
+                      </GhostBtn>
+                    </td>
+
+                    {/* 5 · 策展人 */}
+                    <td className="px-4 py-4 align-top min-w-[130px]">
+                      {node.submitted_by ? (
+                        <div>
+                          <p className="text-sm text-neutral-900 leading-tight">{shortDid(node.submitted_by)}</p>
+                          <p className="text-[10px] font-mono text-neutral-500 break-all max-w-[128px] mt-0.5">
+                            {node.submitted_by}
+                          </p>
+                        </div>
+                      ) : <span className="text-xs text-neutral-300">—</span>}
+                    </td>
+
+                    {/* 6 · 地點 */}
+                    <td className="px-4 py-4 align-top min-w-[110px]">
+                      <span className="text-xs text-neutral-700 leading-snug">
+                        {[node.venue, node.city, node.country].filter(Boolean).join(", ") || node.location || "—"}
+                      </span>
+                    </td>
+
+                    {/* 7 · 時間 */}
+                    <td className="px-4 py-4 align-top min-w-[210px]">
+                      <span className="text-[11px] font-mono text-neutral-700 whitespace-nowrap">
+                        {fmtDate(node.start_time)}
+                        <span className="text-neutral-400"> – </span>
+                        {fmtDate(node.end_time)}
+                      </span>
+                    </td>
+
+                    {/* 8 · 狀態 */}
+                    <td className="px-4 py-4 align-top">
+                      <StatusPill status={node.status} />
+                    </td>
+
+                    {/* 9 · 操作 */}
+                    <td className="px-4 py-4 align-top">
+                      <div className="flex flex-col gap-1.5">
+                        {isPending && (
+                          <>
+                            <button
+                              onClick={() => handleApprove(node.id)}
+                              disabled={isProc}
+                              className="text-[10px] font-semibold border border-green-200 text-green-700 rounded-full px-3 py-0.5 hover:bg-green-50 transition-colors disabled:opacity-40 whitespace-nowrap"
+                            >
+                              ✓ 通過
+                            </button>
+                            <button
+                              onClick={() => handleReject(node.id)}
+                              disabled={isProc}
+                              className="text-[10px] font-semibold border border-red-200 text-red-600 rounded-full px-3 py-0.5 hover:bg-red-50 transition-colors disabled:opacity-40 whitespace-nowrap"
+                            >
+                              ✕ 退回
+                            </button>
+                          </>
+                        )}
+                        {!isPending && (
+                          <span className="text-[10px] text-neutral-400 whitespace-nowrap">
+                            {node.status === "rejected" ? "已拒絕" : "已審核"}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Footer */}
+        {!loading && nodes.length > 0 && (
+          <div className="px-4 py-2.5 border-t border-neutral-50 flex justify-between">
+            <span className="text-[10px] text-neutral-400">顯示 {nodes.length} 個節點</span>
+            <span className="text-[10px] text-neutral-400">時間格式 YYYY-MM-DD HH:mm · 地理欄位鎖定</span>
+          </div>
+        )}
       </div>
-    </div>
+
+      {/* ── 資料池 Modal ──────────────────────────────────────────────────────── */}
+      {dataPoolNode && (
+        <div
+          className="fixed inset-0 z-[300] bg-black/20 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setDataPoolNode(null); }}
+        >
+          <div className="w-full max-w-md bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-lg">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100">
+              <div>
+                <p className="text-sm font-semibold text-neutral-900">📄 資料池</p>
+                <p className="text-xs text-neutral-400 mt-0.5 truncate max-w-[280px]">{dataPoolNode.title}</p>
+              </div>
+              <button
+                onClick={() => setDataPoolNode(null)}
+                className="w-7 h-7 rounded-full border border-neutral-200 text-neutral-400 hover:text-neutral-700 flex items-center justify-center text-xs transition-colors"
+              >✕</button>
+            </div>
+            <div className="px-5 py-4 overflow-y-auto max-h-[70vh]">
+              <pre className="text-[11px] font-mono text-neutral-700 bg-neutral-50 border border-neutral-200 rounded-xl p-4 whitespace-pre-wrap break-all leading-relaxed">
+                {JSON.stringify({
+                  地圖座標:    { 緯度: dataPoolNode.lat,    經度: dataPoolNode.lng },
+                  解鎖半徑:    `${dataPoolNode.radius ?? "—"} m`,
+                  智能合約策略: dataPoolNode.contract_req ?? "—",
+                  票價_AIF:   dataPoolNode.ticket_price_aif !== null && dataPoolNode.ticket_price_aif !== undefined
+                               ? `${dataPoolNode.ticket_price_aif} AIF` : "免費",
+                  支付方式:    dataPoolNode.payment_method ?? "—",
+                  地址:        dataPoolNode.location ?? "—",
+                  城市場地:    [dataPoolNode.country, dataPoolNode.city, dataPoolNode.venue].filter(Boolean).join(" · ") || "—",
+                  描述:        dataPoolNode.description ?? "—",
+                  申請時間:    dataPoolNode.created_at,
+                }, null, 2)}
+              </pre>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 影片池 Modal ──────────────────────────────────────────────────────── */}
+      {filmPoolNode && (
+        <div
+          className="fixed inset-0 z-[300] bg-black/20 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setFilmPoolNode(null); }}
+        >
+          <div className="w-full max-w-lg bg-white border border-neutral-200 rounded-2xl overflow-hidden shadow-lg max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 flex-shrink-0">
+              <div>
+                <p className="text-sm font-semibold text-neutral-900">🎬 影片池</p>
+                <p className="text-xs text-neutral-400 mt-0.5">
+                  {filmPoolNode.title} · {filmPoolNode.film_ids?.length ?? 0} 部影片
+                </p>
+              </div>
+              <button
+                onClick={() => setFilmPoolNode(null)}
+                className="w-7 h-7 rounded-full border border-neutral-200 text-neutral-400 hover:text-neutral-700 flex items-center justify-center text-xs transition-colors"
+              >✕</button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {filmLoading ? (
+                <div className="py-12 text-center text-neutral-400 text-sm animate-pulse">載入中...</div>
+              ) : filmList.length === 0 ? (
+                <div className="py-12 text-center text-neutral-400 text-sm">
+                  {filmPoolNode.film_ids?.length ? "影片資料載入失敗" : "此節點尚未綁定影片"}
+                </div>
+              ) : (
+                <table className="w-full">
+                  <thead className="sticky top-0 bg-white">
+                    <tr className="border-b border-neutral-100">
+                      <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-neutral-400 uppercase tracking-wide">影片名稱</th>
+                      <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-neutral-400 uppercase tracking-wide">創作者</th>
+                      <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-neutral-400 uppercase tracking-wide">播放連結</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filmList.map((film, fi) => {
+                      const playUrl = film.play_url ?? film.stream_url ?? film.feature_url ?? film.main_video_url ?? null;
+                      const creator = film.creator_name ?? film.director ?? film.users?.display_name ?? film.users?.email ?? "—";
+                      return (
+                        <tr
+                          key={film.id}
+                          className={`border-b border-neutral-50 hover:bg-neutral-50/50 transition-colors ${fi % 2 === 1 ? "bg-neutral-50/30" : ""}`}
+                        >
+                          <td className="px-5 py-3 text-xs text-neutral-900 font-medium">{film.title ?? "—"}</td>
+                          <td className="px-5 py-3 text-xs text-neutral-500">{creator}</td>
+                          <td className="px-5 py-3">
+                            {playUrl
+                              ? <a href={playUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] font-semibold text-[#1a73e8] hover:underline">▶ 播放</a>
+                              : <span className="text-[10px] text-neutral-300">—</span>
+                            }
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
