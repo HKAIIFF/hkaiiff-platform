@@ -7,6 +7,8 @@ import { useI18n } from "@/app/context/I18nContext";
 import { useToast } from "@/app/context/ToastContext";
 import { supabase } from "@/lib/supabase";
 import OSS from "ali-oss";
+import UniversalCheckout from "@/app/components/UniversalCheckout";
+import { useProduct } from "@/lib/hooks/useProduct";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -21,80 +23,6 @@ interface VerificationForm {
   portfolio: string;
   docUrl: string;
   docFileName: string;
-}
-
-// ── Stripe badge ──────────────────────────────────────────────────────────────
-function StripeBadge() {
-  return (
-    <span className="inline-flex items-center gap-1.5 bg-[#635BFF] text-white text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wider">
-      <svg viewBox="0 0 10 10" className="w-2 h-2 fill-white">
-        <path d="M5.4 4.44c-.9-.22-1.2-.43-1.2-.78 0-.4.37-.67.99-.67.65 0 1.33.25 1.79.5l.53-2.07A5.3 5.3 0 0 0 5.03.95C2.69.95 1.5 2.25 1.5 3.72c0 1.62 1.05 2.32 2.78 2.78.94.25 1.24.5 1.24.85 0 .45-.4.7-1.14.7-.78 0-1.76-.33-2.43-.75L1.4 9.44c.64.41 1.76.75 2.85.75 2.39 0 3.65-1.21 3.65-2.74C7.9 5.73 6.93 5.04 5.4 4.44z" />
-      </svg>
-      stripe
-    </span>
-  );
-}
-
-// ── Solana Icon (three parallel bars) ────────────────────────────────────────
-function SolanaIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 397.7 311.7" className={className} fill="currentColor" aria-hidden="true">
-      <path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z" />
-      <path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z" />
-      <path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z" />
-    </svg>
-  );
-}
-
-// ── Global Payment Method Matrix ──────────────────────────────────────────────
-function PaymentMatrix() {
-  return (
-    <div className="flex items-center flex-wrap gap-1.5">
-      {/* Visa */}
-      <div className="h-5 px-2 rounded-sm bg-[#1A1F71] flex items-center flex-shrink-0">
-        <span className="text-[7px] font-black text-white tracking-widest select-none">VISA</span>
-      </div>
-      {/* Mastercard */}
-      <div className="h-5 w-9 rounded-sm bg-[#1e1e1e] border border-[#444] flex items-center justify-center relative overflow-hidden flex-shrink-0">
-        <div className="w-3 h-3 rounded-full bg-[#EB001B] absolute left-1" />
-        <div className="w-3 h-3 rounded-full bg-[#F79E1B] absolute left-2.5 opacity-90" />
-      </div>
-      {/* Amex */}
-      <div className="h-5 px-2 rounded-sm bg-[#007BC1] flex items-center flex-shrink-0">
-        <span className="text-[7px] font-black text-white tracking-widest select-none">AMEX</span>
-      </div>
-      {/* Apple Pay */}
-      <div className="h-5 px-1.5 rounded-sm bg-[#1a1a1a] border border-[#444] flex items-center gap-0.5 flex-shrink-0">
-        <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-white" aria-hidden="true">
-          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
-        </svg>
-        <span className="text-[6px] font-bold text-white select-none">Pay</span>
-      </div>
-      {/* Google Pay */}
-      <div className="h-5 px-1.5 rounded-sm bg-[#1a1a1a] border border-[#444] flex items-center gap-0.5 flex-shrink-0">
-        <svg viewBox="0 0 24 24" className="w-2.5 h-2.5" aria-hidden="true">
-          <path d="M20.283 10.356h-8.327v3.451h4.792c-.446 2.193-2.313 3.453-4.792 3.453a5.27 5.27 0 0 1-5.279-5.28 5.27 5.27 0 0 1 5.279-5.279c1.259 0 2.397.447 3.29 1.178l2.6-2.599c-1.584-1.381-3.615-2.233-5.89-2.233a8.908 8.908 0 0 0-8.934 8.934 8.907 8.907 0 0 0 8.934 8.934c4.467 0 8.529-3.249 8.529-8.934 0-.528-.081-1.097-.202-1.625z" fill="#4285F4" />
-        </svg>
-        <span className="text-[6px] font-bold text-white select-none">Pay</span>
-      </div>
-      {/* WeChat Pay */}
-      <div className="h-5 px-1.5 rounded-sm bg-[#07C160] flex items-center gap-0.5 flex-shrink-0">
-        <svg viewBox="0 0 100 100" className="w-2.5 h-2.5 fill-white" aria-hidden="true">
-          <path d="M40.4 27.8c-8.3 0-16.1 3.1-21.9 8.2 1.7-.3 3.5-.5 5.3-.5 16.1 0 29.2 12 29.2 26.8 0 2.4-.4 4.8-1.1 7 .8 0 1.6.1 2.4.1 2.1 0 4.1-.2 6-.6l8.6 4.3-2.6-7.5c5-3.9 8.1-9.7 8.1-16.2C74.4 37.7 58.3 27.8 40.4 27.8zM55.2 44.9c-1.4 0-2.5-1.1-2.5-2.5s1.1-2.5 2.5-2.5 2.5 1.1 2.5 2.5-1.1 2.5-2.5 2.5zm-16.4 0c-1.4 0-2.5-1.1-2.5-2.5s1.1-2.5 2.5-2.5 2.5 1.1 2.5 2.5-1.1 2.5-2.5 2.5z" />
-          <path d="M23.7 49.5c0 11.9 12.1 21.6 27 21.6 2.5 0 4.9-.3 7.1-.9l7 3.5-2.1-6.1c4.1-3.2 6.6-7.9 6.6-13.2 0-11.9-12.1-21.6-27-21.6S23.7 37.6 23.7 49.5zm17.4-2.9c-1.4 0-2.5-1.1-2.5-2.5s1.1-2.5 2.5-2.5 2.5 1.1 2.5 2.5-1.1 2.5-2.5 2.5zm13.8 0c-1.4 0-2.5-1.1-2.5-2.5s1.1-2.5 2.5-2.5 2.5 1.1 2.5 2.5-1.1 2.5-2.5 2.5z" />
-        </svg>
-        <span className="text-[6px] font-bold text-white tracking-tight select-none">微信</span>
-      </div>
-      {/* Alipay */}
-      <div className="h-5 px-1.5 rounded-sm bg-[#1677FF] flex items-center gap-0.5 flex-shrink-0">
-        <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-white" aria-hidden="true">
-          <path d="M21.422 15.358c-3.33-1.365-5.46-2.307-6.406-2.83 1.088-1.61 1.79-3.583 2.003-5.785h-4.68V5.407h5.187V4.25H12.34V2H10.2v2.25H5.013v1.157H10.2v1.133H5.637v1.157H16.5c-.2 1.716-.716 3.195-1.524 4.332-1.81-.974-4.015-1.9-6.364-2.383l-.455 1.1c2.37.528 4.547 1.464 6.304 2.46-.94 1.065-2.18 1.826-3.794 2.22-1.614.394-3.573.324-5.998-.21l.523 1.342c2.138.44 3.9.52 5.38.26 1.483-.262 2.73-.885 3.78-1.87.87.533 3.14 1.578 6.75 3.165l.32-1.158z" />
-          <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z" />
-        </svg>
-        <span className="text-[6px] font-bold text-white tracking-tight select-none">支付寶</span>
-      </div>
-    </div>
-  );
 }
 
 // ── Step indicator ────────────────────────────────────────────────────────────
@@ -133,13 +61,12 @@ export default function VerificationPage() {
   const { showToast } = useToast();
   const docInputRef = useRef<HTMLInputElement>(null);
 
+  const { product: verifyProduct } = useProduct("identity_verify");
+
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [aifBalance, setAifBalance] = useState(0);
   const [isLoadingBalance, setIsLoadingBalance] = useState(true);
   const [isDocUploading, setIsDocUploading] = useState(false);
-  const [isStripeLoading, setIsStripeLoading] = useState(false);
-  const [isAifLoading, setIsAifLoading] = useState(false);
-  const [pendingPaymentMethod, setPendingPaymentMethod] = useState<"fiat" | "aif" | null>(null);
 
   const [form, setForm] = useState<VerificationForm>({
     verificationType: null,
@@ -249,79 +176,6 @@ export default function VerificationPage() {
     }
   }
 
-  // ── Stripe payment ─────────────────────────────────────────────────────────
-
-  async function handleStripePayment() {
-    if (!user?.id) return;
-    setIsStripeLoading(true);
-    setPendingPaymentMethod("fiat");
-    try {
-      const token = await getAccessToken();
-      const res = await fetch("/api/stripe/verification-checkout", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ userId: user.id }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.sessionId) {
-        showToast(data.error ?? "Stripe init failed", "error");
-        return;
-      }
-      // Store form data in localStorage for post-payment submission
-      localStorage.setItem("pending_verification", JSON.stringify({ ...form, paymentMethod: "fiat" }));
-      if (data.url) {
-        window.location.href = data.url;
-      } else {
-        showToast("Stripe session URL missing", "error");
-      }
-    } catch (err) {
-      console.error("[stripe payment]", err);
-      showToast(lang === "zh" ? "支付發起失敗" : "Payment failed", "error");
-    } finally {
-      setIsStripeLoading(false);
-      setPendingPaymentMethod(null);
-    }
-  }
-
-  // ── AIF payment + submit ───────────────────────────────────────────────────
-
-  async function handleAifPayment() {
-    if (!user?.id) return;
-    if (aifBalance < 150) {
-      showToast(lang === "zh" ? "AIF 餘額不足 (需 150 AIF)" : "Insufficient AIF (need 150 AIF)", "error");
-      return;
-    }
-    setIsAifLoading(true);
-    setPendingPaymentMethod("aif");
-    try {
-      const token = await getAccessToken();
-      // Step 1: deduct AIF
-      const payRes = await fetch("/api/verification/pay", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const payData = await payRes.json();
-      if (!payRes.ok) {
-        showToast(payData.error ?? "AIF payment failed", "error");
-        return;
-      }
-      // Step 2: submit verification form
-      await submitVerification("aif", token!);
-    } catch (err) {
-      console.error("[aif payment]", err);
-      showToast(lang === "zh" ? "支付失敗" : "Payment failed", "error");
-    } finally {
-      setIsAifLoading(false);
-      setPendingPaymentMethod(null);
-    }
-  }
-
   async function submitVerification(paymentMethod: "fiat" | "aif", token: string) {
     const res = await fetch("/api/verification/submit", {
       method: "POST",
@@ -348,6 +202,13 @@ export default function VerificationPage() {
     setStep(4);
   }
 
+  // ── 進入 Step 3 時自動保存表單數據到 localStorage（供 Stripe 回跳後恢復）──────
+  useEffect(() => {
+    if (step === 3) {
+      localStorage.setItem("pending_verification", JSON.stringify({ ...form, paymentMethod: "fiat" }));
+    }
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ── Handle return from Stripe ──────────────────────────────────────────────
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -355,7 +216,6 @@ export default function VerificationPage() {
     if (stripeSuccess === "1" && authenticated && user?.id) {
       const pending = localStorage.getItem("pending_verification");
       if (pending) {
-        const parsed = JSON.parse(pending);
         localStorage.removeItem("pending_verification");
         getAccessToken().then((token) => {
           if (token) submitVerification("fiat", token);
@@ -365,11 +225,6 @@ export default function VerificationPage() {
   }, [authenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!ready || !authenticated) return null;
-
-  const VERIFICATION_AIF_FEE = 150;
-  const VERIFICATION_FIAT_FEE = 30;
-  const hasEnoughAif = aifBalance >= VERIFICATION_AIF_FEE;
-  const isAnyLoading = isStripeLoading || isAifLoading;
 
   const stepLabels = [t("verify_step1"), t("verify_step2"), t("verify_step3"), t("verify_step4")];
 
@@ -688,10 +543,10 @@ export default function VerificationPage() {
 
         {/* ═══ STEP 3: Payment ══════════════════════════════════════════════ */}
         {step === 3 && (
-          <div className="space-y-5 animate-in fade-in duration-300">
+          <div className="space-y-6 animate-in fade-in duration-300">
 
             {/* ── Header ──────────────────────────────────────────────────── */}
-            <div className="text-center mb-2">
+            <div className="text-center">
               <p className="font-mono text-[9px] tracking-[0.5em] text-gray-400 mb-1 uppercase">
                 HKAIIFF · {lang === "zh" ? "身份認證費" : "VERIFICATION FEE"}
               </p>
@@ -701,146 +556,66 @@ export default function VerificationPage() {
               <div className="mt-3 mx-auto h-px w-16 bg-gradient-to-r from-transparent via-signal/60 to-transparent" />
             </div>
 
-            <div className="grid grid-cols-1 gap-3">
-
-              {/* ──── Card A · Stripe / Fiat · 國際矩陣牆 ────────────────── */}
-              <button
-                onClick={handleStripePayment}
-                disabled={isAnyLoading}
-                className="group relative overflow-hidden text-left bg-[#111] border border-neutral-700
-                           hover:border-[#635BFF] transition-all rounded-2xl p-6
-                           flex flex-col justify-between min-h-[200px]
-                           active:scale-[0.985] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none"
-              >
-                {/* Hover radial glow – Stripe purple */}
-                <div
-                  className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-                  style={{ background: "radial-gradient(ellipse 80% 60% at 20% 20%, rgba(99,91,255,0.12) 0%, transparent 70%)" }}
-                />
-                {/* Bottom edge glow */}
-                <div className="absolute bottom-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-[#635BFF]/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-
-                {/* Top row: label + Stripe Badge */}
-                <div className="flex items-start justify-between">
-                  <span className="font-mono text-xs text-gray-400 tracking-[0.4em]">WEB2 · FIAT</span>
-                  <StripeBadge />
+            {/* ── 產品資訊卡（動態從後台讀取） ──────────────────────────── */}
+            <div className="w-full bg-[#080808] border border-[#1a1a1a] rounded-2xl p-5">
+              <div className="font-mono text-[8px] tracking-[0.5em] text-[#333] mb-3 uppercase">
+                HKAIIFF · CREATOR VERIFICATION
+              </div>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-white font-black text-base" style={{ fontFamily: "Oswald, sans-serif" }}>
+                    {verifyProduct?.name_zh ?? (lang === "zh" ? "創作者身份認證" : "Creator Verification")}
+                  </p>
+                  <p className="text-[#444] text-[10px] font-mono mt-0.5">
+                    {verifyProduct?.name_en ?? "Identity Verification"}
+                  </p>
                 </div>
-
-                {/* Price */}
-                <div className="my-4">
-                  <div className="font-heavy text-5xl text-white leading-none tracking-tight">
-                    ${VERIFICATION_FIAT_FEE}
-                  </div>
-                  <div className="font-mono text-[10px] text-gray-400 tracking-[0.4em] mt-1.5">
-                    USD · ONE-TIME
-                  </div>
-                </div>
-
-                {/* Payment matrix + CTA */}
-                <div className="flex items-end justify-between gap-2">
-                  <PaymentMatrix />
-                  <span className="font-mono text-[9px] tracking-[0.3em] text-[#635BFF]/50 group-hover:text-[#635BFF]/80 transition-colors shrink-0">
-                    {isStripeLoading ? (
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-3 h-3 rounded-full border-2 border-[#635BFF] border-t-transparent animate-spin inline-block" />
-                        REDIRECTING…
-                      </span>
-                    ) : "PAY →"}
-                  </span>
-                </div>
-              </button>
-
-              {/* ──── Card B · AIF On-Chain · Web3 賽博高光 ──────────────── */}
-              <button
-                onClick={handleAifPayment}
-                disabled={isAnyLoading || !hasEnoughAif}
-                className={`group relative overflow-hidden text-left rounded-2xl p-6
-                           flex flex-col justify-between min-h-[200px]
-                           transition-all duration-300 active:scale-[0.985] focus:outline-none
-                           ${hasEnoughAif
-                             ? "bg-gradient-to-br from-[#111] to-[#0a150a] border border-neutral-700 hover:border-[#CCFF00] cursor-pointer"
-                             : "bg-gradient-to-br from-[#111] to-[#0a150a] border border-neutral-700 opacity-55 cursor-not-allowed"}`}
-              >
-                {/* Scanline texture */}
-                <div
-                  className="absolute inset-0 pointer-events-none opacity-[0.02]"
-                  style={{ backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(204,255,0,0.4) 23px, rgba(204,255,0,0.4) 24px)" }}
-                />
-                {/* Hover radial glow – signal green */}
-                {hasEnoughAif && (
-                  <div
-                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-                    style={{ background: "radial-gradient(ellipse 80% 60% at 80% 20%, rgba(204,255,0,0.07) 0%, transparent 70%)" }}
-                  />
-                )}
-                {/* Bottom edge glow */}
-                {hasEnoughAif && (
-                  <div className="absolute bottom-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-[#CCFF00]/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                )}
-
-                {/* Top row: labels + Solana badge */}
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1.5">
-                    <span className="font-mono text-xs text-gray-400 tracking-[0.4em] block">WEB3 · ON-CHAIN</span>
-                    <div className="flex items-center gap-2">
-                      <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wider border font-mono
-                        ${hasEnoughAif ? "bg-[#00FF41]/10 border-[#00FF41]/25 text-[#00FF41]" : "bg-[#1a1a1a] border-[#333] text-gray-500"}`}>
-                        AIF TOKEN
-                      </span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border
-                        ${hasEnoughAif ? "bg-[#CCFF00]/20 text-[#CCFF00] border-[#CCFF00]/50" : "bg-[#1a1a1a] border-[#333] text-gray-500"}`}>
-                        50% OFF
-                      </span>
-                    </div>
-                  </div>
-                  {/* Solana Logo badge */}
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#9945FF]/20 to-[#14F195]/20 border border-[#9945FF]/30 flex items-center justify-center flex-shrink-0">
-                    <SolanaIcon className="w-4 h-4 text-[#14F195]" />
-                  </div>
-                </div>
-
-                {/* Price */}
-                <div className="my-4 flex items-end gap-2">
-                  <span className="font-heavy text-5xl text-white leading-none tracking-tight">
-                    {VERIFICATION_AIF_FEE}
-                  </span>
-                  <span className={`text-2xl font-heavy leading-none mb-0.5 ${hasEnoughAif ? "text-[#CCFF00]" : "text-gray-500"}`}>
-                    AIF
-                  </span>
-                </div>
-
-                {/* Bottom row: balance + CTA */}
-                <div className="flex items-center justify-between">
-                  <div className="font-mono text-[9px]">
-                    {isLoadingBalance ? (
-                      <span className="text-gray-500 tracking-widest animate-pulse">LOADING…</span>
-                    ) : (
-                      <span className={hasEnoughAif ? "text-gray-400" : "text-red-400"}>
-                        BAL:&nbsp;{aifBalance.toLocaleString()}&nbsp;AIF
-                        {!hasEnoughAif && <span className="ml-2">· LOW</span>}
-                      </span>
-                    )}
-                  </div>
-                  {hasEnoughAif && (
-                    <span className="font-mono text-[9px] tracking-[0.3em] text-[#CCFF00]/50 group-hover:text-[#CCFF00]/80 transition-colors">
-                      {isAifLoading ? (
-                        <span className="flex items-center gap-1.5">
-                          <span className="w-3 h-3 rounded-full border-2 border-[#CCFF00] border-t-transparent animate-spin inline-block" />
-                          PROCESSING…
-                        </span>
-                      ) : "PAY →"}
-                    </span>
+                <div className="text-right">
+                  {verifyProduct ? (
+                    <>
+                      <p className="text-white font-black font-mono text-lg">
+                        ${Number(verifyProduct.price_usd).toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-[#00E599] font-mono text-xs mt-0.5">
+                        / {Number(verifyProduct.price_aif).toLocaleString()} AIF
+                      </p>
+                    </>
+                  ) : (
+                    <div className="w-20 h-6 bg-[#111] rounded animate-pulse" />
                   )}
                 </div>
-              </button>
+              </div>
+              <div className="space-y-1.5 text-[10px] font-mono text-[#333]">
+                <div className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-[#CCFF00]/40 shrink-0" />
+                  {lang === "zh" ? "支持 Stripe 信用卡及 AIF 鏈上支付" : "Stripe credit card & AIF on-chain payment"}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-[#CCFF00]/40 shrink-0" />
+                  {lang === "zh" ? "支付完成後進入人工審核流程" : "Manual review begins after payment"}
+                </div>
+              </div>
             </div>
+
+            {/* ── UniversalCheckout ────────────────────────────────────────── */}
+            <UniversalCheckout
+              productCode="identity_verify"
+              variant="primary"
+              label={lang === "zh" ? "SECURE PAY · 立即支付" : "SECURE PAY · VERIFY NOW"}
+              className="w-full justify-center py-4 text-base rounded-2xl"
+              successUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/verification?stripe_success=1`}
+              onSuccess={() => {
+                getAccessToken().then((token) => {
+                  if (token) submitVerification("aif", token);
+                });
+              }}
+            />
 
             {/* ── Back button ─────────────────────────────────────────────── */}
             <button
               onClick={() => setStep(2)}
-              disabled={isAnyLoading}
               className="w-full font-mono text-[9px] tracking-[0.4em] text-gray-400 hover:text-white transition-colors
-                         flex items-center justify-center gap-1.5 py-2 disabled:opacity-40"
+                         flex items-center justify-center gap-1.5 py-2"
             >
               ← {t("btn_back")}
             </button>

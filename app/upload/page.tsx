@@ -8,74 +8,13 @@ import { supabase } from '@/lib/supabase';
 import { useToast } from '@/app/context/ToastContext';
 import { useI18n } from '@/app/context/I18nContext';
 import CyberLoading from '@/app/components/CyberLoading';
+import UniversalCheckout from '@/app/components/UniversalCheckout';
+import { useProduct } from '@/lib/hooks/useProduct';
 
 type Step = 1 | 2 | 'processing';
 
-// ── Upload Page · Payment UI Helpers ─────────────────────────────────────────
+// ── Upload Page · Payment UI Helpers (旧版卡片已移除，使用 UniversalCheckout) ──
 
-function UploadStripeBadge() {
-  return (
-    <span className="inline-flex items-center gap-1.5 bg-[#635BFF] text-white text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wider">
-      <svg viewBox="0 0 10 10" className="w-2 h-2 fill-white" aria-hidden="true">
-        <path d="M5.4 4.44c-.9-.22-1.2-.43-1.2-.78 0-.4.37-.67.99-.67.65 0 1.33.25 1.79.5l.53-2.07A5.3 5.3 0 0 0 5.03.95C2.69.95 1.5 2.25 1.5 3.72c0 1.62 1.05 2.32 2.78 2.78.94.25 1.24.5 1.24.85 0 .45-.4.7-1.14.7-.78 0-1.76-.33-2.43-.75L1.4 9.44c.64.41 1.76.75 2.85.75 2.39 0 3.65-1.21 3.65-2.74C7.9 5.73 6.93 5.04 5.4 4.44z" />
-      </svg>
-      stripe
-    </span>
-  );
-}
-
-function UploadPaymentMatrix() {
-  return (
-    <div className="flex items-center flex-wrap gap-1.5">
-      <div className="h-5 px-2 rounded-sm bg-[#1A1F71] flex items-center flex-shrink-0">
-        <span className="text-[7px] font-black text-white tracking-widest select-none">VISA</span>
-      </div>
-      <div className="h-5 w-9 rounded-sm bg-[#1e1e1e] border border-[#444] flex items-center justify-center relative overflow-hidden flex-shrink-0">
-        <div className="w-3 h-3 rounded-full bg-[#EB001B] absolute left-1" />
-        <div className="w-3 h-3 rounded-full bg-[#F79E1B] absolute left-2.5 opacity-90" />
-      </div>
-      <div className="h-5 px-2 rounded-sm bg-[#007BC1] flex items-center flex-shrink-0">
-        <span className="text-[7px] font-black text-white tracking-widest select-none">AMEX</span>
-      </div>
-      <div className="h-5 px-1.5 rounded-sm bg-[#1a1a1a] border border-[#444] flex items-center gap-0.5 flex-shrink-0">
-        <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-white" aria-hidden="true">
-          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
-        </svg>
-        <span className="text-[6px] font-bold text-white select-none">Pay</span>
-      </div>
-      <div className="h-5 px-1.5 rounded-sm bg-[#1a1a1a] border border-[#444] flex items-center gap-0.5 flex-shrink-0">
-        <svg viewBox="0 0 24 24" className="w-2.5 h-2.5" aria-hidden="true">
-          <path d="M20.283 10.356h-8.327v3.451h4.792c-.446 2.193-2.313 3.453-4.792 3.453a5.27 5.27 0 0 1-5.279-5.28 5.27 5.27 0 0 1 5.279-5.279c1.259 0 2.397.447 3.29 1.178l2.6-2.599c-1.584-1.381-3.615-2.233-5.89-2.233a8.908 8.908 0 0 0-8.934 8.934 8.907 8.907 0 0 0 8.934 8.934c4.467 0 8.529-3.249 8.529-8.934 0-.528-.081-1.097-.202-1.625z" fill="#4285F4" />
-        </svg>
-        <span className="text-[6px] font-bold text-white select-none">Pay</span>
-      </div>
-      <div className="h-5 px-1.5 rounded-sm bg-[#07C160] flex items-center gap-0.5 flex-shrink-0">
-        <svg viewBox="0 0 100 100" className="w-2.5 h-2.5 fill-white" aria-hidden="true">
-          <path d="M40.4 27.8c-8.3 0-16.1 3.1-21.9 8.2 1.7-.3 3.5-.5 5.3-.5 16.1 0 29.2 12 29.2 26.8 0 2.4-.4 4.8-1.1 7 .8 0 1.6.1 2.4.1 2.1 0 4.1-.2 6-.6l8.6 4.3-2.6-7.5c5-3.9 8.1-9.7 8.1-16.2C74.4 37.7 58.3 27.8 40.4 27.8zM55.2 44.9c-1.4 0-2.5-1.1-2.5-2.5s1.1-2.5 2.5-2.5 2.5 1.1 2.5 2.5-1.1 2.5-2.5 2.5zm-16.4 0c-1.4 0-2.5-1.1-2.5-2.5s1.1-2.5 2.5-2.5 2.5 1.1 2.5 2.5-1.1 2.5-2.5 2.5z" />
-          <path d="M23.7 49.5c0 11.9 12.1 21.6 27 21.6 2.5 0 4.9-.3 7.1-.9l7 3.5-2.1-6.1c4.1-3.2 6.6-7.9 6.6-13.2 0-11.9-12.1-21.6-27-21.6S23.7 37.6 23.7 49.5zm17.4-2.9c-1.4 0-2.5-1.1-2.5-2.5s1.1-2.5 2.5-2.5 2.5 1.1 2.5 2.5-1.1 2.5-2.5 2.5zm13.8 0c-1.4 0-2.5-1.1-2.5-2.5s1.1-2.5 2.5-2.5 2.5 1.1 2.5 2.5-1.1 2.5-2.5 2.5z" />
-        </svg>
-        <span className="text-[6px] font-bold text-white tracking-tight select-none">微信</span>
-      </div>
-      <div className="h-5 px-1.5 rounded-sm bg-[#1677FF] flex items-center gap-0.5 flex-shrink-0">
-        <svg viewBox="0 0 24 24" className="w-2.5 h-2.5 fill-white" aria-hidden="true">
-          <path d="M21.422 15.358c-3.33-1.365-5.46-2.307-6.406-2.83 1.088-1.61 1.79-3.583 2.003-5.785h-4.68V5.407h5.187V4.25H12.34V2H10.2v2.25H5.013v1.157H10.2v1.133H5.637v1.157H16.5c-.2 1.716-.716 3.195-1.524 4.332-1.81-.974-4.015-1.9-6.364-2.383l-.455 1.1c2.37.528 4.547 1.464 6.304 2.46-.94 1.065-2.18 1.826-3.794 2.22-1.614.394-3.573.324-5.998-.21l.523 1.342c2.138.44 3.9.52 5.38.26 1.483-.262 2.73-.885 3.78-1.87.87.533 3.14 1.578 6.75 3.165l.32-1.158z" />
-          <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm0 18c-4.411 0-8-3.589-8-8s3.589-8 8-8 8 3.589 8 8-3.589 8-8 8z" />
-        </svg>
-        <span className="text-[6px] font-bold text-white tracking-tight select-none">支付寶</span>
-      </div>
-    </div>
-  );
-}
-
-function UploadSolanaIcon({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 397.7 311.7" className={className} fill="currentColor" aria-hidden="true">
-      <path d="M64.6 237.9c2.4-2.4 5.7-3.8 9.2-3.8h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1l62.7-62.7z" />
-      <path d="M64.6 3.8C67.1 1.4 70.4 0 73.8 0h317.4c5.8 0 8.7 7 4.6 11.1l-62.7 62.7c-2.4 2.4-5.7 3.8-9.2 3.8H6.5c-5.8 0-8.7-7-4.6-11.1L64.6 3.8z" />
-      <path d="M333.1 120.1c-2.4-2.4-5.7-3.8-9.2-3.8H6.5c-5.8 0-8.7 7-4.6 11.1l62.7 62.7c2.4 2.4 5.7 3.8 9.2 3.8h317.4c5.8 0 8.7-7 4.6-11.1l-62.7-62.7z" />
-    </svg>
-  );
-}
 
 const TERMINAL_LINES = [
   '> Initializing HKAIIFF 2026 submission protocol...',
@@ -129,8 +68,11 @@ export default function UploadPage() {
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [terminalLines, setTerminalLines] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createdFilmId, setCreatedFilmId] = useState<string | null>(null);
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
 
+  const { product: filmEntryProduct } = useProduct('film_entry');
   const isSignal = formData.aiRatio >= 51;
 
   // Terminal printing effect → after completion redirect to /me
@@ -242,7 +184,7 @@ export default function UploadPage() {
   };
 
   // ── Shared upload logic (OSS → DB record) ────────────────────────────────
-  const doUploadAndCreateRecord = async (paymentMethod: 'USD' | 'AIF'): Promise<string> => {
+  const doUploadAndCreateRecord = async (paymentMethod: 'USD' | 'AIF' | 'pending'): Promise<string> => {
     const stsRes = await fetch('/api/oss-sts');
     const stsData = await stsRes.json();
     if (stsData.error) throw new Error(stsData.error);
@@ -298,74 +240,25 @@ export default function UploadPage() {
     return data.film.id as string;
   };
 
-  // ── Fiat (Stripe) path ────────────────────────────────────────────────────
-  const handleSubmitFiat = async () => {
+  // ── 上傳媒體 → 建立 DB 記錄 → 直接彈出結帳視窗（無中轉頁） ───────────────────
+  const handleProceedToPayment = async () => {
     if (!authenticated || !user) return;
-    setIsSubmitting(true);
-    setUploadStatus('INITIALIZING SECURE CHANNEL...');
-    try {
-      const filmId = await doUploadAndCreateRecord('USD');
-
-      setUploadStatus('CREATING STRIPE PAYMENT SESSION...');
-      const token = await getAccessToken();
-      const res = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ filmId, userId: user.id }),
-      });
-
-      if (!res.ok) {
-        const errText = await res.text();
-        alert("【後端 API 報錯】\n狀態碼: " + res.status + "\n詳細原因: " + errText);
-        return;
-      }
-
-      const { url } = await res.json();
-      if (url) {
-        window.location.href = url;
-      } else {
-        throw new Error('Stripe 未回傳付款頁面 URL，請重試');
-      }
-    } catch (err: unknown) {
-      alert("【前端執行崩潰】\n詳細原因: " + String((err as Error)?.message || err));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // ── AIF (On-Chain Ledger) path ─────────────────────────────────────────────
-  const handleSubmitAif = async () => {
-    if (!authenticated || !user) return;
-    if (aifBalance < 500) {
-      showToast('Insufficient AIF balance (need 500 AIF)', 'error');
+    // 若已上傳過，僅重新打開彈窗
+    if (createdFilmId) {
+      setShowCheckoutModal(true);
       return;
     }
     setIsSubmitting(true);
-    setUploadStatus('INITIALIZING SECURE CHANNEL...');
+    setUploadStatus('INITIALIZING SECURE UPLOAD CHANNEL...');
     try {
-      const filmId = await doUploadAndCreateRecord('AIF');
-
-      setUploadStatus('DEDUCTING AIF BALANCE...');
-      const token = await getAccessToken();
-      const payRes = await fetch('/api/pay/aif', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ filmId, userId: user.id }),
-      });
-
-      if (!payRes.ok) {
-        const errText = await payRes.text();
-        alert("【後端 API 報錯】\n狀態碼: " + payRes.status + "\n詳細原因: " + errText);
-        return;
-      }
-
-      showToast('AIF payment confirmed! Minting...', 'success');
-      setStep('processing');
+      const filmId = await doUploadAndCreateRecord('pending');
+      setCreatedFilmId(filmId);
+      setShowCheckoutModal(true);
     } catch (err: unknown) {
-      alert("【前端執行崩潰】\n詳細原因: " + String((err as Error)?.message || err));
+      const msg = (err instanceof Error ? err.message : String(err)) || 'Upload failed';
+      showToast(msg, 'error');
+      setErrorMsg(msg);
+      setUploadStatus('');
     } finally {
       setIsSubmitting(false);
     }
@@ -394,7 +287,10 @@ export default function UploadPage() {
           </div>
         </div>
         <div className="font-mono text-[9px] text-gray-500 bg-[#111] px-3 py-1.5 rounded border border-[#333]">
-          ENTRY FEE: $99 USD / 500 AIF
+          {filmEntryProduct
+            ? `ENTRY FEE: $${Number(filmEntryProduct.price_usd).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD / ${Number(filmEntryProduct.price_aif).toLocaleString()} AIF`
+            : 'ENTRY FEE: LOADING…'
+          }
         </div>
       </div>
 
@@ -437,7 +333,7 @@ export default function UploadPage() {
                   { icon: 'fa-image', text: 'Poster: JPG/PNG/WEBP, max 5 MB' },
                   { icon: 'fa-video', text: 'Trailer: MP4/MOV, max 50 MB' },
                   { icon: 'fa-film', text: 'Full Film: MP4/MOV, max 1 GB' },
-                  { icon: 'fa-dollar-sign', text: 'Entry fee: $99 USD or 500 AIF tokens' },
+                  { icon: 'fa-dollar-sign', text: filmEntryProduct ? `Entry fee: $${Number(filmEntryProduct.price_usd).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD or ${Number(filmEntryProduct.price_aif).toLocaleString()} AIF` : 'Entry fee: loading…' },
                 ].map((req) => (
                   <div key={req.text} className="flex items-start gap-2.5 mb-2.5">
                     <div className="w-5 h-5 rounded bg-signal/10 border border-signal/20 flex items-center justify-center shrink-0 mt-0.5">
@@ -745,199 +641,144 @@ export default function UploadPage() {
           </div>
         )}
 
-        {/* ── Step 2: Payment Selection (Dual Track) ─────────── */}
+        {/* ── Step 2: Pre-Payment Confirmation ──────────────────── */}
         {step === 2 && (
-          <div className="animate-fade-in">
+          <div className="animate-fade-in max-w-sm mx-auto px-4 py-6">
+
+            {/* Back */}
             <button
-              onClick={() => { setUploadStatus(''); setStep(1); }}
-              className="text-gray-500 hover:text-white mb-6 font-mono text-xs flex items-center gap-2 active:scale-90 transition-transform"
+              onClick={() => { setUploadStatus(''); setErrorMsg(''); setStep(1); }}
+              className="text-gray-600 hover:text-white mb-6 font-mono text-xs flex items-center gap-2 active:scale-90 transition-all"
             >
               <i className="fas fa-arrow-left" /> {t('btn_back')}
             </button>
 
-            {/* Film Summary */}
-            <div className="bg-[#111] border border-neutral-800 rounded-xl p-4 mb-6">
-              <div className="text-[10px] font-mono text-gray-500 mb-2 tracking-widest">ENTRY FEE · SELECT PAYMENT METHOD</div>
-              <div className="font-heavy text-xl text-white mb-3 uppercase tracking-wide truncate">
-                {formData.title || '...'}
+            {/* Film Summary Badge */}
+            <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl p-4 mb-4">
+              <div className="text-[8px] font-mono text-[#333] tracking-[0.5em] mb-3 uppercase">HKAIIFF 2026 · Submission Review</div>
+              <p className="font-black text-white text-lg uppercase tracking-wide truncate mb-3" style={{ fontFamily: 'Oswald, sans-serif' }}>
+                {formData.title || '—'}
+              </p>
+              <div className="grid grid-cols-3 gap-2 border-t border-[#111] pt-3">
+                <div className="text-center">
+                  <div className="text-[9px] font-mono text-[#444] tracking-widest mb-1">AI PURITY</div>
+                  <div className={`text-sm font-black font-mono ${isSignal ? 'text-signal' : 'text-orange-400'}`}>
+                    {formData.aiRatio}%
+                  </div>
+                </div>
+                <div className="text-center">
+                  <div className="text-[9px] font-mono text-[#444] tracking-widest mb-1">ASSETS</div>
+                  <div className="text-sm font-black text-signal font-mono">3 / 3</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-[9px] font-mono text-[#444] tracking-widest mb-1">STATUS</div>
+                  <div className="text-sm font-black text-[#CCFF00] font-mono">READY</div>
+                </div>
               </div>
-              <div className="flex gap-4 border-t border-neutral-800 pt-3">
+            </div>
+
+            {/* Product Info (Dynamic from useProduct) */}
+            <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl p-4 mb-5">
+              <div className="text-[8px] font-mono text-[#333] tracking-[0.5em] mb-3 uppercase">Entry Fee</div>
+              <div className="flex items-center justify-between mb-1">
                 <div>
-                  <div className="text-[10px] font-mono text-gray-500">AI PURITY</div>
-                  <div className="text-sm font-bold text-signal">{formData.aiRatio}%</div>
+                  <p className="text-white font-black text-base" style={{ fontFamily: 'Oswald, sans-serif' }}>
+                    {filmEntryProduct?.name_zh ?? '電影節參展報名費'}
+                  </p>
+                  <p className="text-[#333] font-mono text-[9px] mt-0.5 tracking-wider">
+                    {filmEntryProduct?.name_en ?? 'Film Festival Entry Fee'}
+                  </p>
                 </div>
-                <div>
-                  <div className="text-[10px] font-mono text-gray-500">NETWORK</div>
-                  <div className="text-sm font-bold text-white flex items-center gap-1">
-                    <i className="fa-brands fa-solana text-[#9945FF]" /> SOL
-                  </div>
+                <div className="text-right">
+                  {filmEntryProduct ? (
+                    <>
+                      <p className="text-white font-black font-mono text-lg leading-none">
+                        ${Number(filmEntryProduct.price_usd).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </p>
+                      <p className="text-[#00E599] font-mono text-[10px] mt-0.5">
+                        / {Number(filmEntryProduct.price_aif).toLocaleString()} AIF
+                      </p>
+                    </>
+                  ) : (
+                    <div className="w-20 h-8 bg-[#111] rounded animate-pulse" />
+                  )}
                 </div>
-                <div>
-                  <div className="text-[10px] font-mono text-gray-500">ASSETS</div>
-                  <div className="text-sm font-bold text-signal flex items-center gap-1">
-                    <i className="fas fa-check-circle text-xs" /> 3 / 3
-                  </div>
+              </div>
+              <div className="mt-3 pt-3 border-t border-[#111] space-y-1.5 text-[9px] font-mono text-[#333]">
+                <div className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-[#CCFF00]/40" />
+                  支付後影片自動進入官方審核流程
                 </div>
-                <div className="ml-auto">
-                  <div className="text-[10px] font-mono text-gray-500">YOUR AIF</div>
-                  <div className={`text-sm font-bold ${aifBalance >= 500 ? 'text-signal' : 'text-red-400'}`}>
-                    {isLoadingBalance ? '—' : `${aifBalance.toLocaleString()} AIF`}
-                  </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-[#CCFF00]/40" />
+                  支持 Stripe 信用卡 及 AIF 鏈上代幣支付
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-[#444]/60" />
+                  報名費一經支付不予退還 · NON-REFUNDABLE
                 </div>
               </div>
             </div>
 
             {/* Not-logged-in warning */}
             {notLoggedIn && (
-              <div className="bg-[#111] border border-danger/50 rounded-xl p-4 mb-4 text-center font-mono text-xs text-danger flex items-center justify-center gap-2">
+              <div className="bg-[#111] border border-danger/50 rounded-xl p-3 mb-4 text-center font-mono text-xs text-danger flex items-center justify-center gap-2">
                 <i className="fas fa-lock" /> PLEASE LOGIN FIRST
               </div>
             )}
 
-            {/* Upload status (shown during upload) */}
-            {uploadStatus && (
-              <div className={`text-xs text-center mb-4 font-mono px-4 py-2 rounded-lg ${
-                uploadStatus.toLowerCase().includes('fail') || uploadStatus.toLowerCase().includes('error')
-                  ? 'bg-red-500/10 text-red-400 border border-red-500/30'
-                  : 'bg-signal/5 text-signal border border-signal/20 animate-pulse'
-              }`}>
-                <i className="fas fa-circle-notch fa-spin mr-2" />
-                {uploadStatus}
+            {/* Error message */}
+            {errorMsg && (
+              <div className="text-red-400 text-xs font-mono text-center mb-4 px-3 py-2 bg-red-500/8 border border-red-500/20 rounded-xl">
+                {errorMsg}
               </div>
             )}
 
-            {/* ── Dual Payment Cards ─────────────────────────────────────── */}
-            {!isSubmitting && (
-              <div className="grid grid-cols-1 gap-3">
-
-                {/* Card A — Fiat (Stripe) */}
-                <button
-                  onClick={handleSubmitFiat}
-                  disabled={notLoggedIn || isSubmitting}
-                  className="group relative overflow-hidden text-left bg-[#111] border border-neutral-700
-                             hover:border-[#635BFF] transition-all rounded-2xl p-6
-                             flex flex-col justify-between min-h-[200px]
-                             active:scale-[0.985] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none"
-                >
-                  {/* Hover radial glow – Stripe purple */}
-                  <div
-                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-                    style={{ background: 'radial-gradient(ellipse 80% 60% at 20% 20%, rgba(99,91,255,0.12) 0%, transparent 70%)' }}
-                  />
-                  {/* Bottom edge glow */}
-                  <div className="absolute bottom-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-[#635BFF]/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-
-                  {/* Top row */}
-                  <div className="flex items-start justify-between">
-                    <span className="font-mono text-xs text-gray-400 tracking-[0.4em]">WEB2 · FIAT</span>
-                    <UploadStripeBadge />
-                  </div>
-
-                  {/* Price */}
-                  <div className="my-4">
-                    <div className="font-heavy text-5xl text-white leading-none tracking-tight">$99</div>
-                    <div className="font-mono text-[10px] text-gray-400 tracking-[0.4em] mt-1.5">USD · Powered by Stripe</div>
-                  </div>
-
-                  {/* Payment matrix + CTA */}
-                  <div className="flex items-end justify-between gap-2">
-                    <UploadPaymentMatrix />
-                    <span className="font-mono text-[9px] tracking-[0.3em] text-[#635BFF]/50 group-hover:text-[#635BFF]/80 transition-colors shrink-0">
-                      PAY →
-                    </span>
-                  </div>
-                </button>
-
-                {/* Card B — AIF On-Chain */}
-                <button
-                  onClick={handleSubmitAif}
-                  disabled={notLoggedIn || aifBalance < 500 || isSubmitting}
-                  className={`group relative overflow-hidden text-left rounded-2xl p-6
-                             flex flex-col justify-between min-h-[200px]
-                             transition-all duration-300 active:scale-[0.985] focus:outline-none
-                             ${aifBalance >= 500
-                               ? 'bg-gradient-to-br from-[#111] to-[#0a150a] border border-neutral-700 hover:border-[#CCFF00] cursor-pointer'
-                               : 'bg-gradient-to-br from-[#111] to-[#0a150a] border border-neutral-700 opacity-55 cursor-not-allowed'}`}
-                >
-                  {/* Scanline texture */}
-                  <div
-                    className="absolute inset-0 pointer-events-none opacity-[0.02]"
-                    style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 23px, rgba(204,255,0,0.4) 23px, rgba(204,255,0,0.4) 24px)' }}
-                  />
-                  {/* Hover radial glow – signal green */}
-                  {aifBalance >= 500 && (
-                    <div
-                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-                      style={{ background: 'radial-gradient(ellipse 80% 60% at 80% 20%, rgba(204,255,0,0.07) 0%, transparent 70%)' }}
-                    />
-                  )}
-                  {/* Bottom edge glow */}
-                  {aifBalance >= 500 && (
-                    <div className="absolute bottom-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-[#CCFF00]/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                  )}
-
-                  {/* Top row */}
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1.5">
-                      <span className="font-mono text-xs text-gray-400 tracking-[0.4em] block">WEB3 · ON-CHAIN</span>
-                      <div className="flex items-center gap-2">
-                        <span className={`inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full tracking-wider border font-mono
-                          ${aifBalance >= 500 ? 'bg-[#00FF41]/10 border-[#00FF41]/25 text-[#00FF41]' : 'bg-[#1a1a1a] border-[#333] text-gray-500'}`}>
-                          AIF TOKEN
-                        </span>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold border
-                          ${aifBalance >= 500 ? 'bg-[#CCFF00]/20 text-[#CCFF00] border-[#CCFF00]/50' : 'bg-[#1a1a1a] border-[#333] text-gray-500'}`}>
-                          50% OFF
-                        </span>
-                      </div>
-                    </div>
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#9945FF]/20 to-[#14F195]/20 border border-[#9945FF]/30 flex items-center justify-center flex-shrink-0">
-                      <UploadSolanaIcon className="w-4 h-4 text-[#14F195]" />
-                    </div>
-                  </div>
-
-                  {/* Price */}
-                  <div className="my-4 flex items-end gap-2">
-                    <span className="font-heavy text-5xl text-white leading-none tracking-tight">500</span>
-                    <span className={`text-2xl font-heavy leading-none mb-0.5 ${aifBalance >= 500 ? 'text-[#CCFF00]' : 'text-gray-500'}`}>
-                      AIF
-                    </span>
-                  </div>
-
-                  {/* Bottom row: balance + CTA */}
-                  <div className="flex items-center justify-between">
-                    <div className="font-mono text-[9px]">
-                      {isLoadingBalance ? (
-                        <span className="text-gray-500 tracking-widest animate-pulse">LOADING…</span>
-                      ) : (
-                        <span className={aifBalance >= 500 ? 'text-gray-400' : 'text-red-400'}>
-                          BAL:&nbsp;{aifBalance.toLocaleString()}&nbsp;AIF
-                          {aifBalance < 500 && <span className="ml-2">· LOW</span>}
-                        </span>
-                      )}
-                    </div>
-                    {aifBalance >= 500 && (
-                      <span className="font-mono text-[9px] tracking-[0.3em] text-[#CCFF00]/50 group-hover:text-[#CCFF00]/80 transition-colors">
-                        PAY →
-                      </span>
-                    )}
-                  </div>
-                </button>
-
-              </div>
-            )}
-
-            {/* Loading state (during upload) */}
+            {/* Upload progress */}
             {isSubmitting && (
-              <div className="flex flex-col items-center gap-4 py-8">
-                <div className="w-16 h-16 border-2 border-signal/30 border-t-signal rounded-full animate-spin" />
-                <div className="text-[10px] font-mono text-signal tracking-widest animate-pulse">
+              <div className="flex flex-col items-center gap-3 py-6 mb-4">
+                <div className="w-12 h-12 border-2 border-signal/20 border-t-signal rounded-full animate-spin" />
+                <div className="text-[10px] font-mono text-signal tracking-widest animate-pulse text-center">
                   {uploadStatus || 'PROCESSING...'}
                 </div>
-                <div className="text-[9px] font-mono text-gray-600">
+                <div className="text-[9px] font-mono text-[#222] tracking-wider">
                   DO NOT CLOSE THIS PAGE
                 </div>
               </div>
+            )}
+
+            {/* CTA */}
+            {!isSubmitting && (
+              <button
+                onClick={handleProceedToPayment}
+                disabled={notLoggedIn}
+                className="w-full py-4 rounded-2xl bg-[#CCFF00] text-black font-black text-sm tracking-widest uppercase
+                           hover:bg-[#b8e600] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed
+                           shadow-[0_0_24px_rgba(204,255,0,0.2)] flex items-center justify-center gap-2 font-mono"
+              >
+                PROCEED TO PAYMENT
+                <i className="fas fa-arrow-right text-xs" />
+              </button>
+            )}
+
+            <p className="text-[8px] font-mono text-[#1a1a1a] text-center mt-4 tracking-widest">
+              SECURED BY STRIPE &amp; SOLANA BLOCKCHAIN · HKAIIFF 2026
+            </p>
+
+            {/* 受控模式結帳彈窗：上傳完成後直接彈出，無中轉頁 */}
+            {createdFilmId && (
+              <UniversalCheckout
+                productCode="film_entry"
+                extraMetadata={{ filmId: createdFilmId }}
+                open={showCheckoutModal}
+                onClose={() => setShowCheckoutModal(false)}
+                onSuccess={() => {
+                  setShowCheckoutModal(false);
+                  router.push('/me?payment=success');
+                }}
+                successUrl={typeof window !== 'undefined' ? `${window.location.origin}/me?payment=success` : '/me?payment=success'}
+                cancelUrl={typeof window !== 'undefined' ? `${window.location.origin}/upload` : '/upload'}
+              />
             )}
           </div>
         )}

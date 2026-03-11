@@ -65,7 +65,7 @@ type SubMenuId =
   | "dist:lbs" | "dist:online" | "dist:official"
   | "eco:human" | "eco:bot"
   | "ai:models" | "ai:prompts" | "ai:assembly"
-  | "fin:ledger" | "fin:treasury" | "fin:settlement"
+  | "fin:ledger" | "fin:treasury" | "fin:settlement" | "fin:products"
   | "ops:assets" | "ops:tower" | "ops:params" | "ops:rbac";
 
 type ModuleId = "dashboard" | "review" | "distribution" | "ecosystem" | "ai" | "finance" | "ops";
@@ -115,6 +115,7 @@ const MENU: MenuItem[] = [
       { id: "fin:ledger", zh: "全局財務流水", en: "Global Ledger" },
       { id: "fin:treasury", zh: "平台金庫監控", en: "Platform Treasury" },
       { id: "fin:settlement", zh: "分潤提現結算", en: "Revenue Settlement" },
+      { id: "fin:products", zh: "產品與定價管理", en: "Product Center" },
     ],
   },
   {
@@ -3457,6 +3458,421 @@ function finExportCsv(rows: FinLedgerRow[]) {
   URL.revokeObjectURL(url);
 }
 
+// ────────────────────────────────────────────────────────────────────────────
+// 產品與定價管理中心 (FinProductsTab)
+// ────────────────────────────────────────────────────────────────────────────
+
+interface PlatformProduct {
+  id: string;
+  product_code: string;
+  name_zh: string;
+  name_en: string;
+  price_usd: number;
+  price_aif: number;
+  metadata: Record<string, unknown> | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+const EMPTY_PRODUCT: Omit<PlatformProduct, 'id' | 'created_at'> = {
+  product_code: '',
+  name_zh: '',
+  name_en: '',
+  price_usd: 0,
+  price_aif: 0,
+  metadata: null,
+  is_active: true,
+};
+
+function ProdActivePill({ active }: { active: boolean }) {
+  return active ? (
+    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200">
+      <span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" />上架
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-neutral-100 text-neutral-500 border border-neutral-200">
+      <span className="w-1.5 h-1.5 rounded-full bg-neutral-400 inline-block" />下架
+    </span>
+  );
+}
+
+function FinProductsTab({ pushToast }: { pushToast: (s: string, ok?: boolean) => void }) {
+  const [products, setProducts] = useState<PlatformProduct[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Modal 狀態
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<PlatformProduct | null>(null);
+  const [form, setForm] = useState<Omit<PlatformProduct, 'id' | 'created_at'>>(EMPTY_PRODUCT);
+  const [saving, setSaving] = useState(false);
+
+  const fetchProducts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/admin/products');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json() as { products: PlatformProduct[] };
+      setProducts(json.products ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : '加載失敗');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchProducts(); }, [fetchProducts]);
+
+  function openCreate() {
+    setEditingProduct(null);
+    setForm(EMPTY_PRODUCT);
+    setModalOpen(true);
+  }
+
+  function openEdit(p: PlatformProduct) {
+    setEditingProduct(p);
+    setForm({
+      product_code: p.product_code,
+      name_zh: p.name_zh,
+      name_en: p.name_en,
+      price_usd: p.price_usd,
+      price_aif: p.price_aif,
+      metadata: p.metadata,
+      is_active: p.is_active,
+    });
+    setModalOpen(true);
+  }
+
+  async function handleSave() {
+    if (!form.product_code || !form.name_zh || !form.name_en) {
+      pushToast('請填寫產品代號與雙語名稱', false);
+      return;
+    }
+    setSaving(true);
+    try {
+      const isEdit = !!editingProduct;
+      const url = isEdit ? `/api/admin/products?id=${editingProduct!.id}` : '/api/admin/products';
+      const method = isEdit ? 'PATCH' : 'POST';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          price_usd: Number(form.price_usd),
+          price_aif: Number(form.price_aif),
+        }),
+      });
+      if (!res.ok) {
+        const j = await res.json() as { error?: string };
+        throw new Error(j.error || `HTTP ${res.status}`);
+      }
+      pushToast(isEdit ? '產品已更新' : '產品已新增', true);
+      setModalOpen(false);
+      fetchProducts();
+    } catch (e) {
+      pushToast(e instanceof Error ? e.message : '保存失敗', false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleActive(p: PlatformProduct) {
+    try {
+      const res = await fetch(`/api/admin/products?id=${p.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !p.is_active }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      pushToast(p.is_active ? '已下架' : '已上架', true);
+      fetchProducts();
+    } catch (e) {
+      pushToast(e instanceof Error ? e.message : '操作失敗', false);
+    }
+  }
+
+  const INPUT_CLS = "w-full rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-800 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/20 focus:border-[#1a73e8] transition-colors";
+  const LABEL_CLS = "block text-[11px] text-neutral-500 font-medium uppercase tracking-wider mb-1";
+
+  return (
+    <div className="space-y-4">
+      {/* ── 頂部工具欄 ── */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-bold text-neutral-900">產品與定價管理</h2>
+          <p className="text-xs text-neutral-500 mt-0.5">在此新增或編輯 platform_products，前端 UniversalCheckout 組件將自動同步</p>
+        </div>
+        <button
+          onClick={openCreate}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-neutral-900 text-white text-sm font-semibold hover:bg-neutral-700 transition-colors"
+        >
+          <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
+            <path d="M12 5v14M5 12h14" strokeLinecap="round" />
+          </svg>
+          新增產品
+        </button>
+      </div>
+
+      {/* ── 統計卡片 ── */}
+      <div className="flex flex-wrap gap-3">
+        <div className="flex-1 min-w-[140px] border border-neutral-200 rounded-2xl px-5 py-4 bg-white">
+          <p className="text-[11px] text-neutral-500 font-medium uppercase tracking-wider mb-1">產品總數</p>
+          <p className="text-2xl font-semibold text-neutral-900">{loading ? '…' : products.length}</p>
+        </div>
+        <div className="flex-1 min-w-[140px] border border-neutral-200 rounded-2xl px-5 py-4 bg-white">
+          <p className="text-[11px] text-neutral-500 font-medium uppercase tracking-wider mb-1">上架中</p>
+          <p className="text-2xl font-semibold text-green-600">{loading ? '…' : products.filter(p => p.is_active).length}</p>
+        </div>
+        <div className="flex-1 min-w-[140px] border border-neutral-200 rounded-2xl px-5 py-4 bg-white">
+          <p className="text-[11px] text-neutral-500 font-medium uppercase tracking-wider mb-1">已下架</p>
+          <p className="text-2xl font-semibold text-neutral-400">{loading ? '…' : products.filter(p => !p.is_active).length}</p>
+        </div>
+      </div>
+
+      {/* ── Data Table ── */}
+      <div className={`${CARD} overflow-hidden`}>
+        {loading && (
+          <div className="flex items-center justify-center py-16 text-neutral-400 text-sm">加載中…</div>
+        )}
+        {error && (
+          <div className="flex items-center justify-center py-16 text-red-500 text-sm">{error}</div>
+        )}
+        {!loading && !error && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-neutral-100">
+                  <th className="text-left px-5 py-3 text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">產品代號</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">中文名稱</th>
+                  <th className="text-left px-4 py-3 text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">English Name</th>
+                  <th className="text-right px-4 py-3 text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">USD 定價</th>
+                  <th className="text-right px-4 py-3 text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">AIF 定價</th>
+                  <th className="text-center px-4 py-3 text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">狀態</th>
+                  <th className="text-right px-5 py-3 text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="text-center py-12 text-neutral-400 text-sm">
+                      暫無產品 — 點擊「新增產品」開始配置
+                    </td>
+                  </tr>
+                )}
+                {products.map((p, i) => (
+                  <tr key={p.id} className={`border-b border-neutral-50 hover:bg-neutral-50 transition-colors ${i % 2 === 0 ? '' : 'bg-neutral-50/30'}`}>
+                    <td className="px-5 py-3.5">
+                      <code className="font-mono text-[12px] text-neutral-700 bg-neutral-100 px-2 py-0.5 rounded">
+                        {p.product_code}
+                      </code>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className="text-neutral-900 font-medium">{p.name_zh || '—'}</span>
+                    </td>
+                    <td className="px-4 py-3.5">
+                      <span className="text-neutral-500">{p.name_en || '—'}</span>
+                    </td>
+                    <td className="px-4 py-3.5 text-right">
+                      <span className="font-mono font-semibold text-neutral-800">
+                        ${Number(p.price_usd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 text-right">
+                      <span className="font-mono font-semibold text-[#00c987]">
+                        {Number(p.price_aif).toLocaleString()} AIF
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 text-center">
+                      <ProdActivePill active={p.is_active} />
+                    </td>
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => openEdit(p)}
+                          className="px-3 py-1.5 rounded-lg text-[11px] font-medium border border-neutral-300 text-neutral-600 hover:bg-neutral-100 transition-colors"
+                        >
+                          編輯
+                        </button>
+                        <button
+                          onClick={() => toggleActive(p)}
+                          className={`px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors ${
+                            p.is_active
+                              ? 'border border-red-200 text-red-600 hover:bg-red-50'
+                              : 'border border-green-200 text-green-700 hover:bg-green-50'
+                          }`}
+                        >
+                          {p.is_active ? '下架' : '上架'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ── 新增/編輯 Modal ── */}
+      {modalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
+          onClick={(e) => { if (e.target === e.currentTarget && !saving) setModalOpen(false); }}
+        >
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-neutral-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-neutral-900">
+                  {editingProduct ? '編輯產品' : '新增產品'}
+                </h3>
+                <p className="text-xs text-neutral-500 mt-0.5">
+                  {editingProduct ? `ID: ${editingProduct.id.slice(0, 8)}…` : '填寫後自動上架至 platform_products'}
+                </p>
+              </div>
+              {!saving && (
+                <button onClick={() => setModalOpen(false)} className="text-neutral-400 hover:text-neutral-600 transition-colors p-1">
+                  <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2}>
+                    <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+                  </svg>
+                </button>
+              )}
+            </div>
+
+            {/* Modal Body */}
+            <div className="px-6 py-5 space-y-4 max-h-[70vh] overflow-y-auto">
+              {/* 產品代號 */}
+              <div>
+                <label className={LABEL_CLS}>產品代號 (product_code) *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. vip_ticket"
+                  value={form.product_code}
+                  onChange={(e) => setForm(f => ({ ...f, product_code: e.target.value.toLowerCase().replace(/\s+/g, '_') }))}
+                  className={INPUT_CLS}
+                  disabled={saving || !!editingProduct}
+                />
+                {editingProduct && <p className="text-[10px] text-neutral-400 mt-1">產品代號創建後不可修改</p>}
+              </div>
+
+              {/* 雙語名稱 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={LABEL_CLS}>中文名稱 *</label>
+                  <input
+                    type="text"
+                    placeholder="VIP 票券"
+                    value={form.name_zh}
+                    onChange={(e) => setForm(f => ({ ...f, name_zh: e.target.value }))}
+                    className={INPUT_CLS}
+                    disabled={saving}
+                  />
+                </div>
+                <div>
+                  <label className={LABEL_CLS}>English Name *</label>
+                  <input
+                    type="text"
+                    placeholder="VIP Ticket"
+                    value={form.name_en}
+                    onChange={(e) => setForm(f => ({ ...f, name_en: e.target.value }))}
+                    className={INPUT_CLS}
+                    disabled={saving}
+                  />
+                </div>
+              </div>
+
+              {/* 定價 */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={LABEL_CLS}>USD 定價</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400 text-sm">$</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      placeholder="99.00"
+                      value={form.price_usd}
+                      onChange={(e) => setForm(f => ({ ...f, price_usd: parseFloat(e.target.value) || 0 }))}
+                      className={`${INPUT_CLS} pl-7`}
+                      disabled={saving}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className={LABEL_CLS}>AIF 定價</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="500"
+                      value={form.price_aif}
+                      onChange={(e) => setForm(f => ({ ...f, price_aif: parseFloat(e.target.value) || 0 }))}
+                      className={`${INPUT_CLS} pr-12`}
+                      disabled={saving}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 text-xs font-mono">AIF</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 上架狀態 */}
+              <div className="flex items-center gap-3 p-3 rounded-xl bg-neutral-50 border border-neutral-200">
+                <label className="relative inline-flex items-center cursor-pointer" htmlFor="prod-active-toggle">
+                  <input
+                    id="prod-active-toggle"
+                    type="checkbox"
+                    checked={form.is_active}
+                    onChange={(e) => setForm(f => ({ ...f, is_active: e.target.checked }))}
+                    disabled={saving}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-neutral-300 rounded-full peer-checked:bg-[#1a73e8] transition-colors peer-disabled:opacity-50 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4" />
+                </label>
+                <div>
+                  <p className="text-sm font-medium text-neutral-800">
+                    {form.is_active ? '上架中' : '已下架'}
+                  </p>
+                  <p className="text-[11px] text-neutral-500">
+                    {form.is_active ? '前端 UniversalCheckout 將顯示此產品' : '產品對前端不可見'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 border-t border-neutral-100 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setModalOpen(false)}
+                disabled={saving}
+                className="px-4 py-2 rounded-xl border border-neutral-300 text-sm font-medium text-neutral-600 hover:bg-neutral-50 transition-colors disabled:opacity-50"
+              >
+                取消
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="px-5 py-2 rounded-xl bg-neutral-900 text-white text-sm font-semibold hover:bg-neutral-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {saving && (
+                  <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                )}
+                {saving ? '保存中…' : editingProduct ? '保存變更' : '新增產品'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── 全局流水：子組件 ─────────────────────────────────────────────────────────
 
 function FinKpiCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -5400,6 +5816,7 @@ export default function AdminPage() {
       case "fin:ledger": return <FinLedgerTab />;
       case "fin:treasury": return <FinTreasuryTab t={t} />;
       case "fin:settlement": return <FinSettlementTab t={t} pushToast={pushToast} />;
+      case "fin:products": return <FinProductsTab pushToast={pushToast} />;
       case "ops:assets": return <OpsAssetsTab t={t} pushToast={pushToast} />;
       case "ops:tower": return <OpsTowerTab t={t} pushToast={pushToast} />;
       case "ops:params": return <OpsParamsTab t={t} lang={lang} setLang={setLang} pushToast={pushToast} />;

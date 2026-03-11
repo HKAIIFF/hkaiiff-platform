@@ -291,6 +291,8 @@ export async function POST(req: Request) {
   }
 
   // ── 5. 路由到对应业务处理函数 ──────────────────────────────────────────────
+  const productCode = metadata.productCode ?? null;
+
   try {
     switch (paymentType) {
       case 'film_entry':
@@ -304,6 +306,39 @@ export async function POST(req: Request) {
 
       case 'lbs_application':
         await handleLbsApplicationPaid(db, userId, session.id);
+        break;
+
+      // ── 通用產品購買（UniversalCheckout 路徑）──────────────────────────────
+      case 'product_purchase':
+        if (!productCode) {
+          console.warn(`[stripe/webhook] product_purchase missing productCode, session=${session.id}`);
+          break;
+        }
+        if (productCode === 'identity_verify') {
+          await handleVerificationPaid(db, userId, session.id);
+        } else if (productCode === 'film_entry') {
+          const metaFilmId = metadata.filmId ?? null;
+          if (!metaFilmId) {
+            console.warn(`[stripe/webhook] product_purchase film_entry missing filmId, session=${session.id}`);
+          } else {
+            await handleFilmEntryPaid(db, userId, metaFilmId, session.id);
+          }
+        } else if (productCode === 'lbs_license') {
+          await handleLbsApplicationPaid(db, userId, session.id);
+        } else {
+          // 其他通用產品：僅記錄流水，無特定業務邏輯
+          console.log(`[stripe/webhook] product_purchase generic productCode=${productCode}, recording only.`);
+          const { error: txErr } = await db.from('transactions').insert({
+            user_id: userId,
+            amount: session.amount_total ? session.amount_total / 100 : 0,
+            currency: 'USD',
+            tx_type: 'product_purchase',
+            status: 'success',
+            stripe_session_id: session.id,
+            metadata: { productCode },
+          });
+          if (txErr) console.warn('[stripe/webhook] transaction insert failed:', txErr.message);
+        }
         break;
 
       default:
