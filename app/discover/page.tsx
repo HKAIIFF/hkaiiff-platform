@@ -1,29 +1,23 @@
 'use client';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
-import dynamic from 'next/dynamic';
+import { useModal } from '@/app/context/ModalContext';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/app/context/ToastContext';
 import { supabase } from '@/lib/supabase';
 import { buildOssUrl } from '@/lib/utils/oss';
-import type { MapNode } from '@/app/components/DiscoverMap';
 
-/* Leaflet map — mobile only, dynamic import to avoid SSR */
-const DiscoverMap = dynamic(() => import('@/app/components/DiscoverMap'), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full bg-[#050505] flex items-center justify-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-7 h-7 border-2 border-signal border-t-transparent rounded-full animate-spin" />
-        <span className="font-mono text-[10px] text-signal tracking-widest">LOADING MAP...</span>
-      </div>
-    </div>
-  ),
-});
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-/* ─── Types ──────────────────────────────────────────────────────────────── */
 type LbsState = 'unlocked' | 'locked_geo' | 'locked_cond';
+
 interface Curator { name: string; avatar: string; isCertified: boolean; }
+
+interface LbsFilmEntry {
+  id: string; title: string; coverUrl: string; studio: string;
+  duration: string; trailerUrl: string | null; filmUrl: string | null; synopsis: string | null;
+}
+
 interface LbsNode {
   id: string | number; state: LbsState; stateLabel: string; title: string;
   location: string; coords: string; date: string; img: string; desc: string;
@@ -33,6 +27,7 @@ interface LbsNode {
   unlock_radius: number; curator: Curator; filmIds: string[] | null;
   background_url: string | null; poster_url: string | null;
 }
+
 interface DbLbsNode {
   id: number | string; title: string | null; location: string | null;
   lat: number | null; lng: number | null; radius: number | null;
@@ -43,7 +38,8 @@ interface DbLbsNode {
   curator_certified: boolean | null; background_url: string | null; poster_url: string | null;
 }
 
-/* ─── Helpers ─────────────────────────────────────────────────────────── */
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const φ1 = (lat1 * Math.PI) / 180, φ2 = (lat2 * Math.PI) / 180;
@@ -51,15 +47,18 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
   const a = Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
+
 const STATE_CONFIG: Record<LbsState, { label: string; icon: string; border: string; text: string }> = {
-  unlocked:    { label: 'UNLOCKED',    icon: 'fa-unlock',         border: 'border-signal', text: 'text-signal'  },
-  locked_geo:  { label: 'GEO-LOCKED',  icon: 'fa-map-marker-alt', border: 'border-danger', text: 'text-danger'  },
-  locked_cond: { label: 'TIME-LOCKED', icon: 'fa-clock',          border: 'border-honey',  text: 'text-honey'   },
+  unlocked:    { label: 'UNLOCKED',    icon: 'fa-unlock',         border: 'border-signal', text: 'text-signal' },
+  locked_geo:  { label: 'GEO-LOCKED',  icon: 'fa-map-marker-alt', border: 'border-danger', text: 'text-danger' },
+  locked_cond: { label: 'TIME-LOCKED', icon: 'fa-clock',          border: 'border-honey',  text: 'text-honey'  },
 };
+
 function resolveState(raw: string | null): LbsState {
   if (raw === 'unlocked' || raw === 'locked_geo' || raw === 'locked_cond') return raw;
   return 'locked_geo';
 }
+
 function mapDbNode(db: DbLbsNode): LbsNode {
   const state = resolveState(db.state); const cfg = STATE_CONFIG[state];
   const lat = db.lat ?? 0, lng = db.lng ?? 0;
@@ -71,7 +70,7 @@ function mapDbNode(db: DbLbsNode): LbsNode {
     title: db.title ?? 'UNNAMED NODE', location: db.location ?? 'Location TBD',
     coords: coordStr, date: db.date_label ?? 'TBD',
     img: buildOssUrl(db.image_url) || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800',
-    desc: db.description ?? '', req: db.smart_contract_req ?? '',
+    desc: db.description ?? '', req: db.smart_contract_req ?? 'Smart contract conditions pending.',
     icon: cfg.icon, borderColor: cfg.border, textColor: cfg.text,
     duration: '—', city: db.city ?? '', country: db.country ?? '', venue: db.venue ?? '',
     distance: '—', distanceKm: 0,
@@ -88,18 +87,334 @@ function mapDbNode(db: DbLbsNode): LbsNode {
   };
 }
 
-/* ─── Desktop Card ─────────────────────────────────────────────────────── */
-interface DesktopCardProps {
-  node: LbsNode;
-  isUnlocked: boolean;
-  dist: number;
-  onClick: () => void;
+// ─── Shared Sub-Components ────────────────────────────────────────────────────
+
+function NodeSkeleton() {
+  return (
+    <div className="border border-[#222] rounded-xl overflow-hidden bg-[#111] min-h-[180px] animate-pulse">
+      <div className="w-full h-full bg-[#1a1a1a]" />
+    </div>
+  );
 }
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 gap-5">
+      <div className="w-20 h-20 rounded-full bg-[#111] border border-[#222] flex items-center justify-center">
+        <i className="fas fa-map-marked-alt text-3xl text-[#333]" />
+      </div>
+      <div className="text-center">
+        <div className="font-heavy text-lg text-[#333] tracking-widest mb-2">NO LBS NODES</div>
+        <div className="font-mono text-[10px] text-[#2a2a2a] tracking-wider leading-relaxed max-w-xs mx-auto">
+          No screening nodes have been published yet. Check back closer to the festival dates.
+        </div>
+      </div>
+      <div className="flex items-center gap-2 bg-[#111] px-3 py-2 rounded-full border border-[#222]">
+        <div className="w-1.5 h-1.5 rounded-full bg-[#333] animate-pulse" />
+        <span className="font-mono text-[9px] text-[#444] tracking-widest">AWAITING NODE BROADCAST</span>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MOBILE VIEW — 100% 原版卡片列表 + 全屏滑出详情抽屉，零地图
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface MobileProps {
+  filteredNodes: LbsNode[]; loading: boolean; userLocation: { lat: number; lng: number } | null;
+  cityFilter: string; setCityFilter: (v: string) => void;
+  sortOrder: 'nearest' | 'latest'; setSortOrder: (v: 'nearest' | 'latest') => void;
+  allCities: string[]; selectedNode: LbsNode | null; detailFilms: LbsFilmEntry[];
+  filmsLoading: boolean; onOpenDetail: (node: LbsNode) => void;
+  onCloseDetail: () => void; onPlayFilm: (film: LbsFilmEntry) => void;
+}
+
+function MobileDiscover({
+  filteredNodes, loading, userLocation, cityFilter, setCityFilter,
+  sortOrder, setSortOrder, allCities, selectedNode, detailFilms,
+  filmsLoading, onOpenDetail, onCloseDetail, onPlayFilm,
+}: MobileProps) {
+  return (
+    /* 原版单列滚动页面: pt-28 清出 MobileTopBar, pb-32 清出 BottomNav */
+    <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pt-28 pb-32 relative">
+
+      {/* Header */}
+      <div className="flex justify-between items-end mb-2">
+        <h1 className="font-heavy text-4xl text-white">DISCOVER</h1>
+        <div className="flex items-center gap-2 mb-2 bg-[#111] px-2 py-1 rounded border border-[#333]">
+          <div className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-honey animate-pulse' : 'bg-signal animate-pulse'}`} />
+          <span className="font-mono text-[8px] text-signal tracking-widest uppercase">
+            {loading ? 'LOADING NODES...' : `${filteredNodes.length} NODES ACTIVE`}
+          </span>
+        </div>
+      </div>
+
+      {/* Description */}
+      <p className="font-mono text-[10px] text-gray-400 mb-5 leading-relaxed border-l-2 border-[#333] pl-2">
+        Exclusive screenings controlled by Location-Based Services (LBS) and conditional smart contracts.
+      </p>
+
+      {/* Filter Toolbar */}
+      {!loading && filteredNodes.length > 0 && (
+        <div className="flex gap-3 mb-6">
+          <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)}
+            className="bg-black border border-[#333] text-[#CCFF00] text-xs font-mono p-2 rounded flex-1 appearance-none cursor-pointer focus:outline-none focus:border-[#CCFF00]">
+            <option value="all">All Cities</option>
+            {allCities.map((city) => <option key={city} value={city}>{city}</option>)}
+          </select>
+          <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as 'nearest' | 'latest')}
+            className="bg-black border border-[#333] text-[#CCFF00] text-xs font-mono p-2 rounded flex-1 appearance-none cursor-pointer focus:outline-none focus:border-[#CCFF00]">
+            <option value="nearest">Nearest</option>
+            <option value="latest">Latest</option>
+          </select>
+        </div>
+      )}
+
+      {/* Node Card List */}
+      {loading ? (
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => <NodeSkeleton key={i} />)}
+        </div>
+      ) : filteredNodes.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <div className="space-y-4">
+          {filteredNodes.map((node) => {
+            const dist = userLocation && (node.lat !== 0 || node.lng !== 0)
+              ? Math.round(haversineMeters(userLocation.lat, userLocation.lng, node.lat, node.lng))
+              : Infinity;
+            const isUnlocked = node.state === 'unlocked' ||
+              (node.state === 'locked_geo' && userLocation !== null && dist <= (node.unlock_radius || 500));
+            const bgSrc = node.background_url ?? node.img;
+            return (
+              <div
+                key={node.id}
+                className={`relative overflow-hidden rounded-xl border-2 transition-all duration-300 cursor-pointer group shadow-lg ${
+                  isUnlocked ? 'border-[#CCFF00] shadow-[0_0_15px_rgba(204,255,0,0.15)]' : 'border-red-900/50 opacity-80'
+                }`}
+                onClick={() => onOpenDetail(node)}
+              >
+                {/* Background image */}
+                <div
+                  className="absolute inset-0 z-0 bg-cover bg-center opacity-30 group-hover:scale-105 transition-transform duration-700"
+                  style={{ backgroundImage: bgSrc ? `url('${bgSrc}')` : 'none' }}
+                />
+                <div className="absolute inset-0 z-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent" />
+
+                <div className="relative z-10 p-5 flex flex-col justify-between h-full min-h-[180px]">
+                  {/* Top row */}
+                  <div className="flex justify-between items-start">
+                    {node.state === 'locked_cond' ? (
+                      <div className="bg-black/80 border border-honey text-[9px] font-mono px-2 py-1 rounded text-honey flex items-center gap-1.5 backdrop-blur">
+                        <i className="fas fa-clock" /><span>TIME-LOCKED</span>
+                      </div>
+                    ) : isUnlocked ? (
+                      <div className="border border-[#CCFF00] text-[#CCFF00] px-2 py-1 rounded text-[10px] font-mono flex items-center gap-1.5 bg-black/80 backdrop-blur">
+                        <i className="fas fa-unlock" /> UNLOCKED
+                      </div>
+                    ) : (
+                      <div className="border border-red-500 text-red-500 px-2 py-1 rounded text-[10px] font-mono flex items-center gap-1.5 bg-black/80 backdrop-blur">
+                        <i className="fas fa-map-marker-alt" /> GEO-LOCKED
+                      </div>
+                    )}
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="text-[10px] font-mono text-gray-300 bg-black/50 px-2 py-1 rounded backdrop-blur border border-[#333] max-w-[160px] text-right">
+                        📍 {[node.country, node.city, node.venue].filter(Boolean).join(' ') || node.location}
+                      </div>
+                      <div className="text-[9px] font-mono text-gray-500 bg-black/50 px-2 py-0.5 rounded backdrop-blur border border-[#333]">
+                        🎬 放映影片：{node.filmIds?.length || 0} 部
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom row */}
+                  <div>
+                    <h3 className="font-heavy text-white text-2xl mb-1 tracking-wide drop-shadow-md">{node.title}</h3>
+                    <div className="text-xs font-mono text-gray-300 mb-2 flex items-center gap-2">
+                      <i className={`fas fa-map-marker-alt ${node.textColor}`} /> {node.location}
+                    </div>
+                    {node.desc && <p className="line-clamp-2 text-xs text-gray-400 mt-2 mb-2">{node.desc}</p>}
+                    <div className={`text-[10px] text-gray-400 font-mono border-l-2 ${node.borderColor} pl-2 leading-snug bg-black/40 py-1 pr-1 backdrop-blur rounded-r mb-3`}>
+                      {node.req}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <img src={node.curator.avatar} alt="AIF.SHOW" className="w-5 h-5 rounded-full border border-[#444] object-cover shrink-0" />
+                      <span className="text-[10px] font-mono text-gray-300 font-bold">AIF.SHOW</span>
+                      <i className="fas fa-check-circle text-blue-400 text-[10px]" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── Full-screen Detail Drawer (slides up) ──
+          z-[400] within mobile context (below BottomNav z-[999]) but covers page content */}
+      <div
+        className={`fixed inset-0 z-[400] bg-[#050505] flex flex-col transition-transform duration-300 ${
+          selectedNode ? 'translate-y-0' : 'translate-y-full'
+        }`}
+      >
+        {/* Top nav bar */}
+        <div className="absolute top-0 left-0 w-full z-20 flex justify-between items-center p-4 pt-12 bg-gradient-to-b from-black to-transparent">
+          <button onClick={onCloseDetail}
+            className="w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform">
+            <i className="fas fa-arrow-left" />
+          </button>
+          <div className="font-mono text-[10px] text-signal tracking-widest bg-black/50 px-3 py-1.5 rounded-full backdrop-blur border border-[#333]">
+            EVENT DETAILS
+          </div>
+          <div className="w-10" />
+        </div>
+
+        {selectedNode && (
+          <div className="overflow-y-auto flex-1 pb-32">
+            {/* Hero */}
+            <div className="relative w-full h-72 bg-black">
+              <img
+                src={selectedNode.background_url ?? selectedNode.img}
+                alt={selectedNode.title}
+                className="w-full h-full object-cover opacity-60"
+                onError={(e) => { const t = e.currentTarget; if (t.src !== selectedNode.img) t.src = selectedNode.img; }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent" />
+            </div>
+
+            <div className="px-6 -mt-12 relative z-10 space-y-6">
+              {/* Title */}
+              <div>
+                <div className={`inline-block text-[9px] font-mono px-2 py-1 rounded mb-2 border backdrop-blur ${selectedNode.borderColor} ${selectedNode.textColor} bg-black/80`}>
+                  <i className={`fas ${selectedNode.icon} mr-1`} />{selectedNode.stateLabel}
+                </div>
+                <h2 className="font-heavy text-4xl text-white leading-none drop-shadow-md mb-2">{selectedNode.title}</h2>
+                <div className="text-[10px] font-mono text-gray-400 flex items-center gap-1">
+                  <i className="fas fa-crosshairs text-signal" />
+                  <span>{selectedNode.coords}</span>
+                  <span className="mx-1 text-[#333]">|</span>
+                  <span>{selectedNode.city}</span>
+                  <span className="mx-1 text-[#333]">·</span>
+                  <span>{selectedNode.distance}</span>
+                </div>
+              </div>
+
+              {/* Poster */}
+              {selectedNode.poster_url && (
+                <div className="flex items-start gap-4">
+                  <img src={selectedNode.poster_url} alt={`${selectedNode.title} poster`}
+                    className="w-20 h-28 object-cover rounded-lg border border-[#333] shrink-0"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                  {selectedNode.desc && (
+                    <p className="text-xs text-gray-300 font-mono leading-relaxed line-clamp-5 pt-1">{selectedNode.desc}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Curator */}
+              <div className="flex items-center gap-3 bg-[#111] border border-[#222] rounded-xl p-3">
+                <img src={selectedNode.curator.avatar} alt={selectedNode.curator.name}
+                  className="w-10 h-10 rounded-full border border-[#333] object-cover shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-white truncate">{selectedNode.curator.name}</span>
+                    {selectedNode.curator.isCertified && <i className="fas fa-certificate text-[#CCFF00] text-xs shrink-0" />}
+                  </div>
+                  <div className="text-[9px] font-mono text-gray-500 uppercase tracking-widest mt-0.5">Official Curator</div>
+                </div>
+              </div>
+
+              {/* Venue + Schedule */}
+              <div className="grid grid-cols-2 gap-4">
+                {[{ label: 'VENUE', val: selectedNode.location }, { label: 'SCHEDULE', val: selectedNode.date }].map((s) => (
+                  <div key={s.label} className="bg-[#111] p-4 rounded-xl border border-[#222]">
+                    <div className="text-[9px] text-gray-500 font-mono mb-1">{s.label}</div>
+                    <div className="text-sm text-white font-bold">{s.val}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Event Description */}
+              {selectedNode.desc && (
+                <section>
+                  <h3 className="font-heavy text-lg text-white mb-2">EVENT DESCRIPTION</h3>
+                  <p className="text-xs text-gray-300 font-mono leading-relaxed text-justify">{selectedNode.desc}</p>
+                </section>
+              )}
+
+              {/* Official Selection */}
+              <section>
+                <h3 className="font-heavy text-lg text-white mb-3 flex items-center gap-2">
+                  <i className="fas fa-film text-[#CCFF00]" /> OFFICIAL SELECTION
+                </h3>
+                {filmsLoading ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    {[...Array(4)].map((_, i) => (
+                      <div key={i} className="animate-pulse">
+                        <div className="aspect-[2/3] rounded-xl bg-[#1a1a1a] mb-2" />
+                        <div className="h-3 bg-[#1a1a1a] rounded w-3/4 mb-1.5" />
+                        <div className="h-2.5 bg-[#1a1a1a] rounded w-1/2" />
+                      </div>
+                    ))}
+                  </div>
+                ) : detailFilms.length === 0 ? (
+                  <div className="bg-[#111] border border-[#222] rounded-xl p-6 flex flex-col items-center gap-3">
+                    <i className="fas fa-film text-2xl text-[#333]" />
+                    <span className="font-mono text-[10px] text-[#444] tracking-widest">NO FILMS ASSIGNED TO THIS NODE</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-3">
+                    {detailFilms.map((film) => (
+                      <div key={film.id} className="group bg-[#111] rounded-xl border border-white/10 overflow-hidden shadow-xl">
+                        <div className="relative aspect-[2/3] w-full overflow-hidden">
+                          <img src={film.coverUrl} alt={film.title}
+                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1608889175123-8ee362201f81?q=80&w=300'; }} />
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#111]/80 via-transparent to-transparent" />
+                          {film.filmUrl && (
+                            <div className="absolute top-1.5 right-1.5 bg-[#CCFF00] text-black text-[8px] font-bold px-1.5 py-0.5 rounded-sm leading-none">正片</div>
+                          )}
+                        </div>
+                        <div className="p-3 flex flex-col gap-1.5">
+                          <h4 className="text-base font-black text-white uppercase truncate leading-tight">{film.title}</h4>
+                          <p className="text-xs text-emerald-400 truncate">{film.studio}</p>
+                          {film.synopsis && <p className="text-[11px] text-gray-400 line-clamp-2 leading-snug">{film.synopsis}</p>}
+                          <button onClick={() => onPlayFilm(film)}
+                            className="mt-2 w-full bg-white text-black hover:bg-[#CCFF00] active:scale-95 font-bold rounded-lg py-2.5 text-xs tracking-wide transition-all flex items-center justify-center gap-1.5">
+                            <i className="fas fa-play text-[10px]" /><span>播放正片</span>
+                          </button>
+                          <p className="text-center text-[9px] font-mono text-gray-600 tracking-wide">◱ 建議橫屏觀看</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {/* Smart Contract Req */}
+              <section className="bg-gradient-to-br from-[#111] to-[#0a0a0a] border border-[#333] p-4 rounded-xl relative overflow-hidden">
+                <div className={`absolute left-0 top-0 w-1 h-full ${selectedNode.borderColor.replace('border-', 'bg-')}`} />
+                <h3 className="font-heavy text-lg text-white mb-2">SMART CONTRACT REQ</h3>
+                <p className={`text-[10px] font-mono ${selectedNode.textColor}`}>{selectedNode.req}</p>
+              </section>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DESKTOP VIEW — 卡片矩阵 + 搜索框，零地图
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface DesktopCardProps { node: LbsNode; isUnlocked: boolean; dist: number; onClick: () => void; }
 function DesktopNodeCard({ node, isUnlocked, dist, onClick }: DesktopCardProps) {
   const posterSrc = node.poster_url ?? node.img;
   return (
-    <div
-      onClick={onClick}
+    <div onClick={onClick}
       className={`group relative overflow-hidden rounded-xl border-2 cursor-pointer transition-all duration-300
         ${isUnlocked
           ? 'border-signal/40 hover:border-signal shadow-[0_0_12px_rgba(204,255,0,0.05)] hover:shadow-[0_0_20px_rgba(204,255,0,0.15)]'
@@ -108,17 +423,11 @@ function DesktopNodeCard({ node, isUnlocked, dist, onClick }: DesktopCardProps) 
           : 'border-red-900/30 hover:border-red-900/60 opacity-75 hover:opacity-100'
         }`}
     >
-      {/* Background image */}
       <div className="relative aspect-[3/4] overflow-hidden bg-[#0d0d0d]">
-        <img
-          src={posterSrc}
-          alt={node.title}
+        <img src={posterSrc} alt={node.title}
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-          onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=400'; }}
-        />
-        {/* Gradient scrim */}
+          onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=400'; }} />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent" />
-
         {/* State badge */}
         <div className="absolute top-2.5 left-2.5">
           {isUnlocked ? (
@@ -135,13 +444,9 @@ function DesktopNodeCard({ node, isUnlocked, dist, onClick }: DesktopCardProps) 
             </span>
           )}
         </div>
-
-        {/* Film count badge */}
         <div className="absolute top-2.5 right-2.5 text-[8px] font-mono text-gray-400 bg-black/60 backdrop-blur px-1.5 py-0.5 rounded border border-[#333]">
           🎬 {node.filmIds?.length ?? 0}
         </div>
-
-        {/* Bottom info */}
         <div className="absolute bottom-0 left-0 right-0 p-3">
           <h3 className="font-heavy text-white text-base leading-tight mb-1 line-clamp-2">{node.title}</h3>
           <p className="text-[9px] font-mono text-gray-400 flex items-center gap-1 mb-2">
@@ -158,8 +463,6 @@ function DesktopNodeCard({ node, isUnlocked, dist, onClick }: DesktopCardProps) 
           </div>
         </div>
       </div>
-
-      {/* Hover CTA */}
       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
         <div className={`px-4 py-2 rounded-full text-xs font-bold font-mono tracking-wider shadow-lg ${isUnlocked ? 'bg-signal text-black' : 'bg-black/80 text-[#555] border border-[#333]'}`}>
           {isUnlocked ? '▶ ENTER' : '🔒 LOCKED'}
@@ -169,137 +472,123 @@ function DesktopNodeCard({ node, isUnlocked, dist, onClick }: DesktopCardProps) 
   );
 }
 
-/* ─── Desktop Skeleton ─────────────────────────────────────────────────── */
 function DesktopSkeleton() {
-  return (
-    <div className="rounded-xl border border-[#1a1a1a] overflow-hidden bg-[#0d0d0d] animate-pulse">
-      <div className="aspect-[3/4] bg-[#141414]" />
-    </div>
-  );
+  return <div className="rounded-xl border border-[#1a1a1a] overflow-hidden bg-[#0d0d0d] animate-pulse"><div className="aspect-[3/4] bg-[#141414]" /></div>;
 }
 
-/* ─── Mobile Node Card (compact list item) ─────────────────────────────── */
-interface MobileNodeCardProps { node: LbsNode; isUnlocked: boolean; dist: number; isSelected: boolean; onClick: () => void; }
-function MobileNodeCard({ node, isUnlocked, dist, isSelected, onClick }: MobileNodeCardProps) {
-  const posterSrc = node.poster_url ?? node.img;
-  return (
-    <div
-      onClick={onClick}
-      className={`relative overflow-hidden rounded-xl border-2 transition-all duration-200 cursor-pointer group flex shrink-0
-        ${isSelected ? 'border-signal shadow-[0_0_16px_rgba(204,255,0,0.12)]' : isUnlocked ? 'border-signal/40' : node.state === 'locked_cond' ? 'border-honey/40 opacity-80' : 'border-red-900/30 opacity-75'}`}
-    >
-      <div className="relative w-20 shrink-0 overflow-hidden">
-        <img src={posterSrc} alt={node.title} className="absolute inset-0 w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=200'; }} />
-        <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#050505]/50" />
-      </div>
-      <div className="flex-1 p-3 flex flex-col justify-between relative bg-[#080808] min-w-0">
-        <div className="flex justify-between items-start gap-1.5 mb-1">
-          {isUnlocked ? (
-            <span className="border border-signal text-signal px-1.5 py-0.5 rounded text-[7px] font-mono flex items-center gap-1"><i className="fas fa-unlock text-[6px]" />UNLOCKED</span>
-          ) : node.state === 'locked_cond' ? (
-            <span className="border border-honey text-honey px-1.5 py-0.5 rounded text-[7px] font-mono flex items-center gap-1"><i className="fas fa-clock text-[6px]" />TIME-LOCKED</span>
-          ) : (
-            <span className="border border-red-500 text-red-500 px-1.5 py-0.5 rounded text-[7px] font-mono flex items-center gap-1"><i className="fas fa-map-marker-alt text-[6px]" />GEO-LOCKED</span>
-          )}
-          <span className="text-[7px] font-mono text-[#444] shrink-0">🎬 {node.filmIds?.length ?? 0}</span>
-        </div>
-        <h3 className="font-heavy text-white text-sm leading-tight line-clamp-1">{node.title}</h3>
-        <div className="text-[9px] font-mono text-gray-500 flex items-center gap-1 mt-0.5">
-          <i className={`fas fa-map-marker-alt ${node.textColor} text-[7px]`} />
-          <span className="truncate">{[node.country, node.city].filter(Boolean).join(' · ') || node.location}</span>
-        </div>
-        <div className="flex items-center justify-between mt-1">
-          <span className="text-[8px] font-mono text-[#3a3a3a]">{node.date}</span>
-          {dist !== Infinity && <span className={`text-[7px] font-mono ${isUnlocked ? 'text-signal' : 'text-[#444]'}`}>{dist < 1000 ? `${dist}m` : `${(dist / 1000).toFixed(1)}km`}</span>}
-        </div>
-      </div>
-    </div>
-  );
+interface DesktopProps {
+  filteredNodes: LbsNode[]; loading: boolean; userLocation: { lat: number; lng: number } | null;
+  cityFilter: string; setCityFilter: (v: string) => void;
+  sortOrder: 'nearest' | 'latest'; setSortOrder: (v: 'nearest' | 'latest') => void;
+  allCities: string[]; searchQuery: string; setSearchQuery: (v: string) => void;
+  onClickNode: (node: LbsNode) => void;
 }
 
-/* ─── Mobile Bottom Sheet ─────────────────────────────────────────────── */
-function MobileBottomSheet({ node, isUnlocked, dist, onClose, onEnter }: {
-  node: LbsNode | null; isUnlocked: boolean; dist: number; onClose: () => void; onEnter: (n: LbsNode) => void;
-}) {
-  if (!node) return null;
-  const posterSrc = node.poster_url ?? node.img;
+function DesktopDiscover({
+  filteredNodes, loading, userLocation, cityFilter, setCityFilter,
+  sortOrder, setSortOrder, allCities, searchQuery, setSearchQuery, onClickNode,
+}: DesktopProps) {
+  const getStatus = (node: LbsNode) => {
+    const dist = userLocation && (node.lat !== 0 || node.lng !== 0)
+      ? Math.round(haversineMeters(userLocation.lat, userLocation.lng, node.lat, node.lng))
+      : Infinity;
+    const isUnlocked = node.state === 'unlocked' ||
+      (node.state === 'locked_geo' && userLocation !== null && dist <= (node.unlock_radius || 500));
+    return { dist, isUnlocked };
+  };
+
   return (
-    <div className="fixed inset-0 z-[500] flex items-end pointer-events-none">
-      <div className="absolute inset-0 bg-black/40 pointer-events-auto" onClick={onClose} />
-      <div className="relative w-full pointer-events-auto rounded-t-2xl border-t border-[#222] bg-[#080808] overflow-y-auto" style={{ maxHeight: '70vh' }}>
-        <div className="flex justify-center pt-3 pb-2"><div className="w-10 h-1 rounded-full bg-[#333]" /></div>
-        <div className="px-4 pb-20">
-          <div className="relative rounded-xl overflow-hidden h-40 mb-4">
-            <img src={posterSrc} alt={node.title} className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
-            <div className="absolute bottom-3 left-3">
-              {isUnlocked ? (
-                <span className="border border-signal text-signal px-2 py-0.5 rounded text-[8px] font-mono bg-black/60"><i className="fas fa-unlock text-[7px] mr-1" />UNLOCKED</span>
-              ) : node.state === 'locked_cond' ? (
-                <span className="border border-honey text-honey px-2 py-0.5 rounded text-[8px] font-mono bg-black/60">TIME-LOCKED</span>
-              ) : (
-                <span className="border border-red-500 text-red-400 px-2 py-0.5 rounded text-[8px] font-mono bg-black/60">GEO-LOCKED</span>
-              )}
+    <div className="flex flex-col h-full overflow-hidden bg-void">
+      {/* Header + Search */}
+      <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-[#1a1a1a] flex items-end gap-4">
+        <div className="flex-1">
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="font-heavy text-2xl text-white tracking-wider">DISCOVER</h1>
+            <div className="flex items-center gap-1.5 bg-[#111] px-2 py-1 rounded border border-[#1a1a1a]">
+              <div className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-honey animate-pulse' : 'bg-signal animate-pulse'}`} />
+              <span className="font-mono text-[8px] text-signal tracking-widest">
+                {loading ? 'LOADING...' : `${filteredNodes.length} NODES ACTIVE`}
+              </span>
             </div>
           </div>
-          <h2 className="font-heavy text-2xl text-white mb-1 leading-tight">{node.title}</h2>
-          <p className="font-mono text-[10px] text-[#555] mb-4 flex items-center gap-1.5">
-            <i className="fas fa-map-marker-alt text-[8px]" />
-            {[node.country, node.city, node.venue].filter(Boolean).join(' · ') || node.location}
+          <p className="font-mono text-[9px] text-[#444] leading-relaxed">
+            LBS + smart contract controlled exclusive screenings · Get close to unlock geo-gated venues
           </p>
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            {[
-              { val: String(node.filmIds?.length ?? 0), label: 'FILMS' },
-              { val: node.date.slice(0, 8), label: 'DATE' },
-              { val: dist !== Infinity ? (dist < 1000 ? `${dist}m` : `${(dist/1000).toFixed(1)}km`) : '—', label: 'DISTANCE' },
-            ].map((s) => (
-              <div key={s.label} className="bg-[#111] rounded-lg p-2.5 text-center border border-[#1a1a1a]">
-                <div className="font-heavy text-sm text-white truncate">{s.val}</div>
-                <div className="text-[7px] font-mono text-[#555] mt-0.5">{s.label}</div>
-              </div>
-            ))}
+        </div>
+        <div className="relative w-72 shrink-0">
+          <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-[#3a3a3a] text-[11px]" />
+          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search venues, cities..."
+            className="w-full bg-[#0e0e0e] border border-[#1e1e1e] text-white text-xs font-mono pl-9 pr-8 py-2 rounded-lg placeholder-[#383838] focus:outline-none focus:border-signal/30 transition-all" />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#444] hover:text-white">
+              <i className="fas fa-times text-[10px]" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Filter Toolbar */}
+      {!loading && filteredNodes.length > 0 && (
+        <div className="flex-shrink-0 flex items-center gap-3 px-6 py-2.5 border-b border-[#0e0e0e] bg-[#030303]">
+          <span className="text-[9px] font-mono text-[#444] tracking-widest uppercase shrink-0">Filter:</span>
+          <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)}
+            className="bg-black border border-[#222] text-signal text-[10px] font-mono px-2 py-1 rounded appearance-none cursor-pointer focus:outline-none focus:border-signal/40">
+            <option value="all">All Cities</option>
+            {allCities.map((city) => <option key={city} value={city}>{city}</option>)}
+          </select>
+          <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as 'nearest' | 'latest')}
+            className="bg-black border border-[#222] text-signal text-[10px] font-mono px-2 py-1 rounded appearance-none cursor-pointer focus:outline-none focus:border-signal/40">
+            <option value="nearest">Nearest First</option>
+            <option value="latest">Latest First</option>
+          </select>
+          {searchQuery && (
+            <span className="text-[9px] font-mono text-[#555] ml-auto">
+              {filteredNodes.length} result{filteredNodes.length !== 1 ? 's' : ''} for &ldquo;{searchQuery}&rdquo;
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Card Grid */}
+      <div className="flex-1 overflow-y-auto">
+        {loading ? (
+          <div className="grid grid-cols-3 lg:grid-cols-4 gap-4 p-6">
+            {[...Array(8)].map((_, i) => <DesktopSkeleton key={i} />)}
           </div>
-          {node.desc && <p className="font-mono text-[10px] text-[#666] leading-relaxed mb-4 border-l-2 border-[#222] pl-3">{node.desc}</p>}
-          <button
-            onClick={() => onEnter(node)}
-            className={`w-full py-3 rounded-xl font-heavy text-sm tracking-wider transition-all active:scale-[0.98] ${isUnlocked ? 'bg-signal text-black hover:bg-white' : 'bg-[#1a1a1a] text-[#444] border border-[#222]'}`}
-          >
-            {isUnlocked ? <><i className="fas fa-unlock mr-2" />ENTER SCREENING</> : node.state === 'locked_cond' ? <><i className="fas fa-clock mr-2" />TIME-LOCKED</> : <><i className="fas fa-map-marker-alt mr-2" />GET CLOSER</>}
-          </button>
-        </div>
+        ) : (
+          <div className="grid grid-cols-3 lg:grid-cols-4 gap-4 p-6">
+            {filteredNodes.length === 0 ? (
+              <EmptyState />
+            ) : filteredNodes.map((node) => {
+              const { dist, isUnlocked } = getStatus(node);
+              return (
+                <DesktopNodeCard key={node.id} node={node} isUnlocked={isUnlocked} dist={dist} onClick={() => onClickNode(node)} />
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-/* ─── Empty State ─────────────────────────────────────────────────────── */
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center justify-center py-24 gap-5 col-span-full">
-      <div className="w-20 h-20 rounded-full bg-[#111] border border-[#222] flex items-center justify-center">
-        <i className="fas fa-map-marked-alt text-3xl text-[#333]" />
-      </div>
-      <div className="text-center">
-        <div className="font-heavy text-base text-[#333] tracking-widest mb-2">NO LBS NODES</div>
-        <div className="font-mono text-[9px] text-[#2a2a2a] tracking-wider leading-relaxed max-w-xs mx-auto">
-          No screening nodes have been published yet.
-        </div>
-      </div>
-    </div>
-  );
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// PAGE ENTRY — Shared data layer, physical component isolation
+// ─────────────────────────────────────────────────────────────────────────────
 
-/* ─── Page ──────────────────────────────────────────────────────────────── */
 export default function DiscoverPage() {
   const [nodes, setNodes] = useState<LbsNode[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedNode, setSelectedNode] = useState<LbsNode | null>(null);
+  const [detailFilms, setDetailFilms] = useState<LbsFilmEntry[]>([]);
+  const [filmsLoading, setFilmsLoading] = useState(false);
   const [cityFilter, setCityFilter] = useState<string>('all');
   const [sortOrder, setSortOrder] = useState<'nearest' | 'latest'>('nearest');
-  const [searchQuery, setSearchQuery] = useState('');
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [selectedId, setSelectedId] = useState<string | number | null>(null);
-  const [mobileSheetNode, setMobileSheetNode] = useState<LbsNode | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
+  const { setActiveModal, setLbsVideoUrl } = useModal();
   const router = useRouter();
   const { showToast } = useToast();
 
@@ -325,9 +614,7 @@ export default function DiscoverPage() {
       } catch (err) {
         console.error('[Discover]', err);
         showToast('Failed to load nodes', 'error');
-      } finally {
-        setLoading(false);
-      }
+      } finally { setLoading(false); }
     }
     fetchNodes();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -340,19 +627,78 @@ export default function DiscoverPage() {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       base = base.filter((n) =>
-        n.title.toLowerCase().includes(q) ||
-        n.city.toLowerCase().includes(q) ||
-        n.country.toLowerCase().includes(q) ||
-        n.venue.toLowerCase().includes(q)
+        n.title.toLowerCase().includes(q) || n.city.toLowerCase().includes(q) ||
+        n.country.toLowerCase().includes(q) || n.venue.toLowerCase().includes(q)
       );
     }
     return sortOrder === 'nearest' ? [...base].sort((a, b) => a.distanceKm - b.distanceKm) : base;
   }, [nodes, cityFilter, sortOrder, searchQuery]);
 
-  const openNode = useCallback(async (node: LbsNode) => {
+  // Mobile: geo-check then show detail drawer
+  const openDetail = useCallback(async (node: LbsNode) => {
     if (node.state === 'locked_cond') { showToast('🔒 此影展尚未開放，請在活動時間窗口內再試', 'error'); return; }
     if (node.lat !== 0 || node.lng !== 0) {
-      if (!navigator.geolocation) { showToast('🔒 設備不支持地理定位', 'error'); return; }
+      if (!navigator.geolocation) { showToast('🔒 您的設備不支持地理定位，無法解鎖 LBS 影展', 'error'); return; }
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 })
+        );
+        const dist = Math.round(haversineMeters(pos.coords.latitude, pos.coords.longitude, node.lat, node.lng));
+        const radius = Number(node.unlock_radius) || 500;
+        if (dist > radius) {
+          showToast(
+            process.env.NODE_ENV === 'development'
+              ? `🔒 DEV: ${dist}m > ${radius}m`
+              : `🔒 未在解鎖範圍內。您距離影展還有 ${dist} 米，需要進入 ${radius} 米範圍內`,
+            'error'
+          );
+          return;
+        }
+      } catch {
+        if (node.state !== 'unlocked') { showToast('🔒 無法獲取您的位置，請允許位置權限後重試', 'error'); return; }
+      }
+    } else if (node.state !== 'unlocked') { showToast('🔒 Location or time window requirement not met', 'error'); return; }
+
+    setSelectedNode(node);
+    setDetailFilms([]);
+
+    if (node.filmIds && node.filmIds.length > 0) {
+      setFilmsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('films')
+          .select('id, title, poster_url, studio, trailer_url, feature_url, synopsis')
+          .in('id', node.filmIds)
+          .eq('status', 'approved');
+        if (error) throw error;
+        if (data && data.length > 0) {
+          setDetailFilms(data.map((f) => ({
+            id: f.id, title: f.title,
+            coverUrl: buildOssUrl(f.poster_url) || 'https://images.unsplash.com/photo-1608889175123-8ee362201f81?q=80&w=300',
+            studio: f.studio ?? '—', duration: '—',
+            trailerUrl: f.trailer_url ?? null, filmUrl: f.feature_url ?? null, synopsis: f.synopsis ?? null,
+          })));
+        }
+      } catch (err) { console.error('[Discover] Failed to load node films:', err); }
+      finally { setFilmsLoading(false); }
+    }
+  }, [showToast]);
+
+  const closeDetail = useCallback(() => { setSelectedNode(null); setDetailFilms([]); }, []);
+
+  const playFilm = useCallback((film: LbsFilmEntry) => {
+    const playUrl = film.filmUrl ?? film.trailerUrl ?? null;
+    if (!playUrl) { showToast('⚠️ 此影片暫無可播放的正片連結', 'error'); return; }
+    setLbsVideoUrl(playUrl);
+    setSelectedNode(null);
+    setDetailFilms([]);
+    setActiveModal('play');
+  }, [setLbsVideoUrl, setActiveModal, showToast]);
+
+  // Desktop: navigate to events page
+  const openNodeDesktop = useCallback(async (node: LbsNode) => {
+    if (node.state === 'locked_cond') { showToast('🔒 此影展尚未開放', 'error'); return; }
+    if (node.lat !== 0 || node.lng !== 0) {
       try {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
           navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 })
@@ -369,158 +715,37 @@ export default function DiscoverPage() {
           return;
         }
       } catch {
-        if (node.state !== 'unlocked') { showToast('🔒 無法獲取位置，請允許位置權限', 'error'); return; }
+        if (node.state !== 'unlocked') { showToast('🔒 Location requirement not met', 'error'); return; }
       }
-    } else if (node.state !== 'unlocked') {
-      showToast('🔒 Location requirement not met', 'error'); return;
-    }
+    } else if (node.state !== 'unlocked') { showToast('🔒 Location requirement not met', 'error'); return; }
     router.push(`/events/${node.id}`);
   }, [router, showToast]);
 
-  const getNodeStatus = useCallback((node: LbsNode) => {
-    const dist = userLocation && (node.lat !== 0 || node.lng !== 0)
-      ? Math.round(haversineMeters(userLocation.lat, userLocation.lng, node.lat, node.lng))
-      : Infinity;
-    const isUnlocked = node.state === 'unlocked' ||
-      (node.state === 'locked_geo' && userLocation !== null && dist <= (node.unlock_radius || 500));
-    return { dist, isUnlocked };
-  }, [userLocation]);
-
-  const mapNodes: MapNode[] = useMemo(() =>
-    filteredNodes.map((n) => ({ id: n.id, lat: n.lat, lng: n.lng, title: n.title, state: n.state, city: n.city })),
-    [filteredNodes]
-  );
-
-  const handleMarkerClick = useCallback((id: string | number) => {
-    setSelectedId(id);
-    const node = filteredNodes.find((n) => n.id === id);
-    if (node) setMobileSheetNode(node);
-  }, [filteredNodes]);
+  const sharedProps = { filteredNodes, loading, userLocation, cityFilter, setCityFilter, sortOrder, setSortOrder, allCities };
 
   return (
     <>
-      {/* ═══════════════════════════════════════════════════════════════
-          DESKTOP (md:+): 純卡片矩陣 + 搜尋
-      ════════════════════════════════════════════════════════════════ */}
-      <div className="hidden md:flex flex-col h-full overflow-hidden bg-void">
-
-        {/* ── Desktop Header ── */}
-        <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-[#1a1a1a] flex items-end gap-4">
-          <div className="flex-1">
-            <div className="flex items-center gap-3 mb-1">
-              <h1 className="font-heavy text-2xl text-white tracking-wider">DISCOVER</h1>
-              <div className="flex items-center gap-1.5 bg-[#111] px-2 py-1 rounded border border-[#1a1a1a]">
-                <div className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-honey animate-pulse' : 'bg-signal animate-pulse'}`} />
-                <span className="font-mono text-[8px] text-signal tracking-widest">
-                  {loading ? 'LOADING...' : `${nodes.length} NODES ACTIVE`}
-                </span>
-              </div>
-            </div>
-            <p className="font-mono text-[9px] text-[#444] leading-relaxed">
-              LBS + smart contract controlled exclusive screenings · Get close to unlock geo-gated venues
-            </p>
-          </div>
-          {/* Desktop search bar */}
-          <div className="relative w-72 shrink-0">
-            <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-[#3a3a3a] text-[11px]" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search venues, cities..."
-              className="w-full bg-[#0e0e0e] border border-[#1e1e1e] text-white text-xs font-mono pl-9 pr-8 py-2 rounded-lg placeholder-[#383838] focus:outline-none focus:border-signal/30 transition-all"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#444] hover:text-white">
-                <i className="fas fa-times text-[10px]" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* ── Filter Toolbar ── */}
-        {!loading && nodes.length > 0 && (
-          <div className="flex-shrink-0 flex items-center gap-3 px-6 py-2.5 border-b border-[#0e0e0e] bg-[#030303]">
-            <span className="text-[9px] font-mono text-[#444] tracking-widest uppercase shrink-0">Filter:</span>
-            <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)}
-              className="bg-black border border-[#222] text-signal text-[10px] font-mono px-2 py-1 rounded appearance-none cursor-pointer focus:outline-none focus:border-signal/40">
-              <option value="all">All Cities</option>
-              {allCities.map((city) => <option key={city} value={city}>{city}</option>)}
-            </select>
-            <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as 'nearest' | 'latest')}
-              className="bg-black border border-[#222] text-signal text-[10px] font-mono px-2 py-1 rounded appearance-none cursor-pointer focus:outline-none focus:border-signal/40">
-              <option value="nearest">Nearest First</option>
-              <option value="latest">Latest First</option>
-            </select>
-            {searchQuery && (
-              <span className="text-[9px] font-mono text-[#555] ml-auto">
-                {filteredNodes.length} result{filteredNodes.length !== 1 ? 's' : ''} for &ldquo;{searchQuery}&rdquo;
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* ── Card Grid ── */}
-        <div className="flex-1 overflow-y-auto">
-          {loading ? (
-            <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4 p-6">
-              {[...Array(8)].map((_, i) => <DesktopSkeleton key={i} />)}
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4 p-6">
-              {filteredNodes.length === 0 ? <EmptyState /> : filteredNodes.map((node) => {
-                const { dist, isUnlocked } = getNodeStatus(node);
-                return (
-                  <DesktopNodeCard
-                    key={node.id}
-                    node={node}
-                    isUnlocked={isUnlocked}
-                    dist={dist}
-                    onClick={() => openNode(node)}
-                  />
-                );
-              })}
-            </div>
-          )}
-        </div>
+      {/* ══ MOBILE: 原版卡片列表 + 全屏抽屉，零地图 ══ */}
+      <div className="block md:hidden h-full">
+        <MobileDiscover
+          {...sharedProps}
+          selectedNode={selectedNode}
+          detailFilms={detailFilms}
+          filmsLoading={filmsLoading}
+          onOpenDetail={openDetail}
+          onCloseDetail={closeDetail}
+          onPlayFilm={playFilm}
+        />
       </div>
 
-      {/* ═══════════════════════════════════════════════════════════════
-          MOBILE (<md): Full-screen map + Bottom Sheet
-      ════════════════════════════════════════════════════════════════ */}
-      <div className="md:hidden h-full relative overflow-hidden">
-        {/* Mobile header overlay */}
-        <div className="absolute top-0 left-0 right-0 z-20 px-4 pt-14 pb-3 pointer-events-none">
-          <div className="pointer-events-auto flex items-center justify-between">
-            <div className="bg-black/80 backdrop-blur-xl border border-[#222] rounded-xl px-3 py-2 flex items-center gap-2">
-              <i className="fas fa-map-marked-alt text-signal text-sm" />
-              <span className="font-heavy text-white text-sm tracking-wider">DISCOVER</span>
-            </div>
-            <div className="bg-black/80 backdrop-blur-xl border border-[#222] rounded-full px-3 py-2 flex items-center gap-1.5">
-              <div className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-honey animate-pulse' : 'bg-signal animate-pulse'}`} />
-              <span className="font-mono text-[9px] text-signal tracking-widest">
-                {loading ? 'LOADING...' : `${nodes.length} NODES`}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Full-screen Leaflet map */}
-        <DiscoverMap nodes={mapNodes} selectedId={selectedId} onMarkerClick={handleMarkerClick} />
-
-        {/* Bottom Sheet */}
-        {mobileSheetNode && (() => {
-          const { dist, isUnlocked } = getNodeStatus(mobileSheetNode);
-          return (
-            <MobileBottomSheet
-              node={mobileSheetNode}
-              isUnlocked={isUnlocked}
-              dist={dist}
-              onClose={() => { setMobileSheetNode(null); setSelectedId(null); }}
-              onEnter={openNode}
-            />
-          );
-        })()}
+      {/* ══ DESKTOP: 卡片矩阵 + 搜索，零地图 ══ */}
+      <div className="hidden md:block h-full">
+        <DesktopDiscover
+          {...sharedProps}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onClickNode={openNodeDesktop}
+        />
       </div>
     </>
   );

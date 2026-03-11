@@ -229,77 +229,74 @@ function MobileMessagesView({
   onSelectMsg, onMarkAllRead, onRead, onDelete, onMobileBack, lang,
 }: MobileViewProps) {
   return (
-    /* 移动端：固定高度容器 + BottomNav 安全区 pb-24 */
-    <div className="flex flex-col h-full overflow-hidden bg-[#050505]">
+    /* 原版单列页面滚动布局: pt-28 清出 MobileTopBar, pb-32 清出 BottomNav
+       不使用 h-full overflow-hidden — 让 main 的 overflow-y-auto 统一处理页面滚动 */
+    <div className="min-h-screen w-full bg-[#050505] pt-28 pb-32">
 
-      {/* ── Message List ── */}
-      <div className="flex flex-col h-full overflow-hidden">
-
-        {/* Panel header */}
-        <div className="flex-shrink-0 px-4 pt-5 pb-3 border-b border-[#1a1a1a]">
-          <div className="flex items-end justify-between mb-3">
-            <div>
-              <h1 className="font-heavy text-2xl text-white tracking-wide leading-none">MESSAGES</h1>
-              {unreadCount > 0 && (
-                <p className="text-[9px] font-mono text-signal mt-1 tracking-widest">{unreadCount} UNREAD</p>
-              )}
-            </div>
+      {/* Panel header */}
+      <div className="px-4 pb-3 border-b border-[#1a1a1a]">
+        <div className="flex items-end justify-between mb-3">
+          <div>
+            <h1 className="font-heavy text-2xl text-white tracking-wide leading-none">MESSAGES</h1>
+            {unreadCount > 0 && (
+              <p className="text-[9px] font-mono text-signal mt-1 tracking-widest">{unreadCount} UNREAD</p>
+            )}
+          </div>
+          <button
+            onClick={onMarkAllRead}
+            className="flex items-center gap-1 px-2.5 py-1.5 text-[9px] font-mono text-[#555] border border-[#222] rounded-lg hover:text-signal hover:border-signal/30 transition-all active:scale-90"
+          >
+            <i className="fas fa-check-double text-[8px]" /> ALL READ
+          </button>
+        </div>
+        {/* Tabs */}
+        <div className="flex gap-4 border-b border-[#111] -mb-3 pb-0">
+          {TABS.map((tab) => (
             <button
-              onClick={onMarkAllRead}
-              className="flex items-center gap-1 px-2.5 py-1.5 text-[9px] font-mono text-[#555] border border-[#222] rounded-lg hover:text-signal hover:border-signal/30 transition-all active:scale-90"
+              key={tab.value}
+              onClick={() => setActiveTab(tab.value)}
+              className={`pb-2.5 text-[10px] font-mono tracking-wider border-b-2 transition-all duration-150 ${
+                activeTab === tab.value ? 'border-signal text-white' : 'border-transparent text-[#555] hover:text-[#888]'
+              }`}
             >
-              <i className="fas fa-check-double text-[8px]" /> ALL READ
+              {tab.label}
             </button>
-          </div>
-          {/* Tabs */}
-          <div className="flex gap-4 border-b border-[#111] -mb-3 pb-0">
-            {TABS.map((tab) => (
-              <button
-                key={tab.value}
-                onClick={() => setActiveTab(tab.value)}
-                className={`pb-2.5 text-[10px] font-mono tracking-wider border-b-2 transition-all duration-150 ${
-                  activeTab === tab.value ? 'border-signal text-white' : 'border-transparent text-[#555] hover:text-[#888]'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          ))}
         </div>
+      </div>
 
-        {/* Festival Banner — 仅移动端有此横幅 */}
-        <div className="px-3 pt-3 pb-2 flex-shrink-0">
-          <FestivalBanner onOpen={() => setIsFestivalOpen(true)} />
-        </div>
+      {/* Festival Banner — 仅移动端有此横幅 */}
+      <div className="px-3 pt-3 pb-2">
+        <FestivalBanner onOpen={() => setIsFestivalOpen(true)} />
+      </div>
 
-        {/* Message list — pb-24 to clear BottomNav */}
-        <div className="flex-1 overflow-y-auto px-2 pb-24 space-y-0.5">
-          {loading ? (
-            <div className="px-2 space-y-2 pt-2">
-              <MsgSkeleton /><MsgSkeleton /><MsgSkeleton />
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 opacity-40">
-              <i className="fas fa-inbox text-3xl mb-3 text-[#444]" />
-              <div className="font-heavy text-sm text-[#555] tracking-widest">NO MESSAGES</div>
-              <div className="font-mono text-[9px] text-[#444] mt-1">INBOX IS EMPTY</div>
-            </div>
-          ) : (
-            filtered.map((msg) => (
-              <MsgListItem
-                key={msg.id} msg={msg}
-                isGlobalRead={readGlobalMsgs.includes(msg.id)}
-                isSelected={false}
-                onSelect={onSelectMsg}
-              />
-            ))
-          )}
-          {!loading && filtered.length > 0 && (
-            <p className="text-center text-[8px] font-mono text-[#2a2a2a] pt-4 pb-2">
-              {filtered.length} RECORD{filtered.length !== 1 ? 'S' : ''}
-            </p>
-          )}
-        </div>
+      {/* Message list — 自然流式布局，无内部滚动 */}
+      <div className="px-2 pt-1 space-y-0.5">
+        {loading ? (
+          <div className="px-2 space-y-2 pt-2">
+            <MsgSkeleton /><MsgSkeleton /><MsgSkeleton />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 opacity-40">
+            <i className="fas fa-inbox text-3xl mb-3 text-[#444]" />
+            <div className="font-heavy text-sm text-[#555] tracking-widest">NO MESSAGES</div>
+            <div className="font-mono text-[9px] text-[#444] mt-1">INBOX IS EMPTY</div>
+          </div>
+        ) : (
+          filtered.map((msg) => (
+            <MsgListItem
+              key={msg.id} msg={msg}
+              isGlobalRead={readGlobalMsgs.includes(msg.id)}
+              isSelected={false}
+              onSelect={onSelectMsg}
+            />
+          ))
+        )}
+        {!loading && filtered.length > 0 && (
+          <p className="text-center text-[8px] font-mono text-[#2a2a2a] pt-4 pb-2">
+            {filtered.length} RECORD{filtered.length !== 1 ? 'S' : ''}
+          </p>
+        )}
       </div>
 
       {/* ── Mobile full-screen detail overlay ──
@@ -321,6 +318,7 @@ function MobileMessagesView({
         className={`fixed inset-0 z-[1002] bg-[#050505] overflow-y-auto transition-transform duration-500 ease-out ${
           isFestivalOpen ? 'translate-y-0' : 'translate-y-full pointer-events-none'
         }`}
+        style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {/* Header */}
         <div className="sticky top-0 z-10 bg-[#050505]/95 backdrop-blur border-b border-[#222] flex items-center justify-between px-4 py-4">
@@ -350,7 +348,7 @@ function MobileMessagesView({
             </div>
           </div>
         </div>
-        <div className="px-4 pt-2 pb-12 space-y-6 min-h-[60vh]">
+        <div className="px-4 pt-2 pb-32 space-y-6 min-h-screen w-full">
           <div className="grid grid-cols-3 gap-3">
             {[
               { val: '7',    label: lang === 'zh' ? '天' : 'DAYS',          color: 'text-signal' },

@@ -197,7 +197,7 @@ export default function AboutPage() {
   const { lang } = useI18n();
 
   return (
-    <div className="bg-void text-white min-h-full flex flex-col pt-14 md:pt-0">
+    <div className="bg-void text-white min-h-screen w-full overflow-y-auto flex flex-col pt-28 md:pt-0 pb-32 md:pb-0">
       <Hero />
       <StatsBar />
       {SECTIONS.map((section, i) => (
