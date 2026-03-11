@@ -628,11 +628,18 @@ export default function LBSNodesPage() {
 
   const handleToggleOnline = useCallback(async (id: string, currentOnline: boolean | null) => {
     const newOnline = !currentOnline;
+    setProcessingId(id);
     const { error } = await supabase
       .from("lbs_nodes")
       .update({ is_online: newOnline })
       .eq("id", id);
-    if (error) { showToast(`切換失敗: ${error.message}`, "error"); return; }
+    setProcessingId(null);
+    if (error) {
+      console.error("[Admin] is_online 更新失敗:", error);
+      showToast(`切換失敗: ${error.message}`, "error");
+      return;
+    }
+    console.log(`[Admin] is_online 已更新 → id=${id}, is_online=${newOnline}`);
     setAllNodes((prev) => prev.map((n) => n.id === id ? { ...n, is_online: newOnline } : n));
     showToast(newOnline ? "影展已上線 ✓" : "影展已下線 ✓", "success");
   }, [showToast]);
@@ -751,7 +758,8 @@ export default function LBSNodesPage() {
             <tbody>
               {filtered.map((node, i) => {
                 const lbsId    = formatLbsId(node);
-                const isPending = node.status === "pending";
+                const isPending = node.status === "pending" || node.status === "under_review";
+                const isApproved = node.status === "approved" || node.status === "active" || node.status === "standby";
                 const isProcessing = processingId === node.id;
 
                 return (
@@ -881,11 +889,12 @@ export default function LBSNodesPage() {
                             </button>
                           </>
                         )}
-                        {/* 已通過審核：顯示上/下線 Toggle */}
-                        {node.status === "approved" && (
+                        {/* 已通過審核：顯示上/下線 Toggle (approved / active / standby) */}
+                        {isApproved && (
                           <button
                             onClick={() => handleToggleOnline(node.id, node.is_online)}
-                            className={`text-[10px] font-semibold rounded-full px-3 py-0.5 transition-colors whitespace-nowrap w-fit border ${
+                            disabled={isProcessing}
+                            className={`text-[10px] font-semibold rounded-full px-3 py-0.5 transition-colors whitespace-nowrap w-fit border disabled:opacity-40 ${
                               node.is_online
                                 ? "border-green-300 text-green-700 bg-green-50 hover:bg-green-100"
                                 : "border-neutral-300 text-neutral-500 hover:bg-neutral-50"

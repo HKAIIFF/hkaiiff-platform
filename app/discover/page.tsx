@@ -119,9 +119,9 @@ function EmptyState() {
         <i className="fas fa-map-marked-alt text-3xl text-[#333]" />
       </div>
       <div className="text-center">
-        <div className="font-heavy text-lg text-[#333] tracking-widest mb-2">NO LBS NODES</div>
+        <div className="font-heavy text-lg text-[#333] tracking-widest mb-2">目前尚無上線的影展</div>
         <div className="font-mono text-[10px] text-[#2a2a2a] tracking-wider leading-relaxed max-w-xs mx-auto">
-          No screening nodes have been published yet. Check back closer to the festival dates.
+          尚無已上線的 LBS 放映節點，請靜候影展正式開放。
         </div>
       </div>
       <div className="flex items-center gap-2 bg-[#111] px-3 py-2 rounded-full border border-[#222]">
@@ -606,9 +606,11 @@ export default function DiscoverPage() {
       try {
         const { data, error } = await supabase
           .from('lbs_nodes')
-          .select('*, start_time, end_time')
+          .select('*')
           .eq('status', 'approved')
-          .eq('is_online', true);
+          .eq('is_online', true)
+          .order('created_at', { ascending: false });
+        console.log('[Discover] Fetch:', data, error);
         if (error) throw error;
         setNodes(data ? (data as DbLbsNode[]).map(mapDbNode) : []);
       } catch (err) {
