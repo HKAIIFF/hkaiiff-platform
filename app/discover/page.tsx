@@ -247,9 +247,9 @@ function MobileDiscover({
                   <div>
                     <h3 className="font-heavy text-white text-2xl mb-1 tracking-wide drop-shadow-md">{node.title}</h3>
                     {node.desc && <p className="line-clamp-2 text-xs text-gray-400 mt-1 mb-2">{node.desc}</p>}
-                    {(node.dateRange || node.req) && (
+                    {node.dateRange && (
                       <div className={`text-[10px] font-mono border-l-2 ${node.borderColor} pl-2 leading-snug bg-black/40 py-1 pr-1 backdrop-blur rounded-r mb-3 ${node.textColor}`}>
-                        {node.dateRange || node.req}
+                        {node.dateRange}
                       </div>
                     )}
                     <div className="flex items-center gap-2">
@@ -307,10 +307,12 @@ function MobileDiscover({
                 <div className="text-[10px] font-mono text-gray-400 flex items-center gap-1">
                   <i className="fas fa-crosshairs text-signal" />
                   <span>{selectedNode.coords}</span>
-                  <span className="mx-1 text-[#333]">|</span>
-                  <span>{selectedNode.city}</span>
-                  <span className="mx-1 text-[#333]">·</span>
-                  <span>{selectedNode.distance}</span>
+                  {selectedNode.distance !== '—' && (
+                    <>
+                      <span className="mx-1 text-[#333]">·</span>
+                      <span>{selectedNode.distance}</span>
+                    </>
+                  )}
                 </div>
               </div>
 

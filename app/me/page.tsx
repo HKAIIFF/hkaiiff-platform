@@ -98,9 +98,6 @@ export default function MePage() {
   const [isCopied, setIsCopied] = useState(false);
   const [copiedFilmId, setCopiedFilmId] = useState<string | null>(null);
 
-  // ── Sync Balance State ────────────────────────────────────────────────────
-  const [isSyncing, setIsSyncing] = useState(false);
-
   /** 靜默輪詢計時器：TopUp Modal 打開期間每 5 秒自動查帳 */
   const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   /** 防止多個輪詢請求並發 */
@@ -173,45 +170,6 @@ export default function MePage() {
       setDepositAddress(dbProfile.deposit_address);
     }
     setIsTopUpOpen(true);
-  };
-
-  /**
-   * 觸發鏈上查帳 + 資金歸集（Sweep & Credit）。
-   * 調用 /api/wallet/sync-balance，成功後刷新頁面餘額。
-   */
-  const handleSyncBalance = async () => {
-    if (isSyncing) return;
-    setIsSyncing(true);
-    try {
-      const token = await getAccessToken();
-      const res = await fetch('/api/wallet/sync-balance', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        cache: 'no-store',
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        showToast(data?.error ?? (lang === 'en' ? 'Sync failed' : '同步失敗'), 'error');
-        return;
-      }
-      if (data.synced) {
-        setDbProfile((prev) => prev ? { ...prev, aif_balance: data.aif_balance } : prev);
-        setAifFlash(true);
-        setTimeout(() => setAifFlash(false), 900);
-        showToast(
-          lang === 'en'
-            ? `+${data.aifAmount} AIF credited!`
-            : `+${data.aifAmount} AIF 已入帳！`,
-          'success'
-        );
-      } else {
-        showToast(lang === 'en' ? 'Balance is up to date' : '餘額已是最新', 'info');
-      }
-    } catch {
-      showToast(lang === 'en' ? 'Network error, please retry' : '網絡錯誤，請重試', 'error');
-    } finally {
-      setIsSyncing(false);
-    }
   };
 
   /**
@@ -857,22 +815,6 @@ export default function MePage() {
                 AIF
               </span>
             )}
-            {/* 🔄 鏈上查帳刷新按鈕 */}
-            {!isProfileLoading && (
-              <button
-                onClick={handleSyncBalance}
-                disabled={isSyncing}
-                title={lang === 'en' ? 'Sync on-chain balance' : '同步鏈上餘額'}
-                className={`ml-1 w-6 h-6 rounded-full flex items-center justify-center
-                           border transition-all active:scale-90
-                           ${isSyncing
-                             ? 'border-signal/40 text-signal/50 cursor-not-allowed'
-                             : 'border-[#333] text-gray-500 hover:border-signal hover:text-signal'
-                           }`}
-              >
-                <i className={`fas fa-sync-alt text-[9px] ${isSyncing ? 'animate-spin' : ''}`} />
-              </button>
-            )}
           </div>
           <button
             onClick={handleOpenTopUp}
@@ -886,14 +828,6 @@ export default function MePage() {
             {topUpLabel}
           </button>
         </div>
-        {/* Syncing 状态提示文字 */}
-        {isSyncing && (
-          <div className="text-[9px] font-mono text-signal/60 tracking-widest flex items-center gap-1.5 mt-1">
-            <i className="fas fa-circle-notch fa-spin text-[8px]" />
-            {lang === 'en' ? 'Syncing on-chain balance...' : '正在同步鏈上餘額...'}
-          </div>
-        )}
-
       </div>
         {/* end LEFT PANEL inner content */}
         </div>
