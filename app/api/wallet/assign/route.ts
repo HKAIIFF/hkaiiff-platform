@@ -3,15 +3,20 @@
  *
  * 為已登錄用戶分配專屬 Solana 充值地址（HD Wallet 架構）。
  *
- * 職責單一原則：
- *  - 此路由【只】負責分配 wallet_index 並推導充值地址
- *  - ATA 創建由獨立的 /api/wallet/init-ata 負責
- *  - 二者解耦，避免 wallet/assign 觸發鏈上交易導致死循環
+ * ╔══════════════════════════════════════════════════════════════╗
+ * ║  冪等安全保障（三重防護）                                      ║
+ * ╠══════════════════════════════════════════════════════════════╣
+ * ║  [防護一] 鑑權後【立即】查詢 deposit_address，有則直接返回     ║
+ * ║           絕不執行任何派生邏輯或更新 wallet_index              ║
+ * ║  [防護二] assign_wallet_index RPC 使用 Postgres Sequence      ║
+ * ║           + 行級鎖，保證唯一 index，無竟態                     ║
+ * ║  [防護三] 最終 UPDATE 攜帶 WHERE deposit_address IS NULL       ║
+ * ║           並發時只有一筆寫入生效，後者自動讀取前者結果返回      ║
+ * ╚══════════════════════════════════════════════════════════════╝
  *
  * 安全要點：
  *  - 必須攜帶有效的 Privy Access Token（Bearer）
  *  - 主助記詞 MASTER_SEED_PHRASE 僅在服務端使用，絕不暴露給前端
- *  - 冪等：已有充值地址的用戶直接返回現有地址，不重複分配
  */
 
 import { NextResponse } from 'next/server';
@@ -61,51 +66,52 @@ export async function POST(req: Request) {
       // body 為空或非 JSON，繼續
     }
 
-    // ── Step 3: 查詢用戶，若不存在則 Upsert 創建 ─────────────────────────────
-    const { data: userData, error: fetchError } = await adminSupabase
+    // ── Step 3: 【冪等防護一】立即查詢，有地址直接返回，拒絕任何派生操作 ───────
+    const { data: existingUser, error: fetchError } = await adminSupabase
       .from('users')
       .select('deposit_address, wallet_index')
       .eq('id', userId)
       .single();
 
-    if (fetchError) {
-      if (fetchError.code === 'PGRST116') {
-        // 查無此行，自動創建用戶
-        console.log(`[wallet/assign] 用戶 ${userId} 尚未同步，自動創建中...`);
-        const { error: upsertError } = await adminSupabase
-          .from('users')
-          .upsert(
-            {
-              id: userId,
-              wallet_address: walletAddress,
-              name: 'New Agent',
-              role: 'human',
-              aif_balance: 0,
-              avatar_seed: userId,
-            },
-            { onConflict: 'id' }
-          );
+    if (!fetchError && existingUser?.deposit_address) {
+      // 用戶已有充值地址：直接返回，絕不重新派生
+      console.log(`[wallet/assign] ✅ 冪等返回現有地址 → ${userId}: ${existingUser.deposit_address}`);
+      return NextResponse.json({ address: existingUser.deposit_address });
+    }
 
-        if (upsertError) {
-          console.error('[wallet/assign] 自動創建用戶失敗:', upsertError);
-          return NextResponse.json(
-            { error: `Failed to initialize user record: ${upsertError.message}` },
-            { status: 500 }
-          );
-        }
-      } else {
-        console.error('[wallet/assign] 查詢用戶失敗:', fetchError);
+    // ── Step 4: 用戶行不存在時，自動 Upsert 創建（僅設置基礎字段）────────────
+    if (fetchError?.code === 'PGRST116') {
+      console.log(`[wallet/assign] 用戶 ${userId} 尚未同步，自動創建中...`);
+      const { error: upsertError } = await adminSupabase
+        .from('users')
+        .upsert(
+          {
+            id: userId,
+            wallet_address: walletAddress,
+            name: 'New Agent',
+            role: 'human',
+            aif_balance: 0,
+            avatar_seed: userId,
+          },
+          { onConflict: 'id' }
+        );
+
+      if (upsertError) {
+        console.error('[wallet/assign] 自動創建用戶失敗:', upsertError);
         return NextResponse.json(
-          { error: `Database error: ${fetchError.message}` },
+          { error: `Failed to initialize user record: ${upsertError.message}` },
           { status: 500 }
         );
       }
-    } else if (userData?.deposit_address) {
-      // 已有充值地址，冪等直接返回
-      return NextResponse.json({ address: userData.deposit_address });
+    } else if (fetchError) {
+      console.error('[wallet/assign] 查詢用戶失敗:', fetchError);
+      return NextResponse.json(
+        { error: `Database error: ${fetchError.message}` },
+        { status: 500 }
+      );
     }
 
-    // ── Step 4: 原子分配唯一 wallet_index（Postgres Sequence，無競態）─────────
+    // ── Step 5: 原子分配唯一 wallet_index（Postgres Sequence + 行級鎖）────────
     const { data: walletIndex, error: rpcError } = await adminSupabase
       .rpc('assign_wallet_index', { p_user_id: userId });
 
@@ -117,7 +123,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // ── Step 5: 從主助記詞 + index 推導 Solana 公鑰 ──────────────────────────
+    // ── Step 6: 從主助記詞 + index 推導 Solana 公鑰 ──────────────────────────
     let depositAddress: string;
     try {
       depositAddress = generateUserWallet(walletIndex as number);
@@ -127,11 +133,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: msg }, { status: 500 });
     }
 
-    // ── Step 6: 將充值地址寫入 Supabase users 表 ─────────────────────────────
-    const { error: updateError } = await adminSupabase
+    // ── Step 7: 【冪等防護三】條件 UPDATE：僅當 deposit_address 仍為 NULL 時寫入
+    //           並發場景下，兩個請求同時到達：只有一個能成功更新，另一個讀取已有地址
+    const { data: updatedRows, error: updateError } = await adminSupabase
       .from('users')
       .update({ deposit_address: depositAddress })
-      .eq('id', userId);
+      .eq('id', userId)
+      .is('deposit_address', null)
+      .select('deposit_address');
 
     if (updateError) {
       console.error('[wallet/assign] 更新 deposit_address 失敗:', updateError);
@@ -141,10 +150,23 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log(`[wallet/assign] ✅ 充值地址已分配 → ${userId}: ${depositAddress}`);
+    // 並發競態：本次更新未命中（另一請求已先寫入），查詢當前實際地址
+    if (!updatedRows || updatedRows.length === 0) {
+      const { data: racedUser } = await adminSupabase
+        .from('users')
+        .select('deposit_address')
+        .eq('id', userId)
+        .single();
 
-    // ── 注意：ATA 初始化由前端在 TopUp Modal 開啟時呼叫 /api/wallet/init-ata ──
-    // ── 不在此處執行，避免 wallet/assign 觸發鏈上交易形成死循環 ──────────────
+      const finalAddress = racedUser?.deposit_address;
+      if (finalAddress) {
+        console.log(`[wallet/assign] ⚡ 並發競態：返回已存在地址 → ${userId}: ${finalAddress}`);
+        return NextResponse.json({ address: finalAddress });
+      }
+      return NextResponse.json({ error: 'Failed to persist deposit address (concurrency)' }, { status: 500 });
+    }
+
+    console.log(`[wallet/assign] ✅ 充值地址已分配 → ${userId}: ${depositAddress}`);
 
     return NextResponse.json({ address: depositAddress });
 

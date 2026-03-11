@@ -29,7 +29,10 @@ import {
 } from '@solana/web3.js';
 import {
   getAssociatedTokenAddress,
+  getAccount,
+  getMint,
   createAssociatedTokenAccountIdempotentInstruction,
+  createTransferCheckedInstruction,
 } from '@solana/spl-token';
 import * as bip39 from 'bip39';
 import bs58 from 'bs58';
@@ -55,7 +58,44 @@ export interface InitAtaResult {
   txSignature: string | null;
 }
 
+export interface SweepResult {
+  /** true = 本次有代幣被歸集；false = 鏈上餘額為 0，無需操作 */
+  swept: boolean;
+  /** 歸集的 AIF 數量（整數單位，已除以 10^decimals） */
+  aifAmount: number;
+  /** 鏈上原始 bigint 數量 */
+  rawAmount: bigint;
+  /** Token 精度 */
+  decimals: number;
+  /** 歸集交易簽名 (swept=true 時有值) */
+  txSignature: string | null;
+  /** 用戶充值地址 */
+  depositAddress: string;
+}
+
 // ── 私有工具 ───────────────────────────────────────────────────────────────────
+
+/**
+ * 根據 walletIndex 派生用戶充值地址的完整 Keypair（含私鑰）。
+ * 僅供服務端內部使用，用於歸集交易的授權簽名。
+ * 鈦合金防護：index 0 或 null 立即拋出 CRITICAL SECURITY FATAL。
+ */
+function deriveDepositKeypair(walletIndex: number): Keypair {
+  if (walletIndex === 0 || walletIndex == null) {
+    throw new Error(
+      'CRITICAL SECURITY FATAL: wallet_index cannot be 0 or null. ' +
+      'Path collision with Funding Wallet. (m/44\'/501\'/0\'/0\')'
+    );
+  }
+  const seedPhrase = process.env.MASTER_SEED_PHRASE;
+  if (!seedPhrase) throw new Error('[deriveDepositKeypair] MASTER_SEED_PHRASE 未配置');
+  if (!bip39.validateMnemonic(seedPhrase)) {
+    throw new Error('[deriveDepositKeypair] MASTER_SEED_PHRASE 不是合法的 BIP39 助記詞');
+  }
+  const seed = bip39.mnemonicToSeedSync(seedPhrase);
+  const { key } = derivePath(`m/44'/501'/${walletIndex}'/0'`, seed.toString('hex'));
+  return Keypair.fromSeed(key);
+}
 
 function deriveFundingWalletFromSeed(seedPhrase: string): Keypair {
   if (!seedPhrase) {
@@ -231,6 +271,146 @@ export async function initUserDepositATA(depositAddress: string): Promise<InitAt
   );
 
   return { status: 'activated', ataCreated: true, txSignature: signature };
+}
+
+/**
+ * 歸集用戶充值地址上的全部 AIF 代幣到平台金庫（Treasury）。
+ *
+ * ╔══════════════════════════════════════════════════════════════╗
+ * ║  雙簽授權架構                                                  ║
+ * ╠══════════════════════════════════════════════════════════════╣
+ * ║  Fee Payer   → FEE_PAYER_PRIVATE_KEY (Base58) 墊付 Gas       ║
+ * ║  Transfer    → MASTER_SEED_PHRASE + wallet_index 實時派生     ║
+ * ║              的用戶 Deposit Keypair（才是 ATA owner/authority）║
+ * ║  signers     → [feePayerKeypair, depositKeypair]              ║
+ * ╚══════════════════════════════════════════════════════════════╝
+ *
+ * 冪等保障：
+ *  - 鏈上 AIF 餘額為 0 時直接返回 swept=false，不構建任何交易
+ *  - 多次調用安全，不會重複歸集
+ *
+ * 安全驗證：
+ *  - 派生地址與傳入 depositAddress 強制校驗，不匹配立即中止
+ *
+ * @param walletIndex      用戶的 HD Wallet index（必須 > 0）
+ * @param depositAddress   用戶的充值地址（Base58），用於安全校驗
+ * @returns SweepResult
+ */
+export async function sweepUserDeposit(
+  walletIndex: number,
+  depositAddress: string,
+): Promise<SweepResult> {
+  const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com';
+  const mintAddress = process.env.NEXT_PUBLIC_AIF_MINT_ADDRESS;
+  const feePayerKey = process.env.FEE_PAYER_PRIVATE_KEY;
+  const treasuryAddress = process.env.NEXT_PUBLIC_TREASURY_WALLET;
+
+  if (!mintAddress)     throw new Error('[sweepUserDeposit] NEXT_PUBLIC_AIF_MINT_ADDRESS 未配置');
+  if (!feePayerKey)     throw new Error('[sweepUserDeposit] FEE_PAYER_PRIVATE_KEY 未配置');
+  if (!treasuryAddress) throw new Error('[sweepUserDeposit] NEXT_PUBLIC_TREASURY_WALLET 未配置');
+
+  const connection = new Connection(rpcUrl, 'confirmed');
+  const feePayerKeypair = Keypair.fromSecretKey(bs58.decode(feePayerKey));
+  const depositKeypair  = deriveDepositKeypair(walletIndex);
+
+  // 安全校驗：派生地址必須與資料庫存儲地址完全一致
+  const derivedAddress = depositKeypair.publicKey.toBase58();
+  if (derivedAddress !== depositAddress) {
+    throw new Error(
+      `[sweepUserDeposit] SECURITY VIOLATION: Derived address (${derivedAddress}) ` +
+      `does not match stored depositAddress (${depositAddress}). Aborting.`
+    );
+  }
+
+  const mintPublicKey     = new PublicKey(mintAddress);
+  const treasuryPublicKey = new PublicKey(treasuryAddress);
+  const sourceAta = await getAssociatedTokenAddress(mintPublicKey, depositKeypair.publicKey);
+  const destAta   = await getAssociatedTokenAddress(mintPublicKey, treasuryPublicKey);
+
+  // ── 查詢充值地址的鏈上 AIF 餘額 ──────────────────────────────────────────
+  let rawBalance: bigint;
+  let decimals: number;
+  try {
+    const [sourceAccount, mintInfo] = await Promise.all([
+      getAccount(connection, sourceAta),
+      getMint(connection, mintPublicKey),
+    ]);
+    rawBalance = sourceAccount.amount;
+    decimals   = mintInfo.decimals;
+  } catch {
+    // ATA 不存在或查詢失敗 → 餘額視為 0
+    return {
+      swept: false, aifAmount: 0, rawAmount: BigInt(0),
+      decimals: 6, txSignature: null, depositAddress,
+    };
+  }
+
+  if (rawBalance === BigInt(0)) {
+    return {
+      swept: false, aifAmount: 0, rawAmount: BigInt(0),
+      decimals, txSignature: null, depositAddress,
+    };
+  }
+
+  const aifAmount = Number(rawBalance) / Math.pow(10, decimals);
+
+  // ── 墊付錢包枯竭預警 ──────────────────────────────────────────────────────
+  const feeBalance = await connection.getBalance(feePayerKeypair.publicKey);
+  if (feeBalance < FUNDING_MIN_LAMPORTS) {
+    throw new Error(
+      `[sweepUserDeposit] ABORT: Fee payer balance critically insufficient. ` +
+      `Current: ${feeBalance} lamports, minimum: ${FUNDING_MIN_LAMPORTS} lamports.`
+    );
+  }
+
+  // ── 構建雙簽歸集交易 ──────────────────────────────────────────────────────
+  const tx = new Transaction();
+
+  // 確保金庫 ATA 存在（冪等，已有時零消耗）
+  tx.add(
+    createAssociatedTokenAccountIdempotentInstruction(
+      feePayerKeypair.publicKey, // payer: 墊付錢包
+      destAta,
+      treasuryPublicKey,         // owner: 金庫地址
+      mintPublicKey,
+    )
+  );
+
+  // 將全部 AIF 從充值地址 ATA 轉移至金庫 ATA
+  tx.add(
+    createTransferCheckedInstruction(
+      sourceAta,                   // source token account
+      mintPublicKey,               // mint
+      destAta,                     // destination token account
+      depositKeypair.publicKey,    // authority (owner of source ATA)
+      rawBalance,                  // amount (raw bigint)
+      decimals,                    // decimals
+    )
+  );
+
+  const { blockhash } = await connection.getLatestBlockhash('confirmed');
+  tx.recentBlockhash = blockhash;
+  tx.feePayer        = feePayerKeypair.publicKey;
+
+  let signature: string;
+  try {
+    signature = await sendAndConfirmTransaction(
+      connection,
+      tx,
+      [feePayerKeypair, depositKeypair], // Fee Payer + Transfer Authority
+      { commitment: 'confirmed' }
+    );
+  } catch (txErr: unknown) {
+    const detail = txErr instanceof Error ? txErr.message : String(txErr);
+    throw new Error(`[sweepUserDeposit] 歸集交易失敗: ${detail}`);
+  }
+
+  console.log(
+    `[sweepUserDeposit] ✅ 歸集成功 | 用戶充值地址: ${depositAddress} → ` +
+    `金庫: ${treasuryAddress} | 金額: ${aifAmount} AIF | tx: ${signature}`
+  );
+
+  return { swept: true, aifAmount, rawAmount: rawBalance, decimals, txSignature: signature, depositAddress };
 }
 
 // ── 向後兼容別名（供舊代碼過渡期使用，最終應替換為 initUserDepositATA）────────
