@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePrivy, useCreateWallet } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/app/context/I18nContext";
@@ -87,6 +87,19 @@ export default function MePage() {
   const [depositAddress, setDepositAddress] = useState<string | null>(null);
   const [isFetchingDepositAddress, setIsFetchingDepositAddress] = useState(false);
 
+  /**
+   * ATA 初始化去重鎖：記錄已完成 init-ata 的充值地址。
+   * 使用 useRef 而非 state，確保不觸發重渲染，且在整個組件生命週期內有效。
+   * 即使 handleOpenTopUp 被多次點擊，init-ata 只對同一地址呼叫一次。
+   */
+  const ataInitDoneRef = useRef<string | null>(null);
+
+  /**
+   * wallet/assign 一次性鎖：防止 syncData useEffect 因 user 對象不穩定
+   * 而重複觸發，導致新用戶的充值地址被多次分配（死循環）。
+   */
+  const walletAssignCalledRef = useRef(false);
+
   // ── Top-Up Modal State ────────────────────────────────────────────────────
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -149,19 +162,30 @@ export default function MePage() {
     }
   };
 
-  /** TOP UP 按鈕：打開 Modal，並非同步觸發 ATA 初始化（確保地址可接收 AIF）。 */
+  /**
+   * TOP UP 按鈕：打開 Modal，並使用 useRef 鎖確保 init-ata 只對同一地址觸發一次。
+   *
+   * 安全設計：
+   * - ataInitDoneRef 記錄已初始化的地址，防止重複觸發（包括用戶多次點擊）
+   * - fire-and-forget：不阻塞 UI，靜默失敗（ATA init 失敗不影響展示 QR）
+   * - 絕對禁止在此路徑發送 SOL（init-ata 後端嚴格保證只做 ATA 創建）
+   */
   const handleOpenTopUp = async () => {
     setIsTopUpOpen(true);
-    // 已有充值地址時，非同步確保 ATA 已初始化，消除 Phantom 掃碼報 Error 256
-    if (depositAddress) {
+
+    if (depositAddress && ataInitDoneRef.current !== depositAddress) {
+      ataInitDoneRef.current = depositAddress; // 立即鎖定，防止並發重入
       try {
         const token = await getAccessToken();
         fetch('/api/wallet/init-ata', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
-        }).catch(() => {});
+        }).catch((err) => {
+          console.warn('[TopUp] init-ata fire-and-forget failed:', err);
+          ataInitDoneRef.current = null; // 失敗時重置，允許下次重試
+        });
       } catch {
-        // 靜默失敗，不阻塞 UI
+        ataInitDoneRef.current = null; // 取 token 失敗，重置允許重試
       }
     }
   };
@@ -267,55 +291,67 @@ export default function MePage() {
   }
 
   // 登錄後同步用戶數據到 Supabase，並拉取投稿記錄
+  // ⚠️ 依賴陣列使用 user?.id（穩定字串）而非 user 對象，
+  //    防止 Privy 每次渲染返回新引用導致此 effect 無限重跑形成死循環。
   useEffect(() => {
+    if (!authenticated || !user?.id) return;
+
+    // 重置 wallet assign 鎖（用戶切換時允許重新分配）
+    walletAssignCalledRef.current = false;
+
     const syncData = async () => {
-      if (authenticated && user) {
-        // Step 1: 同步基础信息（确保用户行存在）
-        try {
-          await fetch('/api/sync-user', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user }),
-            cache: 'no-store',
-          });
-        } catch (err) {
-          console.error('Failed to sync', err);
-        }
+      const userId = user.id;
 
-        // Step 2: 直接从 Supabase 读取完整 profile（含充值地址字段）
-        try {
-          const { data: profileRow, error: profileError } = await supabase
-            .from('users')
-            .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team, deposit_address, wallet_index, verification_status, verification_type, rejection_reason')
-            .eq('id', user.id)
-            .single();
-          if (profileError) {
-            console.error('❌ Failed to fetch profile:', profileError.message);
-            // 查詢失敗時設置預設值，防止餘額永遠卡在 ...
-            setDbProfile({
-              agent_id: '',
-              name: 'New Agent',
-              display_name: null,
-              role: 'human',
-              aif_balance: 0,
-              avatar_seed: user.id,
-              bio: null,
-              tech_stack: null,
-              core_team: null,
-              deposit_address: null,
-              wallet_index: null,
-              verification_status: 'unverified',
-              verification_type: null,
-              rejection_reason: null,
-            });
-          } else if (profileRow) {
-            setDbProfile(profileRow);
+      // Step 1: 同步基础信息（确保用户行存在）
+      try {
+        await fetch('/api/sync-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user }),
+          cache: 'no-store',
+        });
+      } catch (err) {
+        console.error('Failed to sync', err);
+      }
 
-            if (profileRow.deposit_address) {
-              // 已有充值地址，直接使用
-              setDepositAddress(profileRow.deposit_address);
-            } else if (!profileRow.wallet_index && profileRow.wallet_index !== 0) {
-              // 全新用戶（無 wallet_index）：靜默自動分配充值地址
+      // Step 2: 直接从 Supabase 读取完整 profile（含充值地址字段）
+      const defaultProfile = {
+        agent_id: '',
+        name: 'New Agent',
+        display_name: null as string | null,
+        role: 'human',
+        aif_balance: 0,
+        avatar_seed: userId,
+        bio: null as string | null,
+        tech_stack: null as string | null,
+        core_team: null as TeamMember[] | null,
+        deposit_address: null as string | null,
+        wallet_index: null as number | null,
+        verification_status: 'unverified' as const,
+        verification_type: null as 'creator' | 'institution' | 'curator' | null,
+        rejection_reason: null as string | null,
+      };
+
+      try {
+        const { data: profileRow, error: profileError } = await supabase
+          .from('users')
+          .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team, deposit_address, wallet_index, verification_status, verification_type, rejection_reason')
+          .eq('id', userId)
+          .single();
+
+        if (profileError) {
+          console.error('❌ Failed to fetch profile:', profileError.message);
+          setDbProfile(defaultProfile);
+        } else if (profileRow) {
+          setDbProfile(profileRow);
+
+          if (profileRow.deposit_address) {
+            setDepositAddress(profileRow.deposit_address);
+          } else if (!profileRow.wallet_index && profileRow.wallet_index !== 0) {
+            // 全新用戶（無 wallet_index）：一次性自動分配充值地址
+            // walletAssignCalledRef 防止 effect 重跑時重複呼叫
+            if (!walletAssignCalledRef.current) {
+              walletAssignCalledRef.current = true;
               try {
                 const privyEmbedded = user.linkedAccounts?.find(
                   (acc: any) => acc.type === 'wallet' && acc.walletClientType === 'privy'
@@ -338,97 +374,60 @@ export default function MePage() {
                     setDbProfile((prev) => prev ? { ...prev, deposit_address: assignData.address } : prev);
                   }
                 } else {
-                  console.warn('⚠️ Auto-assign deposit address failed, user can generate manually in Modal.');
+                  console.warn('⚠️ Auto-assign deposit address failed, user can generate manually.');
+                  walletAssignCalledRef.current = false; // 失敗允許重試
                 }
               } catch (assignErr) {
-                console.warn('⚠️ Auto-assign deposit address exception, user can generate manually in Modal:', assignErr);
+                console.warn('⚠️ Auto-assign exception:', assignErr);
+                walletAssignCalledRef.current = false;
               }
-            } else {
-              // 已有 wallet_index 但 deposit_address 被清空：
-              // 不靜默重生成（否則清空後立即又出現同一個舊地址）。
-              // 用戶需在 Modal 內點擊「恢復充值地址」按鈕手動恢復。
-              console.log('[me] deposit_address cleared by admin; wallet_index exists. Awaiting manual restore.');
             }
           } else {
-            // 查詢無結果（用戶行尚未創建），顯示預設 0
-            setDbProfile({
-              agent_id: '',
-              name: 'New Agent',
-              display_name: null,
-              role: 'human',
-              aif_balance: 0,
-              avatar_seed: user.id,
-              bio: null,
-              tech_stack: null,
-              core_team: null,
-              deposit_address: null,
-              wallet_index: null,
-              verification_status: 'unverified',
-              verification_type: null,
-              rejection_reason: null,
-            });
+            // 已有 wallet_index 但 deposit_address 被清空，等待管理員或手動恢復
+            console.log('[me] deposit_address cleared; wallet_index exists. Awaiting manual restore.');
           }
-        } catch (err) {
-          console.error('❌ Profile fetch exception:', err);
-          setDbProfile({
-            agent_id: '',
-            name: 'New Agent',
-            display_name: null,
-            role: 'human',
-            aif_balance: 0,
-            avatar_seed: user.id,
-            bio: null,
-            tech_stack: null,
-            core_team: null,
-            deposit_address: null,
-            wallet_index: null,
-            verification_status: 'unverified',
-            verification_type: null,
-            rejection_reason: null,
-          });
-        } finally {
-          // 無論成功或失敗，標記 profile 加載完成
-          setIsProfileLoading(false);
+        } else {
+          setDbProfile(defaultProfile);
         }
+      } catch (err) {
+        console.error('❌ Profile fetch exception:', err);
+        setDbProfile(defaultProfile);
+      } finally {
+        setIsProfileLoading(false);
+      }
 
-        try {
-          const userId = user.id;
-          const filmsRes = await fetch(`/api/user-films?userId=${userId}`, { cache: 'no-store' });
-          const filmsData = await filmsRes.json();
-          if (!filmsData.error && Array.isArray(filmsData.films)) {
-            setMySubmissions(filmsData.films);
-          }
-        } catch (err) {
-          console.error('Failed to fetch films', err);
+      try {
+        const filmsRes = await fetch(`/api/user-films?userId=${userId}`, { cache: 'no-store' });
+        const filmsData = await filmsRes.json();
+        if (!filmsData.error && Array.isArray(filmsData.films)) {
+          setMySubmissions(filmsData.films);
         }
+      } catch (err) {
+        console.error('Failed to fetch films', err);
+      }
 
-        try {
-          const fetchInteractionHistory = async () => {
-            const { data, error } = await supabase
-              .from('interactive_submissions')
-              .select('*')
-              .eq('user_id', user.id)
-              .order('created_at', { ascending: false });
-            if (error) {
-              console.error('Failed to fetch interaction history', error);
-            } else {
-              setInteractionHistory(data ?? []);
-            }
-          };
-          await fetchInteractionHistory();
-        } catch (err) {
-          console.error('Failed to fetch interaction history', err);
+      try {
+        const { data, error } = await supabase
+          .from('interactive_submissions')
+          .select('*')
+          .eq('user_id', userId)
+          .order('created_at', { ascending: false });
+        if (error) {
+          console.error('Failed to fetch interaction history', error);
+        } else {
+          setInteractionHistory(data ?? []);
         }
+      } catch (err) {
+        console.error('Failed to fetch interaction history', err);
       }
     };
+
     syncData();
-  }, [authenticated, user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (!authenticated || !user) return;
+    if (!authenticated || !user?.id) return;
 
-    // Only use the Privy embedded wallet as the profile display address,
-    // so external wallets (Phantom, MetaMask, etc.) are never shown.
     const embeddedWallet = user.linkedAccounts?.find(
       (acc: any) => acc.type === 'wallet' && acc.walletClientType === 'privy'
     );
@@ -439,7 +438,7 @@ export default function MePage() {
     } else {
       setDisplaySolanaAddress(null);
     }
-  }, [authenticated, user]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Supabase Realtime：自動監聽當前用戶的 aif_balance 變化 ──────────────
   useEffect(() => {
