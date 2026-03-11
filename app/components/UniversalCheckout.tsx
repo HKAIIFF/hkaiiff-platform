@@ -3,10 +3,12 @@
 /**
  * UniversalCheckout — 萬能結帳組件（Web2.5 架構版）
  *
- * AIF 支付流程：
- *   1. 用戶選擇 AIF 支付 → 顯示充值地址 + Solana Pay QR Code + 精確金額提示
- *   2. 用戶用任意 Solana 錢包 App 掃碼或手動轉帳精確 AIF 金額至充值地址
- *   3. 點擊「我已完成轉帳」→ 後端查帳 (/api/pay/verify-aif) → 確認到帳後觸發 onSuccess
+ * AIF 支付流程（內部賬本扣款）：
+ *   1. 用戶選擇 AIF 支付 → 顯示當前 AIF 餘額 vs 商品價格
+ *   2. 餘額充足時：點擊確認 → 後端直接扣除 aif_balance → 完成
+ *   3. 餘額不足時：提示用戶前往 Top Up 充值
+ *
+ * 充值流程獨立（在 /me 頁面的 Top Up Modal 完成，與購買無關）。
  *
  * 用法：
  *   <UniversalCheckout productCode="vip_ticket" />
@@ -17,7 +19,6 @@ import { Fragment, useState, useEffect } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useProduct } from '@/lib/hooks/useProduct';
 import { supabase } from '@/lib/supabase';
-import QRCode from 'react-qr-code';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -37,11 +38,7 @@ interface UniversalCheckoutProps {
 }
 
 type PaymentMethod = 'stripe' | 'aif';
-/**
- * awaiting_transfer: AIF 支付專用 — 顯示 Solana Pay QR + 等待用戶手動轉帳
- * verifying:        AIF 支付專用 — 用戶點擊「我已完成轉帳」後，後端查帳中
- */
-type ModalState = 'idle' | 'selecting' | 'processing' | 'awaiting_transfer' | 'verifying' | 'success' | 'error';
+type ModalState = 'idle' | 'selecting' | 'processing' | 'success' | 'error';
 
 // ─── 通用小工具 ───────────────────────────────────────────────────────────────
 
@@ -59,29 +56,23 @@ function Spinner({ size = 4 }: { size?: number }) {
 function StripeTrustBadge() {
   return (
     <div className="mt-3 space-y-2">
-      {/* 支付卡品牌牆 */}
       <div className="flex items-center flex-wrap gap-1.5">
-        {/* Visa */}
         <div className="h-[22px] px-2 rounded-[4px] bg-[#1A1F71] flex items-center">
           <span className="text-[8px] font-black text-white tracking-widest select-none">VISA</span>
         </div>
-        {/* Mastercard */}
         <div className="h-[22px] w-10 rounded-[4px] bg-[#1a1a1a] border border-[#333] flex items-center justify-center relative overflow-hidden shrink-0">
           <div className="w-[14px] h-[14px] rounded-full bg-[#EB001B] absolute left-[3px]" />
           <div className="w-[14px] h-[14px] rounded-full bg-[#F79E1B] absolute left-[9px] opacity-90" />
         </div>
-        {/* Amex */}
         <div className="h-[22px] px-2 rounded-[4px] bg-[#007BC1] flex items-center">
           <span className="text-[8px] font-black text-white tracking-widest select-none">AMEX</span>
         </div>
-        {/* Apple Pay */}
         <div className="h-[22px] px-2 rounded-[4px] bg-[#1c1c1e] border border-[#333] flex items-center gap-1">
           <svg viewBox="0 0 24 24" className="w-3 h-3 fill-white" aria-hidden="true">
             <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
           </svg>
           <span className="text-[7px] font-semibold text-white select-none">Pay</span>
         </div>
-        {/* Google Pay */}
         <div className="h-[22px] px-2 rounded-[4px] bg-[#1c1c1e] border border-[#333] flex items-center gap-0.5">
           <svg viewBox="0 0 24 24" className="w-3 h-3" aria-hidden="true">
             <path d="M20.283 10.356h-8.327v3.451h4.792c-.446 2.193-2.313 3.453-4.792 3.453a5.27 5.27 0 0 1-5.279-5.28 5.27 5.27 0 0 1 5.279-5.279c1.259 0 2.397.447 3.29 1.178l2.6-2.599c-1.584-1.381-3.615-2.233-5.89-2.233a8.908 8.908 0 0 0-8.934 8.934 8.907 8.907 0 0 0 8.934 8.934c4.467 0 8.529-3.249 8.529-8.934 0-.528-.081-1.097-.202-1.625z" fill="#4285F4" />
@@ -89,7 +80,6 @@ function StripeTrustBadge() {
           <span className="text-[7px] font-semibold text-white select-none">Pay</span>
         </div>
       </div>
-      {/* 安全說明 */}
       <div className="flex items-center gap-1.5">
         <svg viewBox="0 0 24 24" className="w-3 h-3 text-[#635BFF]/70 shrink-0" fill="none" stroke="currentColor" strokeWidth={2}>
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
@@ -137,12 +127,6 @@ export default function UniversalCheckout({
   const [aifBalance, setAifBalance] = useState<number | null>(null);
   const [balanceLoading, setBalanceLoading] = useState(false);
 
-  // ── AIF 手動轉帳相關 State ────────────────────────────────────────────────
-  /** 用戶的專屬充值地址（用於構建 Solana Pay QR） */
-  const [depositAddress, setDepositAddress] = useState<string | null>(null);
-  const [isFetchingDeposit, setIsFetchingDeposit] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
-
   // 受控模式：外部 open 為 true 時打開彈窗
   useEffect(() => {
     if (controlledOpen === true && modalState === 'idle') {
@@ -156,7 +140,7 @@ export default function UniversalCheckout({
   }, [controlledOpen]);
 
   const isOpen = controlledOpen !== undefined ? controlledOpen : (modalState !== 'idle');
-  const isProcessing = modalState === 'processing' || modalState === 'verifying';
+  const isProcessing = modalState === 'processing';
 
   // ── AIF 餘額：Modal 開啟且已登入時載入 ────────────────────────────────────
   useEffect(() => {
@@ -213,80 +197,49 @@ export default function UniversalCheckout({
     }
   }
 
-  // ── AIF 結帳：進入手動轉帳等待頁 ─────────────────────────────────────────
-  async function handleAifCheckout() {
+  // ── AIF 內部賬本結帳：直接從資料庫扣款，無需鏈上交易 ──────────────────────
+  async function handleAifInternalCheckout() {
     if (!product || !user?.id) return;
     setModalState('processing');
     setErrorMsg('');
     try {
-      // 從 Supabase 獲取用戶的專屬充值地址
-      const { data } = await supabase
-        .from('users')
-        .select('deposit_address')
-        .eq('id', user.id)
-        .single();
-
-      if (!data?.deposit_address) {
-        // 若充值地址尚未生成，呼叫 assign API 生成
-        const token = await getAccessToken();
-        const res = await fetch('/api/wallet/assign', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({}),
-        });
-        const json = await res.json() as { address?: string; error?: string };
-        if (!res.ok || !json.address) throw new Error(json.error || '無法獲取充值地址，請稍後重試');
-        setDepositAddress(json.address);
-      } else {
-        setDepositAddress(data.deposit_address);
-      }
-
-      setIsFetchingDeposit(false);
-      setModalState('awaiting_transfer');
-    } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : '獲取充值地址失敗，請重試');
-      setModalState('error');
-    }
-  }
-
-  // ── AIF 查帳：用戶點擊「我已完成轉帳」後觸發 ─────────────────────────────
-  async function handleVerifyAif() {
-    if (!product || !user?.id) return;
-    setModalState('verifying');
-    setErrorMsg('');
-    try {
       const token = await getAccessToken();
-      const res = await fetch('/api/pay/verify-aif', {
+      const res = await fetch('/api/pay/internal-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          productCode,
-          userId: user.id,
-          expectedAmount: Number(product.price_aif),
-          extraMetadata,
-        }),
+        body: JSON.stringify({ productCode, extraMetadata }),
       });
-      const json = await res.json() as { success?: boolean; error?: string };
-      if (!res.ok || !json.success) throw new Error(json.error || 'AIF payment not yet confirmed');
+      const json = await res.json() as {
+        success?: boolean;
+        newBalance?: number;
+        error?: string;
+        currentBalance?: number;
+        required?: number;
+        shortfall?: number;
+      };
+      if (!res.ok || !json.success) {
+        throw new Error(json.error || 'AIF payment failed');
+      }
+      if (json.newBalance !== undefined) {
+        setAifBalance(json.newBalance);
+      }
       setModalState('success');
       onSuccess?.();
     } catch (err: unknown) {
-      setErrorMsg(err instanceof Error ? err.message : 'AIF payment verification failed');
+      setErrorMsg(err instanceof Error ? err.message : 'AIF payment failed');
       setModalState('error');
     }
   }
 
   function handleConfirm() {
     if (selectedMethod === 'stripe') handleStripeCheckout();
-    else handleAifCheckout();
+    else handleAifInternalCheckout();
   }
 
   function handleClose() {
     if (isProcessing) return;
     setModalState('idle');
     setErrorMsg('');
-    setDepositAddress(null);
-    setIsCopied(false);
     if (controlledOpen !== undefined) onClose?.();
   }
 
@@ -296,12 +249,9 @@ export default function UniversalCheckout({
       ? '產品不可用'
       : label ?? `購買 ${product?.name_zh ?? productCode}`;
 
-  const aifAfterPay = aifBalance !== null && product
-    ? aifBalance - Number(product.price_aif)
-    : null;
-  const hasEnoughAif = aifBalance !== null && product
-    ? aifBalance >= Number(product.price_aif)
-    : null;
+  const priceAif = product ? Number(product.price_aif) : 0;
+  const aifAfterPay = aifBalance !== null ? aifBalance - priceAif : null;
+  const hasEnoughAif = aifBalance !== null ? aifBalance >= priceAif : null;
 
   const isControlled = controlledOpen !== undefined;
   const showTrigger = !isControlled;
@@ -355,7 +305,6 @@ export default function UniversalCheckout({
                 {product?.name_en && (
                   <p className="text-xs text-neutral-500 mt-0.5 truncate">{product.name_en}</p>
                 )}
-                {/* 雙軌價格 */}
                 {product && (
                   <div className="flex items-center gap-3 mt-2">
                     <span className="text-sm font-bold text-white font-mono">
@@ -421,104 +370,12 @@ export default function UniversalCheckout({
                   </div>
                   <p className="text-red-400 font-bold mb-1">支付失敗</p>
                   <p className="text-neutral-600 text-xs mb-5 max-w-xs mx-auto">{errorMsg}</p>
-                  <div className="flex gap-2 justify-center">
-                    <button
-                      onClick={() => setModalState('selecting')}
-                      className="px-6 py-2 rounded-xl border border-neutral-700 text-neutral-300 text-sm hover:border-neutral-500 transition-colors"
-                    >
-                      重新選擇
-                    </button>
-                    {depositAddress && (
-                      <button
-                        onClick={() => setModalState('awaiting_transfer')}
-                        className="px-6 py-2 rounded-xl border border-[#00E599]/40 text-[#00E599] text-sm hover:border-[#00E599] transition-colors"
-                      >
-                        返回轉帳頁
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* ── AIF 手動轉帳等待頁 ── */}
-              {modalState === 'awaiting_transfer' && product && depositAddress && (
-                <div className="space-y-4">
-                  {/* 警告橫幅 */}
-                  <div className="flex items-start gap-2.5 bg-amber-500/10 border border-amber-500/40 rounded-xl px-4 py-3">
-                    <svg viewBox="0 0 24 24" className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth={2}>
-                      <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" strokeLinecap="round" />
-                    </svg>
-                    <p className="text-[11px] font-mono text-amber-300/90 leading-relaxed">
-                      Please send <span className="font-bold text-amber-300">ONLY $AIF tokens</span> on the{' '}
-                      <span className="font-bold text-amber-300">Solana</span> network to this address.
-                      Other assets will be <span className="text-red-400 font-bold">lost</span>.
-                    </p>
-                  </div>
-
-                  {/* Solana Pay QR Code */}
-                  <div className="flex flex-col items-center gap-2">
-                    <div className="p-3 bg-white rounded-xl shadow-[0_0_20px_rgba(0,229,153,0.15)]">
-                      <QRCode
-                        value={`solana:${depositAddress}?amount=${Number(product.price_aif)}${process.env.NEXT_PUBLIC_AIF_MINT_ADDRESS ? `&spl-token=${process.env.NEXT_PUBLIC_AIF_MINT_ADDRESS}` : ''}`}
-                        size={148}
-                        bgColor="#ffffff"
-                        fgColor="#000000"
-                        level="M"
-                      />
-                    </div>
-                    <p className="text-[9px] font-mono text-neutral-600 tracking-widest">
-                      SCAN WITH PHANTOM / ANY SOLANA WALLET APP
-                    </p>
-                  </div>
-
-                  {/* 充值地址 + 複製 */}
-                  <div className="space-y-1.5">
-                    <p className="text-[9px] font-mono text-neutral-600 tracking-widest">DEPOSIT ADDRESS</p>
-                    <div className="bg-black/40 border border-white/6 rounded-xl px-3 py-2.5 flex items-center gap-2">
-                      <span className="font-mono text-[10px] text-[#00E599]/90 flex-1 break-all leading-relaxed ltr-force">
-                        {depositAddress}
-                      </span>
-                      <button
-                        onClick={async () => {
-                          await navigator.clipboard.writeText(depositAddress).catch(() => {});
-                          setIsCopied(true);
-                          setTimeout(() => setIsCopied(false), 2000);
-                        }}
-                        className={`shrink-0 w-8 h-8 rounded-lg border flex items-center justify-center transition-all active:scale-90
-                          ${isCopied ? 'bg-[#00E599]/15 border-[#00E599]/50 text-[#00E599]' : 'bg-white/5 border-white/10 text-neutral-500 hover:border-[#00E599]/40 hover:text-[#00E599]'}`}
-                      >
-                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2}>
-                          {isCopied
-                            ? <path d="M20 6L9 17l-5-5" strokeLinecap="round" strokeLinejoin="round" />
-                            : <><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></>
-                          }
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* 精確金額大字提示 */}
-                  <div className="bg-[#00E599]/8 border border-[#00E599]/25 rounded-xl px-4 py-3.5 text-center">
-                    <p className="text-[10px] font-mono text-neutral-500 tracking-widest mb-1">
-                      請手動轉入精確金額
-                    </p>
-                    <p className="text-2xl font-black text-[#00E599] font-mono tracking-tight">
-                      {Number(product.price_aif).toLocaleString()} AIF
-                    </p>
-                    <p className="text-[10px] text-neutral-600 mt-1 font-mono">
-                      Please transfer EXACTLY this amount · 必須分毫不差
-                    </p>
-                  </div>
-
-                  {/* 鏈上確認說明 */}
-                  <div className="flex items-center gap-1.5 justify-center">
-                    <svg viewBox="0 0 24 24" className="w-3 h-3 text-[#00E599]/50 shrink-0" fill="none" stroke="currentColor" strokeWidth={2}>
-                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                    </svg>
-                    <p className="text-[9px] font-mono text-neutral-700 tracking-wide">
-                      Secured by <span className="text-[#9945FF]/60">Solana</span> · 轉帳後點擊下方按鈕查帳
-                    </p>
-                  </div>
+                  <button
+                    onClick={() => setModalState('selecting')}
+                    className="px-6 py-2 rounded-xl border border-neutral-700 text-neutral-300 text-sm hover:border-neutral-500 transition-colors"
+                  >
+                    重新選擇
+                  </button>
                 </div>
               )}
 
@@ -551,7 +408,6 @@ export default function UniversalCheckout({
                   >
                     <div className="p-4">
                       <div className="flex items-center gap-3">
-                        {/* Stripe S 圖標 */}
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors
                           ${selectedMethod === 'stripe' ? 'bg-[#635BFF]/20' : 'bg-white/5'}`}>
                           <svg viewBox="0 0 24 24" className={`w-5 h-5 ${selectedMethod === 'stripe' ? 'text-[#635BFF]' : 'text-neutral-500'}`} fill="currentColor">
@@ -568,7 +424,6 @@ export default function UniversalCheckout({
                           </p>
                           <p className="text-neutral-600 text-[10px]">USD</p>
                         </div>
-                        {/* 選中圓點 */}
                         <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors
                           ${selectedMethod === 'stripe' ? 'border-[#635BFF] bg-[#635BFF]' : 'border-neutral-700'}`}>
                           {selectedMethod === 'stripe' && (
@@ -576,7 +431,6 @@ export default function UniversalCheckout({
                           )}
                         </div>
                       </div>
-                      {/* 信任背書牆：僅在選中時顯示 */}
                       {selectedMethod === 'stripe' && <StripeTrustBadge />}
                     </div>
                   </button>
@@ -596,19 +450,18 @@ export default function UniversalCheckout({
                   >
                     <div className="p-4">
                       <div className="flex items-center gap-3">
-                        {/* Solana/AIF 圖標 */}
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors
                           ${selectedMethod === 'aif' ? 'bg-[#00E599]/15' : 'bg-white/5'}`}>
                           <SolanaIcon className={`w-5 h-5 ${selectedMethod === 'aif' ? 'text-[#00E599]' : 'text-neutral-500'}`} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="text-white text-sm font-semibold">AIF 代幣</p>
+                            <p className="text-white text-sm font-semibold">AIF 餘額支付</p>
                             <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-[#CCFF00]/15 text-[#CCFF00] font-mono tracking-wider">
                               50% OFF
                             </span>
                           </div>
-                          <p className="text-neutral-500 text-[11px] mt-0.5">Solana 原生鏈上支付</p>
+                          <p className="text-neutral-500 text-[11px] mt-0.5">從帳戶餘額即時扣款</p>
                         </div>
                         <div className="text-right shrink-0">
                           <p className={`font-black font-mono text-lg ${selectedMethod === 'aif' ? 'text-[#00E599]' : 'text-neutral-300'}`}>
@@ -624,24 +477,41 @@ export default function UniversalCheckout({
                         </div>
                       </div>
 
-                      {/* AIF 支付說明：Web2.5 掃碼查帳流程 */}
+                      {/* ── AIF 餘額明細（選中時顯示）── */}
                       {selectedMethod === 'aif' && (
                         <div className="mt-3 rounded-lg bg-black/30 border border-white/5 px-3 py-2.5 space-y-1.5">
                           <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-neutral-500 font-mono">Amount Due</span>
-                            <span className="text-[#00E599] font-mono font-semibold">
-                              {Number(product.price_aif).toLocaleString()} AIF
+                            <span className="text-neutral-500 font-mono">當前餘額</span>
+                            <span className={`font-mono font-semibold ${balanceLoading ? 'text-neutral-600' : hasEnoughAif ? 'text-[#00E599]' : 'text-red-400'}`}>
+                              {balanceLoading ? '...' : `${(aifBalance ?? 0).toLocaleString()} AIF`}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-neutral-500 font-mono">本次扣款</span>
+                            <span className="text-white font-mono font-semibold">
+                              − {priceAif.toLocaleString()} AIF
                             </span>
                           </div>
                           <div className="h-px bg-white/5" />
-                          <div className="flex items-start gap-1.5 pt-0.5">
-                            <svg viewBox="0 0 24 24" className="w-3 h-3 text-[#00E599]/50 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth={2}>
-                              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-                            </svg>
-                            <span className="text-[10px] text-neutral-600 font-mono leading-relaxed">
-                              掃碼後向充值地址轉入精確金額，轉帳成功後點擊「我已完成轉帳」完成查帳
+                          <div className="flex items-center justify-between text-[11px]">
+                            <span className="text-neutral-500 font-mono">支付後餘額</span>
+                            <span className={`font-mono font-semibold ${!balanceLoading && aifAfterPay !== null && aifAfterPay >= 0 ? 'text-neutral-300' : 'text-red-400'}`}>
+                              {balanceLoading ? '...' : aifAfterPay !== null ? `${aifAfterPay.toLocaleString()} AIF` : '—'}
                             </span>
                           </div>
+
+                          {/* 餘額不足警告 */}
+                          {!balanceLoading && hasEnoughAif === false && (
+                            <div className="mt-1.5 flex items-start gap-1.5 bg-red-500/10 border border-red-500/30 rounded-lg px-2.5 py-2">
+                              <svg viewBox="0 0 24 24" className="w-3 h-3 text-red-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth={2}>
+                                <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" strokeLinecap="round" />
+                              </svg>
+                              <span className="text-[10px] text-red-400 font-mono leading-relaxed">
+                                AIF 餘額不足，請先至帳戶充值{' '}
+                                {aifBalance !== null ? `（還需 ${(priceAif - aifBalance).toLocaleString()} AIF）` : ''}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -650,12 +520,15 @@ export default function UniversalCheckout({
               )}
             </div>
 
-            {/* ── 確認按鈕（支付方式選擇頁） ── */}
+            {/* ── 確認按鈕 ── */}
             {(modalState === 'selecting' || modalState === 'processing') && authenticated && product && (
               <div className="px-6 pb-6 space-y-2">
                 <button
                   onClick={handleConfirm}
-                  disabled={modalState === 'processing'}
+                  disabled={
+                    modalState === 'processing' ||
+                    (selectedMethod === 'aif' && hasEnoughAif === false)
+                  }
                   className={`
                     w-full py-4 rounded-xl font-black text-sm flex items-center justify-center gap-2
                     transition-all duration-200 active:scale-[0.98]
@@ -672,37 +545,14 @@ export default function UniversalCheckout({
                     ? '處理中…'
                     : selectedMethod === 'stripe'
                       ? `Pay $${Number(product.price_usd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`
-                      : `繼續 · 顯示充值 QR`
+                      : hasEnoughAif === false
+                        ? 'AIF 餘額不足 · 請先充值'
+                        : `確認支付 ${priceAif.toLocaleString()} AIF`
                   }
                 </button>
                 <p className="text-[9px] text-neutral-700 text-center font-mono tracking-wide">
                   點擊支付即表示您同意平台服務條款 · 費用不予退還
                 </p>
-              </div>
-            )}
-
-            {/* ── 我已完成轉帳 按鈕（AIF 手動轉帳等待頁） ── */}
-            {(modalState === 'awaiting_transfer' || modalState === 'verifying') && authenticated && product && depositAddress && (
-              <div className="px-6 pb-6 space-y-2">
-                <button
-                  onClick={handleVerifyAif}
-                  disabled={modalState === 'verifying'}
-                  className="w-full py-4 rounded-xl font-black text-sm flex items-center justify-center gap-2
-                    transition-all duration-200 active:scale-[0.98]
-                    disabled:opacity-50 disabled:cursor-not-allowed
-                    tracking-widest uppercase font-mono
-                    bg-[#00E599] hover:bg-[#00c987] text-black shadow-[0_4px_24px_rgba(0,229,153,0.25)]"
-                >
-                  {modalState === 'verifying' && <Spinner />}
-                  {modalState === 'verifying' ? '查帳中，請稍候…' : '我已完成轉帳 · I Have Paid'}
-                </button>
-                <button
-                  onClick={() => setModalState('selecting')}
-                  disabled={modalState === 'verifying'}
-                  className="w-full py-2 text-[10px] font-mono text-neutral-600 hover:text-neutral-400 transition-colors tracking-wider disabled:opacity-50"
-                >
-                  ← 返回支付方式選擇
-                </button>
               </div>
             )}
 

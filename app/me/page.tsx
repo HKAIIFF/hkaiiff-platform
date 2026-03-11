@@ -149,9 +149,21 @@ export default function MePage() {
     }
   };
 
-  /** TOP UP 按鈕：只負責打開 Modal，地址顯示/生成邏輯由 Modal 內部處理 */
-  const handleOpenTopUp = () => {
+  /** TOP UP 按鈕：打開 Modal，並非同步觸發 ATA 初始化（確保地址可接收 AIF）。 */
+  const handleOpenTopUp = async () => {
     setIsTopUpOpen(true);
+    // 已有充值地址時，非同步確保 ATA 已初始化，消除 Phantom 掃碼報 Error 256
+    if (depositAddress) {
+      try {
+        const token = await getAccessToken();
+        fetch('/api/wallet/init-ata', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => {});
+      } catch {
+        // 靜默失敗，不阻塞 UI
+      }
+    }
   };
 
 
