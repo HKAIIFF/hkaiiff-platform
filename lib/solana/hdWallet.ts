@@ -206,12 +206,27 @@ export async function initUserDepositATA(depositAddress: string): Promise<InitAt
     )
   );
 
-  const signature = await sendAndConfirmTransaction(
-    connection,
-    tx,
-    [fundingWallet],
-    { commitment: 'confirmed' }
-  );
+  // 必須顯式設置 recentBlockhash 和 feePayer，否則 serialize() 時拋出 "Transaction recentBlockhash required"
+  const { blockhash } = await connection.getLatestBlockhash('confirmed');
+  tx.recentBlockhash = blockhash;
+  tx.feePayer = fundingWallet.publicKey;
+
+  let signature: string;
+  try {
+    signature = await sendAndConfirmTransaction(
+      connection,
+      tx,
+      [fundingWallet],
+      { commitment: 'confirmed' }
+    );
+  } catch (txErr: unknown) {
+    const detail = txErr instanceof Error ? txErr.message : String(txErr);
+    console.error(
+      `[initUserDepositATA] ❌ 交易發送失敗 → 用戶: ${depositAddress} | ` +
+      `ATA: ${ata.toBase58()} | 錯誤: ${detail}`
+    );
+    throw new Error(`ATA 交易上鏈失敗: ${detail}`);
+  }
 
   console.log(
     `[initUserDepositATA] ✅ ATA 創建成功 → 用戶: ${depositAddress} | ` +

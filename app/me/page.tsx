@@ -102,6 +102,8 @@ export default function MePage() {
 
   // ── Top-Up Modal State ────────────────────────────────────────────────────
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
+  /** ATA 初始化進行中：true 時 QR 區域顯示 loading，完成後才顯示 QR Code */
+  const [isAtaInitializing, setIsAtaInitializing] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [copiedFilmId, setCopiedFilmId] = useState<string | null>(null);
 
@@ -163,29 +165,35 @@ export default function MePage() {
   };
 
   /**
-   * TOP UP 按鈕：打開 Modal，並使用 useRef 鎖確保 init-ata 只對同一地址觸發一次。
+   * TOP UP 按鈕：打開 Modal，await init-ata 完成後才顯示 QR Code。
    *
    * 安全設計：
-   * - ataInitDoneRef 記錄已初始化的地址，防止重複觸發（包括用戶多次點擊）
-   * - fire-and-forget：不阻塞 UI，靜默失敗（ATA init 失敗不影響展示 QR）
-   * - 絕對禁止在此路徑發送 SOL（init-ata 後端嚴格保證只做 ATA 創建）
+   * - ataInitDoneRef 記錄已初始化的地址，同一地址生命週期內只呼叫一次
+   * - isAtaInitializing 控制 QR 區域顯示 loading，確保 ATA 上鏈後再掃碼
+   * - 絕對禁止在此路徑發送 SOL（init-ata 後端保證只做純 ATA 創建）
    */
   const handleOpenTopUp = async () => {
     setIsTopUpOpen(true);
 
     if (depositAddress && ataInitDoneRef.current !== depositAddress) {
       ataInitDoneRef.current = depositAddress; // 立即鎖定，防止並發重入
+      setIsAtaInitializing(true);
       try {
         const token = await getAccessToken();
-        fetch('/api/wallet/init-ata', {
+        const res = await fetch('/api/wallet/init-ata', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
-        }).catch((err) => {
-          console.warn('[TopUp] init-ata fire-and-forget failed:', err);
-          ataInitDoneRef.current = null; // 失敗時重置，允許下次重試
         });
-      } catch {
-        ataInitDoneRef.current = null; // 取 token 失敗，重置允許重試
+        if (!res.ok) {
+          const json = await res.json().catch(() => ({})) as { error?: string };
+          console.warn('[TopUp] init-ata 失敗:', json?.error ?? res.status);
+          ataInitDoneRef.current = null; // 允許下次重試
+        }
+      } catch (err) {
+        console.warn('[TopUp] init-ata 請求異常:', err);
+        ataInitDoneRef.current = null;
+      } finally {
+        setIsAtaInitializing(false);
       }
     }
   };
@@ -1195,8 +1203,19 @@ export default function MePage() {
 
               {/* QR Code 區域 */}
               <div className="flex flex-col items-center gap-3">
-                {depositAddress ? (
-                  /* ── 已有地址：渲染 Solana Pay URI QR Code ────────────── */
+                {depositAddress && isAtaInitializing ? (
+                  /* ── ATA 初始化中：等待鏈上確認，禁止提前掃碼 ────────── */
+                  <div className="w-[186px] h-[186px] border-2 border-dashed border-signal/30 rounded-xl flex flex-col items-center justify-center gap-3 bg-signal/5">
+                    <i className="fas fa-circle-notch fa-spin text-3xl text-signal/50" />
+                    <span className="text-[10px] font-mono text-signal/60 tracking-wider text-center px-4">
+                      ACTIVATING ADDRESS...
+                    </span>
+                    <span className="text-[9px] font-mono text-gray-600 text-center px-4">
+                      正在鏈上開通 AIF 收款功能
+                    </span>
+                  </div>
+                ) : depositAddress ? (
+                  /* ── 已有地址且 ATA 已就緒：渲染 Solana Pay URI QR Code ── */
                   <>
                     <div className="p-3 bg-white rounded-xl shadow-[0_0_24px_rgba(204,255,0,0.2)]">
                       <QRCode
