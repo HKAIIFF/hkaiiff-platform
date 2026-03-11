@@ -164,7 +164,7 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
-      success_url: `${siteUrl}/me?payment=success`,
+      success_url: `${siteUrl}/success?type=film_entry&amount=99&currency=USD&name=${encodeURIComponent('影片報名費')}`,
       cancel_url: `${siteUrl}/upload/payment?filmId=${filmId}&payment=cancelled`,
       metadata: {
         userId: verifiedUserId,

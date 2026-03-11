@@ -60,7 +60,7 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
-      success_url: `${siteUrl}/verification?stripe_success=1`,
+      success_url: `${siteUrl}/success?type=creator_verification&amount=30&currency=USD&name=${encodeURIComponent('創作者身份認證')}`,
       cancel_url: `${siteUrl}/verification?stripe_cancelled=1`,
       metadata: {
         userId: verifiedUserId,

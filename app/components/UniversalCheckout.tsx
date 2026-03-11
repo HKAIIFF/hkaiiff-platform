@@ -223,8 +223,19 @@ export default function UniversalCheckout({
       if (json.newBalance !== undefined) {
         setAifBalance(json.newBalance);
       }
-      setModalState('success');
+
+      // 先呼叫 onSuccess（例如驗證頁面需要提交表單資料）
       onSuccess?.();
+
+      // 構建成功跳轉 URL：優先使用外部傳入的 successUrl，否則導向通用成功頁
+      const targetUrl = successUrl
+        || `/success?type=${productCode}&amount=${Number(product.price_aif).toLocaleString()}&currency=AIF&name=${encodeURIComponent(product.name_zh || productCode)}`;
+
+      // 短暫顯示成功狀態後跳轉（讓用戶有視覺反饋）
+      setModalState('success');
+      setTimeout(() => {
+        window.location.href = targetUrl;
+      }, 800);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'AIF payment failed');
       setModalState('error');

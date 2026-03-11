@@ -51,16 +51,19 @@ async function handleIdentityVerifyPaid(userId: string): Promise<void> {
     return;
   }
 
+  // 無論當前狀態（unverified / rejected / null），支付後一律設為 pending
   const { error } = await adminSupabase
     .from('users')
     .update({
+      verification_status: 'pending',
       verification_payment_method: 'aif',
-      ...(user.verification_status === 'unverified' ? { verification_status: 'pending' } : {}),
+      verification_submitted_at: new Date().toISOString(),
     })
     .eq('id', userId);
 
   if (error) {
     console.error('[pay/product-aif] identity_verify update failed:', error.message);
+    throw new Error(`DB write failed: ${error.message}`);
   }
 
   await sendMessage({

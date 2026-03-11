@@ -774,9 +774,8 @@ export default function UploadPage() {
                 onClose={() => setShowCheckoutModal(false)}
                 onSuccess={() => {
                   setShowCheckoutModal(false);
-                  router.push('/me?payment=success');
                 }}
-                successUrl={typeof window !== 'undefined' ? `${window.location.origin}/me?payment=success` : '/me?payment=success'}
+                successUrl={typeof window !== 'undefined' ? `${window.location.origin}/success?type=film_entry&amount=500&currency=AIF&name=${encodeURIComponent('影片報名費')}` : `/success?type=film_entry&amount=500&currency=AIF&name=${encodeURIComponent('影片報名費')}`}
                 cancelUrl={typeof window !== 'undefined' ? `${window.location.origin}/upload` : '/upload'}
               />
             )}

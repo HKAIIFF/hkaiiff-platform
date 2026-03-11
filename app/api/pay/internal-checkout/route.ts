@@ -38,16 +38,28 @@ async function handleIdentityVerifyPaid(userId: string): Promise<void> {
     .eq('id', userId)
     .single();
 
-  if (!user) return;
+  if (!user) {
+    console.error(`[internal-checkout] handleIdentityVerifyPaid: user ${userId} not found`);
+    return;
+  }
+
+  // 已是待審核或已通過，無需重複操作
   if (user.verification_status === 'pending' || user.verification_status === 'approved') return;
 
-  await adminSupabase
+  // 無論當前狀態（unverified / rejected / null），支付後一律設為 pending
+  const { error: updateError } = await adminSupabase
     .from('users')
     .update({
+      verification_status: 'pending',
       verification_payment_method: 'aif',
-      ...(user.verification_status === 'unverified' ? { verification_status: 'pending' } : {}),
+      verification_submitted_at: new Date().toISOString(),
     })
     .eq('id', userId);
+
+  if (updateError) {
+    console.error('[internal-checkout] identity_verify status update failed:', updateError.message);
+    throw new Error(`DB write failed: ${updateError.message}`);
+  }
 
   await sendMessage({
     userId,

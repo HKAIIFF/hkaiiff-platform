@@ -375,19 +375,7 @@ export default function MePage() {
     const syncData = async () => {
       const userId = user.id;
 
-      // Step 1: 同步基础信息（确保用户行存在）
-      try {
-        await fetch('/api/sync-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user }),
-          cache: 'no-store',
-        });
-      } catch (err) {
-        console.error('Failed to sync', err);
-      }
-
-      // Step 2: 直接从 Supabase 读取完整 profile（含充值地址字段）
+      // Step 1: 同步基础信息（确保用户行存在），并利用返回值立即初始化余额
       const defaultProfile = {
         agent_id: '',
         name: 'New Agent',
@@ -406,6 +394,29 @@ export default function MePage() {
       };
 
       try {
+        const syncRes = await fetch('/api/sync-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user }),
+          cache: 'no-store',
+        });
+        if (syncRes.ok) {
+          const syncData = await syncRes.json();
+          // sync-user 返回完整用戶行（含 aif_balance），立即更新餘額避免顯示 0
+          if (syncData && typeof syncData.aif_balance === 'number') {
+            setDbProfile((prev) =>
+              prev
+                ? { ...prev, aif_balance: syncData.aif_balance }
+                : { ...defaultProfile, aif_balance: syncData.aif_balance }
+            );
+          }
+        }
+      } catch (err) {
+        console.error('Failed to sync', err);
+      }
+
+      // Step 2: 直接從 Supabase 讀取完整 profile（含充值地址及所有驗證欄位）
+      try {
         const { data: profileRow, error: profileError } = await supabase
           .from('users')
           .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team, deposit_address, wallet_index, verification_status, verification_type, rejection_reason')
@@ -414,7 +425,7 @@ export default function MePage() {
 
         if (profileError) {
           console.error('❌ Failed to fetch profile:', profileError.message);
-          setDbProfile(defaultProfile);
+          setDbProfile((prev) => prev ?? defaultProfile);
         } else if (profileRow) {
           setDbProfile(profileRow);
 
@@ -489,11 +500,11 @@ export default function MePage() {
             }
           }
         } else {
-          setDbProfile(defaultProfile);
+          setDbProfile((prev) => prev ?? defaultProfile);
         }
       } catch (err) {
         console.error('❌ Profile fetch exception:', err);
-        setDbProfile(defaultProfile);
+        setDbProfile((prev) => prev ?? defaultProfile);
       } finally {
         setIsProfileLoading(false);
       }
