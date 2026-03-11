@@ -20,6 +20,8 @@ interface LbsNode {
   poster_url: string | null;
   background_url: string | null;
   status: string | null;
+  is_online: boolean | null;
+  rejection_reason: string | null;
   country: string | null;
   city: string | null;
   venue: string | null;
@@ -48,6 +50,7 @@ type EditableFields = Pick<
   | "poster_url"
   | "background_url"
   | "status"
+  | "is_online"
   | "country"
   | "city"
   | "venue"
@@ -98,6 +101,74 @@ function StatusPill({ status }: { status: string | null }) {
     <span className={`px-2.5 py-0.5 text-[10px] font-semibold border rounded-full whitespace-nowrap ${cfg.cls}`}>
       {cfg.label}
     </span>
+  );
+}
+
+// ─── Reject Reason Modal ──────────────────────────────────────────────────────
+const REJECT_REASONS = [
+  { value: "copyright_risk", label: "侵權風險", desc: "內容涉嫌侵犯著作權或相關智識財產" },
+  { value: "violation_risk", label: "違規風險", desc: "內容違反平台規定或相關法律法規" },
+] as const;
+
+type RejectReason = (typeof REJECT_REASONS)[number]["value"];
+
+function RejectReasonModal({
+  node,
+  onConfirm,
+  onClose,
+}: {
+  node: LbsNode;
+  onConfirm: (id: string, reason: RejectReason) => void;
+  onClose: () => void;
+}) {
+  const [selected, setSelected] = useState<RejectReason | null>(null);
+  return (
+    <div
+      className="fixed inset-0 z-[400] bg-black/30 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-sm bg-white border border-red-100 rounded-2xl overflow-hidden shadow-xl">
+        <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between">
+          <div>
+            <p className="text-sm font-semibold text-neutral-900">✕ 退回申請 — 選擇原因</p>
+            <p className="text-[11px] text-neutral-400 mt-0.5 truncate max-w-[240px]">{node.title}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded-full border border-neutral-200 text-neutral-400 hover:text-neutral-700 flex items-center justify-center text-xs transition-colors"
+          >✕</button>
+        </div>
+        <div className="px-5 py-4 space-y-3">
+          {REJECT_REASONS.map((r) => (
+            <button
+              key={r.value}
+              onClick={() => setSelected(r.value)}
+              className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all ${
+                selected === r.value
+                  ? "border-red-400 bg-red-50"
+                  : "border-neutral-200 hover:border-red-200 hover:bg-red-50/40"
+              }`}
+            >
+              <p className={`text-sm font-semibold ${selected === r.value ? "text-red-700" : "text-neutral-800"}`}>
+                {r.label}
+              </p>
+              <p className="text-[11px] text-neutral-500 mt-0.5">{r.desc}</p>
+            </button>
+          ))}
+        </div>
+        <div className="px-5 py-4 border-t border-neutral-100 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-full border border-neutral-200 text-neutral-600 text-sm font-medium hover:bg-neutral-50 transition-colors"
+          >取消</button>
+          <button
+            onClick={() => selected && onConfirm(node.id, selected)}
+            disabled={!selected}
+            className="flex-[2] py-2.5 rounded-full bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >確認退回</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -477,6 +548,7 @@ export default function LBSNodesPage() {
   const [editNode, setEditNode] = useState<LbsNode | null>(null);
   const [dataPoolNode, setDataPoolNode] = useState<LbsNode | null>(null);
   const [filmPoolNode, setFilmPoolNode] = useState<LbsNode | null>(null);
+  const [rejectModalNode, setRejectModalNode] = useState<LbsNode | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [search, setSearch] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -522,16 +594,28 @@ export default function LBSNodesPage() {
     showToast("已通過審核，節點狀態設為排期中 ✓", "success");
   }, [showToast]);
 
-  const handleReject = useCallback(async (id: string) => {
+  const handleRejectWithReason = useCallback(async (id: string, reason: string) => {
+    setRejectModalNode(null);
     setProcessingId(id);
     const { error } = await supabase
       .from("lbs_nodes")
-      .update({ status: "rejected" })
+      .update({ status: "rejected", rejection_reason: reason })
       .eq("id", id);
     setProcessingId(null);
     if (error) { showToast(`操作失敗: ${error.message}`, "error"); return; }
-    setAllNodes((prev) => prev.map((n) => n.id === id ? { ...n, status: "rejected" } : n));
-    showToast("已退回申請 ✓", "success");
+    setAllNodes((prev) => prev.map((n) => n.id === id ? { ...n, status: "rejected", rejection_reason: reason } : n));
+    showToast("已退回申請，原因已記錄 ✓", "success");
+  }, [showToast]);
+
+  const handleToggleOnline = useCallback(async (id: string, currentOnline: boolean | null) => {
+    const newOnline = !currentOnline;
+    const { error } = await supabase
+      .from("lbs_nodes")
+      .update({ is_online: newOnline })
+      .eq("id", id);
+    if (error) { showToast(`切換失敗: ${error.message}`, "error"); return; }
+    setAllNodes((prev) => prev.map((n) => n.id === id ? { ...n, is_online: newOnline } : n));
+    showToast(newOnline ? "影展已上線 ✓" : "影展已下線 ✓", "success");
   }, [showToast]);
 
   const handleCopy = useCallback((text: string, nodeId: string) => {
@@ -770,13 +854,32 @@ export default function LBSNodesPage() {
                               ✓ 通過
                             </button>
                             <button
-                              onClick={() => handleReject(node.id)}
+                              onClick={() => setRejectModalNode(node)}
                               disabled={isProcessing}
                               className="text-[10px] font-semibold border border-red-200 text-red-600 rounded-full px-3 py-0.5 hover:bg-red-50 transition-colors disabled:opacity-40 whitespace-nowrap w-fit"
                             >
-                              ✕ 退回
+                              ✕ 退回…
                             </button>
                           </>
+                        )}
+                        {/* 已通過審核：顯示上/下線 Toggle */}
+                        {node.status === "approved" && (
+                          <button
+                            onClick={() => handleToggleOnline(node.id, node.is_online)}
+                            className={`text-[10px] font-semibold rounded-full px-3 py-0.5 transition-colors whitespace-nowrap w-fit border ${
+                              node.is_online
+                                ? "border-green-300 text-green-700 bg-green-50 hover:bg-green-100"
+                                : "border-neutral-300 text-neutral-500 hover:bg-neutral-50"
+                            }`}
+                          >
+                            {node.is_online ? "● 已上線" : "○ 已下線"}
+                          </button>
+                        )}
+                        {/* 顯示退回原因 */}
+                        {node.status === "rejected" && node.rejection_reason && (
+                          <span className="text-[9px] text-red-400 font-mono break-words max-w-[110px]">
+                            {node.rejection_reason === "copyright_risk" ? "侵權風險" : "違規風險"}
+                          </span>
                         )}
                         <button
                           onClick={() => setEditNode(node)}
@@ -811,6 +914,13 @@ export default function LBSNodesPage() {
       )}
       {editNode && (
         <EditModal node={editNode} onClose={() => setEditNode(null)} onSaved={handleSaved} />
+      )}
+      {rejectModalNode && (
+        <RejectReasonModal
+          node={rejectModalNode}
+          onConfirm={handleRejectWithReason}
+          onClose={() => setRejectModalNode(null)}
+        />
       )}
     </div>
   );

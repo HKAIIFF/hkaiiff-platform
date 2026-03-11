@@ -5,6 +5,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/app/context/I18nContext";
 import { useToast } from "@/app/context/ToastContext";
+import { useModal } from "@/app/context/ModalContext";
 import { supabase } from "@/lib/supabase";
 import OSS from "ali-oss";
 import UniversalCheckout from "@/app/components/UniversalCheckout";
@@ -59,6 +60,7 @@ export default function VerificationPage() {
   const router = useRouter();
   const { t, lang } = useI18n();
   const { showToast } = useToast();
+  const { setActiveModal } = useModal();
   const docInputRef = useRef<HTMLInputElement>(null);
 
   const { product: verifyProduct } = useProduct("identity_verify");
@@ -235,18 +237,34 @@ export default function VerificationPage() {
   ];
 
   return (
+    <>
+      {/* ── 自訂頂部 Header（覆蓋 MobileTopBar，移除 Logo，對齊返回鍵與語言切換）── */}
+      <div className="fixed top-0 left-0 w-full z-40 bg-void/95 backdrop-blur-sm px-4 pt-12 pb-3 md:hidden">
+        <div className="flex justify-between items-center">
+          {/* 返回 / 上一步 */}
+          {step < 4 ? (
+            <button
+              onClick={() => (step > 1 ? setStep((step - 1) as 1 | 2 | 3 | 4) : router.back())}
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-neutral-800/80 backdrop-blur-md border border-neutral-600 text-white hover:bg-neutral-700 transition cursor-pointer shadow-lg"
+            >
+              <i className="fas fa-chevron-left text-sm" />
+            </button>
+          ) : (
+            <div className="w-10" />
+          )}
+
+          {/* 語言切換 */}
+          <button
+            onClick={() => setActiveModal("lang")}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-black/60 backdrop-blur border border-[#444] text-gray-300 hover:text-signal hover:border-signal transition-all shadow-lg"
+          >
+            <i className="fas fa-globe text-sm" />
+          </button>
+        </div>
+      </div>
+
     <div className="min-h-screen bg-void px-4 pt-28 pb-32 flex flex-col items-center">
       <div className="w-full max-w-lg">
-
-        {/* Floating Back Button */}
-        {step < 4 && (
-          <button
-            onClick={() => (step > 1 ? setStep((step - 1) as 1 | 2 | 3 | 4) : router.back())}
-            className="fixed top-24 left-4 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-neutral-800/80 backdrop-blur-md border border-neutral-600 text-white hover:bg-neutral-700 transition cursor-pointer shadow-lg"
-          >
-            <i className="fas fa-chevron-left text-sm" />
-          </button>
-        )}
 
         {/* Header */}
         {step < 4 && (
@@ -671,5 +689,6 @@ export default function VerificationPage() {
         )}
       </div>
     </div>
+    </>
   );
 }

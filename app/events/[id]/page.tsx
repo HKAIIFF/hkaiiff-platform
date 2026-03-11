@@ -228,8 +228,23 @@ export default function EventDetailPage() {
   /* ── Loading / Error states ─────────────────────────────────────────── */
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-[#CCFF00] border-t-transparent rounded-full animate-spin" />
+      <div className="min-h-screen bg-[#050505] overflow-y-auto pb-32">
+        {/* Back button skeleton */}
+        <div className="fixed top-20 left-4 z-50 w-10 h-10 rounded-full bg-white/5 animate-pulse" />
+        {/* Poster skeleton */}
+        <div className="w-full aspect-[3/4] max-h-[420px] bg-[#111] animate-pulse" />
+        <div className="px-5 py-5 space-y-5">
+          <div className="space-y-3">
+            <div className="h-3 bg-[#1a1a1a] rounded-full w-20 animate-pulse" />
+            <div className="h-9 bg-[#1a1a1a] rounded-xl w-3/4 animate-pulse" />
+            <div className="h-3 bg-[#151515] rounded-full w-1/2 animate-pulse" />
+          </div>
+          <div className="h-16 bg-[#111] rounded-xl animate-pulse" />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="h-20 bg-[#111] rounded-xl animate-pulse" />
+            <div className="h-20 bg-[#111] rounded-xl animate-pulse" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -265,7 +280,7 @@ export default function EventDetailPage() {
   return (
     <div className="min-h-screen bg-[#050505] overflow-y-auto pb-32">
 
-      {/* ── Standalone floating back button ───────────────────────────── */}
+      {/* ── Floating back button ───────────────────────────────────────── */}
       <button
         onClick={() => router.back()}
         className="fixed top-20 left-4 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-white hover:bg-white/20 transition cursor-pointer"
@@ -273,23 +288,24 @@ export default function EventDetailPage() {
         <ChevronLeft size={20} />
       </button>
 
-      {/* ── Hero (background_url) ──────────────────────────────────────── */}
-      <div className="relative w-full h-72 bg-black overflow-hidden">
-        {heroSrc && (
+      {/* ── Top: Poster image (置頂，取代 Background Image 容器) ────────── */}
+      {(event.poster_url ?? heroSrc) ? (
+        <div className="relative w-full overflow-hidden bg-black" style={{ maxHeight: 420 }}>
           <img
-            src={heroSrc}
+            src={event.poster_url ?? heroSrc ?? ''}
             alt={event.title ?? ''}
-            className="w-full h-full object-cover bg-center opacity-60"
-            onError={(e) => {
-              (e.currentTarget as HTMLImageElement).style.opacity = '0';
-            }}
+            className="w-full object-cover object-top"
+            style={{ maxHeight: 420 }}
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/70 to-transparent" />
-      </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent" />
+        </div>
+      ) : (
+        <div className="w-full h-32 bg-[#080808]" />
+      )}
 
       {/* ── Content ───────────────────────────────────────────────────── */}
-      <div className="px-5 -mt-16 relative z-10 space-y-6">
+      <div className="px-5 pt-4 relative z-10 space-y-5">
 
         {/* Title block */}
         <div>
@@ -316,51 +332,37 @@ export default function EventDetailPage() {
           </div>
         </div>
 
-        {/* Poster (poster_url) + description */}
-        {event.poster_url ? (
-          <div className="flex items-start gap-4">
-            <img
-              src={event.poster_url}
-              alt={event.title ?? ''}
-              className="w-20 h-28 object-cover rounded-lg border border-[#333] shrink-0 shadow-lg"
-              onError={(e) => {
-                (e.currentTarget as HTMLImageElement).style.display = 'none';
-              }}
-            />
-            {event.description && (
-              <p className="text-xs text-gray-300 font-mono leading-relaxed line-clamp-6 pt-1">
-                {event.description}
-              </p>
-            )}
-          </div>
-        ) : (
-          event.description && (
-            <p className="text-xs text-gray-300 font-mono leading-relaxed border-l-2 border-[#333] pl-3">
-              {event.description}
-            </p>
-          )
-        )}
-
-        {/* Curator */}
+        {/* Curator — 緊接標題下方 */}
         <div className="flex items-center gap-3 bg-[#111] border border-[#222] rounded-xl p-3">
           <img
             src={
               event.curator_avatar ??
               `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(String(event.id))}`
             }
-            alt="AIF.SHOW"
+            alt="Curator"
             className="w-10 h-10 rounded-full border border-[#333] object-cover shrink-0"
           />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-white truncate">AIF.SHOW</span>
-              <i className="fas fa-certificate text-[#CCFF00] text-xs shrink-0" />
+              <span className="text-sm font-bold text-white truncate">
+                {event.curator_name ?? 'AIF.SHOW'}
+              </span>
+              {event.curator_certified !== false && (
+                <i className="fas fa-certificate text-[#CCFF00] text-xs shrink-0" />
+              )}
             </div>
             <div className="text-[9px] font-mono text-gray-500 uppercase tracking-widest mt-0.5">
-              Official Curator
+              策展人 · Curator
             </div>
           </div>
         </div>
+
+        {/* Description (海報移除後，直接顯示文字) */}
+        {event.description && (
+          <p className="text-xs text-gray-300 font-mono leading-relaxed border-l-2 border-[#333] pl-3">
+            {event.description}
+          </p>
+        )}
 
         {/* Venue + Schedule */}
         <div className="grid grid-cols-2 gap-4">

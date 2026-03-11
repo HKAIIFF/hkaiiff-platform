@@ -101,6 +101,11 @@ export default function MePage() {
   // ── Sync Balance State ────────────────────────────────────────────────────
   const [isSyncing, setIsSyncing] = useState(false);
 
+  /** 靜默輪詢計時器：TopUp Modal 打開期間每 5 秒自動查帳 */
+  const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  /** 防止多個輪詢請求並發 */
+  const isPollingRef = useRef(false);
+
   const handleTopUpCopy = async () => {
     if (!depositAddress) return;
     try {
@@ -233,6 +238,70 @@ export default function MePage() {
 
     initAta();
     return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTopUpOpen, depositAddress]);
+
+  /**
+   * 靜默自動查帳輪詢：TopUp Modal 打開 + 有充值地址時啟動。
+   * 每 5 秒調用一次 /api/wallet/sync-balance。
+   * 一旦餘額入帳：立刻清除輪詢、關閉 Modal、閃爍餘額並彈出成功 Toast。
+   */
+  useEffect(() => {
+    if (!isTopUpOpen || !depositAddress) {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      isPollingRef.current = false;
+      return;
+    }
+
+    const pollBalance = async () => {
+      if (isPollingRef.current) return;
+      isPollingRef.current = true;
+      try {
+        const token = await getAccessToken();
+        const res = await fetch('/api/wallet/sync-balance', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
+        });
+        const data = await res.json();
+        if (res.ok && data.synced === true) {
+          // 餘額入帳！清除輪詢，關閉 Modal，更新餘額
+          if (pollingIntervalRef.current) {
+            clearInterval(pollingIntervalRef.current);
+            pollingIntervalRef.current = null;
+          }
+          setDbProfile((prev) => prev ? { ...prev, aif_balance: data.aif_balance } : prev);
+          setAifFlash(true);
+          setTimeout(() => setAifFlash(false), 900);
+          setIsTopUpOpen(false);
+          showToast(
+            lang === 'en'
+              ? `+${data.aifAmount} AIF credited! Balance updated.`
+              : `+${data.aifAmount} AIF 已入帳！餘額已更新。`,
+            'success'
+          );
+        }
+      } catch {
+        // 靜默忽略輪詢錯誤，繼續下一輪
+      } finally {
+        isPollingRef.current = false;
+      }
+    };
+
+    // 立刻執行一次，再每 5 秒一次
+    pollBalance();
+    pollingIntervalRef.current = setInterval(pollBalance, 5000);
+
+    return () => {
+      if (pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = null;
+      }
+      isPollingRef.current = false;
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTopUpOpen, depositAddress]);
 
@@ -1375,14 +1444,27 @@ export default function MePage() {
 
             </div>
 
-            {/* Footer */}
+            {/* Footer — 顯示靜默輪詢狀態 */}
             <div className="px-5 py-4 border-t border-[#111] bg-[#050505] flex items-center gap-2">
-              <i className="fas fa-circle-notch fa-spin text-signal/50 text-[10px] flex-shrink-0" />
-              <p className="text-[9px] font-mono text-gray-600 leading-relaxed tracking-wide">
-                Network confirmations typically take{' '}
-                <span className="text-signal/70">1-3 minutes</span>.
-                Balance will update automatically.
-              </p>
+              {depositAddress ? (
+                <>
+                  <span className="relative flex-shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-signal/70 animate-ping absolute inline-flex" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-signal inline-flex" />
+                  </span>
+                  <p className="text-[9px] font-mono text-gray-600 leading-relaxed tracking-wide">
+                    {lang === 'en' ? 'Auto-checking every 5s. Will credit ' : '每 5 秒自動查帳。入帳後'}
+                    <span className="text-signal/70">{lang === 'en' ? 'instantly.' : '立即自動關閉。'}</span>
+                  </p>
+                </>
+              ) : (
+                <>
+                  <i className="fas fa-circle-notch fa-spin text-signal/50 text-[10px] flex-shrink-0" />
+                  <p className="text-[9px] font-mono text-gray-600 leading-relaxed tracking-wide">
+                    {lang === 'en' ? 'Generate a deposit address to start receiving AIF.' : '請先生成充值地址以接收 AIF。'}
+                  </p>
+                </>
+              )}
             </div>
           </div>
         </div>

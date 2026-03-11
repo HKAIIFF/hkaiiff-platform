@@ -92,10 +92,8 @@ export async function POST(req: Request) {
     const { deposit_address, wallet_index, aif_balance } = userData;
 
     if (!deposit_address || wallet_index === null || wallet_index === undefined) {
-      return NextResponse.json(
-        { error: 'No deposit address assigned. Please generate one first.' },
-        { status: 400 }
-      );
+      // 未分配充值地址屬於正常狀態（新用戶），優雅返回 200 而非拋出錯誤
+      return NextResponse.json({ synced: false, status: 'no_balance', aif_balance: aif_balance ?? 0 });
     }
 
     // ── Step 3: 鏈上查帳 + 歸集（Sweep-First） ───────────────────────────────
@@ -172,6 +170,8 @@ export async function POST(req: Request) {
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown server error';
     console.error('[sync-balance] 未預期錯誤:', message);
-    return NextResponse.json({ error: message }, { status: 500 });
+    // 鏈上查帳錯誤（RPC 超時、網絡抖動等）應優雅降級，不向用戶暴露 500
+    // 客戶端輪詢遇到此情況時保持靜默，繼續下一輪重試
+    return NextResponse.json({ synced: false, status: 'error', message }, { status: 200 });
   }
 }

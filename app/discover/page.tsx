@@ -21,7 +21,7 @@ interface LbsFilmEntry {
 interface LbsNode {
   id: string | number; state: LbsState; stateLabel: string; title: string;
   location: string; coords: string; date: string; img: string; desc: string;
-  req: string; icon: string; borderColor: string; textColor: string;
+  req: string; dateRange: string; icon: string; borderColor: string; textColor: string;
   duration: string; city: string; country: string; venue: string;
   distance: string; distanceKm: number; lat: number; lng: number;
   unlock_radius: number; curator: Curator; filmIds: string[] | null;
@@ -36,6 +36,7 @@ interface DbLbsNode {
   city: string | null; country: string | null; venue: string | null;
   film_ids: string[] | null; curator_name: string | null; curator_avatar: string | null;
   curator_certified: boolean | null; background_url: string | null; poster_url: string | null;
+  start_time: string | null; end_time: string | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -59,18 +60,32 @@ function resolveState(raw: string | null): LbsState {
   return 'locked_geo';
 }
 
+function formatDateRange(start: string | null, end: string | null): string {
+  if (!start) return '';
+  const fmt = (iso: string) => {
+    const d = new Date(iso);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}.${m}.${day}`;
+  };
+  return end ? `${fmt(start)} – ${fmt(end)}` : fmt(start);
+}
+
 function mapDbNode(db: DbLbsNode): LbsNode {
   const state = resolveState(db.state); const cfg = STATE_CONFIG[state];
   const lat = db.lat ?? 0, lng = db.lng ?? 0;
   const coordStr = db.lat != null && db.lng != null
     ? `${Math.abs(lat).toFixed(3)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lng).toFixed(3)}°${lng >= 0 ? 'E' : 'W'}`
     : 'ON-CHAIN';
+  const dateRange = formatDateRange(db.start_time, db.end_time);
   return {
     id: db.id, state, stateLabel: cfg.label,
     title: db.title ?? 'UNNAMED NODE', location: db.location ?? 'Location TBD',
-    coords: coordStr, date: db.date_label ?? 'TBD',
+    coords: coordStr, date: db.date_label ?? (dateRange || 'TBD'),
     img: buildOssUrl(db.image_url) || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800',
-    desc: db.description ?? '', req: db.smart_contract_req ?? 'Smart contract conditions pending.',
+    desc: db.description ?? '', req: db.smart_contract_req ?? '',
+    dateRange,
     icon: cfg.icon, borderColor: cfg.border, textColor: cfg.text,
     duration: '—', city: db.city ?? '', country: db.country ?? '', venue: db.venue ?? '',
     distance: '—', distanceKm: 0,
@@ -231,13 +246,12 @@ function MobileDiscover({
                   {/* Bottom row */}
                   <div>
                     <h3 className="font-heavy text-white text-2xl mb-1 tracking-wide drop-shadow-md">{node.title}</h3>
-                    <div className="text-xs font-mono text-gray-300 mb-2 flex items-center gap-2">
-                      <i className={`fas fa-map-marker-alt ${node.textColor}`} /> {node.location}
-                    </div>
-                    {node.desc && <p className="line-clamp-2 text-xs text-gray-400 mt-2 mb-2">{node.desc}</p>}
-                    <div className={`text-[10px] text-gray-400 font-mono border-l-2 ${node.borderColor} pl-2 leading-snug bg-black/40 py-1 pr-1 backdrop-blur rounded-r mb-3`}>
-                      {node.req}
-                    </div>
+                    {node.desc && <p className="line-clamp-2 text-xs text-gray-400 mt-1 mb-2">{node.desc}</p>}
+                    {(node.dateRange || node.req) && (
+                      <div className={`text-[10px] font-mono border-l-2 ${node.borderColor} pl-2 leading-snug bg-black/40 py-1 pr-1 backdrop-blur rounded-r mb-3 ${node.textColor}`}>
+                        {node.dateRange || node.req}
+                      </div>
+                    )}
                     <div className="flex items-center gap-2">
                       <img src={node.curator.avatar} alt="AIF.SHOW" className="w-5 h-5 rounded-full border border-[#444] object-cover shrink-0" />
                       <span className="text-[10px] font-mono text-gray-300 font-bold">AIF.SHOW</span>
@@ -366,7 +380,11 @@ function MobileDiscover({
                 ) : (
                   <div className="grid grid-cols-2 gap-3">
                     {detailFilms.map((film) => (
-                      <div key={film.id} className="group bg-[#111] rounded-xl border border-white/10 overflow-hidden shadow-xl">
+                      <div
+                        key={film.id}
+                        className="group bg-[#111] rounded-xl border border-white/10 overflow-hidden shadow-xl cursor-pointer"
+                        onClick={() => onPlayFilm(film)}
+                      >
                         <div className="relative aspect-[2/3] w-full overflow-hidden">
                           <img src={film.coverUrl} alt={film.title}
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
@@ -375,16 +393,18 @@ function MobileDiscover({
                           {film.filmUrl && (
                             <div className="absolute top-1.5 right-1.5 bg-[#CCFF00] text-black text-[8px] font-bold px-1.5 py-0.5 rounded-sm leading-none">正片</div>
                           )}
+                          {/* 毛玻璃播放按鈕覆蓋層 */}
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <div className="bg-white/20 backdrop-blur-md rounded-lg text-white px-4 py-2 flex items-center gap-2 border border-white/30 shadow-lg">
+                              <i className="fas fa-play text-xs" />
+                              <span className="text-xs font-bold">播放</span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="p-3 flex flex-col gap-1.5">
+                        <div className="p-3 flex flex-col gap-1">
                           <h4 className="text-base font-black text-white uppercase truncate leading-tight">{film.title}</h4>
                           <p className="text-xs text-emerald-400 truncate">{film.studio}</p>
                           {film.synopsis && <p className="text-[11px] text-gray-400 line-clamp-2 leading-snug">{film.synopsis}</p>}
-                          <button onClick={() => onPlayFilm(film)}
-                            className="mt-2 w-full bg-white text-black hover:bg-[#CCFF00] active:scale-95 font-bold rounded-lg py-2.5 text-xs tracking-wide transition-all flex items-center justify-center gap-1.5">
-                            <i className="fas fa-play text-[10px]" /><span>播放正片</span>
-                          </button>
-                          <p className="text-center text-[9px] font-mono text-gray-600 tracking-wide">◱ 建議橫屏觀看</p>
                         </div>
                       </div>
                     ))}
@@ -608,7 +628,11 @@ export default function DiscoverPage() {
   useEffect(() => {
     async function fetchNodes() {
       try {
-        const { data, error } = await supabase.from('lbs_nodes').select('*').not('status', 'in', '("pending","rejected")');
+        const { data, error } = await supabase
+          .from('lbs_nodes')
+          .select('*, start_time, end_time')
+          .eq('status', 'approved')
+          .eq('is_online', true);
         if (error) throw error;
         if (data && data.length > 0) setNodes((data as DbLbsNode[]).map(mapDbNode));
       } catch (err) {
