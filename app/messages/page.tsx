@@ -348,7 +348,10 @@ function MobileMessagesView({
             </div>
           </div>
         </div>
-        <div className="px-4 pt-2 pb-32 space-y-6 min-h-screen w-full">
+        {/* ── Festival full content: w-full min-h-screen overflow-y-auto pb-32 ── */}
+        <div className="px-4 pt-2 pb-32 space-y-6 w-full min-h-screen">
+
+          {/* Key Stats */}
           <div className="grid grid-cols-3 gap-3">
             {[
               { val: '7',    label: lang === 'zh' ? '天' : 'DAYS',          color: 'text-signal' },
@@ -361,36 +364,109 @@ function MobileMessagesView({
               </div>
             ))}
           </div>
-          {[
-            {
-              accentColor: 'bg-signal', icon: 'fa-landmark', iconColor: 'text-signal',
-              title: lang === 'zh' ? '歷史傳承與突破' : 'Historical Heritage & Breakthrough',
-              body: lang === 'zh'
-                ? '自1909年首部電影誕生以來，香港電影一直是全球文化的基石。HKAIIFF是2024年經香港政府批復註冊的AI原生電影國際電影節，也是全球第一個通過政府註冊的真正致力於AI原生電影的國際級平台。'
-                : "Since 1909, Hong Kong cinema has been a cornerstone of global culture. Registered with the HK government in 2024, HKAIIFF is the world's first internationally registered platform dedicated exclusively to AI-Native cinema.",
-            },
-            {
-              accentColor: 'bg-[#00F0FF]', icon: 'fa-city', iconColor: 'text-[#00F0FF]',
-              title: lang === 'zh' ? '香港優勢' : 'Hong Kong Advantages',
-              body: lang === 'zh'
-                ? '作為國際金融中心，香港為去中心化電影提供了獨特的跳板。其健全的法律基礎設施、毗鄰中國大陸創意人才，以及Web3友好司法管轄區的地位，使其成為區塊鏈驅動AI電影文化的理想發源地。'
-                : 'As an international financial hub, Hong Kong provides a unique launchpad for decentralized cinema. Its robust legal infrastructure, proximity to mainland creative talent, and Web3-friendly status make it the ideal birthplace for blockchain-powered AI film culture.',
-            },
-          ].map((card) => (
-            <div key={card.title} className="bg-[#111] border border-[#333] rounded-xl overflow-hidden relative">
-              <div className={`absolute top-0 left-0 w-1 h-full ${card.accentColor}`} />
-              <div className="p-5 pl-6">
-                <h2 className="font-heavy text-base text-white mb-3 flex items-center gap-2">
-                  <i className={`fas ${card.icon} ${card.iconColor}`} /> {card.title}
-                </h2>
-                <p className="font-mono text-[11px] text-gray-400 leading-relaxed">{card.body}</p>
-              </div>
+
+          {/* 1. 完整介紹文案 — Historical Heritage */}
+          <div className="bg-[#111] border border-[#333] rounded-xl overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-1 h-full bg-signal" />
+            <div className="p-5 pl-6">
+              <h2 className="font-heavy text-lg text-white mb-3 flex items-center gap-2">
+                <i className="fas fa-landmark text-signal" />
+                {lang === 'zh' ? '歷史傳承與突破' : 'Historical Heritage & Breakthrough'}
+              </h2>
+              <p className="font-mono text-[11px] text-gray-400 leading-relaxed mb-3">
+                {lang === 'zh'
+                  ? '自1909年首部電影誕生以來，香港電影一直是全球文化的基石。擁有一個多世紀的電影製作傳統，該地區的故事講述遺產代表了東西方、傳統與創新的獨特融合。'
+                  : "Since the birth of its first film in 1909, Hong Kong cinema has stood as a cornerstone of global culture. With over a century of filmmaking tradition, the region's storytelling heritage represents a unique fusion of East and West, tradition and innovation."}
+              </p>
+              <p className="font-mono text-[11px] text-gray-400 leading-relaxed">
+                {lang === 'zh'
+                  ? '香港AI國際電影節（HKAIIFF）是2024年經香港政府批復註冊的AI原生電影的國際電影節，也是全球第一個通過政府註冊的真正致力於AI原生電影的國際級平台。'
+                  : "Registered with the Hong Kong government in 2024, the Hong Kong AI International Film Festival (HKAIIFF) is the world's first international platform officially dedicated to AI-Native cinema."}
+              </p>
             </div>
-          ))}
+          </div>
+
+          {/* Hong Kong Advantages */}
+          <div className="bg-[#111] border border-[#333] rounded-xl overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-1 h-full bg-[#00F0FF]" />
+            <div className="p-5 pl-6">
+              <h2 className="font-heavy text-lg text-white mb-3 flex items-center gap-2">
+                <i className="fas fa-city text-[#00F0FF]" />
+                {lang === 'zh' ? '香港優勢' : 'Hong Kong Advantages'}
+              </h2>
+              <p className="font-mono text-[11px] text-gray-400 leading-relaxed">
+                {lang === 'zh'
+                  ? '作為國際金融中心和全球貿易的十字路口，香港為去中心化電影提供了獨特的跳板。其健全的法律基礎設施、毗鄰中國大陸創意人才的優勢，以及作為對Web3友好的司法管轄區的地位，使其成為區塊鏈驅動的AI電影文化的理想發源地。'
+                  : "As an international financial hub and a region at the crossroads of global trade, Hong Kong provides a unique launchpad for decentralized cinema. Its robust legal infrastructure, proximity to mainland China's creative talent, and status as a Web3-friendly jurisdiction make it the ideal birthplace for blockchain-powered AI film culture."}
+              </p>
+            </div>
+          </div>
+
+          {/* Core Mission & Standard */}
+          <div className="bg-[#111] border border-[#333] rounded-xl overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-1 h-full bg-[#9D00FF]" />
+            <div className="p-5 pl-6">
+              <h2 className="font-heavy text-lg text-white mb-3 flex items-center gap-2">
+                <i className="fas fa-balance-scale text-[#9D00FF]" />
+                {lang === 'zh' ? '核心使命與標準' : 'Core Mission & Standard'}
+              </h2>
+              <p className="font-mono text-[11px] text-gray-400 leading-relaxed mb-3">
+                {lang === 'zh'
+                  ? '作為全球首個專注於AI原生電影的頂級電影節，我們倡導AI是一種革命性媒介的理念。符合條件的參賽作品必須超過51%的AI貢獻閾值。'
+                  : "As the world's premier film festival dedicated exclusively to AI-Native cinema, we champion the philosophy that AI is a revolutionary medium. Qualifying submissions must exceed a 51% AI contribution threshold."}
+              </p>
+              <div className="bg-black border border-[#222] rounded-lg p-3 mb-3">
+                <div className="text-[10px] font-mono text-[#9D00FF] text-center leading-relaxed">
+                  {lang === 'zh'
+                    ? 'AI貢獻率 = (AI生成 × 0.4) + (AI輔助 × 0.3) + (創新 × 0.3)'
+                    : 'AI Contribution Ratio = (AI Generation × 0.4) + (AI Assistance × 0.3) + (Innovation × 0.3)'}
+                </div>
+              </div>
+              <p className="font-mono text-[11px] text-gray-400 leading-relaxed">
+                {lang === 'zh'
+                  ? '評估維度：藝術性 35% · 技術創新 35% · 商業潛力 20% · 社會影響力 10%。'
+                  : 'Evaluation Dimensions: Artistry 35% · Tech Innovation 35% · Commercial Potential 20% · Social Impact 10%.'}
+              </p>
+            </div>
+          </div>
+
+          {/* 2. 官方聯絡信箱 — PARTNERSHIP & CONTACT */}
+          <div>
+            <h2 className="font-heavy text-lg text-white mb-4 flex items-center gap-2">
+              <i className="fas fa-envelope text-gray-400" /> PARTNERSHIP &amp; CONTACT
+            </h2>
+            <div className="space-y-3">
+              {[
+                { icon: 'fa-briefcase', color: 'text-signal',      hoverBorder: 'hover:border-signal',      title: 'Business',         email: 'partnership@hkaiiff.org' },
+                { icon: 'fa-globe',     color: 'text-[#00F0FF]',   hoverBorder: 'hover:border-[#00F0FF]',   title: 'Official Website', email: 'www.hkaiiff.org'         },
+                { icon: 'fa-code',      color: 'text-[#9D00FF]',   hoverBorder: 'hover:border-[#9D00FF]',   title: 'Technology',       email: 'support@hkaiiff.org'     },
+                { icon: 'fa-bullhorn',  color: 'text-yellow-400',  hoverBorder: 'hover:border-yellow-400',  title: 'Media / PR',       email: 'media@hkaiiff.org'       },
+              ].map((c) => (
+                <div
+                  key={c.email}
+                  className={`bg-[#111] border border-[#222] p-4 rounded-xl flex items-center gap-4 transition-colors active:scale-[0.98] cursor-pointer ${c.hoverBorder}`}
+                  onClick={() => navigator.clipboard.writeText(c.email)}
+                >
+                  <i className={`fas ${c.icon} ${c.color} text-xl w-8 text-center`} />
+                  <div className="flex-1">
+                    <div className="text-sm font-bold text-white mb-0.5">{c.title}</div>
+                    <div className="text-[10px] font-mono text-gray-500">{c.email}</div>
+                  </div>
+                  <i className="fas fa-copy text-gray-600" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Submit CTA */}
           <div className="bg-signal rounded-xl p-5 text-center">
-            <h3 className="font-heavy text-xl text-black mb-1">{lang === 'zh' ? '準備好提交了嗎？' : 'READY TO SUBMIT?'}</h3>
+            <h3 className="font-heavy text-xl text-black mb-1">
+              {lang === 'zh' ? '準備好提交了嗎？' : 'READY TO SUBMIT?'}
+            </h3>
             <p className="text-xs text-black/70 font-mono mb-4">
-              {lang === 'zh' ? '加入AI原生革命。電影節將於2026年7月15日至21日舉行。' : 'Join the AI-Native revolution. Festival runs July 15–21, 2026.'}
+              {lang === 'zh'
+                ? '加入AI原生革命。電影節將於2026年7月15日至21日舉行。'
+                : 'Join the AI-Native revolution. Festival runs July 15–21, 2026.'}
             </p>
             <button
               onClick={() => setIsFestivalOpen(false)}
@@ -399,10 +475,84 @@ function MobileMessagesView({
               {lang === 'zh' ? '提交您的影片 →' : 'SUBMIT YOUR FILM →'}
             </button>
           </div>
-          <footer className="w-full flex flex-col items-center justify-center py-8 border-t border-white/5 gap-1.5">
+
+          {/* 3. 動態 Logo 牆 — Global Ecosystem & Resources Marquee */}
+          <div className="pt-8 pb-4">
+            <p className="text-center font-mono text-[10px] text-gray-500 tracking-widest mb-6 uppercase">
+              Global Ecosystem &amp; Backing
+            </p>
+
+            {/* Row 1 — LTR */}
+            <div className="overflow-hidden mb-4">
+              <div className="flex gap-x-8 whitespace-nowrap animate-marquee-ltr opacity-40 hover:opacity-70 transition-opacity">
+                {[
+                  'NVIDIA','OpenAI','Midjourney','Runway','Luma AI','Pika Labs',
+                  'Stability AI','Anthropic','Google DeepMind','Meta','Apple','AWS',
+                  'Alibaba Cloud','Tencent AI','SenseTime',
+                  'NVIDIA','OpenAI','Midjourney','Runway','Luma AI','Pika Labs',
+                  'Stability AI','Anthropic','Google DeepMind','Meta','Apple','AWS',
+                  'Alibaba Cloud','Tencent AI','SenseTime',
+                ].map((name, i) => (
+                  <span key={`r1-${i}`}
+                    className="font-heavy text-lg text-gray-400 hover:text-white transition-colors cursor-default grayscale hover:grayscale-0 shrink-0">
+                    {name}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Row 2 — RTL */}
+            <div className="overflow-hidden mb-4">
+              <div className="flex gap-x-8 whitespace-nowrap animate-marquee-rtl opacity-40 hover:opacity-70 transition-opacity">
+                {[
+                  'Solana','Arweave','Filecoin','Polygon','Chainlink',
+                  'IMAX','Dolby','Netflix','A24','Sony Pictures',
+                  'HKADC','HKUST','HKU','MIT Media Lab','Hugging Face','xAI','Epic Games',
+                  'Solana','Arweave','Filecoin','Polygon','Chainlink',
+                  'IMAX','Dolby','Netflix','A24','Sony Pictures',
+                  'HKADC','HKUST','HKU','MIT Media Lab','Hugging Face','xAI','Epic Games',
+                ].map((name, i) => (
+                  <span key={`r2-${i}`}
+                    className="font-heavy text-lg text-gray-400 hover:text-white transition-colors cursor-default grayscale hover:grayscale-0 shrink-0">
+                    {name}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            {/* Row 3 — LTR slower */}
+            <div className="overflow-hidden">
+              <div className="flex gap-x-8 whitespace-nowrap animate-marquee-ltr2 opacity-40 hover:opacity-70 transition-opacity">
+                {[
+                  'Anthropic','xAI','Epic Games','IMAX','Dolby',
+                  'NVIDIA','Runway','Luma AI','Hugging Face','Midjourney',
+                  'Filecoin','Solana','Polygon','A24','Netflix','Sony Pictures',
+                  'Anthropic','xAI','Epic Games','IMAX','Dolby',
+                  'NVIDIA','Runway','Luma AI','Hugging Face','Midjourney',
+                  'Filecoin','Solana','Polygon','A24','Netflix','Sony Pictures',
+                ].map((name, i) => (
+                  <span key={`r3-${i}`}
+                    className="font-heavy text-lg text-gray-400 hover:text-white transition-colors cursor-default grayscale hover:grayscale-0 shrink-0">
+                    {name}
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center gap-3">
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+              <span className="font-mono text-[8px] text-gray-700 tracking-widest uppercase">32 Global Partners</span>
+              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+            </div>
+          </div>
+
+          {/* 4. 中英雙語版權 Footer */}
+          <footer className="w-full flex flex-col items-center justify-center py-10 mt-4 border-t border-white/5 gap-1.5">
             <p className="text-[10px] text-gray-500 tracking-widest uppercase">© 2026 All Rights Reserved.</p>
             <p className="text-[11px] text-gray-400 font-medium tracking-widest mt-1">香港人工智能國際電影節協會</p>
+            <p className="text-[9px] text-gray-600 tracking-widest uppercase">Hong Kong AI International Film Festival Association</p>
           </footer>
+
         </div>
       </div>
     </div>
