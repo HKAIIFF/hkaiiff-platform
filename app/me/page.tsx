@@ -8,6 +8,12 @@ import { useToast } from "@/app/context/ToastContext";
 import CyberLoading from "@/app/components/CyberLoading";
 import { supabase } from "@/lib/supabase";
 import QRCode from "react-qr-code";
+import { Connection, PublicKey, Transaction } from "@solana/web3.js";
+import {
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountIdempotentInstruction,
+  createTransferCheckedInstruction,
+} from "@solana/spl-token";
 
 function randomSeed() {
   return Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -152,6 +158,153 @@ export default function MePage() {
   /** TOP UP 按鈕：只負責打開 Modal，地址顯示/生成邏輯由 Modal 內部處理 */
   const handleOpenTopUp = () => {
     setIsTopUpOpen(true);
+  };
+
+  // ── Phantom 一鍵發送 AIF State ────────────────────────────────────────────
+  const [phantomSendAmount, setPhantomSendAmount] = useState('');
+  type PhantomSendStatus = 'idle' | 'connecting' | 'building' | 'sending' | 'success' | 'error';
+  const [phantomSendStatus, setPhantomSendStatus] = useState<PhantomSendStatus>('idle');
+  const [phantomSendError, setPhantomSendError] = useState('');
+  const [phantomSendTxSig, setPhantomSendTxSig] = useState('');
+
+  /**
+   * 透過外部 Phantom 錢包構建並發送 AIF 轉帳交易。
+   *
+   * 核心修復點：
+   *  1. 強制注入 createAssociatedTokenAccountIdempotentInstruction，
+   *     確保接收方 ATA 不存在時由 Phantom 自動墊付創建，杜絕 Error 256
+   *  2. 從鏈上動態獲取 AIF Decimals，嚴格按 amount * (10 ** decimals)
+   *     轉換為底層 BigInt，防止小數點溢出導致餘額誤判
+   *  3. 發送前打印完整 Transaction 構建參數日誌，捕獲並顯示 Simulation Logs
+   */
+  const handlePhantomSend = async () => {
+    if (!depositAddress || !phantomSendAmount) return;
+    const amount = parseFloat(phantomSendAmount);
+    if (isNaN(amount) || amount <= 0) {
+      setPhantomSendError('請輸入有效的轉帳金額');
+      setPhantomSendStatus('error');
+      return;
+    }
+
+    setPhantomSendStatus('connecting');
+    setPhantomSendError('');
+    setPhantomSendTxSig('');
+
+    try {
+      // ── Step 1: 連接外部 Phantom 錢包 ────────────────────────────────────
+      const phantom = (window as Window & { phantom?: { solana?: { isPhantom?: boolean; connect: () => Promise<{ publicKey: PublicKey }>; signAndSendTransaction: (tx: Transaction) => Promise<{ signature: string }> } } }).phantom?.solana;
+      if (!phantom?.isPhantom) {
+        throw new Error('未檢測到 Phantom 錢包擴展。請安裝 Phantom (phantom.app) 後重試。');
+      }
+
+      const { publicKey: senderPublicKey } = await phantom.connect();
+
+      const mintAddress = process.env.NEXT_PUBLIC_AIF_MINT_ADDRESS;
+      const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com';
+      if (!mintAddress) throw new Error('AIF Mint 地址未配置，請聯繫管理員');
+
+      setPhantomSendStatus('building');
+
+      const connection = new Connection(rpcUrl, 'confirmed');
+      const mintPublicKey = new PublicKey(mintAddress);
+      const receiverPublicKey = new PublicKey(depositAddress);
+
+      // ── Step 2 (任務二)：從鏈上動態獲取 AIF Decimals，嚴格精度轉換 ──────
+      const mintAccountInfo = await connection.getParsedAccountInfo(mintPublicKey);
+      const mintData = (mintAccountInfo.value?.data as { parsed?: { info?: { decimals?: number } } })?.parsed?.info;
+      const decimals: number = mintData?.decimals ?? 6;
+
+      // amount * (10 ** decimals) 嚴格轉換，BigInt 防溢出
+      const rawAmount = BigInt(Math.round(amount * Math.pow(10, decimals)));
+
+      // ── Step 3 (任務一)：計算 Sender 和 Receiver 的 AIF ATA 地址 ──────────
+      const senderATA = await getAssociatedTokenAddress(mintPublicKey, senderPublicKey);
+      const receiverATA = await getAssociatedTokenAddress(mintPublicKey, receiverPublicKey);
+
+      // ── 任務三：打印完整 Transaction 構建參數供調試 ──────────────────────
+      console.log('[AIF Transfer] ✅ Transaction 構建參數:', {
+        senderWallet: senderPublicKey.toBase58(),
+        senderATA: senderATA.toBase58(),
+        receiverWallet: receiverPublicKey.toBase58(),
+        receiverATA: receiverATA.toBase58(),
+        mintAddress,
+        decimals,
+        requestedAmount: amount,
+        rawAmount: rawAmount.toString(),
+        rpcUrl,
+      });
+
+      const tx = new Transaction();
+
+      // ── 核心修復 (任務一)：注入 Idempotent ATA 創建指令 ─────────────────
+      // 當 receiverATA 不存在時，Phantom 自動墊付 ~0.002 SOL 初始化帳戶
+      // 使用 Idempotent 版本：ATA 已存在時此指令為空操作，絕對安全
+      tx.add(
+        createAssociatedTokenAccountIdempotentInstruction(
+          senderPublicKey,   // payer：由 Phantom 用戶的 SOL 墊付
+          receiverATA,       // associatedToken：接收方 AIF ATA 地址
+          receiverPublicKey, // owner：充值地址（平台 HD 錢包）
+          mintPublicKey      // mint：AIF 合約
+        )
+      );
+
+      // ── 任務二：使用 createTransferCheckedInstruction 嚴格校驗精度 ──────
+      // TransferChecked 在合約層面二次校驗 decimals，防止精度錯誤靜默通過
+      tx.add(
+        createTransferCheckedInstruction(
+          senderATA,         // source：發送方 AIF ATA
+          mintPublicKey,     // mint：AIF 合約（用於校驗 decimals）
+          receiverATA,       // destination：接收方 AIF ATA
+          senderPublicKey,   // owner：發送方（Phantom 用戶）
+          rawAmount,         // amount：BigInt 底層金額
+          decimals           // decimals：嚴格校驗精度
+        )
+      );
+
+      const { blockhash } = await connection.getLatestBlockhash('confirmed');
+      tx.recentBlockhash = blockhash;
+      tx.feePayer = senderPublicKey;
+
+      setPhantomSendStatus('sending');
+
+      // ── 任務三：發送前 Try-Catch，捕獲 Simulation Logs ──────────────────
+      let signature: string;
+      try {
+        const result = await phantom.signAndSendTransaction(tx);
+        signature = result.signature;
+      } catch (sendErr: unknown) {
+        // 嘗試提取 Solana Simulation Logs，給出比 Error 256 更有意義的錯誤信息
+        const errMsg = sendErr instanceof Error ? sendErr.message : String(sendErr);
+        const logsMatch = errMsg.match(/Transaction simulation failed[:\s]*([\s\S]*?)(?:$|at\s)/);
+        const simulationDetail = logsMatch?.[1]?.trim();
+        console.error('[AIF Transfer] ❌ sendTransaction 失敗:', {
+          rawError: errMsg,
+          simulationDetail,
+          txParams: {
+            senderATA: senderATA.toBase58(),
+            receiverATA: receiverATA.toBase58(),
+            rawAmount: rawAmount.toString(),
+            decimals,
+          },
+        });
+        throw new Error(
+          simulationDetail
+            ? `交易模擬失敗 (Simulation Error):\n${simulationDetail}`
+            : `Phantom 交易失敗: ${errMsg}`
+        );
+      }
+
+      console.log('[AIF Transfer] ✅ 交易廣播成功:', { signature, senderATA: senderATA.toBase58(), receiverATA: receiverATA.toBase58(), amount, rawAmount: rawAmount.toString() });
+      setPhantomSendTxSig(signature);
+      setPhantomSendStatus('success');
+      showToast(lang === 'en' ? `AIF sent! Tx: ${signature.slice(0, 8)}...` : `AIF 已發送！交易: ${signature.slice(0, 8)}...`, 'success');
+      setPhantomSendAmount('');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error occurred';
+      console.error('[AIF Transfer] ❌ 整體異常:', msg);
+      setPhantomSendError(msg);
+      setPhantomSendStatus('error');
+    }
   };
 
   // ── Profile Edit Modal State ──────────────────────────────────────────────
@@ -1268,6 +1421,111 @@ export default function MePage() {
                         <i className="fas fa-circle-notch fa-spin text-[10px]" />
                         GENERATING DEDICATED ADDRESS...
                       </span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ── Phantom 一鍵發送 AIF（核心修復區塊）── */}
+              {depositAddress && (
+                <div className="border border-[#9945FF]/30 rounded-xl overflow-hidden">
+                  {/* 頭部標題 */}
+                  <div className="px-4 py-2.5 bg-[#9945FF]/10 flex items-center gap-2 border-b border-[#9945FF]/20">
+                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-[#9945FF]" fill="currentColor">
+                      <path d="M20 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2zm0 14H4v-6h16v6zm0-10H4V6h16v2z"/>
+                    </svg>
+                    <span className="text-[10px] font-mono text-[#9945FF] tracking-widest">
+                      SEND VIA PHANTOM WALLET
+                    </span>
+                  </div>
+
+                  <div className="px-4 py-3 space-y-3">
+                    {/* 金額輸入 */}
+                    {phantomSendStatus !== 'success' && (
+                      <div className="flex gap-2">
+                        <input
+                          type="number"
+                          min="0.000001"
+                          step="any"
+                          value={phantomSendAmount}
+                          onChange={(e) => {
+                            setPhantomSendAmount(e.target.value);
+                            if (phantomSendStatus === 'error') setPhantomSendStatus('idle');
+                          }}
+                          placeholder="輸入 AIF 數量..."
+                          className="flex-1 bg-[#0d0d0d] border border-[#2a2a2a] rounded-lg px-3 py-2
+                                     text-sm text-white font-mono placeholder-gray-700
+                                     focus:outline-none focus:border-[#9945FF]/60 transition-colors"
+                          disabled={['connecting', 'building', 'sending'].includes(phantomSendStatus)}
+                        />
+                        <button
+                          onClick={handlePhantomSend}
+                          disabled={!phantomSendAmount || ['connecting', 'building', 'sending'].includes(phantomSendStatus)}
+                          className="px-4 py-2 rounded-lg bg-[#9945FF] hover:bg-[#8830ee] active:scale-95
+                                     text-white text-[11px] font-bold tracking-wider transition-all
+                                     disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 shrink-0"
+                        >
+                          {phantomSendStatus === 'connecting' && <i className="fas fa-circle-notch fa-spin text-[10px]" />}
+                          {phantomSendStatus === 'building' && <i className="fas fa-cog fa-spin text-[10px]" />}
+                          {phantomSendStatus === 'sending' && <i className="fas fa-paper-plane text-[10px]" />}
+                          {(phantomSendStatus === 'idle' || phantomSendStatus === 'error') && <i className="fas fa-bolt text-[10px]" />}
+                          <span>
+                            {phantomSendStatus === 'connecting' && '連接中...'}
+                            {phantomSendStatus === 'building' && '構建中...'}
+                            {phantomSendStatus === 'sending' && '發送中...'}
+                            {(phantomSendStatus === 'idle' || phantomSendStatus === 'error') && 'SEND'}
+                          </span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* 成功狀態 */}
+                    {phantomSendStatus === 'success' && (
+                      <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2 text-[#00E599]">
+                          <i className="fas fa-check-circle text-sm" />
+                          <span className="text-[11px] font-mono font-bold">交易已廣播成功！</span>
+                        </div>
+                        {phantomSendTxSig && (
+                          <a
+                            href={`https://solscan.io/tx/${phantomSendTxSig}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-[10px] font-mono text-[#9945FF]/80 hover:text-[#9945FF] underline break-all"
+                          >
+                            {phantomSendTxSig.slice(0, 20)}...{phantomSendTxSig.slice(-8)}
+                          </a>
+                        )}
+                        <button
+                          onClick={() => {
+                            setPhantomSendStatus('idle');
+                            setPhantomSendTxSig('');
+                            setPhantomSendAmount('');
+                          }}
+                          className="text-[10px] font-mono text-gray-500 hover:text-gray-300 transition-colors self-start"
+                        >
+                          再次發送
+                        </button>
+                      </div>
+                    )}
+
+                    {/* 錯誤狀態：顯示真實 Simulation Logs，而非 Error 256 */}
+                    {phantomSendStatus === 'error' && phantomSendError && (
+                      <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2.5">
+                        <div className="flex items-start gap-2">
+                          <i className="fas fa-exclamation-circle text-red-400 text-xs mt-0.5 shrink-0" />
+                          <p className="text-[10px] font-mono text-red-300/90 leading-relaxed whitespace-pre-wrap break-words">
+                            {phantomSendError}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 安全提示 */}
+                    {(phantomSendStatus === 'idle' || phantomSendStatus === 'error') && (
+                      <p className="text-[9px] font-mono text-gray-700 leading-relaxed">
+                        ⚡ 系統自動注入 ATA 創建指令，即使充值地址全新也能成功接收 AIF
+                      </p>
                     )}
                   </div>
                 </div>
