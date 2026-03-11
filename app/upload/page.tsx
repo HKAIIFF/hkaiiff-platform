@@ -380,11 +380,11 @@ export default function UploadPage() {
   if (!authenticated) return null;
 
   return (
-    <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pt-28 pb-32">
+    <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen pt-14 md:pt-0 pb-8">
 
-      {/* Page Header (desktop) */}
-      <div className="z-10 bg-transparent border-b border-[#222] px-6 py-4 flex items-center justify-between flex-shrink-0">
-        <div className="hidden md:block">
+      {/* ── Desktop Page Header ── */}
+      <div className="hidden md:flex z-10 bg-[#030303]/95 backdrop-blur border-b border-[#1a1a1a] px-6 py-4 items-center justify-between flex-shrink-0">
+        <div>
           <h1 className="font-heavy text-2xl text-white tracking-wider leading-none flex items-center gap-2">
             <i className="fas fa-cloud-upload-alt text-signal text-xl" />
             {t('submit_film')}
@@ -393,30 +393,111 @@ export default function UploadPage() {
             HKAIIFF 2026 · JULY 15–21 · AI-NATIVE SUBMISSION
           </div>
         </div>
-        <div className="hidden md:block font-mono text-[9px] text-gray-500 bg-[#111] px-3 py-1.5 rounded border border-[#333]">
-          ENTRY FEE: $99 USD
+        <div className="font-mono text-[9px] text-gray-500 bg-[#111] px-3 py-1.5 rounded border border-[#333]">
+          ENTRY FEE: $99 USD / 500 AIF
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 px-4 pt-6 pb-24 lg:pb-8">
-        <h1 className="hidden md:flex font-heavy text-4xl mb-6 border-b border-[#333] pb-4 text-white items-center gap-3">
+      {/* ── Mobile Page Header ── */}
+      <div className="md:hidden px-5 pt-4 pb-3 border-b border-[#1a1a1a]">
+        <h1 className="font-heavy text-2xl text-white tracking-wide flex items-center gap-2">
           <i className="fas fa-cloud-upload-alt text-signal" />
           {t('submit_film')}
         </h1>
+        <div className="text-[9px] font-mono text-signal tracking-widest mt-0.5">HKAIIFF 2026</div>
+      </div>
 
-        {/* ── Step 1: Form ───────────────────────────────────── */}
+      {/* Main Content */}
+      <div className="flex-1 px-4 md:px-0">
+
+        {/* ── Step 1: Form (Desktop: 2-col, Mobile: single col) ── */}
         {step === 1 && (
-          <div className="animate-fade-in">
+          <div className="animate-fade-in md:grid md:grid-cols-2 md:gap-0 md:items-start">
+
+            {/* ────── LEFT PANEL: Submission Guidelines (Desktop only) ────── */}
+            <div className="hidden md:flex flex-col h-full border-r border-[#1a1a1a] px-8 py-8 bg-[#030303] sticky top-0 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 3.5rem)' }}>
+              {/* Hero */}
+              <div className="relative rounded-xl overflow-hidden mb-6 aspect-video">
+                <img src="https://images.unsplash.com/photo-1478720568477-152d9b164e26?q=80&w=800" alt="HKAIIFF" className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
+                <div className="absolute bottom-4 left-4">
+                  <div className="font-heavy text-2xl text-white leading-none mb-0.5">HKAIIFF 2026</div>
+                  <div className="font-mono text-[9px] text-signal tracking-widest">AI-NATIVE CINEMA · JULY 15–21</div>
+                </div>
+              </div>
+
+              {/* Requirements */}
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <i className="fas fa-list-ul text-signal text-xs" />
+                  <span className="font-mono text-[9px] text-signal tracking-[0.2em] uppercase">Submission Requirements</span>
+                </div>
+                {[
+                  { icon: 'fa-microchip', text: '≥ 51% AI-generated content (verified by AIF.BOT)' },
+                  { icon: 'fa-image', text: 'Poster: JPG/PNG/WEBP, max 5 MB' },
+                  { icon: 'fa-video', text: 'Trailer: MP4/MOV, max 50 MB' },
+                  { icon: 'fa-film', text: 'Full Film: MP4/MOV, max 1 GB' },
+                  { icon: 'fa-dollar-sign', text: 'Entry fee: $99 USD or 500 AIF tokens' },
+                ].map((req) => (
+                  <div key={req.text} className="flex items-start gap-2.5 mb-2.5">
+                    <div className="w-5 h-5 rounded bg-signal/10 border border-signal/20 flex items-center justify-center shrink-0 mt-0.5">
+                      <i className={`fas ${req.icon} text-signal text-[8px]`} />
+                    </div>
+                    <span className="font-mono text-[10px] text-gray-400 leading-relaxed">{req.text}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Copyright Notice */}
+              <div className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-xl p-4 mb-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <i className="fas fa-shield-alt text-signal text-xs" />
+                  <span className="font-mono text-[9px] text-signal tracking-wider uppercase">Copyright & IP</span>
+                </div>
+                <p className="font-mono text-[10px] text-gray-500 leading-relaxed">
+                  You retain full copyright ownership. By submitting, you grant HKAIIFF a non-exclusive license to screen
+                  your film during the festival period. AI-generated content must comply with the tools&apos; usage policies.
+                </p>
+              </div>
+
+              {/* AIF Purity Info */}
+              <div className="bg-gradient-to-br from-[#0d1a00] to-[#080808] border border-signal/20 rounded-xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-signal animate-pulse" />
+                  <span className="font-mono text-[9px] text-signal tracking-wider uppercase">AIF Purity Score™</span>
+                </div>
+                <p className="font-mono text-[10px] text-gray-500 leading-relaxed">
+                  The AIF.BOT protocol verifies and records your AI contribution ratio on the Solana blockchain.
+                  Films with higher purity scores receive priority in the official selection process.
+                </p>
+              </div>
+
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-3 mt-6">
+                {[
+                  { val: '7', sub: 'FESTIVAL DAYS' },
+                  { val: '51%', sub: 'MIN AI RATIO' },
+                  { val: 'SOL', sub: 'ON-CHAIN CERT' },
+                ].map((s) => (
+                  <div key={s.sub} className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg p-3 text-center">
+                    <div className="font-heavy text-xl text-signal">{s.val}</div>
+                    <div className="font-mono text-[7px] text-gray-600 mt-0.5 tracking-wider">{s.sub}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ────── RIGHT PANEL: Form ────── */}
+            <div className="md:px-8 md:py-8 px-4 py-6">
+              {/* Mobile notice banner */}
+              <div className="md:hidden bg-[#111] border border-[#333] p-4 rounded-xl mb-6 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-1 h-full bg-signal" />
+                <h3 className="font-heavy text-lg text-white mb-1 tracking-wide">HKAIIFF 2026</h3>
+                <p className="text-[10px] font-mono text-gray-400 leading-relaxed">{t('up_notice')}</p>
+              </div>
 
             {/* Notice Banner */}
-            <div className="bg-[#111] border border-[#333] p-4 rounded-xl mb-6 shadow-lg relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-1 h-full bg-signal" />
-              <h3 className="font-heavy text-lg text-white mb-1 tracking-wide">HKAIIFF 2026</h3>
-              <p className="text-[10px] font-mono text-gray-400 leading-relaxed">
-                {t('up_notice')}
-              </p>
-            </div>
+            {/* Old Notice Banner — desktop hides this (left panel already shows it) */}
 
             <div className="space-y-6 mb-8">
 
@@ -660,6 +741,7 @@ export default function UploadPage() {
             >
               {t('up_submit_btn')} <i className="fas fa-arrow-right ml-2" />
             </button>
+            </div>
           </div>
         )}
 

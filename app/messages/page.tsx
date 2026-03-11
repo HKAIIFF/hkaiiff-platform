@@ -438,8 +438,8 @@ export default function MessagesPage() {
         </div>
       </div>
 
-      {/* Festival banner (pinned) */}
-      <div className="px-3 pt-3 pb-2 flex-shrink-0">
+      {/* Festival banner — Mobile only: Desktop MSG 只保留純通知功能 */}
+      <div className="md:hidden px-3 pt-3 pb-2 flex-shrink-0">
         <FestivalBanner onOpen={() => setIsFestivalOpen(true)} />
       </div>
 
@@ -502,13 +502,14 @@ export default function MessagesPage() {
           MOBILE Layout: Single column list
       ═════════════════════════════════════════════════════ */}
       <div className="md:hidden h-full overflow-hidden bg-[#050505]">
-        <div className="h-full overflow-hidden" style={{ paddingTop: '0', paddingBottom: '80px' }}>
+        {/* main 的 pb-24 已提供底部安全区，此处无需额外 paddingBottom */}
+        <div className="h-full overflow-hidden">
           {ListPanel}
         </div>
 
-        {/* Mobile full-screen detail overlay */}
+        {/* Mobile full-screen detail overlay — z-[1001] 高于 BottomNav z-[999] */}
         <div
-          className={`fixed inset-0 z-[200] bg-[#050505] flex flex-col transition-transform duration-300 ease-out ${
+          className={`fixed inset-0 z-[1001] bg-[#050505] flex flex-col transition-transform duration-300 ease-out ${
             mobileDetailOpen && selectedMsg ? 'translate-x-0' : 'translate-x-full'
           }`}
         >
@@ -526,10 +527,9 @@ export default function MessagesPage() {
           Festival Full-Screen Modal (shared)
       ═════════════════════════════════════════════════════ */}
       <div
-        className={`fixed inset-0 z-[500] bg-[#050505] overflow-y-auto transition-transform duration-500 ease-out ${
+        className={`fixed inset-0 z-[1002] bg-[#050505] overflow-y-auto transition-transform duration-500 ease-out ${
           isFestivalOpen ? 'translate-y-0' : 'translate-y-full pointer-events-none'
         }`}
-        style={{ paddingBottom: 40 }}
       >
         {/* Sticky Header */}
         <div className="sticky top-0 z-10 bg-[#050505]/95 backdrop-blur border-b border-[#222] flex items-center justify-between px-4 py-4">
@@ -561,7 +561,7 @@ export default function MessagesPage() {
           </div>
         </div>
 
-        <div className="px-4 pt-2 space-y-6">
+        <div className="px-4 pt-2 pb-12 space-y-6 min-h-screen">
           <div className="grid grid-cols-3 gap-3">
             {[
               { val: '7',    label: lang === 'zh' ? '天' : 'DAYS',          color: 'text-signal' },

@@ -487,11 +487,11 @@ export default function MePage() {
 
   /* ─── AUTHENTICATED VIEW ──────────────────────────────────────────────────── */
   return (
-    <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pt-28 pb-32 relative">
+    <div className="flex-1 h-full w-full bg-void flex flex-col relative overflow-y-auto md:overflow-hidden pt-14 md:pt-0 pb-8 md:pb-0 min-h-screen md:min-h-0">
       {isHistoryLoading && <CyberLoading text="LOADING PARALLEL UNIVERSE..." />}
 
-      {/* ── Page Header ────────────────────────────────────────────────── */}
-      <div className="hidden md:flex sticky top-0 z-10 bg-void/95 backdrop-blur border-b border-[#222] px-6 py-4 items-center justify-between flex-shrink-0">
+      {/* ── Desktop Page Header (full-width banner) ──────────────────── */}
+      <div className="hidden md:flex flex-shrink-0 z-10 bg-[#030303]/95 backdrop-blur border-b border-[#1a1a1a] px-6 py-4 items-center justify-between">
         <div className="hidden md:block">
           <h1 className="font-heavy text-2xl text-white tracking-wider leading-none">
             USER CENTER
@@ -510,8 +510,14 @@ export default function MePage() {
         </button>
       </div>
 
+      {/* ═══════ Dashboard Layout: flex-col mobile, flex-row desktop ═══════ */}
+      <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden md:min-h-0">
+
+        {/* ─── LEFT PANEL: Profile + Wallet (desktop: sticky sidebar) ─── */}
+        <div className="md:w-72 lg:w-80 md:flex-shrink-0 md:border-r md:border-[#1a1a1a] md:overflow-y-auto md:h-full px-4 md:px-5 md:py-6 py-4">
+
       {/* ── Profile Card ───────────────────────────────────────────────── */}
-      <div className="relative flex items-center gap-5 mb-6 bg-[#111] p-5 rounded-xl border border-[#333] shadow-[0_0_20px_rgba(0,0,0,0.5)] mt-6">
+      <div className="relative flex items-center gap-5 mb-6 bg-[#111] p-5 rounded-xl border border-[#333] shadow-[0_0_20px_rgba(0,0,0,0.5)] mt-0 md:mt-0">
 
         {/* Edit / Logout controls (top-right) */}
         <div className="absolute top-4 right-4 flex items-center space-x-2 z-10">
@@ -736,6 +742,11 @@ export default function MePage() {
         </div>
 
       </div>
+        {/* end LEFT PANEL inner content */}
+        </div>
+
+        {/* ─── RIGHT PANEL: Submissions + History (desktop: main content) ─── */}
+        <div className="flex-1 md:overflow-y-auto md:h-full px-4 md:px-8 py-4 md:py-6">
 
       {/* ── My Submissions ─────────────────────────────────────────────── */}
       <h3 className="font-heavy text-xl mb-4 border-b border-[#333] pb-2 text-white flex items-center gap-2">
@@ -888,6 +899,8 @@ export default function MePage() {
             No interactions yet. Inject data to render universes.
           </div>
         )}
+      </div>
+        </div>
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════════

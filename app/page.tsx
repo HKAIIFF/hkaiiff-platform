@@ -383,7 +383,16 @@ function MobileFeedItem({
   );
 }
 
-// ─── Desktop Grid Card (Masonry-style hover card) ─────────────────────────────
+// ─── Desktop Masonry Card (真正 Midjourney 错落瀑布流) ────────────────────────
+
+// 根据 film.id 哈希值分配 5 种宽高比，形成大小错落的视觉节奏
+const ASPECT_RATIOS = [
+  "aspect-[2/3]",    // 竖幅 portrait (高)
+  "aspect-[3/4]",    // 近竖 portrait
+  "aspect-square",   // 正方 square
+  "aspect-[4/3]",    // 横幅 landscape
+  "aspect-[1/2]",    // 超高 tall poster
+];
 
 function DesktopGridCard({ film }: { film: SupabaseFilm }) {
   const { setActiveModal, setSelectedFilm } = useModal();
@@ -391,79 +400,101 @@ function DesktopGridCard({ film }: { film: SupabaseFilm }) {
   const avatarSeed = film.user_avatar_seed ?? film.studio ?? film.id;
   const avatarUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(avatarSeed)}`;
 
-  // Vary card heights for masonry visual rhythm
-  const heightClass = (() => {
-    const h = (film.id.charCodeAt(0) + film.id.charCodeAt(1)) % 4;
-    return ["h-48", "h-64", "h-56", "h-72"][h];
-  })();
-
+  // 根据 film.id 字符码分配宽高比 → 稳定错落，不随刷新改变
+  const aspectClass = ASPECT_RATIOS[
+    (film.id.charCodeAt(0) + film.id.charCodeAt(2) + film.id.charCodeAt(4)) % ASPECT_RATIOS.length
+  ];
   const aiRatioPct = film.ai_ratio != null ? `${Math.round(film.ai_ratio * 100)}%` : null;
+  const liveState = getParallelState(film.parallel_start_time, new Date());
 
   return (
     <div
-      className={`relative overflow-hidden rounded-xl bg-[#111] cursor-pointer group ${heightClass} border border-[#1a1a1a] hover:border-signal/30 transition-all duration-300`}
+      className={`relative overflow-hidden rounded-xl bg-[#0d0d0d] cursor-pointer group w-full ${aspectClass}
+                  border border-[#1a1a1a] hover:border-[#CCFF00]/25
+                  transition-all duration-300 ease-out`}
       onClick={() => { setSelectedFilm(toModalFilm(film)); setActiveModal("info"); }}
     >
-      {/* Poster image — fills card */}
+      {/* Poster — fills card via object-cover */}
       {posterSrc ? (
         <img
           src={posterSrc}
           alt={film.title}
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-[1.06]"
           loading="lazy"
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] flex items-center justify-center">
-          <i className="fas fa-film text-[#333] text-3xl" />
+        <div className="absolute inset-0 bg-gradient-to-br from-[#181818] to-[#0a0a0a] flex items-center justify-center">
+          <i className="fas fa-film text-[#2a2a2a] text-4xl" />
         </div>
       )}
 
-      {/* Hover overlay — slides up from bottom */}
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/70 transition-all duration-300 rounded-xl" />
-      <div className="absolute inset-0 flex flex-col justify-end p-3 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
-        {/* Creator avatar + name */}
-        <div className="flex items-center gap-2 mb-2">
-          <img src={avatarUrl} alt={film.studio ?? ""} className="w-7 h-7 rounded-full border border-[#555] bg-black shrink-0" />
-          <span className="text-[10px] font-mono text-gray-300 truncate">{film.studio ?? "ANONYMOUS"}</span>
+      {/* Persistent dim gradient at bottom (always visible) */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+
+      {/* Hover overlay — black scrim slides in */}
+      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/75 transition-colors duration-300 rounded-xl pointer-events-none" />
+
+      {/* Hover info — slides up from bottom */}
+      <div className="
+        absolute inset-x-0 bottom-0 p-3
+        opacity-0 group-hover:opacity-100
+        translate-y-2 group-hover:translate-y-0
+        transition-all duration-300 ease-out
+      ">
+        {/* Creator row */}
+        <div className="flex items-center gap-2 mb-1.5">
+          <img
+            src={avatarUrl}
+            alt={film.studio ?? ""}
+            className="w-6 h-6 rounded-full border border-white/20 bg-black shrink-0"
+          />
+          <span className="text-[10px] font-mono text-gray-300 truncate flex-1">{film.studio ?? "ANONYMOUS"}</span>
           {aiRatioPct && (
-            <span className="ml-auto text-[8px] font-mono bg-signal/10 border border-signal/30 text-signal px-1.5 py-0.5 rounded shrink-0">
+            <span className="text-[7px] font-mono bg-signal/15 border border-signal/40 text-signal px-1.5 py-0.5 rounded shrink-0 tracking-wider">
               AIF {aiRatioPct}
             </span>
           )}
         </div>
 
         {/* Title */}
-        <h3 className="font-heavy text-sm text-white leading-tight mb-2 line-clamp-2">{film.title}</h3>
+        <h3 className="font-heavy text-sm text-white leading-tight mb-2.5 line-clamp-2">{film.title}</h3>
 
-        {/* Play button row */}
+        {/* Action row */}
         <div className="flex items-center gap-2">
           <button
-            className="flex items-center gap-1.5 bg-signal text-black text-[9px] font-bold font-mono px-3 py-1.5 rounded-full hover:bg-white transition-colors"
-            onClick={(e) => { e.stopPropagation(); setSelectedFilm(toModalFilm(film)); setActiveModal("info"); }}
+            className="flex items-center gap-1.5 bg-signal text-black text-[9px] font-bold font-mono px-3 py-1.5 rounded-full hover:bg-white transition-colors shrink-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedFilm(toModalFilm(film));
+              setActiveModal("info");
+            }}
           >
             <i className="fas fa-play text-[8px]" /> PLAY
           </button>
           {film.tech_stack && (
-            <span className="text-[8px] font-mono text-[#555] truncate">{film.tech_stack.slice(0, 24)}</span>
+            <span className="text-[8px] font-mono text-[#666] truncate">{film.tech_stack.slice(0, 20)}</span>
           )}
         </div>
       </div>
 
-      {/* LIVE badge */}
-      {(() => {
-        const state = getParallelState(film.parallel_start_time, new Date());
-        if (state !== "LIVE") return null;
-        return (
-          <div className="absolute top-2 left-2 bg-signal text-black text-[8px] font-bold font-mono px-2 py-0.5 rounded-full animate-pulse">
-            ● LIVE
-          </div>
-        );
-      })()}
+      {/* Studio tag — always visible, top-left */}
+      <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm border border-white/10 rounded px-1.5 py-0.5
+                      text-[8px] font-mono text-gray-400 truncate max-w-[70%] pointer-events-none
+                      opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        {film.studio ?? "ANON"}
+      </div>
+
+      {/* LIVE pulse badge */}
+      {liveState === "LIVE" && (
+        <div className="absolute top-2 right-2 flex items-center gap-1 bg-signal text-black text-[8px] font-bold font-mono px-1.5 py-0.5 rounded-full animate-pulse pointer-events-none">
+          <span className="w-1.5 h-1.5 rounded-full bg-black" /> LIVE
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── Desktop Grid (Masonry layout) ────────────────────────────────────────────
+// ─── Desktop Masonry Grid — 真正 CSS columns 瀑布流 ──────────────────────────
 
 function DesktopGrid({ films, searchQuery }: { films: SupabaseFilm[]; searchQuery: string }) {
   const filtered = searchQuery.trim()
@@ -481,13 +512,16 @@ function DesktopGrid({ films, searchQuery }: { films: SupabaseFilm[]; searchQuer
     return (
       <div className="flex flex-col items-center justify-center py-32 gap-4">
         <i className="fas fa-search text-3xl text-[#333]" />
-        <span className="text-[#555] font-mono text-xs tracking-widest uppercase">No results for "{searchQuery}"</span>
+        <span className="text-[#555] font-mono text-xs tracking-widest uppercase">
+          No results for &ldquo;{searchQuery}&rdquo;
+        </span>
       </div>
     );
   }
 
   return (
-    <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 2xl:columns-6 gap-3 p-4 pt-6">
+    /* CSS columns = 真正的 Masonry 瀑布流，卡片按宽高比自然错落 */
+    <div className="columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-3 p-4 pb-8">
       {filtered.map((film) => (
         <div key={film.id} className="break-inside-avoid mb-3">
           <DesktopGridCard film={film} />

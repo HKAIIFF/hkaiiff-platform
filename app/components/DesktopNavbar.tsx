@@ -82,6 +82,15 @@ export default function DesktopNavbar({ onSearchChange, searchValue }: DesktopNa
           <i className="fas fa-globe text-xs" />
         </button>
 
+        {/* About link */}
+        <Link
+          href="/about"
+          className="hidden lg:flex items-center gap-1.5 px-3 py-1 bg-[#0e0e0e] border border-[#1e1e1e] rounded-full text-[#666] hover:text-signal hover:border-signal/30 transition-all text-[10px] font-mono tracking-wider"
+        >
+          <i className="fas fa-landmark text-[9px]" />
+          ABOUT
+        </Link>
+
         {/* Upload shortcut */}
         <Link
           href="/upload"
