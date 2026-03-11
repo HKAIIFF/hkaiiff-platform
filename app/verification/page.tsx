@@ -215,14 +215,34 @@ export default function VerificationPage() {
   useEffect(() => {
     const url = new URL(window.location.href);
     const stripeSuccess = url.searchParams.get("stripe_success");
+    const stripeCancelled = url.searchParams.get("stripe_cancelled");
+
     if (stripeSuccess === "1" && authenticated && user?.id) {
+      // 清除 URL 參數，保持網址乾淨
+      router.replace("/verification", { scroll: false });
       const pending = localStorage.getItem("pending_verification");
       if (pending) {
         localStorage.removeItem("pending_verification");
+        showToast(
+          lang === "zh" ? "Stripe 支付成功！正在提交認證申請..." : "Payment successful! Submitting your application...",
+          "success"
+        );
         getAccessToken().then((token) => {
           if (token) submitVerification("fiat", token);
         });
+      } else {
+        showToast(
+          lang === "zh" ? "支付成功！您的認證申請已提交。" : "Payment successful! Your verification has been submitted.",
+          "success"
+        );
       }
+    } else if (stripeCancelled === "1") {
+      // 清除 URL 參數，保持網址乾淨
+      router.replace("/verification", { scroll: false });
+      showToast(
+        lang === "zh" ? "支付已取消，您可以重新選擇支付方式" : "Payment cancelled. You can try again.",
+        "error"
+      );
     }
   }, [authenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 

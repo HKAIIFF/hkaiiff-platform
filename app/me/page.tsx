@@ -581,6 +581,69 @@ export default function MePage() {
     };
   }, [authenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── 強制從 Supabase 拉取最新 aif_balance（每次掛載或支付回調後呼叫）────────
+  const refreshBalance = async () => {
+    if (!user?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('aif_balance, deposit_address, verification_status, verification_type, role')
+        .eq('id', user.id)
+        .single();
+      if (error) {
+        console.error('[me] refreshBalance error:', error.message);
+        return;
+      }
+      if (data) {
+        setDbProfile((prev) =>
+          prev
+            ? {
+                ...prev,
+                aif_balance: data.aif_balance ?? prev.aif_balance,
+                deposit_address: data.deposit_address ?? prev.deposit_address,
+                verification_status: data.verification_status ?? prev.verification_status,
+                verification_type: data.verification_type ?? prev.verification_type,
+                role: data.role ?? prev.role,
+              }
+            : prev
+        );
+        setAifFlash(true);
+        setTimeout(() => setAifFlash(false), 900);
+      }
+    } catch (err) {
+      console.error('[me] refreshBalance exception:', err);
+    }
+  };
+
+  // ── Stripe / AIF 支付回調：監聽 URL 參數並顯示 Toast ─────────────────────
+  useEffect(() => {
+    if (!authenticated || !user?.id) return;
+
+    const url = new URL(window.location.href);
+    const paymentParam = url.searchParams.get('payment');
+    if (!paymentParam) return;
+
+    // 立即清除 URL 參數，保持網址乾淨
+    router.replace('/me', { scroll: false });
+
+    if (paymentParam === 'success') {
+      showToast(
+        lang === 'zh'
+          ? '支付成功！正在更新您的帳戶狀態...'
+          : 'Payment successful! Updating your account...',
+        'success'
+      );
+      // 強制刷新餘額與身份狀態
+      refreshBalance();
+    } else if (paymentParam === 'cancelled' || paymentParam === 'canceled') {
+      showToast(
+        lang === 'zh' ? '支付已取消' : 'Payment cancelled',
+        'error'
+      );
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated, user?.id]);
+
   // ── 九國語言充值按鈕字典 ─────────────────────────────────────────────────
   const topUpLabels: Record<string, string> = {
     zh: '充值',

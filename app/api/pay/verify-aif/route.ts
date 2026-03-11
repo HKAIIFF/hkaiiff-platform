@@ -236,20 +236,25 @@ export async function POST(req: Request) {
     }
 
     // ── 記錄交易流水 ──────────────────────────────────────────────────────────
-    await adminSupabase.from('transactions').insert([{
-      user_id: verifiedUserId,
-      amount: PRICE_AIF,
-      currency: 'AIF',
-      tx_type: 'product_purchase',
-      status: 'success',
-      metadata: {
-        productCode,
-        productNameZh: product.name_zh,
-        productNameEn: product.name_en,
-        paymentFlow: 'manual_transfer_verify',
-        ...extraMetadata,
-      },
-    }]).catch((e: unknown) => console.error('[verify-aif] transaction insert failed:', e));
+    try {
+      const { error: txError } = await adminSupabase.from('transactions').insert([{
+        user_id: verifiedUserId,
+        amount: PRICE_AIF,
+        currency: 'AIF',
+        tx_type: 'product_purchase',
+        status: 'success',
+        metadata: {
+          productCode,
+          productNameZh: product.name_zh,
+          productNameEn: product.name_en,
+          paymentFlow: 'manual_transfer_verify',
+          ...extraMetadata,
+        },
+      }]);
+      if (txError) console.error('[verify-aif] transaction insert failed:', txError);
+    } catch (e: unknown) {
+      console.error('[verify-aif] transaction insert exception:', e);
+    }
 
     // ── 業務邏輯路由 ──────────────────────────────────────────────────────────
     try {
