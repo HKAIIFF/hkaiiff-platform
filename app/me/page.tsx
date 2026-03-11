@@ -88,13 +88,6 @@ export default function MePage() {
   const [isFetchingDepositAddress, setIsFetchingDepositAddress] = useState(false);
 
   /**
-   * ATA 初始化去重鎖：記錄已完成 init-ata 的充值地址。
-   * 使用 useRef 而非 state，確保不觸發重渲染，且在整個組件生命週期內有效。
-   * 即使 handleOpenTopUp 被多次點擊，init-ata 只對同一地址呼叫一次。
-   */
-  const ataInitDoneRef = useRef<string | null>(null);
-
-  /**
    * wallet/assign 一次性鎖：防止 syncData useEffect 因 user 對象不穩定
    * 而重複觸發，導致新用戶的充值地址被多次分配（死循環）。
    */
@@ -102,8 +95,6 @@ export default function MePage() {
 
   // ── Top-Up Modal State ────────────────────────────────────────────────────
   const [isTopUpOpen, setIsTopUpOpen] = useState(false);
-  /** ATA 初始化進行中：true 時 QR 區域顯示 loading，完成後才顯示 QR Code */
-  const [isAtaInitializing, setIsAtaInitializing] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [copiedFilmId, setCopiedFilmId] = useState<string | null>(null);
 
@@ -164,39 +155,35 @@ export default function MePage() {
     }
   };
 
-  /**
-   * TOP UP 按鈕：打開 Modal，await init-ata 完成後才顯示 QR Code。
-   *
-   * 安全設計：
-   * - ataInitDoneRef 記錄已初始化的地址，同一地址生命週期內只呼叫一次
-   * - isAtaInitializing 控制 QR 區域顯示 loading，確保 ATA 上鏈後再掃碼
-   * - 絕對禁止在此路徑發送 SOL（init-ata 後端保證只做純 ATA 創建）
-   */
-  const handleOpenTopUp = async () => {
-    setIsTopUpOpen(true);
+  /** TOP UP 按鈕：只負責打開 Modal，ATA 初始化交由下方 useEffect 統一處理 */
+  const handleOpenTopUp = () => setIsTopUpOpen(true);
 
-    if (depositAddress && ataInitDoneRef.current !== depositAddress) {
-      ataInitDoneRef.current = depositAddress; // 立即鎖定，防止並發重入
-      setIsAtaInitializing(true);
+  /**
+   * ATA 初始化觸發器：每次 TopUp Modal 打開且地址存在，必定觸發一次後端確認。
+   * 後端 init-ata 有 getAccountInfo 冪等校驗，ATA 已存在時零消耗直接返回。
+   * 不設任何前端 useRef 鎖，確保每次打開都能接通後端、輸出 Debug 日誌。
+   */
+  useEffect(() => {
+    if (!isTopUpOpen || !depositAddress) return;
+
+    let cancelled = false;
+    const initAta = async () => {
       try {
         const token = await getAccessToken();
-        const res = await fetch('/api/wallet/init-ata', {
+        if (cancelled) return;
+        await fetch('/api/wallet/init-ata', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (!res.ok) {
-          const json = await res.json().catch(() => ({})) as { error?: string };
-          console.warn('[TopUp] init-ata 失敗:', json?.error ?? res.status);
-          ataInitDoneRef.current = null; // 允許下次重試
-        }
-      } catch (err) {
-        console.warn('[TopUp] init-ata 請求異常:', err);
-        ataInitDoneRef.current = null;
-      } finally {
-        setIsAtaInitializing(false);
+      } catch {
+        // 靜默失敗：ATA init 為背景冪等操作，不影響用戶使用
       }
-    }
-  };
+    };
+
+    initAta();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isTopUpOpen, depositAddress]);
 
 
   // ── Profile Edit Modal State ──────────────────────────────────────────────
@@ -1203,35 +1190,43 @@ export default function MePage() {
 
               {/* QR Code 區域 */}
               <div className="flex flex-col items-center gap-3">
-                {depositAddress && isAtaInitializing ? (
-                  /* ── ATA 初始化中：等待鏈上確認，禁止提前掃碼 ────────── */
-                  <div className="w-[186px] h-[186px] border-2 border-dashed border-signal/30 rounded-xl flex flex-col items-center justify-center gap-3 bg-signal/5">
-                    <i className="fas fa-circle-notch fa-spin text-3xl text-signal/50" />
-                    <span className="text-[10px] font-mono text-signal/60 tracking-wider text-center px-4">
-                      ACTIVATING ADDRESS...
-                    </span>
-                    <span className="text-[9px] font-mono text-gray-600 text-center px-4">
-                      正在鏈上開通 AIF 收款功能
-                    </span>
-                  </div>
-                ) : depositAddress ? (
-                  /* ── 已有地址且 ATA 已就緒：渲染 Solana Pay URI QR Code ── */
-                  <>
-                    <div className="p-3 bg-white rounded-xl shadow-[0_0_24px_rgba(204,255,0,0.2)]">
-                      <QRCode
-                        value={`solana:${depositAddress}${process.env.NEXT_PUBLIC_AIF_MINT_ADDRESS ? `?spl-token=${process.env.NEXT_PUBLIC_AIF_MINT_ADDRESS}` : ''}`}
-                        size={160}
-                        bgColor="#ffffff"
-                        fgColor="#000000"
-                        level="M"
-                      />
-                    </div>
-                    <div className="text-[9px] font-mono text-gray-500 tracking-wider">
-                      SCAN WITH PHANTOM / ANY SOLANA WALLET
-                    </div>
-                  </>
+                {depositAddress ? (
+                  /* ── 已有地址：立刻渲染 QR Code，ATA init 靜默背景執行 ── */
+                  (() => {
+                    const mintAddr = process.env.NEXT_PUBLIC_AIF_MINT_ADDRESS;
+                    if (!mintAddr) {
+                      return (
+                        <div className="w-full bg-red-500/10 border border-red-500/40 rounded-xl px-4 py-5 flex flex-col items-center gap-2">
+                          <i className="fas fa-exclamation-circle text-red-400 text-2xl" />
+                          <div className="text-[11px] font-mono text-red-400 font-bold tracking-wider text-center">
+                            系統設定錯誤：缺少合約地址
+                          </div>
+                          <div className="text-[10px] font-mono text-red-400/70 text-center">
+                            SYSTEM CONFIG ERROR: Missing AIF_MINT_ADDRESS
+                          </div>
+                        </div>
+                      );
+                    }
+                    const qrUri = `solana:${depositAddress}?spl-token=${mintAddr}`;
+                    return (
+                      <>
+                        <div className="p-3 bg-white rounded-xl shadow-[0_0_24px_rgba(204,255,0,0.2)]">
+                          <QRCode
+                            value={qrUri}
+                            size={160}
+                            bgColor="#ffffff"
+                            fgColor="#000000"
+                            level="M"
+                          />
+                        </div>
+                        <div className="text-[9px] font-mono text-gray-500 tracking-wider">
+                          SCAN WITH PHANTOM / ANY SOLANA WALLET
+                        </div>
+                      </>
+                    );
+                  })()
                 ) : isFetchingDepositAddress ? (
-                  /* ── 生成中：轉圈動畫 ──────────────────────────────── */
+                  /* ── 地址分配中：轉圈動畫 ──────────────────────────── */
                   <div className="w-[186px] h-[186px] border-2 border-dashed border-signal/30 rounded-xl flex flex-col items-center justify-center gap-3 bg-signal/5">
                     <i className="fas fa-circle-notch fa-spin text-3xl text-signal/50" />
                     <span className="text-[10px] font-mono text-signal/60 tracking-wider text-center px-4">
@@ -1239,7 +1234,7 @@ export default function MePage() {
                     </span>
                   </div>
                 ) : (
-                  /* ── 無地址：醒目的生成按鈕 ────────────────────────── */
+                  /* ── 純新用戶無地址（極少數情況）：手動生成按鈕 ───── */
                   <div className="w-full flex flex-col items-center gap-4 py-2">
                     <div className="w-16 h-16 rounded-full border-2 border-dashed border-signal/40 flex items-center justify-center bg-signal/5">
                       <i className="fas fa-wallet text-2xl text-signal/50" />

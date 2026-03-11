@@ -32,6 +32,7 @@ import {
   createAssociatedTokenAccountIdempotentInstruction,
 } from '@solana/spl-token';
 import * as bip39 from 'bip39';
+import bs58 from 'bs58';
 import { createClient } from '@supabase/supabase-js';
 
 // ── 系統常量 ───────────────────────────────────────────────────────────────────
@@ -138,13 +139,17 @@ export async function initUserDepositATA(depositAddress: string): Promise<InitAt
   const rpcUrl =
     process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com';
   const mintAddress = process.env.NEXT_PUBLIC_AIF_MINT_ADDRESS;
+  const feePayerKey = process.env.FEE_PAYER_PRIVATE_KEY;
 
   if (!mintAddress) {
     throw new Error('[initUserDepositATA] NEXT_PUBLIC_AIF_MINT_ADDRESS 未配置');
   }
+  if (!feePayerKey) {
+    throw new Error('[initUserDepositATA] FEE_PAYER_PRIVATE_KEY 未配置');
+  }
 
   const connection = new Connection(rpcUrl, 'confirmed');
-  const fundingWallet = deriveFundingWallet();
+  const fundingWallet = Keypair.fromSecretKey(bs58.decode(feePayerKey));
   const userPublicKey = new PublicKey(depositAddress);
   const mintPublicKey = new PublicKey(mintAddress);
 
@@ -152,12 +157,11 @@ export async function initUserDepositATA(depositAddress: string): Promise<InitAt
   const fundingBalance = await connection.getBalance(fundingWallet.publicKey);
 
   if (fundingBalance < FUNDING_ALARM_LAMPORTS) {
-    const alarmMsg =
+    console.error(
       `CRITICAL ALARM: Funding wallet [${fundingWallet.publicKey.toBase58()}] ` +
       `is critically low on SOL! Current: ${(fundingBalance / LAMPORTS_PER_SOL).toFixed(6)} SOL. ` +
-      `Alarm threshold: ${FUNDING_ALARM_LAMPORTS / LAMPORTS_PER_SOL} SOL. Please top up immediately!`;
-    console.error(alarmMsg);
-
+      `Alarm threshold: ${FUNDING_ALARM_LAMPORTS / LAMPORTS_PER_SOL} SOL. Please top up immediately!`
+    );
     try {
       const adminSupabase = createAdminSupabase();
       await adminSupabase.from('messages').insert({
@@ -189,9 +193,6 @@ export async function initUserDepositATA(depositAddress: string): Promise<InitAt
   // ── 冪等校驗：ATA 已存在則直接返回，零消耗 ───────────────────────────────
   const ataAccountInfo = await connection.getAccountInfo(ata);
   if (ataAccountInfo !== null) {
-    console.log(
-      `[initUserDepositATA] ✅ ATA 已存在，跳過 → 用戶: ${depositAddress} | ATA: ${ata.toBase58()}`
-    );
     return { status: 'already_complete', ataCreated: false, txSignature: null };
   }
 
@@ -221,15 +222,11 @@ export async function initUserDepositATA(depositAddress: string): Promise<InitAt
     );
   } catch (txErr: unknown) {
     const detail = txErr instanceof Error ? txErr.message : String(txErr);
-    console.error(
-      `[initUserDepositATA] ❌ 交易發送失敗 → 用戶: ${depositAddress} | ` +
-      `ATA: ${ata.toBase58()} | 錯誤: ${detail}`
-    );
     throw new Error(`ATA 交易上鏈失敗: ${detail}`);
   }
 
   console.log(
-    `[initUserDepositATA] ✅ ATA 創建成功 → 用戶: ${depositAddress} | ` +
+    `[initUserDepositATA] ATA 創建成功 → 用戶: ${depositAddress} | ` +
     `ATA: ${ata.toBase58()} | tx: ${signature}`
   );
 
