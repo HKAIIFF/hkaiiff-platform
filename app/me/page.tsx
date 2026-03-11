@@ -572,8 +572,8 @@ export default function MePage() {
         </div>
 
         {/* Info */}
-        <div className="flex-1 min-w-0 pr-16">
-          <div className="flex items-center gap-2 flex-wrap mb-0.5">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-0.5 pr-16">
             <h2 className="font-heavy text-2xl text-white tracking-wide truncate">
               {dbProfile?.display_name || (user?.id ? `Agent_${user.id.replace('did:privy:', '').substring(0, 6)}` : 'Agent_SYNCING')}
             </h2>
@@ -591,10 +591,11 @@ export default function MePage() {
               </span>
             )}
           </div>
-          <div className="text-[9px] text-gray-400 font-mono mb-2 tracking-wider uppercase">
+          <div className="text-[9px] text-gray-400 font-mono mb-2 tracking-wider uppercase pr-14">
             {dbProfile ? t(`role_${dbProfile?.role || 'human'}`).toUpperCase() : '...'}
           </div>
-          <div className="flex items-stretch gap-2 mt-1">
+          {/* Wallet address + Verify button — full width, no padding constraint */}
+          <div className="flex flex-wrap items-center gap-2 mt-1">
             <button
               onClick={handleCopy}
               className="flex items-center gap-2 bg-[#111] border border-[#333] px-3 py-1.5 rounded text-xs text-gray-400 hover:text-signal transition-colors"
@@ -608,18 +609,20 @@ export default function MePage() {
               <i className="far fa-copy"></i>
             </button>
 
-            {/* ── Inline Verify Badge / Button — 與錢包地址框等高 ── */}
+            {/* ── Verify Pill —精緻 Web3 Pill 樣式，融入 Flex 流 ── */}
             {dbProfile && (
               dbProfile.verification_status === 'approved' ? null :
               dbProfile.verification_status === 'pending' ? (
-                <span className="text-[9px] font-bold bg-neutral-800 text-neutral-400 border border-neutral-700 px-3 flex items-center justify-center rounded">
+                <span className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-neutral-800 text-neutral-400 border border-neutral-700 rounded-full px-3 py-1.5 whitespace-nowrap">
+                  <i className="fas fa-clock text-[8px]" />
                   {t('verify_btn_pending')}
                 </span>
               ) : (
                 <button
                   onClick={() => router.push('/verification')}
-                  className="text-[10px] font-bold bg-white text-black px-3 flex items-center justify-center rounded hover:bg-neutral-200 transition-colors uppercase tracking-wider"
+                  className="inline-flex items-center gap-1.5 text-[10px] font-bold bg-white text-black rounded-full px-4 py-1.5 hover:scale-105 transition-transform uppercase tracking-wider whitespace-nowrap shadow-[0_0_10px_rgba(255,255,255,0.15)]"
                 >
+                  <i className="fas fa-shield-alt text-[9px]" />
                   {t('verify_inline_verify')}
                 </button>
               )

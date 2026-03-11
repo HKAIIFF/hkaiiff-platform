@@ -141,6 +141,7 @@ const I18N: Record<LangCode, TranslationMap> = {
     verify_success_subtitle: "Estimated review time: 48-72 hours",
     verify_back_to_me: "Back to ME",
     verify_step4: "Complete",
+    about_partners_title: "Partners & Sponsors",
   },
   zh: {
     nav_feed: "首映流", nav_discover: "發現", nav_msg: "消息", nav_me: "我的",
@@ -256,6 +257,7 @@ const I18N: Record<LangCode, TranslationMap> = {
     verify_success_subtitle: "預計審核時間 48-72 小時",
     verify_back_to_me: "返回我的主頁",
     verify_step4: "完成",
+    about_partners_title: "合作夥伴與贊助商",
   },
   ja: {
     nav_feed: "フィード", nav_discover: "発見", nav_msg: "通知", nav_me: "私",
@@ -303,6 +305,7 @@ const I18N: Record<LangCode, TranslationMap> = {
     verify_step2_pay: "認証費用を支払う", verify_success_title: "提出完了！",
     verify_success_subtitle: "審査予定時間：48〜72時間", verify_back_to_me: "マイページに戻る",
     verify_step4: "完了",
+    about_partners_title: "パートナー & スポンサー",
   },
   ko: {
     nav_feed: "피드", nav_discover: "발견", nav_msg: "알림", nav_me: "나",
@@ -348,6 +351,7 @@ const I18N: Record<LangCode, TranslationMap> = {
     verify_step2_pay: "인증 비용 납부", verify_success_title: "제출 완료！",
     verify_success_subtitle: "예상 검토 시간: 48~72시간", verify_back_to_me: "내 페이지로 돌아가기",
     verify_step4: "완료",
+    about_partners_title: "파트너 & 스폰서",
   },
   th: {
     nav_feed: "ฟีด", nav_discover: "ค้นพบ", nav_msg: "ข้อความ", nav_me: "ฉัน",
@@ -397,6 +401,7 @@ const I18N: Record<LangCode, TranslationMap> = {
     verify_step2_pay: "ชำระค่ายืนยัน", verify_success_title: "ส่งเรียบร้อยแล้ว！",
     verify_success_subtitle: "เวลาตรวจสอบที่คาดไว้: 48-72 ชม.", verify_back_to_me: "กลับหน้าของฉัน",
     verify_step4: "เสร็จสิ้น",
+    about_partners_title: "พาร์ทเนอร์ & สปอนเซอร์",
   },
   fr: {
     nav_feed: "FLUX", nav_discover: "DÉCOUVRIR", nav_msg: "MSG", nav_me: "MOI",
@@ -443,6 +448,7 @@ const I18N: Record<LangCode, TranslationMap> = {
     verify_step2_pay: "Payer les frais", verify_success_title: "Soumis !",
     verify_success_subtitle: "Délai d'examen estimé : 48-72h", verify_back_to_me: "Retour à ME",
     verify_step4: "Terminé",
+    about_partners_title: "Partenaires & Sponsors",
   },
   de: {
     nav_feed: "FEED", nav_discover: "ENTDECKEN", nav_msg: "MSG", nav_me: "ICH",
@@ -489,6 +495,7 @@ const I18N: Record<LangCode, TranslationMap> = {
     verify_step2_pay: "Gebühr bezahlen", verify_success_title: "Eingereicht!",
     verify_success_subtitle: "Geschätzte Prüfzeit: 48-72 Std.", verify_back_to_me: "Zurück zu ME",
     verify_step4: "Fertig",
+    about_partners_title: "Partner & Sponsoren",
   },
   es: {
     nav_feed: "INICIO", nav_discover: "DESCUBRIR", nav_msg: "MSG", nav_me: "YO",
@@ -535,6 +542,7 @@ const I18N: Record<LangCode, TranslationMap> = {
     verify_step2_pay: "Pagar tarifa", verify_success_title: "¡Enviado!",
     verify_success_subtitle: "Tiempo de revisión estimado: 48-72h", verify_back_to_me: "Volver a ME",
     verify_step4: "Completado",
+    about_partners_title: "Socios & Patrocinadores",
   },
   ar: {
     nav_feed: "الرئيسية", nav_discover: "استكشاف", nav_msg: "رسائل", nav_me: "أنا",
@@ -581,6 +589,7 @@ const I18N: Record<LangCode, TranslationMap> = {
     verify_step2_pay: "دفع رسوم التحقق", verify_success_title: "تم الإرسال!",
     verify_success_subtitle: "وقت المراجعة المتوقع: 48-72 ساعة", verify_back_to_me: "العودة إلى صفحتي",
     verify_step4: "مكتمل",
+    about_partners_title: "الشركاء والرعاة",
   },
 };
 

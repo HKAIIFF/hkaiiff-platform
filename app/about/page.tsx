@@ -192,10 +192,104 @@ function CTA() {
   );
 }
 
+/* ─── Logo Wall (Marquee) ─────────────────────────────────────────────── */
+function LogoWall() {
+  const { t } = useI18n();
+  return (
+    <section className="bg-[#030303] border-t border-[#0e0e0e] py-12 overflow-hidden">
+      <div className="text-center mb-8">
+        <div className="flex items-center gap-3 max-w-4xl mx-auto px-6">
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#1a1a1a] to-transparent" />
+          <span className="font-mono text-[10px] text-gray-500 tracking-[0.3em] uppercase whitespace-nowrap">
+            {t('about_partners_title')}
+          </span>
+          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#1a1a1a] to-transparent" />
+        </div>
+      </div>
+
+      {/* Row 1 — LTR */}
+      <div className="overflow-hidden mb-4">
+        <div className="flex gap-x-10 whitespace-nowrap animate-marquee-ltr opacity-30 hover:opacity-60 transition-opacity duration-500">
+          {[
+            'NVIDIA','OpenAI','Midjourney','Runway','Luma AI','Pika Labs',
+            'Stability AI','Anthropic','Google DeepMind','Meta','Apple','AWS',
+            'Alibaba Cloud','Tencent AI','SenseTime',
+            'NVIDIA','OpenAI','Midjourney','Runway','Luma AI','Pika Labs',
+            'Stability AI','Anthropic','Google DeepMind','Meta','Apple','AWS',
+            'Alibaba Cloud','Tencent AI','SenseTime',
+          ].map((name, i) => (
+            <span key={`r1-${i}`}
+              className="font-heavy text-base md:text-lg text-gray-400 hover:text-white transition-colors cursor-default shrink-0">
+              {name}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Row 2 — RTL */}
+      <div className="overflow-hidden mb-4">
+        <div className="flex gap-x-10 whitespace-nowrap animate-marquee-rtl opacity-30 hover:opacity-60 transition-opacity duration-500">
+          {[
+            'Solana','Arweave','Filecoin','Polygon','Chainlink',
+            'IMAX','Dolby','Netflix','A24','Sony Pictures',
+            'HKADC','HKUST','HKU','MIT Media Lab','Hugging Face','xAI','Epic Games',
+            'Solana','Arweave','Filecoin','Polygon','Chainlink',
+            'IMAX','Dolby','Netflix','A24','Sony Pictures',
+            'HKADC','HKUST','HKU','MIT Media Lab','Hugging Face','xAI','Epic Games',
+          ].map((name, i) => (
+            <span key={`r2-${i}`}
+              className="font-heavy text-base md:text-lg text-gray-400 hover:text-white transition-colors cursor-default shrink-0">
+              {name}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      {/* Row 3 — LTR slower */}
+      <div className="overflow-hidden">
+        <div className="flex gap-x-10 whitespace-nowrap animate-marquee-ltr2 opacity-30 hover:opacity-60 transition-opacity duration-500">
+          {[
+            'Anthropic','xAI','Epic Games','IMAX','Dolby',
+            'NVIDIA','Runway','Luma AI','Hugging Face','Midjourney',
+            'Filecoin','Solana','Polygon','A24','Netflix','Sony Pictures',
+            'Anthropic','xAI','Epic Games','IMAX','Dolby',
+            'NVIDIA','Runway','Luma AI','Hugging Face','Midjourney',
+            'Filecoin','Solana','Polygon','A24','Netflix','Sony Pictures',
+          ].map((name, i) => (
+            <span key={`r3-${i}`}
+              className="font-heavy text-base md:text-lg text-gray-400 hover:text-white transition-colors cursor-default shrink-0">
+              {name}
+            </span>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-8 flex items-center gap-3 max-w-4xl mx-auto px-6">
+        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+        <span className="font-mono text-[8px] text-gray-700 tracking-widest uppercase">32 Global Partners</span>
+        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+      </div>
+    </section>
+  );
+}
+
+/* ─── Copyright Footer ────────────────────────────────────────────────── */
+function CopyrightFooter() {
+  const { t } = useI18n();
+  return (
+    <footer className="w-full flex flex-col items-center justify-center py-10 bg-[#020202] border-t border-white/5 gap-1.5">
+      <p className="text-[10px] text-gray-500 tracking-widest uppercase">© 2026 All Rights Reserved.</p>
+      <p className="text-[11px] text-gray-400 font-medium tracking-widest mt-1">香港人工智能國際電影節協會</p>
+      <p className="text-[9px] text-gray-600 tracking-widest uppercase">Hong Kong AI International Film Festival Association</p>
+      <p className="font-mono text-[8px] text-[#1e1e1e] tracking-widest mt-2 text-center px-4">
+        {t('msg_copyright')}
+      </p>
+    </footer>
+  );
+}
+
 /* ─── Page Component ──────────────────────────────────────────────────── */
 export default function AboutPage() {
-  const { lang } = useI18n();
-
   return (
     <div className="bg-void text-white min-h-screen w-full overflow-y-auto flex flex-col pt-28 md:pt-0 pb-32 md:pb-0">
       <Hero />
@@ -231,14 +325,9 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* Language note */}
-      <div className="text-center py-4 bg-[#030303] border-t border-[#0a0a0a]">
-        <span className="font-mono text-[9px] text-[#2a2a2a] tracking-widest">
-          {lang === 'zh' ? '香港人工智能國際電影節 · 保留所有權利 © 2026' : 'HKAIIFF · All Rights Reserved © 2026'}
-        </span>
-      </div>
-
       <CTA />
+      <LogoWall />
+      <CopyrightFooter />
     </div>
   );
 }
