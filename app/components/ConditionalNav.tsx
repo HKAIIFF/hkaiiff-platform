@@ -37,9 +37,8 @@ export default function ConditionalNav({ children }: { children: ReactNode }) {
           <Sidebar />
         </div>
 
-        {/* Main content — scrollable on all non-feed pages.
-            pb-24 md:pb-0: 移动端底部留出 BottomNav (80px) 的安全区 */}
-        <main className="flex-1 h-full overflow-y-auto relative bg-void pb-24 md:pb-0">
+        {/* Main content — each page manages its own bottom spacing */}
+        <main className="flex-1 h-full overflow-y-auto relative bg-void">
           {children}
         </main>
       </div>

@@ -487,7 +487,7 @@ export default function MePage() {
 
   /* ─── AUTHENTICATED VIEW ──────────────────────────────────────────────────── */
   return (
-    <div className="flex-1 h-full w-full bg-void flex flex-col relative overflow-y-auto md:overflow-hidden pt-14 md:pt-0 pb-8 md:pb-0 min-h-screen md:min-h-0">
+    <div className="flex-1 h-full w-full bg-void flex flex-col relative overflow-y-auto md:overflow-hidden pt-28 md:pt-0 pb-32 md:pb-0 min-h-screen md:min-h-0">
       {isHistoryLoading && <CyberLoading text="LOADING PARALLEL UNIVERSE..." />}
 
       {/* ── Desktop Page Header (full-width banner) ──────────────────── */}
