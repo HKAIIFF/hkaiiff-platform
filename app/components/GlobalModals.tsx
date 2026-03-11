@@ -92,6 +92,8 @@ export default function GlobalModals() {
   const [bioSeed, setBioSeed] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isVideoLoading, setIsVideoLoading] = useState(false);
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
+  const [videoAspect, setVideoAspect] = useState<'landscape' | 'portrait'>('landscape');
   // LBS 解鎖狀態：暫時寫死 false，後續接入真實 LBS 核驗
   const isLbsUnlocked = false;
   const { showToast } = useToast();
@@ -345,20 +347,6 @@ export default function GlobalModals() {
                 {film?.title ?? "TITLE"}
               </h2>
               <div className="flex gap-3">
-                <button
-                  className="brutal-btn flex-1 py-3 text-sm shadow-[0_0_15px_rgba(204,255,0,0.3)]"
-                  onClick={() => {
-                    if (!isLbsUnlocked) {
-                      showToast("🔒 ACCESS DENIED: Feature film locked. You are not within a verified LBS festival node.", "error");
-                      return;
-                    }
-                    const featureUrl = film?.feature_url ?? film?.videoUrl ?? null;
-                    setLbsVideoUrl(featureUrl);
-                    setActiveModal("play");
-                  }}
-                >
-                  <i className="fas fa-play mr-2" /> PLAY FILM
-                </button>
                 <button
                   className="brutal-btn secondary w-12 flex-shrink-0"
                   onClick={() => showToast("Added to Watchlist", "success")}
@@ -686,35 +674,55 @@ export default function GlobalModals() {
         <div className="relative w-full h-full flex flex-col">
 
           {/* ── 真實影片播放器 ── */}
-          <video
-            ref={videoRef}
-            key={lbsVideoUrl ?? undefined}
-            src={lbsVideoUrl ?? undefined}
-            className="absolute inset-0 w-full h-full object-contain bg-black"
-            controls
-            autoPlay
-            playsInline
-            onWaiting={() => setIsVideoLoading(true)}
-            onCanPlay={() => setIsVideoLoading(false)}
-            onError={() => {
-              setIsVideoLoading(false);
-              showToast("⚠️ 影片載入失敗，請檢查連結或網絡", "error");
-            }}
-          />
+          <div className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden">
+            <video
+              ref={videoRef}
+              key={lbsVideoUrl ?? undefined}
+              src={lbsVideoUrl ?? undefined}
+              className={`object-contain bg-black transition-all duration-300 ${
+                videoAspect === 'portrait'
+                  ? 'h-full aspect-[9/16]'
+                  : 'w-full h-full'
+              }`}
+              controls
+              autoPlay
+              playsInline
+              onPlay={() => setIsVideoPlaying(true)}
+              onPause={() => setIsVideoPlaying(false)}
+              onEnded={() => setIsVideoPlaying(false)}
+              onWaiting={() => setIsVideoLoading(true)}
+              onCanPlay={() => setIsVideoLoading(false)}
+              onError={() => {
+                setIsVideoLoading(false);
+                showToast("⚠️ 影片載入失敗，請檢查連結或網絡", "error");
+              }}
+            />
+
+            {/* ── 毛玻璃播放按鈕（影片暫停時顯示） ── */}
+            {!isVideoPlaying && !isVideoLoading && (
+              <button
+                onClick={() => videoRef.current?.play()}
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 pointer-events-auto w-16 h-16 rounded-full bg-white/20 backdrop-blur border border-white/30 shadow-lg text-white flex items-center justify-center active:scale-90 transition-transform"
+              >
+                <i className="fas fa-play text-xl ml-1" />
+              </button>
+            )}
+          </div>
 
           {/* ── 頂部控制條（懸浮於視頻上，點擊不干擾播放） ── */}
           <div className="relative z-30 p-4 pt-12 flex justify-between items-start w-full pointer-events-none">
 
-            {/* 關閉按鈕 */}
+            {/* 返回按鈕 — 關閉播放器，回到 LBS 詳情抽屜 */}
             <button
               onClick={() => {
                 if (videoRef.current) videoRef.current.pause();
+                setIsVideoPlaying(false);
                 setActiveModal(null);
                 setLbsVideoUrl(null);
               }}
               className="pointer-events-auto w-10 h-10 bg-black/60 backdrop-blur-md rounded-full text-white flex items-center justify-center border border-white/20 hover:bg-white/20 active:scale-90 transition-all shadow-lg"
             >
-              <i className="fas fa-chevron-down" />
+              <i className="fas fa-arrow-left" />
             </button>
 
             {/* 右上角標籤 */}
@@ -731,14 +739,23 @@ export default function GlobalModals() {
             </div>
           </div>
 
-          {/* ── 底部全螢幕專屬按鈕 ── */}
-          <div className="absolute bottom-0 left-0 right-0 z-30 pointer-events-none px-4 pb-6 flex justify-end">
+          {/* ── 底部控制區：橫豎屏切換 + 全螢幕 ── */}
+          <div className="absolute bottom-0 left-0 right-0 z-30 pointer-events-none px-4 pb-6 flex justify-end gap-3">
+            {/* 橫豎屏切換 */}
+            <button
+              onClick={() => setVideoAspect((v) => v === 'landscape' ? 'portrait' : 'landscape')}
+              className="pointer-events-auto flex items-center gap-2 bg-black/70 backdrop-blur-md border border-white/20 hover:border-[#CCFF00] hover:bg-[#CCFF00]/10 active:scale-95 transition-all px-4 py-2.5 rounded-xl text-white hover:text-[#CCFF00] text-sm font-bold shadow-lg"
+            >
+              <i className={`fas ${videoAspect === 'landscape' ? 'fa-mobile-alt' : 'fa-desktop'} text-base`} />
+              <span>{videoAspect === 'landscape' ? '縱屏' : '橫屏'}</span>
+            </button>
+            {/* 全螢幕 */}
             <button
               onClick={handleFullscreen}
               className="pointer-events-auto flex items-center gap-2 bg-black/70 backdrop-blur-md border border-white/20 hover:border-[#CCFF00] hover:bg-[#CCFF00]/10 active:scale-95 transition-all px-4 py-2.5 rounded-xl text-white hover:text-[#CCFF00] text-sm font-bold shadow-lg"
             >
               <i className="fas fa-expand-arrows-alt text-base" />
-              <span>全螢幕 / 橫屏播放</span>
+              <span>全螢幕</span>
             </button>
           </div>
 

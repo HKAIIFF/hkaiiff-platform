@@ -92,9 +92,9 @@ function mapDbNode(db: DbLbsNode): LbsNode {
     lat: Number(db.lat ?? 0), lng: Number(db.lng ?? 0),
     unlock_radius: Number(db.unlock_radius ?? db.radius ?? 500),
     curator: {
-      name: 'AIF.SHOW',
+      name: db.curator_name ?? 'AIF.SHOW',
       avatar: db.curator_avatar ?? `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(String(db.id))}`,
-      isCertified: true,
+      isCertified: db.curator_certified ?? true,
     },
     filmIds: db.film_ids ?? null,
     background_url: buildOssUrl(db.background_url) || null,
@@ -167,7 +167,7 @@ function MobileDiscover({
 
       {/* Description */}
       <p className="font-mono text-[10px] text-gray-400 mb-5 leading-relaxed border-l-2 border-[#333] pl-2">
-        Exclusive screenings controlled by Location-Based Services (LBS) and conditional smart contracts.
+        由地理位置解鎖的 LBS 獨家放映活動，走近影展現場範圍即可解鎖觀看。
       </p>
 
       {/* Filter Toolbar */}
@@ -286,15 +286,16 @@ function MobileDiscover({
 
         {selectedNode && (
           <div className="overflow-y-auto flex-1 pb-32">
-            {/* Hero */}
-            <div className="relative w-full h-72 bg-black">
+            {/* Hero — 海報置頂，移除背景圖 */}
+            <div className="relative w-full bg-black pt-16 pb-4 flex justify-center items-end overflow-hidden">
+              <div className="absolute inset-0 bg-[#050505]" />
               <img
-                src={selectedNode.background_url ?? selectedNode.img}
+                src={selectedNode.poster_url ?? selectedNode.img}
                 alt={selectedNode.title}
-                className="w-full h-full object-cover opacity-60"
+                className="relative z-10 w-44 object-contain rounded-xl shadow-2xl"
                 onError={(e) => { const t = e.currentTarget; if (t.src !== selectedNode.img) t.src = selectedNode.img; }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/80 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent z-20 pointer-events-none" />
             </div>
 
             <div className="px-6 -mt-12 relative z-10 space-y-6">
@@ -304,41 +305,12 @@ function MobileDiscover({
                   <i className={`fas ${selectedNode.icon} mr-1`} />{selectedNode.stateLabel}
                 </div>
                 <h2 className="font-heavy text-4xl text-white leading-none drop-shadow-md mb-2">{selectedNode.title}</h2>
-                <div className="text-[10px] font-mono text-gray-400 flex items-center gap-1">
-                  <i className="fas fa-crosshairs text-signal" />
-                  <span>{selectedNode.coords}</span>
-                  {selectedNode.distance !== '—' && (
-                    <>
-                      <span className="mx-1 text-[#333]">·</span>
-                      <span>{selectedNode.distance}</span>
-                    </>
-                  )}
-                </div>
               </div>
 
-              {/* Poster */}
-              {selectedNode.poster_url && (
-                <div className="flex items-start gap-4">
-                  <img src={selectedNode.poster_url} alt={`${selectedNode.title} poster`}
-                    className="w-20 h-28 object-cover rounded-lg border border-[#333] shrink-0"
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
-                  {selectedNode.desc && (
-                    <p className="text-xs text-gray-300 font-mono leading-relaxed line-clamp-5 pt-1">{selectedNode.desc}</p>
-                  )}
-                </div>
-              )}
-
-              {/* Curator */}
-              <div className="flex items-center gap-3 bg-[#111] border border-[#222] rounded-xl p-3">
-                <img src={selectedNode.curator.avatar} alt={selectedNode.curator.name}
-                  className="w-10 h-10 rounded-full border border-[#333] object-cover shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-bold text-white truncate">{selectedNode.curator.name}</span>
-                    {selectedNode.curator.isCertified && <i className="fas fa-certificate text-[#CCFF00] text-xs shrink-0" />}
-                  </div>
-                  <div className="text-[9px] font-mono text-gray-500 uppercase tracking-widest mt-0.5">Official Curator</div>
-                </div>
+              {/* Curator — 策展人簡潔展示 */}
+              <div className="text-sm font-mono text-gray-400">
+                策展人：<span className="text-white font-bold">{selectedNode.curator.name}</span>
+                {selectedNode.curator.isCertified && <i className="fas fa-certificate text-[#CCFF00] text-xs ml-1" />}
               </div>
 
               {/* Venue + Schedule */}
@@ -414,12 +386,14 @@ function MobileDiscover({
                 )}
               </section>
 
-              {/* Smart Contract Req */}
-              <section className="bg-gradient-to-br from-[#111] to-[#0a0a0a] border border-[#333] p-4 rounded-xl relative overflow-hidden">
-                <div className={`absolute left-0 top-0 w-1 h-full ${selectedNode.borderColor.replace('border-', 'bg-')}`} />
-                <h3 className="font-heavy text-lg text-white mb-2">SMART CONTRACT REQ</h3>
-                <p className={`text-[10px] font-mono ${selectedNode.textColor}`}>{selectedNode.req}</p>
-              </section>
+              {/* 放映時間 — 替換 Smart Contract Req */}
+              {selectedNode.dateRange && (
+                <section className="bg-gradient-to-br from-[#111] to-[#0a0a0a] border border-[#333] p-4 rounded-xl relative overflow-hidden">
+                  <div className={`absolute left-0 top-0 w-1 h-full ${selectedNode.borderColor.replace('border-', 'bg-')}`} />
+                  <h3 className="font-heavy text-lg text-white mb-2">放映時間</h3>
+                  <p className={`text-sm font-mono font-bold ${selectedNode.textColor}`}>{selectedNode.dateRange}</p>
+                </section>
+              )}
             </div>
           </div>
         )}
@@ -534,7 +508,7 @@ function DesktopDiscover({
             </div>
           </div>
           <p className="font-mono text-[9px] text-[#444] leading-relaxed">
-            LBS + smart contract controlled exclusive screenings · Get close to unlock geo-gated venues
+            LBS 地理位置解鎖的獨家放映活動 · 走近影展現場即可解鎖地理圍欄場館
           </p>
         </div>
         <div className="relative w-72 shrink-0">
@@ -636,10 +610,10 @@ export default function DiscoverPage() {
           .eq('status', 'approved')
           .eq('is_online', true);
         if (error) throw error;
-        if (data && data.length > 0) setNodes((data as DbLbsNode[]).map(mapDbNode));
+        setNodes(data ? (data as DbLbsNode[]).map(mapDbNode) : []);
       } catch (err) {
-        console.error('[Discover]', err);
-        showToast('Failed to load nodes', 'error');
+        console.error('[Discover] fetchNodes error:', err);
+        setNodes([]);
       } finally { setLoading(false); }
     }
     fetchNodes();
@@ -716,8 +690,7 @@ export default function DiscoverPage() {
     const playUrl = film.filmUrl ?? film.trailerUrl ?? null;
     if (!playUrl) { showToast('⚠️ 此影片暫無可播放的正片連結', 'error'); return; }
     setLbsVideoUrl(playUrl);
-    setSelectedNode(null);
-    setDetailFilms([]);
+    // 不關閉 selectedNode，保留抽屜狀態，關閉播放器後可直接回到詳情頁
     setActiveModal('play');
   }, [setLbsVideoUrl, setActiveModal, showToast]);
 

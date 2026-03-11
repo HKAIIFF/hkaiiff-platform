@@ -595,6 +595,7 @@ export default function LBSNodesPage() {
   }, [showToast]);
 
   const handleRejectWithReason = useCallback(async (id: string, reason: string) => {
+    const node = allNodes.find((n) => n.id === id);
     setRejectModalNode(null);
     setProcessingId(id);
     const { error } = await supabase
@@ -603,9 +604,27 @@ export default function LBSNodesPage() {
       .eq("id", id);
     setProcessingId(null);
     if (error) { showToast(`操作失敗: ${error.message}`, "error"); return; }
+
+    // 發送站內信通知策展人
+    if (node?.submitted_by) {
+      const reasonLabel = reason === "copyright_risk" ? "侵權風險" : "違規風險";
+      supabase
+        .from("notifications")
+        .insert({
+          user_id: node.submitted_by,
+          type: "lbs_rejected",
+          title: "您的 LBS 影展申請未通過審核",
+          message: `您的 LBS 影展「${node.title ?? "影展"}」因「${reasonLabel}」未通過審核，如有疑問請聯繫管理員。`,
+          is_read: false,
+        })
+        .then(({ error: notifError }) => {
+          if (notifError) console.warn("[Admin] 站內信發送失敗:", notifError.message);
+        });
+    }
+
     setAllNodes((prev) => prev.map((n) => n.id === id ? { ...n, status: "rejected", rejection_reason: reason } : n));
-    showToast("已退回申請，原因已記錄 ✓", "success");
-  }, [showToast]);
+    showToast("已退回申請，站內信已發送給策展人 ✓", "success");
+  }, [showToast, allNodes]);
 
   const handleToggleOnline = useCallback(async (id: string, currentOnline: boolean | null) => {
     const newOnline = !currentOnline;

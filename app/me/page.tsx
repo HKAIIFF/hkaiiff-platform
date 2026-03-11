@@ -456,8 +456,37 @@ export default function MePage() {
               }
             }
           } else {
-            // 已有 wallet_index 但 deposit_address 被清空，等待管理員或手動恢復
-            console.log('[me] deposit_address cleared; wallet_index exists. Awaiting manual restore.');
+            // 已有 wallet_index 但 deposit_address 被清空：自動重派生地址（冪等操作）
+            if (!walletAssignCalledRef.current) {
+              walletAssignCalledRef.current = true;
+              try {
+                const privyEmbedded = user.linkedAccounts?.find(
+                  (acc: any) => acc.type === 'wallet' && acc.walletClientType === 'privy'
+                );
+                const solanaAddr: string | null = (privyEmbedded as any)?.address ?? null;
+                const token = await getAccessToken();
+                const res = await fetch('/api/wallet/assign', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                  },
+                  body: JSON.stringify({ walletAddress: solanaAddr }),
+                });
+                if (res.ok) {
+                  const assignData = await res.json();
+                  if (assignData.address) {
+                    setDepositAddress(assignData.address);
+                    setDbProfile((prev) => prev ? { ...prev, deposit_address: assignData.address } : prev);
+                  }
+                } else {
+                  walletAssignCalledRef.current = false;
+                }
+              } catch (err) {
+                console.warn('[me] Failed to restore deposit address:', err);
+                walletAssignCalledRef.current = false;
+              }
+            }
           }
         } else {
           setDbProfile(defaultProfile);
