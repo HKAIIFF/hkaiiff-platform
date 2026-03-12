@@ -68,8 +68,8 @@ function FeedItem({ film, timeLeft }: { film: Film; timeLeft: number }) {
       >
         {/* FeedVideo: HLS 懒加载，滑出视口自动销毁 Hls 实例截断流量 */}
         <FeedVideo
-          videoUrl={film.videoUrl}
-          posterUrl={film.video}
+          src={film.videoUrl}
+          poster={film.video}
           className="absolute inset-0 w-full h-full object-cover"
           style={{ opacity: 0.75 }}
           visibilityThreshold={0.7}

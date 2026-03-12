@@ -262,8 +262,8 @@ function MobileFeedItem({
         <div className="layer-original">
           {/* FeedVideo: HLS 懒加载，滑出视口自动销毁 Hls 实例截断流量 */}
           <FeedVideo
-            videoUrl={videoSrc}
-            posterUrl={posterSrc}
+            src={videoSrc}
+            poster={posterSrc}
             className="bg-media"
             muted={isMuted}
             visibilityThreshold={0.6}

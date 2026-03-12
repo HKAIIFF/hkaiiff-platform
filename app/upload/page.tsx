@@ -183,7 +183,24 @@ export default function UploadPage() {
     setStep(2);
   };
 
-  // ── Shared upload logic (OSS → DB record) ────────────────────────────────
+  // ── 视频分流：OSS 上传后触发 Bunny 服务端拉取，返回 HLS URL ─────────────
+  const uploadVideoViaBunny = async (
+    ossUrl: string,
+    videoTitle: string,
+  ): Promise<string> => {
+    const res = await fetch('/api/bunny/upload-video', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ videoUrl: ossUrl, title: videoTitle }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.hlsUrl) {
+      throw new Error(data.error ?? 'Bunny 视频处理失败');
+    }
+    return data.hlsUrl as string;
+  };
+
+  // ── 核心上传流程（图片 → OSS，视频 → OSS 暂存 → Bunny HLS）────────────────
   const doUploadAndCreateRecord = async (paymentMethod: 'USD' | 'AIF' | 'pending'): Promise<string> => {
     const stsRes = await fetch('/api/oss-sts');
     const stsData = await stsRes.json();
@@ -202,17 +219,25 @@ export default function UploadPage() {
 
     const prefix = `submissions/${user!.id}/${Date.now()}`;
 
+    // ── 图片走 OSS（不变）─────────────────────────────────────────────────────
     setUploadStatus('UPLOADING POSTER ASSETS...');
     const posterResult = await client.multipartUpload(`${prefix}_poster_${posterFile!.name}`, posterFile!);
     const posterUrl = posterResult.res.requestUrls[0].split('?')[0];
 
-    setUploadStatus('UPLOADING TRAILER FILES...');
-    const trailerResult = await client.multipartUpload(`${prefix}_trailer_${trailerFile!.name}`, trailerFile!);
-    const trailerUrl = trailerResult.res.requestUrls[0].split('?')[0];
+    // ── 视频：先上传 OSS 暂存，再触发 Bunny 拉取生成 HLS ─────────────────────
+    setUploadStatus('UPLOADING TRAILER TO STAGING...');
+    const trailerOssResult = await client.multipartUpload(`${prefix}_trailer_${trailerFile!.name}`, trailerFile!);
+    const trailerOssUrl = trailerOssResult.res.requestUrls[0].split('?')[0];
 
-    setUploadStatus('UPLOADING FULL FILM (THIS MAY TAKE A WHILE)...');
-    const filmResult = await client.multipartUpload(`${prefix}_film_${filmFile!.name}`, filmFile!);
-    const fullFilmUrl = filmResult.res.requestUrls[0].split('?')[0];
+    setUploadStatus('ROUTING TRAILER TO BUNNY STREAM (HLS ENCODING)...');
+    const trailerUrl = await uploadVideoViaBunny(trailerOssUrl, `${formData.title} - Trailer`);
+
+    setUploadStatus('UPLOADING FULL FILM TO STAGING (THIS MAY TAKE A WHILE)...');
+    const filmOssResult = await client.multipartUpload(`${prefix}_film_${filmFile!.name}`, filmFile!);
+    const filmOssUrl = filmOssResult.res.requestUrls[0].split('?')[0];
+
+    setUploadStatus('ROUTING FULL FILM TO BUNNY STREAM (HLS ENCODING)...');
+    const fullFilmUrl = await uploadVideoViaBunny(filmOssUrl, `${formData.title} - Full Film`);
 
     setUploadStatus('MEDIA SECURED. MINTING DATA TO DATABASE...');
     const dbRes = await fetch('/api/upload-film', {
@@ -228,9 +253,9 @@ export default function UploadPage() {
         core_cast:      formData.coreCast,
         region:         formData.region,
         lbs_royalty:    formData.lbsRoyalty,
-        poster_url:     posterUrl,
-        trailer_url:    trailerUrl,
-        full_film_url:  fullFilmUrl,
+        poster_url:     posterUrl,   // OSS 图片 URL
+        trailer_url:    trailerUrl,  // Bunny HLS URL (.m3u8)
+        full_film_url:  fullFilmUrl, // Bunny HLS URL (.m3u8)
         payment_method: paymentMethod,
       }),
     });

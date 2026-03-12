@@ -3,17 +3,17 @@
 /**
  * components/FeedVideo.tsx
  *
- * 高性能 Feed 流视频播放器
+ * 高性能 Feed 流视频播放器（HLS 懒加载 + 旧 MP4 智能兼容）
  *
  * 核心省流策略：
- *  - IntersectionObserver 监听视口，可见度 ≥ 50% 才初始化播放
- *  - 滑出视口时立即 pause() + hls.destroy()，彻底掐断 HLS 分片下载
- *  - 原生 MP4 同样在滑出时 pause() + 清空 src，停止浏览器后台缓冲
+ *  - IntersectionObserver 监听视口，可见度 ≥ threshold 才初始化播放
+ *  - 滑出视口立即 pause() + hls.destroy()，彻底掐断 HLS 分片下载
+ *  - 原生 MP4 / OSS 链接在滑出时同样 pause() + 清空 src，阻止后台缓冲
  *
- * HLS 兼容策略：
- *  1. 优先用 hls.js（Chrome / Android / PC 等不支持原生 HLS 的浏览器）
- *  2. 如浏览器原生支持 HLS（Safari / iOS），直接赋给 video.src
- *  3. 非 .m3u8 URL（旧 OSS .mp4）→ 原生 <video> 兼容播放，无缝过渡
+ * 智能兼容策略（无需外部判断）：
+ *  1. src 含 .m3u8 → hls.js 初始化（Chrome/Android/PC）
+ *  2. src 含 .m3u8 + Safari/iOS → 原生 HLS（video.canPlayType 检测）
+ *  3. src 含 .mp4 / oss / 其他 → 原生 <video src> 兼容播放（旧数据无缝过渡）
  */
 
 import { useRef, useEffect, useCallback } from "react";
@@ -22,10 +22,10 @@ import Hls from "hls.js";
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 export interface FeedVideoProps {
-  /** HLS m3u8 地址 或 旧版 MP4 直链（自动判断） */
-  videoUrl?: string;
+  /** HLS m3u8 地址 或 旧版 MP4/OSS 直链（自动判断） */
+  src?: string;
   /** 封面图 URL，视频加载前展示，节省首屏流量 */
-  posterUrl?: string;
+  poster?: string;
   /** className 透传给 <video> 标签 */
   className?: string;
   /** style 透传给 <video> 标签 */
@@ -43,6 +43,7 @@ export interface FeedVideoProps {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** 判断是否为 HLS 流地址 */
 function isHlsUrl(url: string): boolean {
   return url.includes(".m3u8");
 }
@@ -50,8 +51,8 @@ function isHlsUrl(url: string): boolean {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function FeedVideo({
-  videoUrl,
-  posterUrl,
+  src,
+  poster,
   className,
   style,
   muted = true,
@@ -61,7 +62,7 @@ export default function FeedVideo({
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
 
-  // ── 销毁 HLS 实例并暂停播放（滑出视口 / 卸载时调用） ──────────────────────
+  // ── 销毁 HLS + 暂停（滑出视口 / 卸载时调用） ──────────────────────────────
   const teardown = useCallback(() => {
     const video = videoRef.current;
 
@@ -75,7 +76,7 @@ export default function FeedVideo({
       console.log("[FeedVideo] Hls 实例已销毁，分片下载已中断");
     }
 
-    // 清空 src，阻止浏览器后台继续缓冲（MP4 / HLS 均适用）
+    // 清空 src，阻止浏览器后台继续缓冲
     if (video && video.src) {
       video.removeAttribute("src");
       video.load();
@@ -85,27 +86,25 @@ export default function FeedVideo({
   // ── 初始化播放（滑入视口时调用） ──────────────────────────────────────────
   const init = useCallback(() => {
     const video = videoRef.current;
-    if (!video || !videoUrl) return;
+    if (!video || !src) return;
 
-    // 防止重复初始化（已有 src 或已有 hls 实例）
+    // 防止重复初始化
     if (hlsRef.current) return;
-    if (video.src && !video.src.endsWith("about:blank")) return;
+    if (video.src && !video.src.endsWith("about:blank") && video.src !== window.location.href) return;
 
-    if (isHlsUrl(videoUrl)) {
+    if (isHlsUrl(src)) {
       // ── HLS 分支 ────────────────────────────────────────────────────────────
       if (Hls.isSupported()) {
         const hls = new Hls({
-          // 启动时只加载最低画质，快速首帧
-          startLevel: -1,
-          // 最大缓冲 10s，节省内存与带宽
-          maxBufferLength: 10,
+          startLevel: -1,       // 自动选择起始画质
+          maxBufferLength: 10,  // 最大缓冲 10s，节省内存与带宽
           maxMaxBufferLength: 20,
         });
         hlsRef.current = hls;
 
         hls.on(Hls.Events.ERROR, (_, data) => {
           if (data.fatal) {
-            console.error("[FeedVideo] HLS 致命错误，类型:", data.type, "详情:", data);
+            console.error("[FeedVideo] HLS 致命错误，类型:", data.type, data);
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
                 console.error("[FeedVideo] 网络错误，尝试恢复...");
@@ -116,7 +115,7 @@ export default function FeedVideo({
                 hls.recoverMediaError();
                 break;
               default:
-                console.error("[FeedVideo] 不可恢复错误，销毁 Hls 实例");
+                console.error("[FeedVideo] 不可恢复错误，销毁实例");
                 teardown();
                 break;
             }
@@ -129,32 +128,32 @@ export default function FeedVideo({
           });
         });
 
-        hls.loadSource(videoUrl);
+        hls.loadSource(src);
         hls.attachMedia(video);
-        console.log("[FeedVideo] HLS 初始化，URL:", videoUrl);
+        console.log("[FeedVideo] HLS (hls.js) 初始化，URL:", src);
       } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-        // Safari / iOS 原生支持 HLS
-        video.src = videoUrl;
+        // Safari / iOS 原生 HLS
+        video.src = src;
         video.load();
         video.play().catch((err) => {
           console.error("[FeedVideo] Safari 原生 HLS 自动播放被拦截:", err);
         });
-        console.log("[FeedVideo] Safari 原生 HLS 播放，URL:", videoUrl);
+        console.log("[FeedVideo] HLS (Safari 原生) 播放，URL:", src);
       } else {
-        console.error("[FeedVideo] 当前浏览器不支持 HLS，URL:", videoUrl);
+        console.error("[FeedVideo] 浏览器不支持 HLS，URL:", src);
       }
     } else {
-      // ── 旧 MP4 / 原生格式兼容分支 ───────────────────────────────────────────
-      video.src = videoUrl;
+      // ── MP4 / OSS / 其他原生格式（旧数据无缝兼容）───────────────────────────
+      video.src = src;
       video.load();
       video.play().catch((err) => {
-        console.error("[FeedVideo] MP4 自动播放被拦截:", err);
+        console.error("[FeedVideo] MP4/原生 自动播放被拦截:", err);
       });
-      console.log("[FeedVideo] MP4 原生播放，URL:", videoUrl);
+      console.log("[FeedVideo] 原生 MP4 播放，URL:", src);
     }
-  }, [videoUrl, teardown]);
+  }, [src, teardown]);
 
-  // ── IntersectionObserver：视口进入 → 初始化，视口离开 → 销毁 ──────────────
+  // ── IntersectionObserver：进入视口 → 初始化，离开 → 销毁 ──────────────────
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -174,8 +173,7 @@ export default function FeedVideo({
 
     return () => {
       observer.disconnect();
-      // 组件卸载时强制清理，防止内存泄漏
-      teardown();
+      teardown(); // 组件卸载时强制清理，防止内存泄漏
     };
   }, [init, teardown, visibilityThreshold]);
 
@@ -184,7 +182,7 @@ export default function FeedVideo({
       ref={videoRef}
       className={className}
       style={style}
-      poster={posterUrl}
+      poster={poster}
       muted={muted}
       loop={loop}
       playsInline
