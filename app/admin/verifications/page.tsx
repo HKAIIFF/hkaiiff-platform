@@ -34,25 +34,55 @@ function fmt(s: string | null) {
   return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
 }
 
+interface UserProfile {
+  bio: string | null;
+  about_studio: string | null;
+  tech_stack: string | null;
+  aif_balance: number | null;
+}
+
 function DetailModal({ record, onClose }: { record: VRecord; onClose: () => void }) {
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  useEffect(() => {
+    setProfileLoading(true);
+    fetch(`/api/admin/user-profile?userId=${record.user_id}`)
+      .then(r => r.json())
+      .then(d => setProfile(d.user ?? null))
+      .catch(() => setProfile(null))
+      .finally(() => setProfileLoading(false));
+  }, [record.user_id]);
+
   const typeMap: Record<string, string> = { creator: "創作人", institution: "機構", curator: "策展人" };
   const payMap: Record<string, string> = { fiat: "法幣 Fiat $30", aif: "AIF Token 150枚" };
   const statusMap: Record<string, string> = { pending: "待審核", approved: "已通過", rejected: "已退回" };
 
-  const rows = [
-    { label: "申請 ID", value: record.id },
+  const appRows = [
+    { label: "申請 ID",  value: record.id },
     { label: "認證名稱", value: record.verification_name || "—" },
     { label: "身份類型", value: typeMap[record.identity_type ?? ""] || "—" },
     { label: "支付方式", value: payMap[record.verification_payment_method ?? ""] || "—" },
     { label: "提交時間", value: fmt(record.verification_submitted_at) },
-    { label: "效期至", value: fmt(record.expires_at) },
     { label: "審核狀態", value: statusMap[record.verification_status] || record.verification_status },
-    { label: "退回原因", value: record.rejection_reason || "—" },
-    { label: "原用戶名", value: record.name && record.name !== "New Agent" ? record.name : "—" },
-    { label: "電郵", value: record.email || "—" },
-    { label: "錢包地址", value: record.wallet_address || "—" },
-    { label: "User ID", value: record.user_id },
   ];
+
+  const userRows = [
+    { label: "原用戶名",  value: record.name && record.name !== "New Agent" ? record.name : "—" },
+    { label: "電郵",      value: record.email || "—" },
+    { label: "AIF 餘額", value: profileLoading ? "載入中…" : profile?.aif_balance != null ? `${profile.aif_balance} AIF` : "—" },
+    { label: "錢包地址",  value: record.wallet_address || "—" },
+    { label: "Bio",       value: profileLoading ? "載入中…" : profile?.bio || "—" },
+    { label: "工作室介紹", value: profileLoading ? "載入中…" : profile?.about_studio || "—" },
+    { label: "技術棧",    value: profileLoading ? "載入中…" : profile?.tech_stack || "—" },
+  ];
+
+  const Row = ({ label, value }: { label: string; value: string }) => (
+    <div className="flex gap-3 py-2 border-b border-gray-50 last:border-0">
+      <span className="text-[10px] font-semibold text-gray-400 w-20 shrink-0 pt-0.5 leading-relaxed">{label}</span>
+      <span className="text-xs text-gray-800 break-all leading-relaxed">{value}</span>
+    </div>
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -66,13 +96,14 @@ function DetailModal({ record, onClose }: { record: VRecord; onClose: () => void
           <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">✕</button>
         </div>
         <div className="p-5 overflow-y-auto max-h-[65vh]">
-          <div className="space-y-2">
-            {rows.map(({ label, value }) => (
-              <div key={label} className="flex gap-3 py-2 border-b border-gray-50 last:border-0">
-                <span className="text-[10px] font-semibold text-gray-400 w-20 shrink-0 pt-0.5">{label}</span>
-                <span className="text-xs text-gray-800 break-all">{value}</span>
-              </div>
-            ))}
+          <div className="space-y-0">
+            {appRows.map(r => <Row key={r.label} {...r} />)}
+            <div className="flex items-center gap-2 py-3">
+              <div className="flex-1 h-px bg-gray-100" />
+              <span className="text-[9px] font-semibold text-gray-300 tracking-widest">用戶資料</span>
+              <div className="flex-1 h-px bg-gray-100" />
+            </div>
+            {userRows.map(r => <Row key={r.label} {...r} />)}
           </div>
         </div>
       </div>
