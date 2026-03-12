@@ -42,22 +42,23 @@ async function handleIdentityVerifyPaid(userId: string, identityType?: string, v
   const cleanName = (verificationName ?? '').trim() || null;
 
   // ── 1. UPSERT creator_applications 表（Admin 控制中心讀取此表）────────────
-  // 先查找該 user_id + identity_type 是否有 awaiting_payment 草稿：
-  //   有 → UPDATE status 為 pending（升級草稿）
-  //   無 → INSERT 新記錄（AIF 直接支付時不會預建草稿，必須主動插入）
+  // 查找該 user_id 最新的 awaiting_payment 草稿（不限 identity_type）
+  // 避免因大小寫不一致或 identityType 差異導致找不到草稿，插入失敗被 409 攔截
   const { data: existing } = await adminSupabase
     .from('creator_applications')
-    .select('id')
+    .select('id, identity_type')
     .eq('user_id', userId)
-    .eq('identity_type', resolvedIdentityType)
     .eq('status', 'awaiting_payment')
-    .single();
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (existing) {
     const { error: appErr } = await adminSupabase
       .from('creator_applications')
       .update({
         status: 'pending',
+        identity_type: resolvedIdentityType,
         verification_name: cleanName,
         payment_method: 'aif',
         submitted_at: now,
@@ -67,7 +68,7 @@ async function handleIdentityVerifyPaid(userId: string, identityType?: string, v
     if (appErr) {
       console.error('[verify-aif] creator_applications update failed:', appErr.message);
     } else {
-      console.log(`[verify-aif] Updated creator_application ${existing.id} → pending (AIF)`);
+      console.log(`[verify-aif] Updated creator_application ${existing.id} → pending (AIF, type=${resolvedIdentityType})`);
     }
   } else {
     const { error: insertErr } = await adminSupabase

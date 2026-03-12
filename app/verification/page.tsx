@@ -20,9 +20,11 @@ type VerifyPageState = "A" | "B" | "C";
 
 interface VerificationForm {
   verificationType: VerificationType | null;
+  /** 認證名稱 = users.display_name，全平台唯一 */
   verificationName: string;
-  displayName: string;
   bio: string;
+  aboutStudio: string;
+  techStack: string;
   docUrl: string;
   docFileName: string;
 }
@@ -62,6 +64,47 @@ function StepIndicator({ current, total, labels }: { current: number; total: num
   );
 }
 
+// ── ResubmitWarningModal ──────────────────────────────────────────────────────
+function ResubmitWarningModal({
+  lang,
+  onCancel,
+  onConfirm,
+}: {
+  lang: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onCancel} />
+      <div className="relative z-10 w-full max-w-sm bg-[#0d0d0d] border border-[#333] rounded-2xl p-6 shadow-2xl">
+        <h3 className="text-base font-heavy text-white mb-3">
+          ⚠️ {lang === "zh" ? "重新提交將清除原認證" : "Resubmitting Will Clear Current Verification"}
+        </h3>
+        <p className="text-[11px] font-mono text-gray-400 leading-relaxed mb-6">
+          {lang === "zh"
+            ? "重新提交認證將導致當前認證記錄失效，認證名稱將被釋放，需重新付費審核。確認繼續？"
+            : "Resubmitting will invalidate your current verification record. Your verification name will be released and a new fee will be required. Continue?"}
+        </p>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-2.5 border border-[#333] text-gray-400 font-mono text-xs tracking-widest rounded-xl hover:border-[#555] hover:text-white transition-all"
+          >
+            {lang === "zh" ? "取消" : "Cancel"}
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 py-2.5 bg-red-500/20 border border-red-500/50 text-red-400 font-mono text-xs tracking-widest rounded-xl hover:bg-red-500/30 transition-all"
+          >
+            {lang === "zh" ? "確認，重新提交" : "Confirm & Resubmit"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function VerificationPage() {
@@ -81,21 +124,21 @@ export default function VerificationPage() {
   const [draftApplicationId, setDraftApplicationId] = useState<string | null>(null);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [showResubmitWarning, setShowResubmitWarning] = useState(false);
 
   /** 三態狀態 */
   const [pageState, setPageState] = useState<VerifyPageState>("A");
   /** 審核中 / 已通過的申請列表 */
   const [statusApps, setStatusApps] = useState<IdentityApp[]>([]);
-  /** 已通過的身份列表 */
-  const [verifiedIdentities, setVerifiedIdentities] = useState<string[]>([]);
   /** 已有申請的身份類型（blocked types） */
   const [blockedTypes, setBlockedTypes] = useState<VerificationType[]>([]);
 
   const [form, setForm] = useState<VerificationForm>({
     verificationType: null,
     verificationName: "",
-    displayName: "",
     bio: "",
+    aboutStudio: "",
+    techStack: "",
     docUrl: "",
     docFileName: "",
   });
@@ -111,22 +154,22 @@ export default function VerificationPage() {
     const fetch_ = async () => {
       setIsLoadingBalance(true);
       try {
-        // 取得 AIF 餘額 + verified_identities + display_name + bio
+        // 取得 AIF 餘額 + display_name + bio + about_studio + tech_stack
         const { data: userData } = await supabase
           .from("users")
-          .select("aif_balance, verified_identities, display_name, bio")
+          .select("aif_balance, verified_identities, display_name, bio, about_studio, tech_stack")
           .eq("id", user.id)
           .single();
 
         setAifBalance(userData?.aif_balance ?? 0);
-        const vIds: string[] = userData?.verified_identities ?? [];
-        setVerifiedIdentities(vIds);
 
-        // 用 users 表資料預填表單
+        // 用 users 表資料預填表單（verificationName = display_name）
         setForm((prev) => ({
           ...prev,
-          displayName: userData?.display_name ?? "",
+          verificationName: userData?.display_name ?? "",
           bio: userData?.bio ?? "",
+          aboutStudio: userData?.about_studio ?? "",
+          techStack: userData?.tech_stack ?? "",
         }));
 
         // 查詢最新申請記錄
@@ -141,28 +184,22 @@ export default function VerificationPage() {
         const apps: IdentityApp[] = (existingApps ?? []) as IdentityApp[];
         setStatusApps(apps);
 
-        const blocked: VerificationType[] = [];
-        for (const app of apps) {
-          if (app.status === "awaiting_payment" || app.status === "pending") {
-            blocked.push(app.identity_type);
-          } else if (app.status === "approved") {
-            const isExpired = app.expires_at && app.expires_at < now;
-            if (!isExpired) blocked.push(app.identity_type);
-          }
-        }
-        setBlockedTypes(blocked);
-
-        // 判斷頁面狀態
-        const hasPending = apps.some(
+        // 規則一：只要有任何 pending 或 approved 未過期記錄，整個頁面鎖定
+        const hasAnyPending = apps.some(
           (a) => a.status === "pending" || a.status === "awaiting_payment"
         );
-        const allTypes: VerificationType[] = ["creator", "institution", "curator"];
-        const allApproved = allTypes.every((ty) => vIds.includes(ty));
+        const hasAnyApproved = apps.some(
+          (a) => a.status === "approved" && (!a.expires_at || a.expires_at > now)
+        );
 
-        if (allApproved) {
+        if (hasAnyPending || hasAnyApproved) {
+          setBlockedTypes(["creator", "institution", "curator"]);
+        }
+
+        // 狀態判斷：C = 有已通過未過期；B = 有審核中；A = 無活躍記錄
+        if (hasAnyApproved) {
           setPageState("C");
-          showToast(lang === "zh" ? "您的三種身份均已完成認證" : "All identities verified", "info");
-        } else if (hasPending) {
+        } else if (hasAnyPending) {
           setPageState("B");
         } else {
           setPageState("A");
@@ -187,36 +224,61 @@ export default function VerificationPage() {
       showToast(lang === "zh" ? "請選擇身份類型" : "Please select an identity type", "error");
       return false;
     }
-    if (blockedTypes.includes(form.verificationType)) {
-      showToast(
-        lang === "zh" ? "此身份已有進行中或通過的申請，請勿重複提交" : "You already have an active application for this identity type",
-        "error"
-      );
-      return false;
-    }
     return true;
   }
 
   /**
-   * Step 1 下一步：先將 display_name / bio 保存到 users 表，再進入 Step 2
+   * Step 1 下一步：
+   * 1. 校驗認證名稱全平台唯一性
+   * 2. 將所有字段（display_name / bio / about_studio / tech_stack）UPDATE 到 users 表
+   * 3. 進入 Step 2
    */
   async function handleStep1Next() {
     if (!validateStep1()) return;
-    if (user?.id && (form.displayName || form.bio)) {
-      setIsSavingProfile(true);
-      try {
-        await supabase
-          .from("users")
-          .update({
-            display_name: form.displayName.trim() || null,
-            bio: form.bio.trim() || null,
-          })
-          .eq("id", user.id);
-      } catch (err) {
-        console.error("[verification] failed to save profile:", err);
-      } finally {
-        setIsSavingProfile(false);
-      }
+    if (!user?.id) return;
+
+    const trimmedName = form.verificationName.trim();
+    if (!trimmedName) {
+      showToast(
+        lang === "zh" ? "認證名稱不能為空" : "Verification name is required",
+        "error"
+      );
+      return;
+    }
+
+    // 全平台唯一性校驗
+    const { data: nameCheck } = await supabase
+      .from("users")
+      .select("id")
+      .eq("display_name", trimmedName)
+      .neq("id", user.id)
+      .maybeSingle();
+
+    if (nameCheck) {
+      showToast(
+        lang === "zh"
+          ? "此認證名稱已被其他用戶使用，請更換"
+          : "This name is already taken, please choose another",
+        "error"
+      );
+      return;
+    }
+
+    setIsSavingProfile(true);
+    try {
+      await supabase
+        .from("users")
+        .update({
+          display_name: trimmedName,
+          bio: form.bio.trim() || null,
+          about_studio: form.aboutStudio.trim() || null,
+          tech_stack: form.techStack.trim() || null,
+        })
+        .eq("id", user.id);
+    } catch (err) {
+      console.error("[verification] failed to save profile:", err);
+    } finally {
+      setIsSavingProfile(false);
     }
     setStep(2);
   }
@@ -366,6 +428,22 @@ export default function VerificationPage() {
     }
   }, [authenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── 重新提交：確認後重置表單 ───────────────────────────────────────────────
+
+  function handleResubmitConfirm() {
+    setShowResubmitWarning(false);
+    setPageState("A");
+    setStep(1);
+    setDraftApplicationId(null);
+    setBlockedTypes([]);
+    setForm((prev) => ({
+      ...prev,
+      verificationType: null,
+      docUrl: "",
+      docFileName: "",
+    }));
+  }
+
   if (!ready || !authenticated) return null;
 
   const stepLabels = [t("verify_step1"), t("verify_step2"), t("verify_step3")];
@@ -386,6 +464,13 @@ export default function VerificationPage() {
     );
     return (
       <>
+        {showResubmitWarning && (
+          <ResubmitWarningModal
+            lang={lang}
+            onCancel={() => setShowResubmitWarning(false)}
+            onConfirm={handleResubmitConfirm}
+          />
+        )}
         <div className="fixed top-0 left-0 w-full z-40 bg-void/95 backdrop-blur-sm px-4 pt-12 pb-3 md:hidden">
           <div className="flex justify-between items-center">
             <button
@@ -450,16 +535,14 @@ export default function VerificationPage() {
               </div>
             )}
 
-            {/* 其他未申請的身份 — 仍可申請 */}
-            {blockedTypes.length < 3 && (
-              <button
-                onClick={() => setPageState("A")}
-                className="inline-flex items-center gap-2 px-6 py-2.5 border border-signal/40 text-signal font-mono text-xs tracking-widest rounded-xl hover:bg-signal/10 active:scale-95 transition-all"
-              >
-                <i className="fas fa-plus text-[10px]" />
-                {lang === "zh" ? "申請其他身份認證" : "Apply for another identity"}
-              </button>
-            )}
+            {/* 重新提交按鈕（帶警告） */}
+            <button
+              onClick={() => setShowResubmitWarning(true)}
+              className="inline-flex items-center gap-2 px-6 py-2.5 border border-gray-700 text-gray-500 font-mono text-xs tracking-widest rounded-xl hover:border-red-500/50 hover:text-red-400 active:scale-95 transition-all"
+            >
+              <i className="fas fa-redo text-[10px]" />
+              {lang === "zh" ? "重新提交認證" : "Resubmit Verification"}
+            </button>
 
             <button
               onClick={() => router.replace("/me")}
@@ -474,10 +557,17 @@ export default function VerificationPage() {
     );
   }
 
-  // ── 狀態 C：已通過（所有身份） ───────────────────────────────────────────
+  // ── 狀態 C：已通過 ────────────────────────────────────────────────────────
   if (pageState === "C" && !isLoadingBalance) {
     return (
       <>
+        {showResubmitWarning && (
+          <ResubmitWarningModal
+            lang={lang}
+            onCancel={() => setShowResubmitWarning(false)}
+            onConfirm={handleResubmitConfirm}
+          />
+        )}
         <div className="fixed top-0 left-0 w-full z-40 bg-void/95 backdrop-blur-sm px-4 pt-12 pb-3 md:hidden">
           <div className="flex justify-between items-center">
             <button
@@ -503,12 +593,12 @@ export default function VerificationPage() {
             </div>
             <div className="space-y-3">
               <h2 className="font-heavy text-3xl text-white tracking-wider">
-                {lang === "zh" ? "認證已完成" : "FULLY VERIFIED"}
+                {lang === "zh" ? "認證已完成" : "VERIFIED"}
               </h2>
               <p className="font-mono text-[11px] text-gray-400 tracking-widest leading-relaxed max-w-xs">
                 {lang === "zh"
-                  ? "您的所有身份認證均已通過，以下為已認證的身份資訊（只讀）。"
-                  : "All your identity verifications are approved. The information below is read-only."}
+                  ? "您的身份認證已通過，以下為已認證的身份資訊（只讀）。"
+                  : "Your identity verification is approved. The information below is read-only."}
               </p>
             </div>
 
@@ -539,6 +629,15 @@ export default function VerificationPage() {
                   </div>
                 ))}
             </div>
+
+            {/* 重新提交按鈕（帶警告） */}
+            <button
+              onClick={() => setShowResubmitWarning(true)}
+              className="inline-flex items-center gap-2 px-6 py-2.5 border border-gray-700 text-gray-500 font-mono text-xs tracking-widest rounded-xl hover:border-red-500/50 hover:text-red-400 active:scale-95 transition-all"
+            >
+              <i className="fas fa-redo text-[10px]" />
+              {lang === "zh" ? "重新提交認證" : "Resubmit Verification"}
+            </button>
 
             <button
               onClick={() => router.replace("/me")}
@@ -607,43 +706,35 @@ export default function VerificationPage() {
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {IDENTITY_TYPES.map(({ value, icon }) => {
-                  const isBlocked = blockedTypes.includes(value);
                   const isSelected = form.verificationType === value;
                   return (
                     <button
                       key={value}
-                      onClick={() => !isBlocked && updateForm("verificationType", value)}
-                      disabled={isBlocked}
+                      onClick={() => updateForm("verificationType", value)}
                       className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all relative
-                        ${isBlocked
-                          ? "border-[#222] bg-[#0a0a0a] text-gray-700 cursor-not-allowed opacity-60"
-                          : isSelected
-                            ? "border-signal bg-signal/10 text-signal shadow-[0_0_12px_rgba(204,255,0,0.15)] active:scale-95"
-                            : "border-[#2a2a2a] bg-[#0d0d0d] text-gray-500 hover:border-[#444] active:scale-95"
+                        ${isSelected
+                          ? "border-signal bg-signal/10 text-signal shadow-[0_0_12px_rgba(204,255,0,0.15)] active:scale-95"
+                          : "border-[#2a2a2a] bg-[#0d0d0d] text-gray-500 hover:border-[#444] active:scale-95"
                         }`}
                     >
                       <i className={`fas ${icon} text-xl`} />
                       <span className="text-[10px] font-heavy tracking-wider">
                         {t(`verify_type_${value}`)}
                       </span>
-                      {isBlocked && (
-                        <span className="text-[8px] font-mono text-yellow-500/80 tracking-wider">
-                          審核中
-                        </span>
-                      )}
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            {/* Verification Name */}
+            {/* Verification Name（= Display Name，全平台唯一） */}
             <div>
               <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5">
                 <i className="fas fa-id-badge mr-1 text-signal" />
                 {lang === "zh" ? "認證名稱 (VERIFICATION NAME)" : "VERIFICATION NAME"}
+                <span className="text-red-500 ml-1">*</span>
                 <span className="text-gray-700 ml-2 normal-case tracking-normal text-[9px]">
-                  {lang === "zh" ? "將顯示於認證徽章" : "will appear on verified badge"}
+                  {lang === "zh" ? "即 Display Name，全平台唯一" : "= Display Name, globally unique"}
                 </span>
               </label>
               <input
@@ -661,29 +752,14 @@ export default function VerificationPage() {
               </div>
             </div>
 
-            {/* Display Name */}
-            <div>
-              <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5">
-                <i className="fas fa-user mr-1 text-blue-400" />
-                DISPLAY NAME
-              </label>
-              <input
-                type="text"
-                value={form.displayName}
-                onChange={(e) => updateForm("displayName", e.target.value)}
-                maxLength={50}
-                placeholder={lang === "zh" ? "您的公開顯示名稱..." : "Your public display name..."}
-                className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
-                           outline-none focus:border-signal focus:shadow-[0_0_10px_rgba(204,255,0,0.12)]
-                           placeholder:text-gray-600 transition-all"
-              />
-            </div>
-
             {/* Bio */}
             <div>
               <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5">
                 <i className="fas fa-align-left mr-1 text-purple-400" />
                 BIO
+                <span className="text-gray-700 ml-2 normal-case tracking-normal text-[9px]">
+                  {lang === "zh" ? "選填，最多 200 字" : "optional, max 200 chars"}
+                </span>
               </label>
               <textarea
                 value={form.bio}
@@ -698,6 +774,51 @@ export default function VerificationPage() {
               <div className="text-right text-[9px] font-mono text-gray-600 mt-0.5">
                 {form.bio.length}/200
               </div>
+            </div>
+
+            {/* About Studio */}
+            <div>
+              <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5">
+                <i className="fas fa-building mr-1 text-blue-400" />
+                ABOUT STUDIO
+                <span className="text-gray-700 ml-2 normal-case tracking-normal text-[9px]">
+                  {lang === "zh" ? "工作室簡介，選填" : "optional"}
+                </span>
+              </label>
+              <textarea
+                value={form.aboutStudio}
+                onChange={(e) => updateForm("aboutStudio", e.target.value)}
+                maxLength={400}
+                rows={3}
+                placeholder={lang === "zh" ? "工作室或機構簡介..." : "Studio or organization description..."}
+                className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
+                           outline-none focus:border-signal focus:shadow-[0_0_10px_rgba(204,255,0,0.12)]
+                           placeholder:text-gray-600 transition-all resize-none"
+              />
+              <div className="text-right text-[9px] font-mono text-gray-600 mt-0.5">
+                {form.aboutStudio.length}/400
+              </div>
+            </div>
+
+            {/* Tech Stack */}
+            <div>
+              <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5">
+                <i className="fas fa-code mr-1 text-green-400" />
+                TECH STACK
+                <span className="text-gray-700 ml-2 normal-case tracking-normal text-[9px]">
+                  {lang === "zh" ? "以逗號分隔，選填" : "comma-separated, optional"}
+                </span>
+              </label>
+              <input
+                type="text"
+                value={form.techStack}
+                onChange={(e) => updateForm("techStack", e.target.value)}
+                maxLength={200}
+                placeholder={lang === "zh" ? "例：AI, Unity, Blender, TouchDesigner..." : "e.g. AI, Unity, Blender, TouchDesigner..."}
+                className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
+                           outline-none focus:border-signal focus:shadow-[0_0_10px_rgba(204,255,0,0.12)]
+                           placeholder:text-gray-600 transition-all"
+              />
             </div>
 
             {/* Next Button */}
@@ -810,10 +931,10 @@ export default function VerificationPage() {
                   <span className="text-signal font-mono font-semibold">{form.verificationName}</span>
                 </div>
               )}
-              {form.displayName && (
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-gray-600 font-mono w-24 shrink-0">DISPLAY</span>
-                  <span className="text-white font-mono">{form.displayName}</span>
+              {form.bio && (
+                <div className="flex items-start gap-2 text-xs">
+                  <span className="text-gray-600 font-mono w-24 shrink-0">BIO</span>
+                  <span className="text-gray-400 font-mono line-clamp-2">{form.bio}</span>
                 </div>
               )}
             </div>
@@ -874,9 +995,7 @@ export default function VerificationPage() {
               label={lang === "zh" ? "SECURE PAY · 立即支付" : "SECURE PAY · VERIFY NOW"}
               className="w-full justify-center py-4 text-base rounded-2xl"
               successUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/success?type=creator_verification&amount=150&currency=AIF&name=${encodeURIComponent('創作者身份認證')}`}
-              onSuccess={() => {
-                // AIF 支付由後端 /api/pay/internal-checkout 直接寫入 creator_applications。
-                // 前端只需清除草稿並切換至審核中狀態，不再重複呼叫 submitVerification。
+              onSuccess={async () => {
                 localStorage.removeItem("pending_verification");
                 setPageState("B");
                 showToast(
