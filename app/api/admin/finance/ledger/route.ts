@@ -51,7 +51,7 @@ export async function GET(req: Request) {
     let caRows: any[] = [];
     let caQuery = adminSupabase
       .from('creator_applications')
-      .select('id, user_id, identity_type, payment_method, payment_session, submitted_at, status')
+      .select('id, user_id, identity_type, payment_method, payment_session, submitted_at, status, amount')
       .in('status', ['pending', 'approved', 'rejected'])
       .order('submitted_at', { ascending: false });
     if (startDate) caQuery = caQuery.gte('submitted_at', new Date(startDate).toISOString());
@@ -97,7 +97,7 @@ export async function GET(req: Request) {
       tx_type: 'identity_verification',
       tx_hash: null,
       stripe_session_id: r.payment_session,
-      amount: r.payment_method === 'fiat' ? 30 : 150,
+      amount: r.amount ?? (r.payment_method === 'fiat' ? 30 : 150),
       currency: r.payment_method === 'fiat' ? 'USD' : 'AIF',
       payment_method: r.payment_method,
       status: r.status,

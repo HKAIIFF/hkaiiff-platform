@@ -1500,12 +1500,24 @@ interface LedgerApiResponse {
   error?: string;
 }
 
+const TX_TYPE_LABEL: Record<string, string> = {
+  submission_fee: "參展報名費",
+  identity_verification: "身份認證費",
+  lbs_hosting: "LBS影展託管費",
+  aif_topup: "AIF充值",
+  aif_withdraw: "AIF提現",
+  platform_fee: "平台服務費",
+};
+
 function FinanceModule({ t, pushToast }: SharedProps) {
   const [sub, setSub] = useState<"ledger" | "treasury" | "settlement">("ledger");
   const [ledgerLoading, setLedgerLoading] = useState(false);
   const [ledgerData, setLedgerData] = useState<LedgerRow[]>([]);
   const [ledgerSummary, setLedgerSummary] = useState({ total_usd: 0, total_aif: 0, total_tx: 0 });
   const [ledgerError, setLedgerError] = useState<string | null>(null);
+  const [ledgerSearch, setLedgerSearch] = useState("");
+  const [ledgerStatusFilter, setLedgerStatusFilter] = useState<"" | "success" | "pending" | "failed">("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const settlements = [
     { id: "W-001", role: "Curator", amount: "$1,200 / 6,000 AIF", status: "pending" },
@@ -1531,6 +1543,35 @@ function FinanceModule({ t, pushToast }: SharedProps) {
       })
       .finally(() => setLedgerLoading(false));
   }, [sub]);
+
+  const copyToClipboard = (value: string, key: string) => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopiedId(key);
+      setTimeout(() => setCopiedId(null), 1500);
+    }).catch(() => {});
+  };
+
+  const vLedgerData = useMemo(() => {
+    const successStatuses = ["success", "approved", "paid"];
+    const pendingStatuses = ["pending", "awaiting_payment"];
+    const failedStatuses = ["failed", "rejected", "cancelled"];
+    let rows = ledgerData;
+    if (ledgerStatusFilter === "success") rows = rows.filter(r => successStatuses.includes(r.status ?? ""));
+    else if (ledgerStatusFilter === "pending") rows = rows.filter(r => pendingStatuses.includes(r.status ?? ""));
+    else if (ledgerStatusFilter === "failed") rows = rows.filter(r => failedStatuses.includes(r.status ?? ""));
+    if (ledgerSearch.trim()) {
+      const q = ledgerSearch.trim().toLowerCase();
+      rows = rows.filter(r =>
+        (r.id ?? "").toLowerCase().includes(q) ||
+        (r.user_id ?? "").toLowerCase().includes(q) ||
+        (r.user_email ?? "").toLowerCase().includes(q) ||
+        (r.tx_type ?? "").toLowerCase().includes(q) ||
+        String(r.amount ?? "").toLowerCase().includes(q) ||
+        (r.currency ?? "").toLowerCase().includes(q)
+      );
+    }
+    return rows;
+  }, [ledgerData, ledgerSearch, ledgerStatusFilter]);
 
   return (
     <div>
@@ -1569,6 +1610,28 @@ function FinanceModule({ t, pushToast }: SharedProps) {
             </div>
           )}
 
+          {/* 篩選條件 */}
+          <div className="flex flex-wrap gap-3 items-center">
+            <input
+              type="text"
+              value={ledgerSearch}
+              onChange={e => setLedgerSearch(e.target.value)}
+              placeholder="搜索 TX ID / 用戶 / 金額 / 業務類型"
+              className="flex-1 min-w-[220px] rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+            />
+            <select
+              value={ledgerStatusFilter}
+              onChange={e => setLedgerStatusFilter(e.target.value as "" | "success" | "pending" | "failed")}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+            >
+              <option value="">全部狀態</option>
+              <option value="success">已付款</option>
+              <option value="pending">待付款</option>
+              <option value="failed">失敗</option>
+            </select>
+            <span className="text-xs text-gray-400">{vLedgerData.length} 筆</span>
+          </div>
+
           {/* 數據表格 */}
           <div className={`${CARD} overflow-hidden`}>
             {ledgerLoading ? (
@@ -1579,7 +1642,7 @@ function FinanceModule({ t, pushToast }: SharedProps) {
                   <thead>
                     <tr className="bg-gray-50 border-b border-gray-200">
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">交易時間</th>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">交易單號 / 憑證</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">交易單號</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">付款用戶</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">業務類型</th>
                       <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">支付方式</th>
@@ -1588,68 +1651,97 @@ function FinanceModule({ t, pushToast }: SharedProps) {
                     </tr>
                   </thead>
                   <tbody>
-                    {ledgerData.length === 0 ? (
+                    {vLedgerData.length === 0 ? (
                       <tr>
                         <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">
                           {ledgerError ? "資料加載失敗，請查看上方錯誤詳情" : "暫無財務流水記錄"}
                         </td>
                       </tr>
                     ) : (
-                      ledgerData.map((row) => {
-                        // 業務類型友好名稱
-                        const txTypeLabel: Record<string, string> = {
-                          submission_fee: "參展作品提交",
-                          creator_cert: "身份認證審核",
-                          lbs_license: "LBS 節點授權",
-                          aif_topup: "AIF 充值",
-                          sweep: "資金歸集",
-                          funding: "資金歸集",
-                          dust_sweep: "零錢歸集",
-                          product_purchase: "產品購買",
-                        };
-                        const txLabel = row.tx_type ? (txTypeLabel[row.tx_type] ?? row.tx_type) : "—";
+                      vLedgerData.map((row) => {
+                        const txLabel = row.tx_type ? (TX_TYPE_LABEL[row.tx_type] ?? row.tx_type) : "—";
 
-                        // 凭证号（优先链上哈希，其次 Stripe session）
-                        const voucher = row.tx_hash ?? row.stripe_session_id ?? null;
-                        const voucherShort = voucher
-                          ? `${voucher.slice(0, 8)}…${voucher.slice(-6)}`
-                          : "—";
-
-                        // 支付方式判断
                         const isAif = row.currency?.toUpperCase() === "AIF" || row.payment_method?.toLowerCase() === "aif";
                         const isStripe = row.payment_method?.toLowerCase() === "stripe" || (!isAif && row.currency?.toUpperCase() === "USD");
 
-                        // 金额格式化
                         const amountDisplay = row.amount != null
                           ? isAif
                             ? `${(Number(row.amount) || 0).toLocaleString()} AIF`
                             : `$ ${(Number(row.amount) || 0).toFixed(2)}`
                           : "—";
 
-                        // 状态颜色
-                        const statusStyle =
-                          row.status === "success" || row.status === "completed"
-                            ? "bg-green-100 text-green-700"
-                            : row.status === "failed"
-                            ? "bg-red-100 text-red-700"
-                            : "bg-yellow-100 text-yellow-700";
-                        const statusLabel =
-                          row.status === "success" || row.status === "completed"
-                            ? "成功"
-                            : row.status === "failed"
-                            ? "失敗"
-                            : row.status ?? "—";
+                        const txIdFull = row.id ?? "";
+                        const txIdShort = txIdFull ? `${txIdFull.slice(0, 8)}…` : "—";
+
+                        const userFull = row.user_email ?? row.user_id ?? "";
+                        const userShort = row.user_email ?? (row.user_id ? `${row.user_id.slice(0, 12)}…` : "—");
+
+                        const st = row.status ?? "";
+                        const isSuccess = ["success", "approved", "paid"].includes(st);
+                        const isPending = ["pending", "awaiting_payment"].includes(st);
+                        const isFailed = ["failed", "rejected", "cancelled"].includes(st);
+
+                        const statusStyle = isSuccess
+                          ? "bg-green-50 border border-green-200 text-green-700"
+                          : isFailed
+                          ? "bg-red-50 border border-red-200 text-red-600"
+                          : isPending
+                          ? "bg-yellow-50 border border-yellow-200 text-yellow-700"
+                          : "bg-gray-100 text-gray-600";
+
+                        const statusLabel = isSuccess
+                          ? "已付款"
+                          : st === "pending" || st === "awaiting_payment"
+                          ? "待付款"
+                          : st === "failed"
+                          ? "失敗"
+                          : st === "rejected"
+                          ? "已退回"
+                          : st || "—";
+
+                        const CopyIcon = () => (
+                          <svg className="w-3 h-3 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                          </svg>
+                        );
 
                         return (
                           <tr key={row.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
                             <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
                               {new Date(row.created_at).toLocaleString("zh-HK", { hour12: false })}
                             </td>
-                            <td className="px-4 py-3 font-mono text-xs text-gray-500" title={voucher ?? undefined}>
-                              {voucherShort}
+                            <td className="px-4 py-3 font-mono text-xs text-gray-500 whitespace-nowrap">
+                              {txIdShort}
+                              {txIdFull && (
+                                <button
+                                  onClick={() => copyToClipboard(txIdFull, `tx_${txIdFull}`)}
+                                  className="ml-1 text-gray-300 hover:text-gray-600 transition-colors"
+                                  title={copiedId === `tx_${txIdFull}` ? "已複製" : "複製"}
+                                >
+                                  {copiedId === `tx_${txIdFull}` ? (
+                                    <span className="text-green-500 text-[10px]">✓</span>
+                                  ) : (
+                                    <CopyIcon />
+                                  )}
+                                </button>
+                              )}
                             </td>
-                            <td className="px-4 py-3 text-gray-700 max-w-[180px] truncate" title={row.user_email ?? row.user_id ?? undefined}>
-                              {row.user_email ?? (row.user_id ? `${row.user_id.slice(0, 12)}…` : "—")}
+                            <td className="px-4 py-3 text-gray-700 text-xs max-w-[180px] truncate whitespace-nowrap">
+                              {userShort}
+                              {userFull && (
+                                <button
+                                  onClick={() => copyToClipboard(userFull, `user_${row.id}`)}
+                                  className="ml-1 text-gray-300 hover:text-gray-600 transition-colors"
+                                  title={copiedId === `user_${row.id}` ? "已複製" : "複製"}
+                                >
+                                  {copiedId === `user_${row.id}` ? (
+                                    <span className="text-green-500 text-[10px]">✓</span>
+                                  ) : (
+                                    <CopyIcon />
+                                  )}
+                                </button>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{txLabel}</td>
                             <td className="px-4 py-3 whitespace-nowrap">
