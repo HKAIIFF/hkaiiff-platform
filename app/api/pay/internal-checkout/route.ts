@@ -44,7 +44,7 @@ async function handleIdentityVerifyPaid(userId: string, identityType?: string, v
     .select('id, identity_type')
     .eq('user_id', userId)
     .eq('status', 'awaiting_payment')
-    .order('created_at', { ascending: false })
+    .order('submitted_at', { ascending: false })
     .limit(1)
     .maybeSingle();
 
