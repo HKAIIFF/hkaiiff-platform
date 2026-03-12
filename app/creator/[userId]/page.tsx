@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import IdentityBadges from "@/app/components/IdentityBadges";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -20,6 +21,7 @@ interface CreatorProfile {
   bio: string | null;
   tech_stack: string | null;
   core_team: TeamMember[] | null;
+  verified_identities: string[];
 }
 
 interface ApprovedFilm {
@@ -96,7 +98,7 @@ export default function CreatorPage() {
       const [profileRes, filmsRes] = await Promise.all([
         supabase
           .from("users")
-          .select("id, display_name, name, avatar_seed, bio, tech_stack, core_team")
+          .select("id, display_name, name, avatar_seed, bio, tech_stack, core_team, verified_identities")
           .eq("id", userId)
           .single(),
         supabase
@@ -213,9 +215,13 @@ export default function CreatorPage() {
           />
         </div>
 
-        <h1 className="font-bold text-3xl text-white mb-1 flex items-center gap-2 uppercase tracking-wide">
+        <h1 className="font-bold text-3xl text-white mb-1 flex flex-wrap items-center gap-2 uppercase tracking-wide">
           {displayName}
-          <i className="fas fa-check-circle text-signal text-xl" />
+          {/* 多重身份 V 標誌 */}
+          <IdentityBadges
+            verifiedIdentities={profile.verified_identities ?? []}
+            variant="icon"
+          />
         </h1>
 
         {/* Stats row */}

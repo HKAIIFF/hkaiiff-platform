@@ -11,7 +11,10 @@ interface TeamMember {
 }
 
 interface VerificationRecord {
+  /** identity_applications.id（新版主鍵，用於審核 API） */
   id: string;
+  /** users.id（用戶唯一識別碼） */
+  user_id: string;
   display_name: string | null;
   name: string | null;
   agent_id: string | null;
@@ -20,8 +23,10 @@ interface VerificationRecord {
   wallet_address: string | null;
   verification_status: "pending" | "approved" | "rejected";
   verification_type: "creator" | "institution" | "curator" | null;
+  identity_type: "creator" | "institution" | "curator" | null;
   verification_payment_method: "fiat" | "aif" | null;
   verification_submitted_at: string | null;
+  expires_at: string | null;
   bio: string | null;
   tech_stack: string | null;
   core_team: TeamMember[] | null;
@@ -351,12 +356,13 @@ function RejectModal({
 
 const TABLE_HEADERS = [
   { label: "提交時間", w: "w-[120px]" },
-  { label: "流水號",   w: "w-[130px]" },
+  { label: "申請 ID",  w: "w-[130px]" },
   { label: "支付方式", w: "w-[90px]" },
   { label: "原用戶名", w: "w-[100px]" },
   { label: "認證名稱", w: "w-[130px]" },
   { label: "資料池",   w: "w-[140px]" },
   { label: "身份類型", w: "w-[80px]" },
+  { label: "效期",     w: "w-[100px]" },
   { label: "狀態",     w: "w-[80px]" },
   { label: "操作",     w: "w-[110px]" },
 ] as const;
@@ -413,7 +419,7 @@ export default function AdminVerificationsPage() {
       const res = await fetch("/api/admin/verifications/review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: record.id, action: "approve" }),
+        body: JSON.stringify({ applicationId: record.id, action: "approve" }),
       });
       if (res.ok) {
         showToast("✓ 已通過審核，站內信已發送", true);
@@ -435,7 +441,7 @@ export default function AdminVerificationsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: rejectTarget.id,
+          applicationId: rejectTarget.id,
           action: "reject",
           rejectionReason: reason,
         }),
@@ -744,15 +750,30 @@ export default function AdminVerificationsPage() {
 
                       {/* 7. 身份類型 */}
                       <td className="px-4 py-3 whitespace-nowrap">
-                        <TypeBadge type={record.verification_type} />
+                        <TypeBadge type={record.identity_type ?? record.verification_type} />
                       </td>
 
-                      {/* 8. 狀態 */}
+                      {/* 8. 效期 */}
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {record.expires_at ? (
+                          <span className={`text-[10px] font-mono ${
+                            new Date(record.expires_at) > new Date()
+                              ? 'text-green-600'
+                              : 'text-red-500'
+                          }`}>
+                            {formatSubmitDate(record.expires_at)}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300 text-[10px]">—</span>
+                        )}
+                      </td>
+
+                      {/* 10. 狀態 */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         <StatusBadge status={record.verification_status} />
                       </td>
 
-                      {/* 9. 操作 */}
+                      {/* 11. 操作 */}
                       <td className="px-4 py-3 whitespace-nowrap">
                         {isPending ? (
                           <div className="flex items-center gap-1.5">

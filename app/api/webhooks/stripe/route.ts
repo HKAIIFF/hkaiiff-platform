@@ -134,50 +134,88 @@ async function handleFilmEntryPaid(
   }).catch((e) => console.error('[stripe/webhook] sendMessage failed:', e));
 }
 
-/** 创作者认证费支付成功 → users.verification_status = 'pending' */
+/**
+ * 身份認證費支付成功（Stripe）
+ *
+ * 優先更新 identity_applications 表（新版多重身份架構）：
+ *  找到該用戶最新的 awaiting_payment 記錄，升級為 pending
+ *
+ * 同時兼容舊版 users 表欄位，確保舊數據不丟失
+ */
 async function handleVerificationPaid(
   db: ReturnType<typeof getAdminClient>,
   userId: string,
   sessionId: string
 ): Promise<void> {
+  // ── 新版：更新 identity_applications 表 ──────────────────────────────────────
+  const { data: draftApps } = await db
+    .from('identity_applications')
+    .select('id, identity_type, status')
+    .eq('user_id', userId)
+    .eq('status', 'awaiting_payment')
+    .order('submitted_at', { ascending: false })
+    .limit(1);
+
+  const draft = draftApps?.[0];
+
+  if (draft) {
+    const { error: appErr } = await db
+      .from('identity_applications')
+      .update({
+        status: 'pending',
+        payment_method: 'fiat',
+        payment_session: sessionId,
+      })
+      .eq('id', draft.id);
+
+    if (appErr) {
+      console.error('[stripe/webhook] identity_applications update failed:', appErr.message);
+      throw new Error(appErr.message);
+    }
+    console.log(`[stripe/webhook] Updated identity_application ${draft.id} to pending`);
+  } else {
+    // 未找到草稿（例如用戶直接訪問 Stripe 鏈接），仍創建一條 pending 記錄
+    console.warn(`[stripe/webhook] No awaiting_payment application found for user ${userId}, creating fallback record`);
+    await db
+      .from('identity_applications')
+      .insert({
+        user_id: userId,
+        identity_type: 'creator', // 預設身份類型，Admin 可後續修正
+        status: 'pending',
+        payment_method: 'fiat',
+        payment_session: sessionId,
+        submitted_at: new Date().toISOString(),
+      })
+      .select('id')
+      .single();
+  }
+
+  // ── 兼容舊版：同步更新 users 表 ────────────────────────────────────────────
   const { data: user } = await db
     .from('users')
     .select('id, verification_status')
     .eq('id', userId)
-    .single();
+    .maybeSingle();
 
-  if (!user) {
-    console.error(`[stripe/webhook] User ${userId} not found`);
-    return;
-  }
-
-  // 幂等守卫：已提交过则跳过
-  if (user.verification_status === 'pending' || user.verification_status === 'approved') {
-    console.log(`[stripe/webhook] User ${userId} verification already ${user.verification_status}`);
-    return;
-  }
-
-  const { error } = await db
-    .from('users')
-    .update({
-      verification_payment_method: 'fiat',
-      verification_payment_session: sessionId,
-      // 只有在未开始认证时才推进状态
-      ...(user.verification_status === 'unverified' ? { verification_status: 'pending' } : {}),
-    })
-    .eq('id', userId);
-
-  if (error) {
-    console.error('[stripe/webhook] Verification update failed:', error.message);
-    throw new Error(error.message);
+  if (user && user.verification_status === 'unverified') {
+    await db
+      .from('users')
+      .update({
+        verification_payment_method: 'fiat',
+        verification_payment_session: sessionId,
+        verification_status: 'pending',
+        verification_type: draft?.identity_type ?? 'creator',
+        verification_submitted_at: new Date().toISOString(),
+      })
+      .eq('id', userId);
   }
 
   await sendMessage({
     userId,
     type: 'system',
-    title: '創作者認證費支付成功',
-    content: '您的認證費 $30 USD 已通過 Stripe 確認。我們的人工審核團隊將在 3-5 個工作日內完成身份資質審核，結果將通過站內信通知您。',
-    actionLink: '/verification',
+    title: '身份認證費支付成功',
+    content: '您的認證費已通過 Stripe 確認。我們的人工審核團隊將在 3-5 個工作日內完成身份資質審核，結果將通過站內信通知您。',
+    actionLink: '/me',
   }).catch((e) => console.error('[stripe/webhook] sendMessage failed:', e));
 }
 
