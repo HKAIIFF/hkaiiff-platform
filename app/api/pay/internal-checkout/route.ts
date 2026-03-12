@@ -71,8 +71,6 @@ async function handleIdentityVerifyPaid(userId: string, identityType?: string): 
         user_id: userId,
         identity_type: resolvedIdentityType,
         status: 'pending',
-        payment_method: 'aif',
-        submitted_at: now,
       });
 
     if (insertErr) {

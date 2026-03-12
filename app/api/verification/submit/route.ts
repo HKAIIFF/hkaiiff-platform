@@ -146,13 +146,6 @@ export async function POST(req: NextRequest) {
       user_id: userId,
       identity_type: verificationType,
       status: targetStatus,
-      bio: bio || null,
-      tech_stack: techStack || null,
-      core_team: filteredTeam.length > 0 ? filteredTeam : null,
-      portfolio: portfolio || null,
-      doc_url: docUrl || null,
-      payment_method: paymentMethod,
-      submitted_at: now,
     })
     .select('id')
     .single();

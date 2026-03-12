@@ -188,9 +188,6 @@ async function handleVerificationPaid(
         user_id: userId,
         identity_type: resolvedType,
         status: 'pending',
-        payment_method: 'fiat',
-        payment_session: sessionId,
-        submitted_at: new Date().toISOString(),
       });
     if (insertErr) {
       console.error('[stripe/webhook] creator_applications insert failed:', insertErr.message);
