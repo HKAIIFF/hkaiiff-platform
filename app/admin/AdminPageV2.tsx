@@ -81,7 +81,7 @@ const DICT = {
     aiBriefing: "AI 全球簡報（Mock 100 條）",
     pendingFilms: "待審核影片",
     pendingWithdraw: "待處理提現",
-    reviewTabs: ["參展作品審核", "LBS 影展審核", "身份與資質審核 (KYC)"],
+    reviewTabs: ["參展作品審核", "LBS 影展審核", "身份認證審核 (KYC)"],
     approve: "通過",
     reject: "拒絕",
     reason: "駁回原因",
@@ -403,12 +403,12 @@ function VerificationsPanel() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/verifications?status=${tab}`);
+      const res = await fetch(`/api/admin/verifications?status=all`);
       const data = await res.json();
       setRecords(data.verifications ?? []);
     } catch { showToast("載入失敗", false); }
     finally { setLoading(false); }
-  }, [tab]);
+  }, []);
 
   useEffect(() => { load(); }, [load]);
 
@@ -487,7 +487,7 @@ function VerificationsPanel() {
       {/* Table */}
       {loading ? (
         <div className="flex justify-center py-16"><div className="flex gap-1">{[0,1,2].map(i=><span key={i} className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay:`${i*0.12}s`}}/>)}</div></div>
-      ) : records.length===0 ? (
+      ) : records.filter(r=>tab==="all"||r.verification_status===tab).length===0 ? (
         <div className="flex justify-center py-16"><p className="text-sm text-gray-400">暫無審核記錄</p></div>
       ) : (
         <div className="bg-white rounded-2xl border overflow-x-auto">
@@ -498,11 +498,11 @@ function VerificationsPanel() {
               ))}
             </tr></thead>
             <tbody>
-              {records.map((r,i)=>{
+              {records.filter(r=>tab==="all"||r.verification_status===tab).map((r,i,arr)=>{
                 const tc=TYPE_MAP[r.identity_type??""];
                 const pc=PAY_MAP[r.verification_payment_method??""];
                 return (
-                  <tr key={r.id} className={`hover:bg-gray-50 ${i<records.length-1?"border-b":""}`}>
+                  <tr key={r.id} className={`hover:bg-gray-50 ${i<arr.length-1?"border-b":""}`}>
                     <td className="px-4 py-3 text-[11px] text-gray-500 font-mono whitespace-nowrap">{fmt(r.verification_submitted_at)}</td>
                     <td className="px-4 py-3">
                       <div className="text-xs font-semibold text-gray-900">{r.verification_name||"—"}</div>
@@ -1896,7 +1896,7 @@ export default function AdminPageV2() {
               href="/admin/verifications"
               className="w-full text-left rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 border border-transparent flex items-center justify-between group"
             >
-              <span>{lang === "zh" ? "身份資質審核" : "ID Verifications"}</span>
+              <span>{lang === "zh" ? "身份認證審核" : "ID Verifications"}</span>
               <span className="text-[10px] font-mono text-orange-500 bg-orange-50 border border-orange-100 px-1.5 py-0.5 rounded-full group-hover:bg-orange-100 transition-colors">NEW</span>
             </a>
           </nav>
@@ -1942,7 +1942,7 @@ export default function AdminPageV2() {
                   href="/admin/verifications"
                   className="w-full text-left rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 border border-transparent flex items-center justify-between group"
                 >
-                  <span>{lang === "zh" ? "身份資質審核" : "ID Verifications"}</span>
+                  <span>{lang === "zh" ? "身份認證審核" : "ID Verifications"}</span>
                   <span className="text-[10px] font-mono text-orange-500 bg-orange-50 border border-orange-100 px-1.5 py-0.5 rounded-full">NEW</span>
                 </a>
               </nav>
