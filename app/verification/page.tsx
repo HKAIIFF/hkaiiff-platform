@@ -14,14 +14,15 @@ import { useProduct } from "@/lib/hooks/useProduct";
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type VerificationType = "creator" | "institution" | "curator";
-type TeamMember = { name: string; role: string };
 
-/** 三態：A=未提交 B=審核中 C=已通過（對應某個 identity_type） */
+/** 三態：A=未提交 B=審核中 C=已通過 */
 type VerifyPageState = "A" | "B" | "C";
 
 interface VerificationForm {
   verificationType: VerificationType | null;
   verificationName: string;
+  displayName: string;
+  bio: string;
   docUrl: string;
   docFileName: string;
 }
@@ -77,9 +78,9 @@ export default function VerificationPage() {
   const [aifBalance, setAifBalance] = useState(0);
   const [isLoadingBalance, setIsLoadingBalance] = useState(true);
   const [isDocUploading, setIsDocUploading] = useState(false);
-  /** 保存草稿後的 applicationId */
   const [draftApplicationId, setDraftApplicationId] = useState<string | null>(null);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   /** 三態狀態 */
   const [pageState, setPageState] = useState<VerifyPageState>("A");
@@ -93,6 +94,8 @@ export default function VerificationPage() {
   const [form, setForm] = useState<VerificationForm>({
     verificationType: null,
     verificationName: "",
+    displayName: "",
+    bio: "",
     docUrl: "",
     docFileName: "",
   });
@@ -102,21 +105,29 @@ export default function VerificationPage() {
     if (ready && !authenticated) router.replace("/");
   }, [ready, authenticated, router]);
 
-  // 加載 AIF 餘額 + 申請狀態
+  // 加載 AIF 餘額、用戶資料、申請狀態
   useEffect(() => {
     if (!authenticated || !user?.id) return;
     const fetch_ = async () => {
       setIsLoadingBalance(true);
       try {
-        // 取得 AIF 餘額 + verified_identities
+        // 取得 AIF 餘額 + verified_identities + display_name + bio
         const { data: userData } = await supabase
           .from("users")
-          .select("aif_balance, verified_identities")
+          .select("aif_balance, verified_identities, display_name, bio")
           .eq("id", user.id)
           .single();
+
         setAifBalance(userData?.aif_balance ?? 0);
         const vIds: string[] = userData?.verified_identities ?? [];
         setVerifiedIdentities(vIds);
+
+        // 用 users 表資料預填表單
+        setForm((prev) => ({
+          ...prev,
+          displayName: userData?.display_name ?? "",
+          bio: userData?.bio ?? "",
+        }));
 
         // 查詢最新申請記錄
         const now = new Date().toISOString();
@@ -146,18 +157,15 @@ export default function VerificationPage() {
           (a) => a.status === "pending" || a.status === "awaiting_payment"
         );
         const allTypes: VerificationType[] = ["creator", "institution", "curator"];
-        const allApproved = allTypes.every((t) => vIds.includes(t));
+        const allApproved = allTypes.every((ty) => vIds.includes(ty));
 
         if (allApproved) {
           setPageState("C");
+          showToast(lang === "zh" ? "您的三種身份均已完成認證" : "All identities verified", "info");
         } else if (hasPending) {
           setPageState("B");
         } else {
           setPageState("A");
-        }
-
-        if (allApproved) {
-          showToast(lang === "zh" ? "您的三種身份均已完成認證" : "All identities verified", "info");
         }
       } finally {
         setIsLoadingBalance(false);
@@ -187,6 +195,30 @@ export default function VerificationPage() {
       return false;
     }
     return true;
+  }
+
+  /**
+   * Step 1 下一步：先將 display_name / bio 保存到 users 表，再進入 Step 2
+   */
+  async function handleStep1Next() {
+    if (!validateStep1()) return;
+    if (user?.id && (form.displayName || form.bio)) {
+      setIsSavingProfile(true);
+      try {
+        await supabase
+          .from("users")
+          .update({
+            display_name: form.displayName.trim() || null,
+            bio: form.bio.trim() || null,
+          })
+          .eq("id", user.id);
+      } catch (err) {
+        console.error("[verification] failed to save profile:", err);
+      } finally {
+        setIsSavingProfile(false);
+      }
+    }
+    setStep(2);
   }
 
   // ── OSS Document Upload ────────────────────────────────────────────────────
@@ -231,7 +263,8 @@ export default function VerificationPage() {
   }
 
   /**
-   * 提交認證申請（AIF 支付成功後 or Stripe 回調後）
+   * 提交認證申請（僅用於 Stripe fiat 支付回調）
+   * AIF 支付由後端 /api/pay/internal-checkout 直接寫入，前端只需更新狀態。
    */
   async function submitVerification(paymentMethod: "fiat" | "aif", token: string) {
     const res = await fetch("/api/verification/submit", {
@@ -254,12 +287,11 @@ export default function VerificationPage() {
       return;
     }
     showToast(t("verify_success"), "success");
-    // 更新狀態為 B（審核中）
     setPageState("B");
   }
 
   /**
-   * 進入 Step 2 時，先保存草稿（fiat 支付流程）
+   * 進入 Step 2 時，先保存草稿（fiat 支付流程預建草稿，Stripe Webhook 升級狀態用）
    */
   useEffect(() => {
     if (step !== 2 || !authenticated || !user?.id || isSavingDraft || draftApplicationId) return;
@@ -323,6 +355,7 @@ export default function VerificationPage() {
           lang === "zh" ? "支付成功！您的認證申請已提交。" : "Payment successful! Your verification has been submitted.",
           "success"
         );
+        setPageState("B");
       }
     } else if (stripeCancelled === "1") {
       router.replace("/verification", { scroll: false });
@@ -337,13 +370,14 @@ export default function VerificationPage() {
 
   const stepLabels = [t("verify_step1"), t("verify_step2"), t("verify_step3")];
 
-  const IDENTITY_TYPES: Array<{ value: VerificationType; icon: string; color: string }> = [
-    { value: "creator", icon: "fa-film", color: "signal" },
-    { value: "institution", icon: "fa-building", color: "blue-400" },
-    { value: "curator", icon: "fa-palette", color: "purple-400" },
+  const IDENTITY_TYPES: Array<{ value: VerificationType; icon: string }> = [
+    { value: "creator", icon: "fa-film" },
+    { value: "institution", icon: "fa-building" },
+    { value: "curator", icon: "fa-palette" },
   ];
 
-  const typeLabel = (t_: string) => ({ creator: "創作人", institution: "機構", curator: "策展人" }[t_] ?? t_);
+  const typeLabel = (ty: string) =>
+    ({ creator: "創作人", institution: "機構", curator: "策展人" }[ty] ?? ty);
 
   // ── 狀態 B：審核中 ────────────────────────────────────────────────────────
   if (pageState === "B" && !isLoadingBalance) {
@@ -562,7 +596,7 @@ export default function VerificationPage() {
         {/* Step Indicator */}
         {step < 3 && <StepIndicator current={step} total={3} labels={stepLabels} />}
 
-        {/* ═══ STEP 1: Identity Type + Verification Name ════════════════════ */}
+        {/* ═══ STEP 1: Identity + Profile Info ══════════════════════════════ */}
         {step === 1 && (
           <div className="space-y-5 animate-in fade-in duration-300">
 
@@ -627,14 +661,62 @@ export default function VerificationPage() {
               </div>
             </div>
 
+            {/* Display Name */}
+            <div>
+              <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5">
+                <i className="fas fa-user mr-1 text-blue-400" />
+                DISPLAY NAME
+              </label>
+              <input
+                type="text"
+                value={form.displayName}
+                onChange={(e) => updateForm("displayName", e.target.value)}
+                maxLength={50}
+                placeholder={lang === "zh" ? "您的公開顯示名稱..." : "Your public display name..."}
+                className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
+                           outline-none focus:border-signal focus:shadow-[0_0_10px_rgba(204,255,0,0.12)]
+                           placeholder:text-gray-600 transition-all"
+              />
+            </div>
+
+            {/* Bio */}
+            <div>
+              <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5">
+                <i className="fas fa-align-left mr-1 text-purple-400" />
+                BIO
+              </label>
+              <textarea
+                value={form.bio}
+                onChange={(e) => updateForm("bio", e.target.value)}
+                maxLength={200}
+                rows={3}
+                placeholder={lang === "zh" ? "簡短介紹自己..." : "Brief introduction..."}
+                className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
+                           outline-none focus:border-signal focus:shadow-[0_0_10px_rgba(204,255,0,0.12)]
+                           placeholder:text-gray-600 transition-all resize-none"
+              />
+              <div className="text-right text-[9px] font-mono text-gray-600 mt-0.5">
+                {form.bio.length}/200
+              </div>
+            </div>
+
             {/* Next Button */}
             <button
-              onClick={() => { if (validateStep1()) setStep(2); }}
+              onClick={handleStep1Next}
+              disabled={isSavingProfile}
               className="w-full py-3 bg-signal text-black font-heavy text-sm tracking-widest rounded-xl
                          shadow-[0_0_20px_rgba(204,255,0,0.25)] hover:shadow-[0_0_30px_rgba(204,255,0,0.4)]
-                         active:scale-95 transition-all"
+                         active:scale-95 transition-all disabled:opacity-70 disabled:cursor-not-allowed
+                         flex items-center justify-center gap-2"
             >
-              {t("verify_step1_submit")}
+              {isSavingProfile ? (
+                <>
+                  <i className="fas fa-circle-notch fa-spin text-sm" />
+                  {lang === "zh" ? "保存中..." : "SAVING..."}
+                </>
+              ) : (
+                t("verify_step1_submit")
+              )}
             </button>
           </div>
         )}
@@ -713,7 +795,7 @@ export default function VerificationPage() {
               )}
             </div>
 
-            {/* Review summary */}
+            {/* Application summary */}
             <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl p-4 space-y-2">
               <div className="text-[9px] font-mono text-gray-600 tracking-widest mb-2">APPLICATION SUMMARY</div>
               <div className="flex items-center gap-2 text-xs">
@@ -724,8 +806,14 @@ export default function VerificationPage() {
               </div>
               {form.verificationName && (
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="text-gray-600 font-mono w-24 shrink-0">NAME</span>
+                  <span className="text-gray-600 font-mono w-24 shrink-0">CERT NAME</span>
                   <span className="text-signal font-mono font-semibold">{form.verificationName}</span>
+                </div>
+              )}
+              {form.displayName && (
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-gray-600 font-mono w-24 shrink-0">DISPLAY</span>
+                  <span className="text-white font-mono">{form.displayName}</span>
                 </div>
               )}
             </div>
@@ -786,10 +874,17 @@ export default function VerificationPage() {
               label={lang === "zh" ? "SECURE PAY · 立即支付" : "SECURE PAY · VERIFY NOW"}
               className="w-full justify-center py-4 text-base rounded-2xl"
               successUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/success?type=creator_verification&amount=150&currency=AIF&name=${encodeURIComponent('創作者身份認證')}`}
-              onSuccess={async () => {
+              onSuccess={() => {
+                // AIF 支付由後端 /api/pay/internal-checkout 直接寫入 creator_applications。
+                // 前端只需清除草稿並切換至審核中狀態，不再重複呼叫 submitVerification。
                 localStorage.removeItem("pending_verification");
-                const token = await getAccessToken();
-                if (token) await submitVerification("aif", token);
+                setPageState("B");
+                showToast(
+                  lang === "zh"
+                    ? "支付成功！認證申請已提交，請等待審核。"
+                    : "Payment successful! Application submitted.",
+                  "success"
+                );
               }}
             />
 
@@ -808,7 +903,7 @@ export default function VerificationPage() {
           </div>
         )}
 
-        {/* ═══ STEP 3: Loading / redirect ═══════════════════════════════════ */}
+        {/* ═══ STEP 3: Processing ════════════════════════════════════════════ */}
         {step === 3 && (
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
             <div className="flex gap-1.5">
