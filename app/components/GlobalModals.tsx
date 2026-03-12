@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
+import Hls from "hls.js";
 import { useModal } from "@/app/context/ModalContext";
 import { useI18n, LangCode } from "@/app/context/I18nContext";
 import { usePrivy } from "@privy-io/react-auth";
@@ -100,6 +101,77 @@ export default function GlobalModals() {
   const audioInputRef = useRef<HTMLInputElement>(null);
   const visionInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
+
+  // ── LBS 播放器 HLS 初始化：lbsVideoUrl 变化时自动检测并启动正确播放路径 ──
+  useEffect(() => {
+    const video = videoRef.current;
+
+    // 销毁上一个 HLS 实例（防止多次 mount 泄漏）
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+    if (video) {
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    }
+
+    if (!lbsVideoUrl || !video) return;
+
+    if (lbsVideoUrl.includes('.m3u8')) {
+      if (Hls.isSupported()) {
+        const hls = new Hls({ startLevel: -1, maxBufferLength: 30, maxMaxBufferLength: 60 });
+        hlsRef.current = hls;
+
+        hls.on(Hls.Events.ERROR, (_, data) => {
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                hls.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                hls.recoverMediaError();
+                break;
+              default:
+                hls.destroy();
+                hlsRef.current = null;
+                showToast('⚠️ HLS 串流錯誤，請稍後重試', 'error');
+                break;
+            }
+          }
+        });
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.play().catch(() => {});
+        });
+
+        hls.loadSource(lbsVideoUrl);
+        hls.attachMedia(video);
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        // Safari / iOS 原生 HLS
+        video.src = lbsVideoUrl;
+        video.load();
+        video.play().catch(() => {});
+      } else {
+        showToast('⚠️ 您的瀏覽器不支援 HLS 串流播放', 'error');
+      }
+    } else {
+      // MP4 / 其他直鏈（舊版相容）
+      video.src = lbsVideoUrl;
+      video.load();
+      video.play().catch(() => {});
+    }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lbsVideoUrl]);
 
   const handleFullscreen = useCallback(() => {
     const el = videoRef.current;
@@ -669,16 +741,14 @@ export default function GlobalModals() {
           <div className="absolute inset-0 flex items-center justify-center bg-black overflow-hidden">
             <video
               ref={videoRef}
-              key={lbsVideoUrl ?? undefined}
-              src={lbsVideoUrl ?? undefined}
               className={`object-contain bg-black transition-all duration-300 ${
                 videoAspect === 'portrait'
                   ? 'h-full aspect-[9/16]'
                   : 'w-full h-full'
               }`}
               controls
-              autoPlay
               playsInline
+              preload="none"
               onPlay={() => setIsVideoPlaying(true)}
               onPause={() => setIsVideoPlaying(false)}
               onEnded={() => setIsVideoPlaying(false)}
@@ -707,7 +777,8 @@ export default function GlobalModals() {
             {/* 返回按鈕 — 關閉播放器，回到 LBS 詳情抽屜 */}
             <button
               onClick={() => {
-                if (videoRef.current) videoRef.current.pause();
+                if (hlsRef.current) { hlsRef.current.destroy(); hlsRef.current = null; }
+                if (videoRef.current) { videoRef.current.pause(); videoRef.current.removeAttribute('src'); videoRef.current.load(); }
                 setIsVideoPlaying(false);
                 setActiveModal(null);
                 setLbsVideoUrl(null);
