@@ -1546,12 +1546,14 @@ function ReviewKycTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bool
   const TAB_LABELS: Record<string, string> = { pending: "待審核", approved: "已通過", rejected: "已退回", all: "全部" };
 
   return (
-    <div className="flex flex-col items-center justify-center py-24 gap-4">
-      <p className="text-sm text-gray-500">請使用獨立審核頁面</p>
-      <a href="/admin/verifications" className="px-6 py-3 bg-blue-600 text-white text-sm font-semibold rounded-full hover:bg-blue-700">
-        前往身份資質審核
-      </a>
-    </div>
+    <>
+      {/* 身份資質審核 內嵌頁面 */}
+      <iframe
+        src="/admin/verifications"
+        className="w-full border-0"
+        style={{ height: 'calc(100vh - 120px)' }}
+      />
+    </>
   );
 }
 
