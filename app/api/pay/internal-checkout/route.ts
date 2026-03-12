@@ -32,33 +32,22 @@ const privyClient = new PrivyClient(
 // ── 業務邏輯路由 ──────────────────────────────────────────────────────────────
 
 async function handleIdentityVerifyPaid(userId: string, identityType?: string): Promise<void> {
-  const { data: user } = await adminSupabase
-    .from('users')
-    .select('id, verification_status')
-    .eq('id', userId)
+  const now = new Date().toISOString();
+  const resolvedIdentityType = identityType || 'creator';
+
+  // ── 1. UPSERT identity_applications 表（Admin 控制中心讀取此表）────────────
+  // 先查找該 user_id + identity_type 是否有 awaiting_payment 草稿：
+  //   有 → UPDATE status 為 pending（升級草稿）
+  //   無 → INSERT 新記錄（AIF 直接支付時不會預建草稿，必須主動插入）
+  const { data: existing } = await adminSupabase
+    .from('identity_applications')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('identity_type', resolvedIdentityType)
+    .eq('status', 'awaiting_payment')
     .single();
 
-  if (!user) {
-    console.error(`[internal-checkout] handleIdentityVerifyPaid: user ${userId} not found`);
-    return;
-  }
-
-  const now = new Date().toISOString();
-
-  // ── 1. 寫入 identity_applications 表（Admin 控制中心讀取此表）──────────────
-  // 查找 awaiting_payment 草稿並升級為 pending
-  const { data: draftApps } = await adminSupabase
-    .from('identity_applications')
-    .select('id, identity_type, status')
-    .eq('user_id', userId)
-    .eq('status', 'awaiting_payment')
-    .order('submitted_at', { ascending: false })
-    .limit(1);
-
-  const draft = draftApps?.[0];
-  const resolvedIdentityType = identityType || draft?.identity_type || 'creator';
-
-  if (draft) {
+  if (existing) {
     const { error: appErr } = await adminSupabase
       .from('identity_applications')
       .update({
@@ -66,15 +55,14 @@ async function handleIdentityVerifyPaid(userId: string, identityType?: string): 
         payment_method: 'aif',
         submitted_at: now,
       })
-      .eq('id', draft.id);
+      .eq('id', existing.id);
 
     if (appErr) {
       console.error('[internal-checkout] identity_applications update failed:', appErr.message);
     } else {
-      console.log(`[internal-checkout] Updated identity_application ${draft.id} → pending (AIF)`);
+      console.log(`[internal-checkout] Updated identity_application ${existing.id} → pending (AIF)`);
     }
   } else {
-    // 無草稿：直接插入 pending 記錄，確保 Admin 控制台能即時看到此申請
     const { error: insertErr } = await adminSupabase
       .from('identity_applications')
       .insert({
@@ -92,21 +80,19 @@ async function handleIdentityVerifyPaid(userId: string, identityType?: string): 
     }
   }
 
-  // ── 2. 兼容舊版：同步更新 users 表 ──────────────────────────────────────
-  if (user.verification_status !== 'pending' && user.verification_status !== 'approved') {
-    const { error: updateError } = await adminSupabase
-      .from('users')
-      .update({
-        verification_status: 'pending',
-        verification_payment_method: 'aif',
-        verification_type: resolvedIdentityType,
-        verification_submitted_at: now,
-      })
-      .eq('id', userId);
+  // ── 2. 同步更新 users 表 ────────────────────────────────────────────────
+  const { error: updateError } = await adminSupabase
+    .from('users')
+    .update({
+      verification_status: 'pending',
+      verification_payment_method: 'aif',
+      verification_type: resolvedIdentityType,
+      verification_submitted_at: now,
+    })
+    .eq('id', userId);
 
-    if (updateError) {
-      console.error('[internal-checkout] users table update failed:', updateError.message);
-    }
+  if (updateError) {
+    console.error('[internal-checkout] users table update failed:', updateError.message);
   }
 
   await sendMessage({
