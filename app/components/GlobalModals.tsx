@@ -8,6 +8,8 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useToast } from "@/app/context/ToastContext";
 import CyberLoading from "@/app/components/CyberLoading";
 import { supabase } from "@/lib/supabase";
+import { AvatarWithBadges } from "@/app/components/IdentityBadges";
+import IdentityBadges from "@/app/components/IdentityBadges";
 
 // ─── Creator Data Types ───────────────────────────────────────────────────────
 
@@ -25,6 +27,7 @@ interface DbCreatorProfile {
   portfolio: string | null;
   verification_status: "unverified" | "pending" | "approved" | "rejected" | null;
   verification_type: "creator" | "institution" | "curator" | null;
+  verified_identities: string[] | null;
 }
 
 interface DbFilm {
@@ -67,7 +70,7 @@ export default function GlobalModals() {
       const [profileResult, filmsResult] = await Promise.all([
         supabase
           .from("users")
-          .select("id, display_name, name, agent_id, avatar_seed, bio, tech_stack, core_team, portfolio, verification_status, verification_type")
+          .select("id, display_name, name, agent_id, avatar_seed, bio, tech_stack, core_team, portfolio, verification_status, verification_type, verified_identities")
           .eq("id", selectedCreatorUserId)
           .single(),
         supabase
@@ -876,16 +879,17 @@ export default function GlobalModals() {
             {/* 内容区 */}
             <div className="px-6 -mt-16 relative z-10 pb-24">
 
-              {/* 头像（無 FOLLOW 按鈕） */}
+              {/* 头像（附多重身份 V 徽章） */}
               <div className="flex items-end mb-4">
-                <img
-                  src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(creatorProfile.avatar_seed || creatorProfile.id)}`}
-                  alt={creatorProfile.display_name ?? selectedCreator ?? "creator"}
-                  className="w-28 h-28 border-4 border-[#050505] rounded-full bg-black shadow-[0_0_20px_rgba(204,255,0,0.3)] relative z-20 p-1"
+                <AvatarWithBadges
+                  avatarSeed={creatorProfile.avatar_seed || creatorProfile.id}
+                  verifiedIdentities={creatorProfile.verified_identities ?? []}
+                  size="lg"
+                  className="border-4 border-[#050505] shadow-[0_0_20px_rgba(204,255,0,0.3)] relative z-20"
                 />
               </div>
 
-              {/* 名称 + Verification Badge */}
+              {/* 名称 + 多重身份認證徽章 */}
               <h1 className="font-heavy text-4xl text-white mb-2 flex items-center gap-2 flex-wrap">
                 <span>
                   {creatorProfile.display_name ||
@@ -893,18 +897,10 @@ export default function GlobalModals() {
                     selectedCreator ||
                     "ANONYMOUS"}
                 </span>
-                {creatorProfile.verification_status === "approved" && creatorProfile.verification_type ? (
-                  <span className={`inline-flex items-center gap-1 text-[10px] font-heavy px-2.5 py-1 rounded-full tracking-wider
-                    ${creatorProfile.verification_type === "creator" ? "bg-signal/20 text-signal border border-signal/40" :
-                      creatorProfile.verification_type === "institution" ? "bg-blue-500/20 text-blue-400 border border-blue-500/40" :
-                      "bg-purple-500/20 text-purple-400 border border-purple-500/40"}`}>
-                    <i className="fas fa-check-circle text-[8px]" />
-                    {creatorProfile.verification_type === "creator" ? "Creator" :
-                     creatorProfile.verification_type === "institution" ? "Institution" : "Curator"}
-                  </span>
-                ) : (
-                  <i className="fas fa-check-circle text-signal text-xl" />
-                )}
+                <IdentityBadges
+                  verifiedIdentities={creatorProfile.verified_identities ?? []}
+                  variant="pill"
+                />
               </h1>
 
               {/* 作品數指標行 */}

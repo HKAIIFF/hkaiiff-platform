@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
   // ── 讀取申請記錄 ─────────────────────────────────────────────────────────────
   const { data: application, error: fetchErr } = await supabase
     .from('creator_applications')
-    .select('id, user_id, identity_type, status')
+    .select('id, user_id, identity_type, status, verification_name')
     .eq('id', applicationId)
     .single();
 
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: '申請記錄不存在' }, { status: 404 });
   }
 
-  const { user_id: userId, identity_type: identityType } = application;
+  const { user_id: userId, identity_type: identityType, verification_name: verificationName } = application;
 
   // ── 通過（Approve）────────────────────────────────────────────────────────────
   if (action === 'approve') {
@@ -131,6 +131,8 @@ export async function POST(req: NextRequest) {
         verification_type: identityType,
         username_locked: true,
         rejection_reason: null,
+        // 強制將申請表裡的認證名稱覆寫為用戶顯示名稱（防止用戶自行篡改）
+        ...(verificationName ? { display_name: verificationName } : {}),
       })
       .eq('id', userId);
 

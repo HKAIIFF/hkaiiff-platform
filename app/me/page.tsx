@@ -309,6 +309,19 @@ export default function MePage() {
   const [editCoreTeam, setEditCoreTeam] = useState<TeamMember[]>([]);
 
   function openProfileModal() {
+    // 防呆：已認證或審核中時拒絕打開
+    const isVerified = (dbProfile?.verified_identities?.length ?? 0) > 0;
+    const isPending = identityApplications.some(
+      (a) => a.status === 'pending' || a.status === 'awaiting_payment'
+    );
+    if (isVerified) {
+      showToast('已認證，如需修改資料請重新提交身份認證', 'error');
+      return;
+    }
+    if (isPending) {
+      showToast('認證審核中，暫不可修改資料', 'error');
+      return;
+    }
     // display_name 优先，其次 name（非默认值），再用 agent_id 兜底
     const nameValue = dbProfile?.display_name
       || (dbProfile?.name && dbProfile.name !== 'New Agent' ? dbProfile.name : '')
@@ -360,10 +373,17 @@ export default function MePage() {
         ? editCoreTeam.filter((m) => m.name.trim())
         : [];
 
+      // 已認證或審核中時，嚴禁覆寫 display_name（後端由 verification_name 管理）
+      const isNameLocked =
+        (dbProfile?.verified_identities?.length ?? 0) > 0 ||
+        identityApplications.some(
+          (a) => a.status === 'pending' || a.status === 'awaiting_payment'
+        );
+
       const { error } = await supabase
         .from('users')
         .update({
-          display_name: editName,
+          ...(isNameLocked ? {} : { display_name: editName }),
           avatar_seed: editAvatarSeed,
           bio: editAboutStudio,
           tech_stack: editTechStack,
@@ -379,7 +399,7 @@ export default function MePage() {
           prev
             ? {
                 ...prev,
-                display_name: editName,
+                ...(isNameLocked ? {} : { display_name: editName }),
                 avatar_seed: editAvatarSeed,
                 bio: editAboutStudio,
                 tech_stack: editTechStack,
@@ -777,14 +797,44 @@ export default function MePage() {
 
         {/* Edit / Logout controls (top-right) */}
         <div className="absolute top-4 right-4 flex items-center space-x-2 z-10">
-          {/* 編輯按鈕 → 打開 Modal */}
-          <button
-            onClick={openProfileModal}
-            className="w-8 h-8 rounded-full bg-[#111] border border-[#333] flex items-center justify-center text-gray-400 hover:text-signal hover:border-signal transition-colors"
-            title="Edit Profile"
-          >
-            <i className="fas fa-edit text-xs" />
-          </button>
+          {/* 編輯按鈕 → 已認證或審核中時鎖定 */}
+          {(() => {
+            const isVerified = (dbProfile?.verified_identities?.length ?? 0) > 0;
+            const isPending = identityApplications.some(
+              (a) => a.status === 'pending' || a.status === 'awaiting_payment'
+            );
+            if (isVerified) {
+              return (
+                <button
+                  disabled
+                  className="w-8 h-8 rounded-full bg-[#111] border border-[#2a2a2a] flex items-center justify-center text-gray-600 cursor-not-allowed opacity-60"
+                  title="已認證，如需修改資料請重新提交身份認證"
+                >
+                  <i className="fas fa-lock text-xs" />
+                </button>
+              );
+            }
+            if (isPending) {
+              return (
+                <button
+                  disabled
+                  className="w-8 h-8 rounded-full bg-[#111] border border-[#2a2a2a] flex items-center justify-center text-gray-600 cursor-not-allowed opacity-60"
+                  title="認證審核中，暫不可修改資料"
+                >
+                  <i className="fas fa-lock text-xs" />
+                </button>
+              );
+            }
+            return (
+              <button
+                onClick={openProfileModal}
+                className="w-8 h-8 rounded-full bg-[#111] border border-[#333] flex items-center justify-center text-gray-400 hover:text-signal hover:border-signal transition-colors"
+                title="Edit Profile"
+              >
+                <i className="fas fa-edit text-xs" />
+              </button>
+            );
+          })()}
           {/* 登出按鈕 */}
           <button
             onClick={() => logout()}
@@ -861,7 +911,12 @@ export default function MePage() {
             })}
           </div>
           <div className="text-[9px] text-gray-400 font-mono mb-2 tracking-wider uppercase pr-14">
-            {dbProfile ? t(`role_${dbProfile?.role || 'human'}`).toUpperCase() : '...'}
+            {dbProfile ? (() => {
+              const ids = dbProfile.verified_identities ?? [];
+              if (ids.length === 0) return '普通用戶';
+              const labelMap: Record<string, string> = { creator: '創作人', curator: '策展人', institution: '機構' };
+              return ids.map((id) => labelMap[id] ?? id).join(' · ');
+            })() : '...'}
           </div>
           {/* Wallet address + Verify button — full width, no padding constraint */}
           <div className="flex flex-wrap items-center gap-2 mt-1">
@@ -1618,7 +1673,11 @@ export default function MePage() {
               <div>
                 <div className="font-heavy text-base text-white tracking-wider">EDIT PROFILE</div>
                 <div className="text-[9px] font-mono text-signal tracking-widest mt-0.5">
-                  {mySubmissions.length > 0 ? 'BASIC + CREATOR SETTINGS UNLOCKED' : 'BASIC SETTINGS'}
+                  {(dbProfile?.verified_identities?.length ?? 0) > 0
+                    ? <span className="text-yellow-500 flex items-center gap-1"><i className="fas fa-lock text-[8px]" />已認證用戶 — 名稱欄位已鎖定</span>
+                    : identityApplications.some((a) => a.status === 'pending' || a.status === 'awaiting_payment')
+                      ? <span className="text-yellow-500 flex items-center gap-1"><i className="fas fa-clock text-[8px]" />認證審核中 — 名稱欄位已鎖定</span>
+                      : mySubmissions.length > 0 ? 'BASIC + CREATOR SETTINGS UNLOCKED' : 'BASIC SETTINGS'}
                 </div>
               </div>
               <button
@@ -1669,29 +1728,42 @@ export default function MePage() {
                 </div>
 
                 {/* Nickname Input */}
-                <div>
-                  <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5 flex items-center gap-1.5">
-                    DISPLAY NAME
-                    {dbProfile?.verification_status === 'approved' && (
-                      <span className="flex items-center gap-1 text-[9px] text-signal">
-                        <i className="fas fa-lock text-[8px]" />
-                        LOCKED
-                      </span>
-                    )}
-                  </label>
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    maxLength={40}
-                    placeholder="Enter display name..."
-                    disabled={dbProfile?.verification_status === 'approved'}
-                    className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-sm px-3 py-2.5 rounded-lg
-                               outline-none focus:border-signal focus:shadow-[0_0_12px_rgba(204,255,0,0.15)]
-                               placeholder:text-gray-600 transition-all
-                               disabled:opacity-50 disabled:cursor-not-allowed disabled:border-[#1a1a1a]"
-                  />
-                </div>
+                {(() => {
+                  const isNameLocked =
+                    (dbProfile?.verified_identities?.length ?? 0) > 0 ||
+                    identityApplications.some(
+                      (a) => a.status === 'pending' || a.status === 'awaiting_payment'
+                    );
+                  const lockReason =
+                    (dbProfile?.verified_identities?.length ?? 0) > 0
+                      ? '已認證，名稱由認證系統管理'
+                      : '認證審核中，暫不可修改';
+                  return (
+                    <div>
+                      <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5 flex items-center gap-1.5">
+                        DISPLAY NAME
+                        {isNameLocked && (
+                          <span className="flex items-center gap-1 text-[9px] text-yellow-500">
+                            <i className="fas fa-lock text-[8px]" />
+                            {lockReason}
+                          </span>
+                        )}
+                      </label>
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => !isNameLocked && setEditName(e.target.value)}
+                        maxLength={40}
+                        placeholder="Enter display name..."
+                        disabled={isNameLocked}
+                        className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-sm px-3 py-2.5 rounded-lg
+                                   outline-none focus:border-signal focus:shadow-[0_0_12px_rgba(204,255,0,0.15)]
+                                   placeholder:text-gray-600 transition-all
+                                   disabled:opacity-50 disabled:cursor-not-allowed disabled:border-[#1a1a1a]"
+                      />
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* ── Section: Creator Advanced Settings (locked if no films) ── */}
