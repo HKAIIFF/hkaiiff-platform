@@ -737,6 +737,7 @@ export default function VerificationPage() {
             {/* ── UniversalCheckout ────────────────────────────────────────── */}
             <UniversalCheckout
               productCode="identity_verify"
+              extraMetadata={form.verificationType ? { identityType: form.verificationType } : undefined}
               variant="primary"
               label={lang === "zh" ? "SECURE PAY · 立即支付" : "SECURE PAY · VERIFY NOW"}
               className="w-full justify-center py-4 text-base rounded-2xl"
