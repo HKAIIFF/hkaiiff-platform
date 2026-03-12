@@ -10,6 +10,7 @@ import type { Film } from "@/lib/data";
 import { supabase } from "@/lib/supabase";
 import { buildOssUrl } from "@/lib/utils/oss";
 import Link from "next/link";
+import IdentityBadges from "@/app/components/IdentityBadges";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -29,6 +30,7 @@ interface SupabaseFilm {
   parallel_start_time?: string | null;
   user_avatar_seed?: string | null;
   user_display_name?: string | null;
+  user_verified_identities?: string[] | null;
 }
 
 // ─── Parallel Universe State Helpers ──────────────────────────────────────────
@@ -311,8 +313,24 @@ function MobileFeedItem({
                     className="relative mb-2 active:scale-95 transition-transform flex flex-col items-center outline-none [-webkit-tap-highlight-color:transparent]"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <img src={avatarUrl} alt={film.user_display_name ?? film.studio ?? "creator"} className="w-12 h-12 border-2 border-white rounded-full bg-black shadow-lg" />
-                    <div className="w-2 h-2 rounded-full bg-signal absolute -bottom-0.5 -right-0.5 border border-black" />
+                    <img
+                      src={avatarUrl}
+                      alt={film.user_display_name ?? film.studio ?? "creator"}
+                      className={`w-12 h-12 border-2 rounded-full bg-black shadow-lg
+                        ${(film.user_verified_identities ?? []).includes('institution') ? 'border-[#9D00FF] shadow-[0_0_8px_rgba(157,0,255,0.5)]'
+                          : (film.user_verified_identities ?? []).includes('creator') ? 'border-signal shadow-[0_0_8px_rgba(204,255,0,0.5)]'
+                          : (film.user_verified_identities ?? []).includes('curator') ? 'border-[#FFC107] shadow-[0_0_8px_rgba(255,193,7,0.5)]'
+                          : 'border-white'}`}
+                    />
+                    {(film.user_verified_identities ?? []).length > 0 ? (
+                      <IdentityBadges
+                        verifiedIdentities={film.user_verified_identities ?? []}
+                        variant="dot"
+                        avatarOverlay
+                      />
+                    ) : (
+                      <div className="w-2 h-2 rounded-full bg-signal absolute -bottom-0.5 -right-0.5 border border-black" />
+                    )}
                   </Link>
                 ) : (
                   <div className="relative mb-2 flex flex-col items-center">
@@ -443,12 +461,33 @@ function DesktopGridCard({ film }: { film: SupabaseFilm }) {
       ">
         {/* Creator row */}
         <div className="flex items-center gap-2 mb-1.5">
-          <img
-            src={avatarUrl}
-            alt={film.studio ?? ""}
-            className="w-6 h-6 rounded-full border border-white/20 bg-black shrink-0"
-          />
-          <span className="text-[10px] font-mono text-gray-300 truncate flex-1">{film.studio ?? "ANONYMOUS"}</span>
+          <div className="relative shrink-0">
+            <img
+              src={avatarUrl}
+              alt={film.studio ?? ""}
+              className={`w-6 h-6 rounded-full border bg-black
+                ${(film.user_verified_identities ?? []).includes('institution') ? 'border-[#9D00FF]'
+                  : (film.user_verified_identities ?? []).includes('creator') ? 'border-signal'
+                  : (film.user_verified_identities ?? []).includes('curator') ? 'border-[#FFC107]'
+                  : 'border-white/20'}`}
+            />
+            {(film.user_verified_identities ?? []).length > 0 && (
+              <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border border-black flex items-center justify-center text-[6px] font-bold
+                ${(film.user_verified_identities ?? []).includes('institution') ? 'bg-[#9D00FF] text-white'
+                  : (film.user_verified_identities ?? []).includes('creator') ? 'bg-signal text-black'
+                  : 'bg-[#FFC107] text-black'}`}>
+                V
+              </span>
+            )}
+          </div>
+          <span className="text-[10px] font-mono text-gray-300 truncate flex-1">{film.user_display_name ?? film.studio ?? "ANONYMOUS"}</span>
+          {(film.user_verified_identities ?? []).length > 0 && (
+            <IdentityBadges
+              verifiedIdentities={film.user_verified_identities ?? []}
+              variant="pill"
+              className="shrink-0"
+            />
+          )}
           {aiRatioPct && (
             <span className="text-[7px] font-mono bg-signal/15 border border-signal/40 text-signal px-1.5 py-0.5 rounded shrink-0 tracking-wider">
               AIF {aiRatioPct}
@@ -569,17 +608,17 @@ function FeedInner() {
       if (data) {
         const films = data as SupabaseFilm[];
         const userIds = [...new Set(films.filter((f) => f.user_id).map((f) => f.user_id as string))];
-        let userMap: Record<string, { avatar_seed: string | null; display_name: string | null }> = {};
+        let userMap: Record<string, { avatar_seed: string | null; display_name: string | null; verified_identities: string[] | null }> = {};
         if (userIds.length > 0) {
           const { data: users } = await supabase
             .from("users")
-            .select("id, avatar_seed, display_name")
+            .select("id, avatar_seed, display_name, verified_identities")
             .in("id", userIds);
           if (users) {
             userMap = Object.fromEntries(
-              users.map((u: { id: string; avatar_seed: string | null; display_name: string | null }) => [
+              users.map((u: { id: string; avatar_seed: string | null; display_name: string | null; verified_identities: string[] | null }) => [
                 u.id,
-                { avatar_seed: u.avatar_seed, display_name: u.display_name },
+                { avatar_seed: u.avatar_seed, display_name: u.display_name, verified_identities: u.verified_identities },
               ])
             );
           }
@@ -588,6 +627,7 @@ function FeedInner() {
           ...f,
           user_avatar_seed: f.user_id ? (userMap[f.user_id]?.avatar_seed ?? null) : null,
           user_display_name: f.user_id ? (userMap[f.user_id]?.display_name ?? null) : null,
+          user_verified_identities: f.user_id ? (userMap[f.user_id]?.verified_identities ?? null) : null,
         }));
         const now = new Date();
         const sorted = [...enriched].sort((a, b) => {

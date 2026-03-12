@@ -141,11 +141,14 @@ async function handleFilmEntryPaid(
  *  找到該用戶最新的 awaiting_payment 記錄，升級為 pending
  *
  * 同時兼容舊版 users 表欄位，確保舊數據不丟失
+ *
+ * @param identityType - 從 Stripe session metadata 中讀取的身份類型，用於 fallback 創建記錄
  */
 async function handleVerificationPaid(
   db: ReturnType<typeof getAdminClient>,
   userId: string,
-  sessionId: string
+  sessionId: string,
+  identityType: string = 'creator'
 ): Promise<void> {
   // ── 新版：更新 identity_applications 表 ──────────────────────────────────────
   const { data: draftApps } = await db
@@ -172,22 +175,27 @@ async function handleVerificationPaid(
       console.error('[stripe/webhook] identity_applications update failed:', appErr.message);
       throw new Error(appErr.message);
     }
-    console.log(`[stripe/webhook] Updated identity_application ${draft.id} to pending`);
+    console.log(`[stripe/webhook] Updated identity_application ${draft.id} to pending (type=${draft.identity_type})`);
   } else {
-    // 未找到草稿（例如用戶直接訪問 Stripe 鏈接），仍創建一條 pending 記錄
-    console.warn(`[stripe/webhook] No awaiting_payment application found for user ${userId}, creating fallback record`);
-    await db
+    // 未找到草稿 → 使用 session metadata 中的 identityType 建立正確的 pending 記錄
+    const resolvedType = ['creator', 'institution', 'curator'].includes(identityType)
+      ? identityType
+      : 'creator';
+    console.warn(`[stripe/webhook] No awaiting_payment draft for user ${userId}, creating fallback record (type=${resolvedType})`);
+    const { error: insertErr } = await db
       .from('identity_applications')
       .insert({
         user_id: userId,
-        identity_type: 'creator', // 預設身份類型，Admin 可後續修正
+        identity_type: resolvedType,
         status: 'pending',
         payment_method: 'fiat',
         payment_session: sessionId,
         submitted_at: new Date().toISOString(),
-      })
-      .select('id')
-      .single();
+      });
+    if (insertErr) {
+      console.error('[stripe/webhook] identity_applications insert failed:', insertErr.message);
+      throw new Error(insertErr.message);
+    }
   }
 
   // ── 兼容舊版：同步更新 users 表 ────────────────────────────────────────────
@@ -339,7 +347,7 @@ export async function POST(req: Request) {
         break;
 
       case 'identity_verification':
-        await handleVerificationPaid(db, userId, session.id);
+        await handleVerificationPaid(db, userId, session.id, metadata.identityType ?? 'creator');
         break;
 
       case 'lbs_application':
@@ -353,7 +361,7 @@ export async function POST(req: Request) {
           break;
         }
         if (productCode === 'identity_verify') {
-          await handleVerificationPaid(db, userId, session.id);
+          await handleVerificationPaid(db, userId, session.id, metadata.identityType ?? 'creator');
         } else if (productCode === 'film_entry') {
           const metaFilmId = metadata.filmId ?? null;
           if (!metaFilmId) {
