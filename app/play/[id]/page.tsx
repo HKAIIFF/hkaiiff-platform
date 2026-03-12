@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
+import Hls from 'hls.js';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/app/context/ToastContext';
 import { buildOssUrl, extractOssKey, fetchSignedPlayUrl } from '@/lib/utils/oss';
@@ -27,6 +28,7 @@ export default function PlayPage() {
   const { user, getAccessToken } = usePrivy();
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
   const [film, setFilm] = useState<FilmForPlay | null>(null);
   const [loading, setLoading] = useState(true);
   const [videoLoading, setVideoLoading] = useState(true);
@@ -97,6 +99,64 @@ export default function PlayPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [film, user]);
 
+  /* ── HLS 初始化：playUrl 确定后按类型选择播放方案 ──────────────────────── */
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !playUrl) return;
+
+    // 清理上一个 HLS 实例
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+
+    if (playUrl.includes('.m3u8')) {
+      if (Hls.isSupported()) {
+        const hls = new Hls({ startLevel: -1, maxBufferLength: 30, maxMaxBufferLength: 60 });
+        hlsRef.current = hls;
+
+        hls.on(Hls.Events.ERROR, (_, data) => {
+          if (data.fatal) {
+            switch (data.type) {
+              case Hls.ErrorTypes.NETWORK_ERROR:
+                hls.startLoad();
+                break;
+              case Hls.ErrorTypes.MEDIA_ERROR:
+                hls.recoverMediaError();
+                break;
+              default:
+                hls.destroy();
+                hlsRef.current = null;
+                break;
+            }
+          }
+        });
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.play().catch(() => {});
+        });
+
+        hls.loadSource(playUrl);
+        hls.attachMedia(video);
+      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        // Safari / iOS 原生 HLS
+        video.src = playUrl;
+        video.load();
+      }
+    } else {
+      // MP4 / 其他直链格式
+      video.src = playUrl;
+      video.load();
+    }
+
+    return () => {
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [playUrl]);
+
   /* ── Back navigation ─────────────────────────────────────────────────── */
   const handleBack = useCallback(() => {
     if (videoRef.current) videoRef.current.pause();
@@ -166,13 +226,11 @@ export default function PlayPage() {
       >
         <video
           ref={videoRef}
-          key={playUrl}
-          src={playUrl}
           poster={film.poster_url ? buildOssUrl(film.poster_url) : undefined}
           className="w-full h-full object-contain bg-black"
           controls
-          autoPlay
           playsInline
+          preload="none"
           onWaiting={() => setVideoLoading(true)}
           onCanPlay={() => setVideoLoading(false)}
           onPlaying={() => setVideoLoading(false)}
