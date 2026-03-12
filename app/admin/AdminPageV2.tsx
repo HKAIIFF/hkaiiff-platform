@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
-import OSS from "ali-oss";
 import { supabase } from "@/lib/supabase";
 
 type Lang = "zh" | "en";
@@ -292,23 +291,16 @@ function OssImageUpload({
     if (!file) return;
     setUploading(true);
     try {
-      const stsRes = await fetch("/api/oss-sts");
-      const stsData = await stsRes.json();
-      if (stsData.error) throw new Error(stsData.error);
-
-      const client = new OSS({
-        region: stsData.Region || "oss-ap-southeast-1",
-        accessKeyId: stsData.AccessKeyId,
-        accessKeySecret: stsData.AccessKeySecret,
-        stsToken: stsData.SecurityToken,
-        bucket: stsData.Bucket,
-        secure: true,
-      });
-
-      const key = `lbs-node-assets/${Date.now()}_${file.name}`;
-      const result = await client.put(key, file);
-      const url: string = result.url;
-      onSuccess(url);
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error ?? "上传失败");
+      }
+      const data = await res.json();
+      if (!data.success || !data.url) throw new Error("上传未返回有效 URL");
+      onSuccess(data.url as string);
       pushToast(`${title} 上傳成功`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);

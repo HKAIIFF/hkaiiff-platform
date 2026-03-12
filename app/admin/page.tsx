@@ -4,8 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import OSS from "ali-oss";
-
 // ─── 類型定義 ───────────────────────────────────────────────────────────────
 type Lang = "zh" | "en";
 type ToastItem = { id: number; text: string; ok: boolean };
@@ -413,20 +411,18 @@ function AdminOssUploader({
     }
     setFileName(file.name); setState("uploading"); setProgress(0);
     try {
-      const stsRes = await fetch("/api/oss-sts");
-      const stsData = await stsRes.json();
-      if (stsData.error) throw new Error(stsData.error);
-      const client = new OSS({
-        region: stsData.Region || process.env.NEXT_PUBLIC_ALIYUN_REGION || "oss-ap-southeast-1",
-        accessKeyId: stsData.AccessKeyId, accessKeySecret: stsData.AccessKeySecret,
-        stsToken: stsData.SecurityToken, bucket: stsData.Bucket, secure: true,
-      });
-      const key = `${uploadPath}/${Date.now()}_${file.name}`;
-      const result = await client.multipartUpload(key, file, {
-        progress: (p: number) => setProgress(Math.round(p * 100)),
-      });
-      const url = (result.res as unknown as { requestUrls: string[] }).requestUrls[0].split("?")[0];
-      setProgress(100); setState("done"); onUploaded(url);
+      const fd = new FormData();
+      fd.append("file", file);
+      setProgress(30);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      setProgress(80);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error ?? "上传失败");
+      }
+      const data = await res.json();
+      if (!data.success || !data.url) throw new Error("上传未返回有效 URL");
+      setProgress(100); setState("done"); onUploaded(data.url as string);
     } catch (err: unknown) {
       setState("error"); onError(`${label} 上傳失敗: ${err instanceof Error ? err.message : "Unknown"}`);
     }
@@ -1656,24 +1652,18 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
     }
   }
 
-  async function uploadLbsImage(file: File, prefix: 'poster' | 'bg'): Promise<string | null> {
+  async function uploadLbsImage(file: File, _prefix: 'poster' | 'bg'): Promise<string | null> {
     try {
-      const stsRes = await fetch("/api/oss-sts");
-      const stsData = await stsRes.json();
-      if (stsData.error) throw new Error(stsData.error);
-      const client = new OSS({
-        region: stsData.Region || process.env.NEXT_PUBLIC_ALIYUN_REGION || "oss-ap-southeast-1",
-        accessKeyId: stsData.AccessKeyId,
-        accessKeySecret: stsData.AccessKeySecret,
-        stsToken: stsData.SecurityToken,
-        bucket: stsData.Bucket,
-        secure: true,
-      });
-      const ext = file.name.split('.').pop() ?? 'jpg';
-      const key = `lbs/${prefix}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const result = await client.multipartUpload(key, file, { progress: () => {} });
-      const url = (result.res as unknown as { requestUrls: string[] }).requestUrls[0].split("?")[0];
-      return url;
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error ?? "上传失败");
+      }
+      const data = await res.json();
+      if (!data.success || !data.url) throw new Error("上传未返回有效 URL");
+      return data.url as string;
     } catch (err) {
       pushToast(`圖片上傳失敗: ${err instanceof Error ? err.message : '未知錯誤'}`, false);
       return null;

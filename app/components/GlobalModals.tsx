@@ -4,7 +4,6 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import { useModal } from "@/app/context/ModalContext";
 import { useI18n, LangCode } from "@/app/context/I18nContext";
 import { usePrivy } from "@privy-io/react-auth";
-import OSS from "ali-oss";
 import { useToast } from "@/app/context/ToastContext";
 import CyberLoading from "@/app/components/CyberLoading";
 import { supabase } from "@/lib/supabase";
@@ -142,25 +141,18 @@ export default function GlobalModals() {
     [bioSeed, setInteractTab]
   );
 
-  // 上傳文件到阿里雲 OSS，返回公開 URL
+  // 上傳文件到 Cloudflare R2，返回公開 CDN URL
   const uploadToOSS = useCallback(async (file: File): Promise<string> => {
-    const stsRes = await fetch("/api/oss-sts");
-    if (!stsRes.ok) throw new Error("Failed to get OSS credentials");
-    const creds = await stsRes.json();
-
-    const client = new OSS({
-      region: creds.Region,
-      accessKeyId: creds.AccessKeyId,
-      accessKeySecret: creds.AccessKeySecret,
-      stsToken: creds.SecurityToken,
-      bucket: creds.Bucket,
-      secure: true,
-    });
-
-    const ext = file.name.split(".").pop() ?? "bin";
-    const key = `interactive/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-    await client.put(key, file);
-    return `https://${creds.Bucket}.${creds.Region}.aliyuncs.com/${key}`;
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await fetch("/api/upload", { method: "POST", body: fd });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error ?? "文件上传失败");
+    }
+    const data = await res.json();
+    if (!data.success || !data.url) throw new Error("上传未返回有效 URL");
+    return data.url as string;
   }, []);
 
 

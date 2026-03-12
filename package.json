@@ -11,6 +11,7 @@
     "reset-wallets": "tsx scripts/reset_test_wallets.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1008.0",
     "@privy-io/node": "^0.10.1",
     "@privy-io/react-auth": "^3.15.0",
     "@privy-io/server-auth": "^1.32.5",
@@ -19,7 +20,6 @@
     "@stripe/stripe-js": "^8.9.0",
     "@supabase/supabase-js": "^2.98.0",
     "@types/leaflet": "^1.9.21",
-    "ali-oss": "^6.23.0",
     "bip39": "^3.1.0",
     "bs58": "^6.0.0",
     "ed25519-hd-key": "^1.3.0",
@@ -36,7 +36,6 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
-    "@types/ali-oss": "^6.23.3",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

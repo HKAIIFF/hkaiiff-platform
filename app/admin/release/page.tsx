@@ -2,8 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { createClient } from "@supabase/supabase-js";
-import OSS from "ali-oss";
-
 const adminSupabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -66,31 +64,20 @@ function OssUploader({
     setProgress(0);
 
     try {
-      // 1. Fetch STS credentials
-      const stsRes = await fetch("/api/oss-sts");
-      const stsData = await stsRes.json();
-      if (stsData.error) throw new Error(stsData.error);
-
-      // 2. Build OSS client
-      const client = new OSS({
-        region: stsData.Region || process.env.NEXT_PUBLIC_ALIYUN_REGION || "oss-ap-southeast-1",
-        accessKeyId:     stsData.AccessKeyId,
-        accessKeySecret: stsData.AccessKeySecret,
-        stsToken:        stsData.SecurityToken,
-        bucket:          stsData.Bucket,
-        secure:          true,
-      });
-
-      // 3. Upload with progress callback
-      const key = `${uploadPath}/${Date.now()}_${file.name}`;
-      const result = await client.multipartUpload(key, file, {
-        progress: (p: number) => setProgress(Math.round(p * 100)),
-      });
-
-      const url = result.res.requestUrls[0].split("?")[0];
+      const fd = new FormData();
+      fd.append("file", file);
+      setProgress(30);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      setProgress(80);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error ?? "Upload failed");
+      }
+      const data = await res.json();
+      if (!data.success || !data.url) throw new Error("Upload did not return a valid URL");
       setProgress(100);
       setState("done");
-      onUploaded(url);
+      onUploaded(data.url as string);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Upload failed";
       setState("error");

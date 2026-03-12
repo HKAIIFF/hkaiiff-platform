@@ -7,7 +7,6 @@ import { useI18n } from '@/app/context/I18nContext';
 import { useToast } from '@/app/context/ToastContext';
 import { supabase } from '@/lib/supabase';
 import CyberLoading from '@/app/components/CyberLoading';
-import OSS from 'ali-oss';
 import UniversalCheckout from '@/app/components/UniversalCheckout';
 
 /* ─── UI Primitives ─────────────────────────────────────────────────────── */
@@ -245,31 +244,18 @@ export default function LbsApplyPage() {
     );
   };
 
-  // OSS upload
-  const getOssClient = async () => {
-    const res = await fetch('/api/oss-sts');
-    const creds = await res.json();
-    return new OSS({
-      region: creds.Region,
-      accessKeyId: creds.AccessKeyId,
-      accessKeySecret: creds.AccessKeySecret,
-      stsToken: creds.SecurityToken,
-      bucket: creds.Bucket,
-      secure: true,
-    });
-  };
-
-  const uploadToOss = async (file: File, prefix: string): Promise<string> => {
-    const client = await getOssClient();
-    const ext = file.name.split('.').pop() ?? 'jpg';
-    const key = `lbs/${prefix}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-    const result = await client.multipartUpload(key, file, {
-      parallel: 3,
-      partSize: 1024 * 1024,
-    });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rawUrl = ((result.res as any).requestUrls?.[0] as string) ?? '';
-    return rawUrl.includes('?') ? rawUrl.split('?')[0] : rawUrl;
+  // R2 upload via unified /api/upload
+  const uploadToOss = async (file: File, _prefix: string): Promise<string> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error ?? 'Upload failed');
+    }
+    const data = await res.json();
+    if (!data.success || !data.url) throw new Error('Upload did not return a valid URL');
+    return data.url as string;
   };
 
   const handlePosterUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

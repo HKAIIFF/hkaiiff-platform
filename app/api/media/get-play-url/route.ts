@@ -1,32 +1,32 @@
 /**
  * POST /api/media/get-play-url
  *
- * OSS 防盗链签名 URL 生成器
+ * 受保护媒体 URL 解析器
  *
  * 安全机制：
  *  1. 验证 Privy Access Token（Bearer），确认用户身份
  *  2. 根据 resourceType 进行业务权限校验：
  *     - "film"  → 检查 films.payment_status 或 films.status = 'approved'（公映影片免费）
  *     - "lbs"   → 检查用户是否已在 LBS 节点地理范围内（由前端传入坐标，后端验算）
- *  3. 通过校验后，使用阿里云 OSS SDK 生成带短期有效期的签名 URL（默认 30 分钟）
- *  4. 签名 URL 对前端播放器透明，用后即废，根本杜绝离线盗载
+ *  3. 通过校验后返回可播放 URL：
+ *     - Bunny HLS / R2 完整 URL → 直接返回
+ *     - 旧版 OSS Object Key → 构造公开 URL（向后兼容历史数据）
  *
  * Request Body:
  *  {
- *    objectKey: string,          // OSS 存储对象 Key（从 Supabase 元数据中取）
+ *    objectKey: string,          // 媒体资源 Key 或完整 URL
  *    resourceType: "film"|"lbs", // 资源类型
  *    filmId?: string,            // resourceType=film 时必传
  *    lbsNodeId?: string,         // resourceType=lbs 时必传
  *    userLat?: number,           // resourceType=lbs 时传入用户坐标（后端验算）
  *    userLng?: number,
- *    expiresSeconds?: number,    // 签名有效期（默认 1800 秒 = 30分钟，最长 3600）
+ *    expiresSeconds?: number,    // 保留参数（兼容旧客户端，不再使用）
  *  }
  */
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { PrivyClient } from '@privy-io/server-auth';
-import OSS from 'ali-oss';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,25 +42,6 @@ function getAdminClient() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) throw new Error('Missing Supabase env variables');
   return createClient(url, key, { auth: { persistSession: false } });
-}
-
-function getOssClient(): OSS {
-  const region = process.env.ALIYUN_REGION;
-  const bucket = process.env.ALIYUN_BUCKET_NAME;
-  const accessKeyId = process.env.ALIYUN_ACCESS_KEY_ID;
-  const accessKeySecret = process.env.ALIYUN_ACCESS_KEY_SECRET;
-
-  if (!region || !bucket || !accessKeyId || !accessKeySecret) {
-    throw new Error('Missing Aliyun OSS configuration');
-  }
-
-  return new OSS({
-    region,
-    bucket,
-    accessKeyId,
-    accessKeySecret,
-    secure: true,
-  });
 }
 
 // ── Haversine 距离计算（米）────────────────────────────────────────────────────
@@ -198,24 +179,36 @@ export async function POST(req: Request) {
     }
   }
 
-  // ── Step 4: 生成 OSS 签名 URL ─────────────────────────────────────────────
-  try {
-    const ossClient = getOssClient();
+  // ── Step 4: 解析并返回可播放 URL ─────────────────────────────────────────
+  //
+  // 新架构：视频存于 Bunny Stream（HLS 公开分发），图片存于 Cloudflare R2（公开 CDN）。
+  // 权限校验已在上方完成，此处直接返回可访问 URL，无需二次签名。
+  //
+  // 向后兼容逻辑：
+  //  - 完整 URL（https://...）  → 直接返回（Bunny / R2 / 旧版 OSS CDN URL）
+  //  - 局部 Key（含 /playlist.m3u8）→ 视为 Bunny GUID 路径，补全 CDN 域名
+  //  - 其他局部 Key              → 视为旧版 OSS Object Key，补全 OSS 域名
 
-    // ali-oss signatureUrl 返回带签名的完整 URL
-    const signedUrl = ossClient.signatureUrl(objectKey, {
-      expires: finalExpires,
-      method: 'GET',
-    });
+  let resolvedUrl: string;
 
-    return NextResponse.json({
-      url: signedUrl,
-      expiresIn: finalExpires,
-      expiresAt: new Date(Date.now() + finalExpires * 1000).toISOString(),
-    });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : 'OSS signing failed';
-    console.error('[media/get-play-url] OSS error:', msg);
-    return NextResponse.json({ error: `Failed to generate signed URL: ${msg}` }, { status: 500 });
+  if (objectKey.startsWith('http://') || objectKey.startsWith('https://')) {
+    // 已是完整 URL（Bunny HLS、R2 公共链接、旧版 OSS CDN 地址）
+    resolvedUrl = objectKey;
+  } else if (objectKey.includes('/playlist.m3u8') || objectKey.includes('/thumbnail.jpg')) {
+    // Bunny GUID 路径，如 "abc-123-def/playlist.m3u8"
+    const cdnHostname = process.env.BUNNY_CDN_HOSTNAME || process.env.NEXT_PUBLIC_BUNNY_CDN_HOSTNAME;
+    resolvedUrl = cdnHostname
+      ? `https://${cdnHostname}/${objectKey}`
+      : `https://vz-eb1ce7ba-274.b-cdn.net/${objectKey}`;
+  } else {
+    // 旧版 OSS Object Key（历史数据向后兼容）
+    const ossBase = 'https://hkaiiff-media-node.oss-ap-southeast-1.aliyuncs.com';
+    resolvedUrl = `${ossBase}/${objectKey.replace(/^\//, '')}`;
   }
+
+  return NextResponse.json({
+    url: resolvedUrl,
+    expiresIn: finalExpires,
+    expiresAt: new Date(Date.now() + finalExpires * 1000).toISOString(),
+  });
 }

@@ -7,7 +7,6 @@ import { useI18n } from "@/app/context/I18nContext";
 import { useToast } from "@/app/context/ToastContext";
 import { useModal } from "@/app/context/ModalContext";
 import { supabase } from "@/lib/supabase";
-import OSS from "ali-oss";
 import UniversalCheckout from "@/app/components/UniversalCheckout";
 import { useProduct } from "@/lib/hooks/useProduct";
 
@@ -298,22 +297,16 @@ export default function VerificationPage() {
     }
     setIsDocUploading(true);
     try {
-      const stsRes = await fetch("/api/oss-sts");
-      if (!stsRes.ok) throw new Error("Failed to get OSS credentials");
-      const creds = await stsRes.json();
-      const client = new OSS({
-        region: creds.Region,
-        accessKeyId: creds.AccessKeyId,
-        accessKeySecret: creds.AccessKeySecret,
-        stsToken: creds.SecurityToken,
-        bucket: creds.Bucket,
-        secure: true,
-      });
-      const ext = file.name.split(".").pop() ?? "bin";
-      const key = `verification-docs/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      await client.put(key, file);
-      const url = `https://${creds.Bucket}.${creds.Region}.aliyuncs.com/${key}`;
-      updateForm("docUrl", url);
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error ?? "上传失败");
+      }
+      const data = await res.json();
+      if (!data.success || !data.url) throw new Error("上传未返回有效 URL");
+      updateForm("docUrl", data.url as string);
       updateForm("docFileName", file.name);
       showToast(lang === "zh" ? "文件上傳成功！" : "File uploaded!", "success");
     } catch (err) {

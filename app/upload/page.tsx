@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
-import OSS from 'ali-oss';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/app/context/ToastContext';
 import { useI18n } from '@/app/context/I18nContext';
@@ -183,61 +182,32 @@ export default function UploadPage() {
     setStep(2);
   };
 
-  // ── 视频分流：OSS 上传后触发 Bunny 服务端拉取，返回 HLS URL ─────────────
-  const uploadVideoViaBunny = async (
-    ossUrl: string,
-    videoTitle: string,
-  ): Promise<string> => {
-    const res = await fetch('/api/bunny/upload-video', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ videoUrl: ossUrl, title: videoTitle }),
-    });
+  // ── 统一上传助手：调用 /api/upload 分流路由 ──────────────────────────────
+  const uploadFile = async (file: File, title?: string): Promise<string> => {
+    const fd = new FormData();
+    fd.append('file', file);
+    if (title) fd.append('title', title);
+
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
     const data = await res.json();
-    if (!res.ok || !data.hlsUrl) {
-      throw new Error(data.error ?? 'Bunny 视频处理失败');
+    if (!res.ok || !data.success) {
+      throw new Error(data.error ?? `上传失败 (${file.name})`);
     }
-    return data.hlsUrl as string;
+    return data.url as string;
   };
 
-  // ── 核心上传流程（图片 → OSS，视频 → OSS 暂存 → Bunny HLS）────────────────
+  // ── 核心上传流程（图片 → R2，视频 → Bunny Stream HLS）────────────────────
   const doUploadAndCreateRecord = async (paymentMethod: 'USD' | 'AIF' | 'pending'): Promise<string> => {
-    const stsRes = await fetch('/api/oss-sts');
-    const stsData = await stsRes.json();
-    if (stsData.error) throw new Error(stsData.error);
+    // ── 图片走 R2（免流公共 CDN）─────────────────────────────────────────────
+    setUploadStatus('UPLOADING POSTER TO CLOUDFLARE R2...');
+    const posterUrl = await uploadFile(posterFile!);
 
-    setUploadStatus('SECURE CHANNEL ESTABLISHED. UPLOADING MEDIA...');
+    // ── 视频直接上传 Bunny Stream，生成 HLS ──────────────────────────────────
+    setUploadStatus('UPLOADING TRAILER TO BUNNY STREAM (HLS ENCODING)...');
+    const trailerUrl = await uploadFile(trailerFile!, `${formData.title} - Trailer`);
 
-    const client = new OSS({
-      region: stsData.Region || process.env.NEXT_PUBLIC_ALIYUN_REGION || 'oss-ap-southeast-1',
-      accessKeyId: stsData.AccessKeyId,
-      accessKeySecret: stsData.AccessKeySecret,
-      stsToken: stsData.SecurityToken,
-      bucket: stsData.Bucket,
-      secure: true,
-    });
-
-    const prefix = `submissions/${user!.id}/${Date.now()}`;
-
-    // ── 图片走 OSS（不变）─────────────────────────────────────────────────────
-    setUploadStatus('UPLOADING POSTER ASSETS...');
-    const posterResult = await client.multipartUpload(`${prefix}_poster_${posterFile!.name}`, posterFile!);
-    const posterUrl = posterResult.res.requestUrls[0].split('?')[0];
-
-    // ── 视频：先上传 OSS 暂存，再触发 Bunny 拉取生成 HLS ─────────────────────
-    setUploadStatus('UPLOADING TRAILER TO STAGING...');
-    const trailerOssResult = await client.multipartUpload(`${prefix}_trailer_${trailerFile!.name}`, trailerFile!);
-    const trailerOssUrl = trailerOssResult.res.requestUrls[0].split('?')[0];
-
-    setUploadStatus('ROUTING TRAILER TO BUNNY STREAM (HLS ENCODING)...');
-    const trailerUrl = await uploadVideoViaBunny(trailerOssUrl, `${formData.title} - Trailer`);
-
-    setUploadStatus('UPLOADING FULL FILM TO STAGING (THIS MAY TAKE A WHILE)...');
-    const filmOssResult = await client.multipartUpload(`${prefix}_film_${filmFile!.name}`, filmFile!);
-    const filmOssUrl = filmOssResult.res.requestUrls[0].split('?')[0];
-
-    setUploadStatus('ROUTING FULL FILM TO BUNNY STREAM (HLS ENCODING)...');
-    const fullFilmUrl = await uploadVideoViaBunny(filmOssUrl, `${formData.title} - Full Film`);
+    setUploadStatus('UPLOADING FULL FILM TO BUNNY STREAM (THIS MAY TAKE A WHILE)...');
+    const fullFilmUrl = await uploadFile(filmFile!, `${formData.title} - Full Film`);
 
     setUploadStatus('MEDIA SECURED. MINTING DATA TO DATABASE...');
     const dbRes = await fetch('/api/upload-film', {
@@ -253,7 +223,7 @@ export default function UploadPage() {
         core_cast:      formData.coreCast,
         region:         formData.region,
         lbs_royalty:    formData.lbsRoyalty,
-        poster_url:     posterUrl,   // OSS 图片 URL
+        poster_url:     posterUrl,   // R2 公共 CDN URL
         trailer_url:    trailerUrl,  // Bunny HLS URL (.m3u8)
         full_film_url:  fullFilmUrl, // Bunny HLS URL (.m3u8)
         payment_method: paymentMethod,
