@@ -586,12 +586,12 @@ export default function LBSNodesPage() {
     setProcessingId(id);
     const { error } = await supabase
       .from("lbs_nodes")
-      .update({ status: "approved" })
+      .update({ status: "approved", is_online: false })
       .eq("id", id);
     setProcessingId(null);
     if (error) { showToast(`審核失敗: ${error.message}`, "error"); return; }
-    setAllNodes((prev) => prev.map((n) => n.id === id ? { ...n, status: "approved" } : n));
-    showToast("已通過審核，節點狀態設為排期中 ✓", "success");
+    setAllNodes((prev) => prev.map((n) => n.id === id ? { ...n, status: "approved", is_online: false } : n));
+    showToast("已通過審核 ✓ — 請點擊「○ 已下線」按鈕將影展上線", "success");
   }, [showToast]);
 
   const handleRejectWithReason = useCallback(async (id: string, reason: string) => {
@@ -600,10 +600,14 @@ export default function LBSNodesPage() {
     setProcessingId(id);
     const { error } = await supabase
       .from("lbs_nodes")
-      .update({ status: "rejected", rejection_reason: reason })
+      .update({ status: "rejected", rejection_reason: reason, is_online: false })
       .eq("id", id);
     setProcessingId(null);
-    if (error) { showToast(`操作失敗: ${error.message}`, "error"); return; }
+    if (error) {
+      console.error("[Admin] LBS 退回失敗:", error);
+      showToast(`退回失敗：${error.message}`, "error");
+      return;
+    }
 
     // 發送站內信通知策展人
     if (node?.submitted_by) {
@@ -622,12 +626,15 @@ export default function LBSNodesPage() {
         });
     }
 
-    setAllNodes((prev) => prev.map((n) => n.id === id ? { ...n, status: "rejected", rejection_reason: reason } : n));
-    showToast("已退回申請，站內信已發送給策展人 ✓", "success");
+    console.log(`[Admin] LBS 退回已寫入 DB → id=${id}, status=rejected, rejection_reason=${reason}`);
+    setAllNodes((prev) => prev.map((n) => n.id === id ? { ...n, status: "rejected", rejection_reason: reason, is_online: false } : n));
+    showToast("✓ 已退回申請並寫入原因，站內信已發送給策展人", "success");
   }, [showToast, allNodes]);
 
   const handleToggleOnline = useCallback(async (id: string, currentOnline: boolean | null) => {
     const newOnline = !currentOnline;
+    // 樂觀更新 UI
+    setAllNodes((prev) => prev.map((n) => n.id === id ? { ...n, is_online: newOnline } : n));
     setProcessingId(id);
     const { error } = await supabase
       .from("lbs_nodes")
@@ -635,13 +642,14 @@ export default function LBSNodesPage() {
       .eq("id", id);
     setProcessingId(null);
     if (error) {
+      // 失敗：回滾 UI + toast 報錯
       console.error("[Admin] is_online 更新失敗:", error);
-      showToast(`切換失敗: ${error.message}`, "error");
+      setAllNodes((prev) => prev.map((n) => n.id === id ? { ...n, is_online: currentOnline } : n));
+      showToast(`切換失敗：${error.message}`, "error");
       return;
     }
-    console.log(`[Admin] is_online 已更新 → id=${id}, is_online=${newOnline}`);
-    setAllNodes((prev) => prev.map((n) => n.id === id ? { ...n, is_online: newOnline } : n));
-    showToast(newOnline ? "影展已上線 ✓" : "影展已下線 ✓", "success");
+    console.log(`[Admin] is_online 已寫入 DB → id=${id}, is_online=${newOnline}`);
+    showToast(newOnline ? "✓ 影展已上線，Discover 頁面即時可見" : "✓ 影展已下線，已從 Discover 移除", "success");
   }, [showToast]);
 
   const handleCopy = useCallback((text: string, nodeId: string) => {
@@ -865,7 +873,19 @@ export default function LBSNodesPage() {
 
                     {/* 8 · 狀態 */}
                     <td className="px-4 py-3 align-top">
-                      <StatusPill status={node.status} />
+                      <div className="flex flex-col gap-1">
+                        <StatusPill status={node.status} />
+                        {isApproved && (
+                          <span className={`inline-flex items-center gap-1 text-[9px] font-semibold px-2 py-0.5 rounded-full border w-fit ${
+                            node.is_online
+                              ? "bg-green-50 border-green-200 text-green-700"
+                              : "bg-neutral-50 border-neutral-200 text-neutral-400"
+                          }`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${node.is_online ? "bg-green-500" : "bg-neutral-300"}`} />
+                            {node.is_online ? "上線中" : "已下線"}
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* 9 · 操作 */}

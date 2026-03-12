@@ -552,11 +552,13 @@ function DesktopDiscover({
           <div className="grid grid-cols-3 lg:grid-cols-4 gap-4 p-6">
             {[...Array(8)].map((_, i) => <DesktopSkeleton key={i} />)}
           </div>
+        ) : filteredNodes.length === 0 ? (
+          <div className="col-span-full w-full">
+            <EmptyState />
+          </div>
         ) : (
           <div className="grid grid-cols-3 lg:grid-cols-4 gap-4 p-6">
-            {filteredNodes.length === 0 ? (
-              <EmptyState />
-            ) : filteredNodes.map((node) => {
+            {filteredNodes.map((node) => {
               const { dist, isUnlocked } = getStatus(node);
               return (
                 <DesktopNodeCard key={node.id} node={node} isUnlocked={isUnlocked} dist={dist} onClick={() => onClickNode(node)} />
@@ -610,11 +612,17 @@ export default function DiscoverPage() {
           .eq('status', 'approved')
           .eq('is_online', true)
           .order('created_at', { ascending: false });
-        console.log('[Discover] Fetch:', data, error);
-        if (error) throw error;
-        setNodes(data ? (data as DbLbsNode[]).map(mapDbNode) : []);
+
+        if (error) {
+          console.error("Discover Fetch Error:", error);
+          setNodes([]);
+          return;
+        }
+
+        console.log(`[Discover] 查詢成功，共 ${data?.length ?? 0} 個上線節點`, data);
+        setNodes(data && data.length > 0 ? (data as DbLbsNode[]).map(mapDbNode) : []);
       } catch (err) {
-        console.error('[Discover] fetchNodes error:', err);
+        console.error("Discover Fetch Error:", err);
         setNodes([]);
       } finally { setLoading(false); }
     }
