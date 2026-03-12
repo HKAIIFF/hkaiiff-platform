@@ -9,13 +9,11 @@ const supabase = createClient(
 export async function GET(req: NextRequest) {
   const userId = new URL(req.url).searchParams.get('userId');
   if (!userId) return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
-
   const { data, error } = await supabase
     .from('users')
-    .select('id, name, display_name, email, wallet_address, bio, about_studio, tech_stack, agent_id, avatar_seed, verification_status, verification_type, aif_balance')
+    .select('id, name, display_name, email, wallet_address, bio, about_studio, tech_stack, agent_id, aif_balance')
     .eq('id', userId)
     .single();
-
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ user: data });
 }

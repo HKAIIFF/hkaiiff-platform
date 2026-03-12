@@ -19,6 +19,16 @@ interface VRecord {
   wallet_address: string | null;
 }
 
+interface UserProfile {
+  bio: string | null;
+  about_studio: string | null;
+  tech_stack: string | null;
+  aif_balance: number | null;
+  display_name: string | null;
+  email: string | null;
+  wallet_address: string | null;
+}
+
 type Tab = "pending" | "approved" | "rejected" | "all";
 const TABS: { key: Tab; label: string }[] = [
   { key: "pending",  label: "待審核" },
@@ -34,77 +44,118 @@ function fmt(s: string | null) {
   return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
 }
 
-interface UserProfile {
-  bio: string | null;
-  about_studio: string | null;
-  tech_stack: string | null;
-  aif_balance: number | null;
-}
+const TYPE_MAP: Record<string, { label: string; cls: string }> = {
+  creator:     { label: "創作人", cls: "bg-yellow-50 text-yellow-700 border-yellow-200" },
+  institution: { label: "機構",   cls: "bg-blue-50 text-blue-700 border-blue-200" },
+  curator:     { label: "策展人", cls: "bg-purple-50 text-purple-700 border-purple-200" },
+};
+const PAY_MAP: Record<string, { label: string; cls: string }> = {
+  fiat: { label: "Fiat $30",  cls: "bg-yellow-50 text-yellow-700 border-yellow-200" },
+  aif:  { label: "150 AIF",   cls: "bg-green-50 text-green-700 border-green-200" },
+};
 
 function DetailModal({ record, onClose }: { record: VRecord; onClose: () => void }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
+  const [loadingProfile, setLoadingProfile] = useState(true);
 
   useEffect(() => {
-    setProfileLoading(true);
     fetch(`/api/admin/user-profile?userId=${record.user_id}`)
       .then(r => r.json())
       .then(d => setProfile(d.user ?? null))
       .catch(() => setProfile(null))
-      .finally(() => setProfileLoading(false));
+      .finally(() => setLoadingProfile(false));
   }, [record.user_id]);
 
-  const typeMap: Record<string, string> = { creator: "創作人", institution: "機構", curator: "策展人" };
-  const payMap: Record<string, string> = { fiat: "法幣 Fiat $30", aif: "AIF Token 150枚" };
-  const statusMap: Record<string, string> = { pending: "待審核", approved: "已通過", rejected: "已退回" };
-
-  const appRows = [
-    { label: "申請 ID",  value: record.id },
-    { label: "認證名稱", value: record.verification_name || "—" },
-    { label: "身份類型", value: typeMap[record.identity_type ?? ""] || "—" },
-    { label: "支付方式", value: payMap[record.verification_payment_method ?? ""] || "—" },
-    { label: "提交時間", value: fmt(record.verification_submitted_at) },
-    { label: "審核狀態", value: statusMap[record.verification_status] || record.verification_status },
-  ];
-
-  const userRows = [
-    { label: "原用戶名",  value: record.name && record.name !== "New Agent" ? record.name : "—" },
-    { label: "電郵",      value: record.email || "—" },
-    { label: "AIF 餘額", value: profileLoading ? "載入中…" : profile?.aif_balance != null ? `${profile.aif_balance} AIF` : "—" },
-    { label: "錢包地址",  value: record.wallet_address || "—" },
-    { label: "Bio",       value: profileLoading ? "載入中…" : profile?.bio || "—" },
-    { label: "工作室介紹", value: profileLoading ? "載入中…" : profile?.about_studio || "—" },
-    { label: "技術棧",    value: profileLoading ? "載入中…" : profile?.tech_stack || "—" },
-  ];
-
-  const Row = ({ label, value }: { label: string; value: string }) => (
-    <div className="flex gap-3 py-2 border-b border-gray-50 last:border-0">
-      <span className="text-[10px] font-semibold text-gray-400 w-20 shrink-0 pt-0.5 leading-relaxed">{label}</span>
-      <span className="text-xs text-gray-800 break-all leading-relaxed">{value}</span>
-    </div>
-  );
+  const typeCfg = TYPE_MAP[record.identity_type ?? ""];
+  const payCfg = PAY_MAP[record.verification_payment_method ?? ""];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative z-10 w-full max-w-lg bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
-            <h3 className="text-sm font-semibold text-gray-900">📄 申請詳情</h3>
+            <h3 className="text-sm font-semibold text-gray-900">📋 認證申請詳情</h3>
             <p className="text-[10px] text-gray-400 mt-0.5">{record.verification_name || record.display_name || record.id.slice(0,8)}</p>
           </div>
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">✕</button>
+          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 text-sm">✕</button>
         </div>
-        <div className="p-5 overflow-y-auto max-h-[65vh]">
-          <div className="space-y-0">
-            {appRows.map(r => <Row key={r.label} {...r} />)}
-            <div className="flex items-center gap-2 py-3">
-              <div className="flex-1 h-px bg-gray-100" />
-              <span className="text-[9px] font-semibold text-gray-300 tracking-widest">用戶資料</span>
-              <div className="flex-1 h-px bg-gray-100" />
+        <div className="p-5 overflow-y-auto max-h-[70vh] space-y-4">
+
+          {/* 申請資料 */}
+          <div>
+            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2">📄 申請資料</p>
+            <div className="bg-gray-50 rounded-xl overflow-hidden border border-gray-100">
+              {[
+                { label: "認證名稱", value: record.verification_name || "—" },
+                { label: "身份類型", value: typeCfg ? <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${typeCfg.cls}`}>{typeCfg.label}</span> : "—" },
+                { label: "支付方式", value: payCfg ? <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${payCfg.cls}`}>{payCfg.label}</span> : "—" },
+                { label: "提交時間", value: fmt(record.verification_submitted_at) },
+                { label: "效期至",   value: fmt(record.expires_at) },
+                { label: "申請 ID",  value: <span className="font-mono text-[10px] break-all">{record.id}</span> },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex items-start gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0">
+                  <span className="text-[10px] font-semibold text-gray-400 w-16 shrink-0 pt-0.5">{label}</span>
+                  <span className="text-xs text-gray-800 flex-1">{value}</span>
+                </div>
+              ))}
             </div>
-            {userRows.map(r => <Row key={r.label} {...r} />)}
           </div>
+
+          {/* 用戶資料 */}
+          <div>
+            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2">👤 用戶資料</p>
+            {loadingProfile ? (
+              <div className="flex justify-center py-6">
+                <div className="flex gap-1">{[0,1,2].map(i=><span key={i} className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-bounce" style={{animationDelay:`${i*0.12}s`}}/>)}</div>
+              </div>
+            ) : (
+              <div className="bg-gray-50 rounded-xl overflow-hidden border border-gray-100">
+                {[
+                  { label: "顯示名稱", value: profile?.display_name || record.display_name || "—" },
+                  { label: "電郵",     value: profile?.email || record.email || "—" },
+                  { label: "AIF餘額",  value: profile?.aif_balance != null ? `${profile.aif_balance} AIF` : "—" },
+                  { label: "錢包地址", value: <span className="font-mono text-[10px] break-all">{profile?.wallet_address || record.wallet_address || "—"}</span> },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-start gap-3 px-4 py-2.5 border-b border-gray-100 last:border-0">
+                    <span className="text-[10px] font-semibold text-gray-400 w-16 shrink-0 pt-0.5">{label}</span>
+                    <span className="text-xs text-gray-800 flex-1">{value}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Bio / Studio / Tech */}
+          {!loadingProfile && (profile?.bio || profile?.about_studio || profile?.tech_stack) && (
+            <div>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2">📝 創作者資料</p>
+              <div className="bg-gray-50 rounded-xl overflow-hidden border border-gray-100">
+                {profile?.bio && (
+                  <div className="px-4 py-2.5 border-b border-gray-100">
+                    <p className="text-[10px] font-semibold text-gray-400 mb-1">Bio</p>
+                    <p className="text-xs text-gray-700 leading-relaxed">{profile.bio}</p>
+                  </div>
+                )}
+                {profile?.about_studio && (
+                  <div className="px-4 py-2.5 border-b border-gray-100">
+                    <p className="text-[10px] font-semibold text-gray-400 mb-1">About Studio</p>
+                    <p className="text-xs text-gray-700 leading-relaxed">{profile.about_studio}</p>
+                  </div>
+                )}
+                {profile?.tech_stack && (
+                  <div className="px-4 py-2.5">
+                    <p className="text-[10px] font-semibold text-gray-400 mb-1">Tech Stack</p>
+                    <div className="flex flex-wrap gap-1">
+                      {profile.tech_stack.split(',').map((t, i) => (
+                        <span key={i} className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-100 rounded-full text-[10px]">{t.trim()}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -185,16 +236,6 @@ export default function AdminVerificationsPage() {
     } finally { setProcessing(null); }
   }
 
-  const typeMap: Record<string, {label:string;cls:string}> = {
-    creator:     { label:"創作人", cls:"bg-yellow-50 text-yellow-700 border-yellow-200" },
-    institution: { label:"機構",   cls:"bg-blue-50 text-blue-700 border-blue-200" },
-    curator:     { label:"策展人", cls:"bg-purple-50 text-purple-700 border-purple-200" },
-  };
-  const payMap: Record<string, {label:string;cls:string}> = {
-    fiat: { label:"Fiat $30",  cls:"bg-yellow-50 text-yellow-700 border-yellow-200" },
-    aif:  { label:"150 AIF",   cls:"bg-green-50 text-green-700 border-green-200" },
-  };
-
   return (
     <div className="min-h-screen bg-gray-50">
       {toast && (
@@ -240,7 +281,7 @@ export default function AdminVerificationsPage() {
             <div className="flex gap-1.5">{[0,1,2].map(i=><span key={i} className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay:`${i*0.12}s`}}/>)}</div>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-2">
+          <div className="flex flex-col items-center justify-center py-24">
             <p className="text-sm text-gray-400">此分類暫無審核記錄</p>
           </div>
         ) : (
@@ -248,21 +289,21 @@ export default function AdminVerificationsPage() {
             <table className="w-full min-w-[900px] text-left">
               <thead>
                 <tr className="border-b bg-gray-50">
-                  {["提交時間","認證名稱","原用戶名","身份類型","支付方式","效期","狀態","操作"].map(h=>(
+                  {["提交時間","認證名稱","原用戶名","身份類型","支付方式","狀態","操作"].map(h=>(
                     <th key={h} className="px-4 py-3 text-[9px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((r, i) => {
-                  const typeCfg = typeMap[r.identity_type ?? ""];
-                  const payCfg = payMap[r.verification_payment_method ?? ""];
+                  const typeCfg = TYPE_MAP[r.identity_type ?? ""];
+                  const payCfg = PAY_MAP[r.verification_payment_method ?? ""];
                   return (
                     <tr key={r.id} className={`hover:bg-gray-50 ${i<filtered.length-1?"border-b":""}`}>
                       <td className="px-4 py-3 text-[11px] text-gray-500 font-mono whitespace-nowrap">{fmt(r.verification_submitted_at)}</td>
                       <td className="px-4 py-3">
-                        <div className="text-xs font-semibold text-gray-900">{r.verification_name || r.display_name || "—"}</div>
-                        <div className="text-[10px] text-gray-400 font-mono">{r.id.slice(0,8)}…</div>
+                        <div className="text-xs font-semibold text-gray-900">{r.verification_name || "—"}</div>
+                        <div className="text-[10px] text-gray-400">{r.display_name || "—"}</div>
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-600">{r.name && r.name!=="New Agent" ? r.name : r.email || "—"}</td>
                       <td className="px-4 py-3">
@@ -271,7 +312,6 @@ export default function AdminVerificationsPage() {
                       <td className="px-4 py-3">
                         {payCfg ? <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${payCfg.cls}`}>{payCfg.label}</span> : <span className="text-gray-300">—</span>}
                       </td>
-                      <td className="px-4 py-3 text-[10px] font-mono text-gray-400 whitespace-nowrap">{fmt(r.expires_at)}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
                           r.verification_status==="pending"?"bg-orange-50 text-orange-600 border-orange-200":
@@ -320,9 +360,9 @@ export default function AdminVerificationsPage() {
               {REJECT_REASONS.map(r=><option key={r} value={r}>{r}</option>)}
             </select>
             <div className="flex gap-2">
-              <button onClick={()=>setRejectId(null)} className="flex-1 py-2.5 border border-gray-200 text-gray-500 text-xs rounded-full hover:bg-gray-50">取消</button>
+              <button onClick={()=>setRejectId(null)} className="flex-1 py-2.5 border border-gray-200 text-gray-500 text-xs rounded-full">取消</button>
               <button onClick={reject} disabled={!rejectReason||processing===rejectId}
-                className="flex-[2] py-2.5 bg-red-500 text-white text-xs font-semibold rounded-full hover:bg-red-600 disabled:opacity-50">
+                className="flex-[2] py-2.5 bg-red-500 text-white text-xs font-semibold rounded-full disabled:opacity-50">
                 確認退回
               </button>
             </div>
