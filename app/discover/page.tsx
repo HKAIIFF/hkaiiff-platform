@@ -609,7 +609,7 @@ export default function DiscoverPage() {
         const { data, error } = await supabase
           .from('lbs_nodes')
           .select('*')
-          .eq('status', 'approved')
+          .eq('status', 'active')
           .eq('is_online', true)
           .order('created_at', { ascending: false });
 
