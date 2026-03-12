@@ -396,6 +396,202 @@ function DashboardModule({ t }: { t: Dict }) {
   );
 }
 
+function VerificationsPanel() {
+  const [records, setRecords] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"pending"|"approved"|"rejected"|"all">("pending");
+  const [processing, setProcessing] = useState<string|null>(null);
+  const [rejectId, setRejectId] = useState<string|null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [toast, setToast] = useState<{msg:string;ok:boolean}|null>(null);
+  const [detail, setDetail] = useState<any|null>(null);
+
+  const showToast = (msg:string, ok:boolean) => { setToast({msg,ok}); setTimeout(()=>setToast(null),3000); };
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/verifications?status=${tab}`);
+      const data = await res.json();
+      setRecords(data.verifications ?? []);
+    } catch { showToast("載入失敗", false); }
+    finally { setLoading(false); }
+  }, [tab]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function fmt(s:string|null) {
+    if (!s) return "—";
+    const d = new Date(s);
+    return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  }
+
+  const TYPE_MAP: Record<string,{label:string;cls:string}> = {
+    creator:     {label:"創作人", cls:"bg-yellow-50 text-yellow-700 border-yellow-200"},
+    institution: {label:"機構",   cls:"bg-blue-50 text-blue-700 border-blue-200"},
+    curator:     {label:"策展人", cls:"bg-purple-50 text-purple-700 border-purple-200"},
+  };
+  const PAY_MAP: Record<string,{label:string;cls:string}> = {
+    fiat: {label:"Fiat $30", cls:"bg-yellow-50 text-yellow-700 border-yellow-200"},
+    aif:  {label:"150 AIF",  cls:"bg-green-50 text-green-700 border-green-200"},
+  };
+
+  const counts = {
+    pending:  records.filter(r=>r.verification_status==="pending").length,
+    approved: records.filter(r=>r.verification_status==="approved").length,
+    rejected: records.filter(r=>r.verification_status==="rejected").length,
+    all: records.length,
+  };
+
+  async function approve(id:string) {
+    setProcessing(id);
+    try {
+      const res = await fetch("/api/admin/verifications/review", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({applicationId:id, action:"approve"}),
+      });
+      const d = await res.json();
+      if (res.ok) { showToast("✓ 已通過審核", true); load(); }
+      else { showToast(d.error??"失敗", false); }
+    } finally { setProcessing(null); }
+  }
+
+  async function doReject() {
+    if (!rejectId||!rejectReason) return;
+    setProcessing(rejectId);
+    try {
+      const res = await fetch("/api/admin/verifications/review", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({applicationId:rejectId, action:"reject", rejectionReason:rejectReason}),
+      });
+      const d = await res.json();
+      if (res.ok) { showToast("已退回", true); setRejectId(null); setRejectReason(""); load(); }
+      else { showToast(d.error??"失敗", false); }
+    } finally { setProcessing(null); }
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+      {toast && (
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-full text-xs font-medium shadow-lg text-white ${toast.ok?"bg-green-500":"bg-red-500"}`}>
+          {toast.msg}
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        {(["pending","approved","rejected","all"] as const).map(t=>(
+          <button key={t} onClick={()=>setTab(t)}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-colors ${tab===t?"bg-blue-600 text-white":"text-gray-500 hover:bg-gray-100 bg-white border"}`}>
+            {t==="pending"?"待審核":t==="approved"?"已通過":t==="rejected"?"已退回":"全部"}
+            <span className="ml-1 text-[9px]">{counts[t]}</span>
+          </button>
+        ))}
+        <button onClick={load} disabled={loading} className="ml-auto w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 bg-white border">
+          <svg className={`w-3.5 h-3.5 ${loading?"animate-spin":""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <div className="flex justify-center py-16"><div className="flex gap-1">{[0,1,2].map(i=><span key={i} className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay:`${i*0.12}s`}}/>)}</div></div>
+      ) : records.length===0 ? (
+        <div className="flex justify-center py-16"><p className="text-sm text-gray-400">暫無審核記錄</p></div>
+      ) : (
+        <div className="bg-white rounded-2xl border overflow-x-auto">
+          <table className="w-full min-w-[800px] text-left">
+            <thead><tr className="border-b bg-gray-50">
+              {["提交時間","認證名稱","原用戶名","身份類型","支付方式","狀態","操作"].map(h=>(
+                <th key={h} className="px-4 py-3 text-[9px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+              ))}
+            </tr></thead>
+            <tbody>
+              {records.map((r,i)=>{
+                const tc=TYPE_MAP[r.identity_type??""];
+                const pc=PAY_MAP[r.verification_payment_method??""];
+                return (
+                  <tr key={r.id} className={`hover:bg-gray-50 ${i<records.length-1?"border-b":""}`}>
+                    <td className="px-4 py-3 text-[11px] text-gray-500 font-mono whitespace-nowrap">{fmt(r.verification_submitted_at)}</td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs font-semibold text-gray-900">{r.verification_name||"—"}</div>
+                      <div className="text-[10px] text-gray-400">{r.display_name||"—"}</div>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-600">{r.email||"—"}</td>
+                    <td className="px-4 py-3">{tc?<span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${tc.cls}`}>{tc.label}</span>:<span className="text-gray-300">—</span>}</td>
+                    <td className="px-4 py-3">{pc?<span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${pc.cls}`}>{pc.label}</span>:<span className="text-gray-300">—</span>}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${r.verification_status==="pending"?"bg-orange-50 text-orange-600 border-orange-200":r.verification_status==="approved"?"bg-green-50 text-green-700 border-green-200":"bg-red-50 text-red-600 border-red-200"}`}>
+                        {r.verification_status==="pending"?"待審":r.verification_status==="approved"?"已通過":"已退回"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1.5">
+                        <button onClick={()=>setDetail(r)} className="px-2.5 py-1 text-[10px] text-blue-600 border border-blue-200 rounded-full hover:bg-blue-50">詳情</button>
+                        {r.verification_status==="pending"&&<>
+                          <button onClick={()=>approve(r.id)} disabled={processing===r.id} className="px-3 py-1 text-[11px] font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full hover:bg-green-100 disabled:opacity-40">{processing===r.id?"…":"通過"}</button>
+                          <button onClick={()=>{setRejectId(r.id);setRejectReason("");}} disabled={processing===r.id} className="px-3 py-1 text-[11px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full hover:bg-red-100 disabled:opacity-40">退回</button>
+                        </>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {detail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={()=>setDetail(null)}/>
+          <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <h3 className="text-sm font-semibold">📋 申請詳情</h3>
+              <button onClick={()=>setDetail(null)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <div className="p-5 space-y-2 overflow-y-auto max-h-[60vh]">
+              {[
+                {label:"認證名稱", value:detail.verification_name||"—"},
+                {label:"身份類型", value:TYPE_MAP[detail.identity_type??""]?.label||"—"},
+                {label:"支付方式", value:PAY_MAP[detail.verification_payment_method??""]?.label||"—"},
+                {label:"提交時間", value:fmt(detail.verification_submitted_at)},
+                {label:"原用戶名", value:detail.display_name||"—"},
+                {label:"電郵",     value:detail.email||"—"},
+                {label:"錢包地址", value:detail.wallet_address||"—"},
+                {label:"申請ID",  value:detail.id},
+              ].map(({label,value})=>(
+                <div key={label} className="flex gap-3 py-2 border-b border-gray-50 last:border-0">
+                  <span className="text-[10px] font-semibold text-gray-400 w-16 shrink-0">{label}</span>
+                  <span className="text-xs text-gray-800 break-all">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {rejectId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={()=>setRejectId(null)}/>
+          <div className="relative z-10 bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4">
+            <h3 className="text-sm font-semibold">退回認證申請</h3>
+            <select value={rejectReason} onChange={e=>setRejectReason(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-xs outline-none">
+              <option value="">請選擇原因…</option>
+              {["侵權風險","通用詞語","違規風險"].map(r=><option key={r} value={r}>{r}</option>)}
+            </select>
+            <div className="flex gap-2">
+              <button onClick={()=>setRejectId(null)} className="flex-1 py-2.5 border border-gray-200 text-gray-500 text-xs rounded-full">取消</button>
+              <button onClick={doReject} disabled={!rejectReason||processing===rejectId} className="flex-[2] py-2.5 bg-red-500 text-white text-xs font-semibold rounded-full disabled:opacity-50">確認退回</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReviewModule({ t, pushToast }: SharedProps) {
   const [sub, setSub] = useState<"films" | "lbs" | "kyc">("films");
   const [films, setFilms] = useState<Film[]>([]);
@@ -538,7 +734,8 @@ function ReviewModule({ t, pushToast }: SharedProps) {
         </div>
       )}
 
-      {sub !== "films" && <div className={`${CARD} p-6 text-gray-500`}>{t.empty}</div>}
+      {sub === "lbs" && <div className={`${CARD} p-6 text-gray-500`}>{t.empty}</div>}
+      {sub === "kyc" && <VerificationsPanel />}
 
       {rejectFilm && (
         <Modal
