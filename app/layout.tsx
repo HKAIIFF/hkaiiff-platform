@@ -8,6 +8,8 @@ export const metadata: Metadata = {
   title: "HKAIIFF | AI Native Film Festival",
   description:
     "Hong Kong AI International Film Festival — The world's first festival exclusively dedicated to AI-Native cinema. Something has to change.",
+  manifest: '/manifest.json',
+  themeColor: '#000000',
 };
 
 export default function RootLayout({
@@ -28,6 +30,12 @@ export default function RootLayout({
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
           rel="stylesheet"
         />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#000000" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="HKAIIFF" />
+        <link rel="apple-touch-icon" href="/icon-192x192.png" />
       </head>
       {/* bg/text 由 ConditionalNav 按路由分流處理：前台=bg-void/text-white，/admin=白底畫布 */}
       <body className="font-zh antialiased">
