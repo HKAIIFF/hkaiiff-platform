@@ -16,14 +16,22 @@ import { useProduct } from "@/lib/hooks/useProduct";
 type VerificationType = "creator" | "institution" | "curator";
 type TeamMember = { name: string; role: string };
 
+/** 三態：A=未提交 B=審核中 C=已通過（對應某個 identity_type） */
+type VerifyPageState = "A" | "B" | "C";
+
 interface VerificationForm {
   verificationType: VerificationType | null;
-  bio: string;
-  techStack: string;
-  coreTeam: TeamMember[];
-  portfolio: string;
+  verificationName: string;
   docUrl: string;
   docFileName: string;
+}
+
+interface IdentityApp {
+  id: string;
+  identity_type: VerificationType;
+  status: "awaiting_payment" | "pending" | "approved" | "rejected";
+  verification_name: string | null;
+  expires_at: string | null;
 }
 
 // ── Step indicator ────────────────────────────────────────────────────────────
@@ -65,22 +73,26 @@ export default function VerificationPage() {
 
   const { product: verifyProduct } = useProduct("identity_verify");
 
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [aifBalance, setAifBalance] = useState(0);
   const [isLoadingBalance, setIsLoadingBalance] = useState(true);
   const [isDocUploading, setIsDocUploading] = useState(false);
-  /** 保存草稿後的 applicationId，用於 AIF 支付成功後更新狀態 */
+  /** 保存草稿後的 applicationId */
   const [draftApplicationId, setDraftApplicationId] = useState<string | null>(null);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
+
+  /** 三態狀態 */
+  const [pageState, setPageState] = useState<VerifyPageState>("A");
+  /** 審核中 / 已通過的申請列表 */
+  const [statusApps, setStatusApps] = useState<IdentityApp[]>([]);
+  /** 已通過的身份列表 */
+  const [verifiedIdentities, setVerifiedIdentities] = useState<string[]>([]);
   /** 已有申請的身份類型（blocked types） */
   const [blockedTypes, setBlockedTypes] = useState<VerificationType[]>([]);
 
   const [form, setForm] = useState<VerificationForm>({
     verificationType: null,
-    bio: "",
-    techStack: "",
-    coreTeam: [],
-    portfolio: "",
+    verificationName: "",
     docUrl: "",
     docFileName: "",
   });
@@ -90,45 +102,62 @@ export default function VerificationPage() {
     if (ready && !authenticated) router.replace("/");
   }, [ready, authenticated, router]);
 
-  // 加載 AIF 餘額 + 檢查已有申請（防止重複提交）
+  // 加載 AIF 餘額 + 申請狀態
   useEffect(() => {
     if (!authenticated || !user?.id) return;
     const fetch_ = async () => {
       setIsLoadingBalance(true);
       try {
-        // 取得 AIF 餘額
+        // 取得 AIF 餘額 + verified_identities
         const { data: userData } = await supabase
           .from("users")
-          .select("aif_balance")
+          .select("aif_balance, verified_identities")
           .eq("id", user.id)
           .single();
         setAifBalance(userData?.aif_balance ?? 0);
+        const vIds: string[] = userData?.verified_identities ?? [];
+        setVerifiedIdentities(vIds);
 
-        // 查詢已有的申請（pending / awaiting_payment / approved 且未過期）
+        // 查詢最新申請記錄
         const now = new Date().toISOString();
         const { data: existingApps } = await supabase
           .from("creator_applications")
-          .select("identity_type, status, expires_at")
+          .select("id, identity_type, status, verification_name, expires_at")
           .eq("user_id", user.id)
-          .in("status", ["awaiting_payment", "pending", "approved"]);
+          .in("status", ["awaiting_payment", "pending", "approved"])
+          .order("submitted_at", { ascending: false });
+
+        const apps: IdentityApp[] = (existingApps ?? []) as IdentityApp[];
+        setStatusApps(apps);
 
         const blocked: VerificationType[] = [];
-        for (const app of existingApps ?? []) {
+        for (const app of apps) {
           if (app.status === "awaiting_payment" || app.status === "pending") {
-            blocked.push(app.identity_type as VerificationType);
+            blocked.push(app.identity_type);
           } else if (app.status === "approved") {
             const isExpired = app.expires_at && app.expires_at < now;
-            if (!isExpired) {
-              blocked.push(app.identity_type as VerificationType);
-            }
+            if (!isExpired) blocked.push(app.identity_type);
           }
         }
         setBlockedTypes(blocked);
 
-        // 若所有身份都已通過且未過期，提示並返回
-        if (blocked.length === 3) {
+        // 判斷頁面狀態
+        const hasPending = apps.some(
+          (a) => a.status === "pending" || a.status === "awaiting_payment"
+        );
+        const allTypes: VerificationType[] = ["creator", "institution", "curator"];
+        const allApproved = allTypes.every((t) => vIds.includes(t));
+
+        if (allApproved) {
+          setPageState("C");
+        } else if (hasPending) {
+          setPageState("B");
+        } else {
+          setPageState("A");
+        }
+
+        if (allApproved) {
           showToast(lang === "zh" ? "您的三種身份均已完成認證" : "All identities verified", "info");
-          router.replace("/me");
         }
       } finally {
         setIsLoadingBalance(false);
@@ -141,21 +170,6 @@ export default function VerificationPage() {
 
   function updateForm<K extends keyof VerificationForm>(key: K, value: VerificationForm[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
-  }
-
-  function addTeamMember() {
-    setForm((prev) => ({ ...prev, coreTeam: [...prev.coreTeam, { name: "", role: "" }] }));
-  }
-
-  function updateTeamMember(index: number, field: "name" | "role", value: string) {
-    setForm((prev) => ({
-      ...prev,
-      coreTeam: prev.coreTeam.map((m, i) => (i === index ? { ...m, [field]: value } : m)),
-    }));
-  }
-
-  function removeTeamMember(index: number) {
-    setForm((prev) => ({ ...prev, coreTeam: prev.coreTeam.filter((_, i) => i !== index) }));
   }
 
   // ── Step 1 validation ──────────────────────────────────────────────────────
@@ -217,9 +231,7 @@ export default function VerificationPage() {
   }
 
   /**
-   * AIF 支付成功後的提交：
-   * 若有草稿 applicationId → 更新草稿為 pending
-   * 否則 → 直接新建 pending 記錄
+   * 提交認證申請（AIF 支付成功後 or Stripe 回調後）
    */
   async function submitVerification(paymentMethod: "fiat" | "aif", token: string) {
     const res = await fetch("/api/verification/submit", {
@@ -230,11 +242,7 @@ export default function VerificationPage() {
       },
       body: JSON.stringify({
         verificationType: form.verificationType,
-        bio: form.bio,
-        techStack: form.techStack,
-        coreTeam: form.coreTeam,
-        portfolio: form.portfolio,
-        docUrl: form.docUrl || null,
+        verificationName: form.verificationName,
         paymentMethod,
         applicationId: draftApplicationId ?? undefined,
       }),
@@ -246,15 +254,15 @@ export default function VerificationPage() {
       return;
     }
     showToast(t("verify_success"), "success");
-    setStep(4);
+    // 更新狀態為 B（審核中）
+    setPageState("B");
   }
 
   /**
-   * 進入 Step 3 時，先將表單數據保存為草稿（status='awaiting_payment'）
-   * 這樣 Stripe Webhook 觸發後，可直接找到這條草稿並將狀態升級為 pending
+   * 進入 Step 2 時，先保存草稿（fiat 支付流程）
    */
   useEffect(() => {
-    if (step !== 3 || !authenticated || !user?.id || isSavingDraft || draftApplicationId) return;
+    if (step !== 2 || !authenticated || !user?.id || isSavingDraft || draftApplicationId) return;
 
     const saveDraft = async () => {
       setIsSavingDraft(true);
@@ -269,18 +277,13 @@ export default function VerificationPage() {
           },
           body: JSON.stringify({
             verificationType: form.verificationType,
-            bio: form.bio,
-            techStack: form.techStack,
-            coreTeam: form.coreTeam,
-            portfolio: form.portfolio,
-            docUrl: form.docUrl || null,
+            verificationName: form.verificationName,
             paymentMethod: "fiat",
           }),
         });
         const data = await res.json();
         if (res.ok && data.applicationId) {
           setDraftApplicationId(data.applicationId);
-          // 保留 localStorage 以兼容舊邏輯
           localStorage.setItem("pending_verification", JSON.stringify({
             ...form,
             paymentMethod: "fiat",
@@ -304,7 +307,6 @@ export default function VerificationPage() {
     const stripeCancelled = url.searchParams.get("stripe_cancelled");
 
     if (stripeSuccess === "1" && authenticated && user?.id) {
-      // 清除 URL 參數，保持網址乾淨
       router.replace("/verification", { scroll: false });
       const pending = localStorage.getItem("pending_verification");
       if (pending) {
@@ -323,7 +325,6 @@ export default function VerificationPage() {
         );
       }
     } else if (stripeCancelled === "1") {
-      // 清除 URL 參數，保持網址乾淨
       router.replace("/verification", { scroll: false });
       showToast(
         lang === "zh" ? "支付已取消，您可以重新選擇支付方式" : "Payment cancelled. You can try again.",
@@ -334,7 +335,7 @@ export default function VerificationPage() {
 
   if (!ready || !authenticated) return null;
 
-  const stepLabels = [t("verify_step1"), t("verify_step2"), t("verify_step3"), t("verify_step4")];
+  const stepLabels = [t("verify_step1"), t("verify_step2"), t("verify_step3")];
 
   const IDENTITY_TYPES: Array<{ value: VerificationType; icon: string; color: string }> = [
     { value: "creator", icon: "fa-film", color: "signal" },
@@ -342,15 +343,191 @@ export default function VerificationPage() {
     { value: "curator", icon: "fa-palette", color: "purple-400" },
   ];
 
+  const typeLabel = (t_: string) => ({ creator: "創作人", institution: "機構", curator: "策展人" }[t_] ?? t_);
+
+  // ── 狀態 B：審核中 ────────────────────────────────────────────────────────
+  if (pageState === "B" && !isLoadingBalance) {
+    const pendingApps = statusApps.filter(
+      (a) => a.status === "pending" || a.status === "awaiting_payment"
+    );
+    return (
+      <>
+        <div className="fixed top-0 left-0 w-full z-40 bg-void/95 backdrop-blur-sm px-4 pt-12 pb-3 md:hidden">
+          <div className="flex justify-between items-center">
+            <button
+              onClick={() => router.back()}
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-neutral-800/80 backdrop-blur-md border border-neutral-600 text-white hover:bg-neutral-700 transition cursor-pointer shadow-lg"
+            >
+              <i className="fas fa-chevron-left text-sm" />
+            </button>
+            <button
+              onClick={() => setActiveModal("lang")}
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-black/60 backdrop-blur border border-[#444] text-gray-300 hover:text-signal hover:border-signal transition-all shadow-lg"
+            >
+              <i className="fas fa-globe text-sm" />
+            </button>
+          </div>
+        </div>
+        <div className="min-h-screen bg-void px-4 pt-28 pb-32 flex flex-col items-center">
+          <div className="w-full max-w-lg flex flex-col items-center gap-8 text-center">
+            <div className="relative">
+              <div className="w-24 h-24 rounded-full bg-yellow-500/10 border-2 border-yellow-500/40 flex items-center justify-center shadow-[0_0_40px_rgba(234,179,8,0.2)]">
+                <i className="fas fa-clock text-yellow-400 text-5xl" />
+              </div>
+              <div className="absolute inset-0 rounded-full border border-yellow-500/20 animate-ping" />
+            </div>
+            <div className="space-y-3">
+              <h2 className="font-heavy text-3xl text-white tracking-wider">
+                {lang === "zh" ? "審核中" : "UNDER REVIEW"}
+              </h2>
+              <p className="font-mono text-[11px] text-gray-400 tracking-widest leading-relaxed max-w-xs">
+                {lang === "zh"
+                  ? "您的認證申請已提交，審核團隊將在 3-5 個工作日內完成審核。"
+                  : "Your application has been submitted. Our team will review it within 3-5 business days."}
+              </p>
+              <div className="flex items-center justify-center gap-2 mt-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                <span className="text-[9px] font-mono text-yellow-400/60 tracking-widest">
+                  {lang === "zh" ? "審核進行中" : "IN REVIEW"}
+                </span>
+                <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+              </div>
+            </div>
+
+            {/* 審核中的申請列表 */}
+            {pendingApps.length > 0 && (
+              <div className="w-full space-y-2">
+                {pendingApps.map((app) => (
+                  <div key={app.id} className="bg-[#0d0d0d] border border-yellow-500/20 rounded-xl px-4 py-3 flex items-center justify-between">
+                    <div className="text-left">
+                      <div className="text-[10px] font-mono text-gray-500 mb-0.5">
+                        {typeLabel(app.identity_type)}
+                      </div>
+                      {app.verification_name && (
+                        <div className="text-sm font-heavy text-white">{app.verification_name}</div>
+                      )}
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 rounded-full px-3 py-1.5">
+                      <i className="fas fa-clock text-[8px]" />
+                      {lang === "zh" ? "審核中" : "Pending"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* 其他未申請的身份 — 仍可申請 */}
+            {blockedTypes.length < 3 && (
+              <button
+                onClick={() => setPageState("A")}
+                className="inline-flex items-center gap-2 px-6 py-2.5 border border-signal/40 text-signal font-mono text-xs tracking-widest rounded-xl hover:bg-signal/10 active:scale-95 transition-all"
+              >
+                <i className="fas fa-plus text-[10px]" />
+                {lang === "zh" ? "申請其他身份認證" : "Apply for another identity"}
+              </button>
+            )}
+
+            <button
+              onClick={() => router.replace("/me")}
+              className="flex items-center gap-2 px-8 py-3 bg-signal text-black font-heavy text-sm tracking-widest rounded-xl shadow-[0_0_20px_rgba(204,255,0,0.3)] hover:shadow-[0_0_35px_rgba(204,255,0,0.5)] active:scale-95 transition-all"
+            >
+              <i className="fas fa-home text-xs" />
+              {lang === "zh" ? "返回個人頁" : "Back to Profile"}
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // ── 狀態 C：已通過（所有身份） ───────────────────────────────────────────
+  if (pageState === "C" && !isLoadingBalance) {
+    return (
+      <>
+        <div className="fixed top-0 left-0 w-full z-40 bg-void/95 backdrop-blur-sm px-4 pt-12 pb-3 md:hidden">
+          <div className="flex justify-between items-center">
+            <button
+              onClick={() => router.back()}
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-neutral-800/80 backdrop-blur-md border border-neutral-600 text-white hover:bg-neutral-700 transition cursor-pointer shadow-lg"
+            >
+              <i className="fas fa-chevron-left text-sm" />
+            </button>
+            <button
+              onClick={() => setActiveModal("lang")}
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-black/60 backdrop-blur border border-[#444] text-gray-300 hover:text-signal hover:border-signal transition-all shadow-lg"
+            >
+              <i className="fas fa-globe text-sm" />
+            </button>
+          </div>
+        </div>
+        <div className="min-h-screen bg-void px-4 pt-28 pb-32 flex flex-col items-center">
+          <div className="w-full max-w-lg flex flex-col items-center gap-8 text-center">
+            <div className="relative">
+              <div className="w-24 h-24 rounded-full bg-signal/10 border-2 border-signal/40 flex items-center justify-center shadow-[0_0_40px_rgba(204,255,0,0.2)]">
+                <i className="fas fa-shield-alt text-signal text-5xl" />
+              </div>
+            </div>
+            <div className="space-y-3">
+              <h2 className="font-heavy text-3xl text-white tracking-wider">
+                {lang === "zh" ? "認證已完成" : "FULLY VERIFIED"}
+              </h2>
+              <p className="font-mono text-[11px] text-gray-400 tracking-widest leading-relaxed max-w-xs">
+                {lang === "zh"
+                  ? "您的所有身份認證均已通過，以下為已認證的身份資訊（只讀）。"
+                  : "All your identity verifications are approved. The information below is read-only."}
+              </p>
+            </div>
+
+            {/* 已通過的申請列表（只讀） */}
+            <div className="w-full space-y-2">
+              {statusApps
+                .filter((a) => a.status === "approved")
+                .map((app) => (
+                  <div key={app.id} className="bg-[#0d0d0d] border border-signal/20 rounded-xl px-4 py-3 flex items-center justify-between">
+                    <div className="text-left">
+                      <div className="text-[10px] font-mono text-gray-500 mb-0.5">
+                        {typeLabel(app.identity_type)}
+                      </div>
+                      {app.verification_name && (
+                        <div className="text-sm font-heavy text-white">{app.verification_name}</div>
+                      )}
+                      {app.expires_at && (
+                        <div className="text-[9px] font-mono text-gray-600 mt-0.5">
+                          {lang === "zh" ? "效期至" : "Expires"}{" "}
+                          {new Date(app.expires_at).toLocaleDateString("zh-TW")}
+                        </div>
+                      )}
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-signal/10 text-signal border border-signal/30 rounded-full px-3 py-1.5">
+                      <i className="fas fa-check text-[8px]" />
+                      {lang === "zh" ? "已認證" : "Verified"}
+                    </span>
+                  </div>
+                ))}
+            </div>
+
+            <button
+              onClick={() => router.replace("/me")}
+              className="flex items-center gap-2 px-8 py-3 bg-signal text-black font-heavy text-sm tracking-widest rounded-xl shadow-[0_0_20px_rgba(204,255,0,0.3)] hover:shadow-[0_0_35px_rgba(204,255,0,0.5)] active:scale-95 transition-all"
+            >
+              <i className="fas fa-home text-xs" />
+              {lang === "zh" ? "返回個人頁" : "Back to Profile"}
+            </button>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // ── 狀態 A：正常申請表單 ──────────────────────────────────────────────────
   return (
     <>
-      {/* ── 自訂頂部 Header（覆蓋 MobileTopBar，移除 Logo，對齊返回鍵與語言切換）── */}
+      {/* ── 自訂頂部 Header ── */}
       <div className="fixed top-0 left-0 w-full z-40 bg-void/95 backdrop-blur-sm px-4 pt-12 pb-3 md:hidden">
         <div className="flex justify-between items-center">
-          {/* 返回 / 上一步 */}
-          {step < 4 ? (
+          {step < 3 ? (
             <button
-              onClick={() => (step > 1 ? setStep((step - 1) as 1 | 2 | 3 | 4) : router.back())}
+              onClick={() => (step > 1 ? setStep((step - 1) as 1 | 2 | 3) : router.back())}
               className="w-10 h-10 flex items-center justify-center rounded-full bg-neutral-800/80 backdrop-blur-md border border-neutral-600 text-white hover:bg-neutral-700 transition cursor-pointer shadow-lg"
             >
               <i className="fas fa-chevron-left text-sm" />
@@ -358,8 +535,6 @@ export default function VerificationPage() {
           ) : (
             <div className="w-10" />
           )}
-
-          {/* 語言切換 */}
           <button
             onClick={() => setActiveModal("lang")}
             className="w-10 h-10 flex items-center justify-center rounded-full bg-black/60 backdrop-blur border border-[#444] text-gray-300 hover:text-signal hover:border-signal transition-all shadow-lg"
@@ -373,7 +548,7 @@ export default function VerificationPage() {
       <div className="w-full max-w-lg">
 
         {/* Header */}
-        {step < 4 && (
+        {step < 3 && (
           <div className="mb-6">
             <h1 className="font-heavy text-2xl text-white tracking-wider">
               {t("verify_identity").toUpperCase()}
@@ -385,9 +560,9 @@ export default function VerificationPage() {
         )}
 
         {/* Step Indicator */}
-        {step < 4 && <StepIndicator current={step} total={4} labels={stepLabels} />}
+        {step < 3 && <StepIndicator current={step} total={3} labels={stepLabels} />}
 
-        {/* ═══ STEP 1: Profile Info ═════════════════════════════════════════ */}
+        {/* ═══ STEP 1: Identity Type + Verification Name ════════════════════ */}
         {step === 1 && (
           <div className="space-y-5 animate-in fade-in duration-300">
 
@@ -428,119 +603,28 @@ export default function VerificationPage() {
               </div>
             </div>
 
-            {/* Bio */}
+            {/* Verification Name */}
             <div>
               <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5">
-                <i className="fas fa-align-left mr-1 text-signal" />{t("verify_bio").toUpperCase()}
-              </label>
-              <textarea
-                value={form.bio}
-                onChange={(e) => updateForm("bio", e.target.value)}
-                rows={3}
-                maxLength={500}
-                placeholder={lang === "zh" ? "請介紹您的創作理念、背景與風格..." : "Describe your creative vision, background and style..."}
-                className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
-                           outline-none focus:border-signal focus:shadow-[0_0_10px_rgba(204,255,0,0.12)]
-                           placeholder:text-gray-600 resize-none transition-all leading-relaxed"
-              />
-              <div className="text-right text-[9px] font-mono text-gray-600 mt-0.5">{form.bio.length}/500</div>
-            </div>
-
-            {/* Tech Stack */}
-            <div>
-              <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5">
-                <i className="fas fa-microchip mr-1 text-signal" />{t("verify_tech_stack").toUpperCase()}
-                <span className="text-gray-700 ml-2 normal-case tracking-normal text-[9px]">comma-separated</span>
+                <i className="fas fa-id-badge mr-1 text-signal" />
+                {lang === "zh" ? "認證名稱 (VERIFICATION NAME)" : "VERIFICATION NAME"}
+                <span className="text-gray-700 ml-2 normal-case tracking-normal text-[9px]">
+                  {lang === "zh" ? "將顯示於認證徽章" : "will appear on verified badge"}
+                </span>
               </label>
               <input
                 type="text"
-                value={form.techStack}
-                onChange={(e) => updateForm("techStack", e.target.value)}
-                placeholder="Sora, Midjourney, RunwayML, ComfyUI..."
+                value={form.verificationName}
+                onChange={(e) => updateForm("verificationName", e.target.value)}
+                maxLength={60}
+                placeholder={lang === "zh" ? "輸入您希望顯示的認證名稱..." : "Enter the name to display on your badge..."}
                 className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
                            outline-none focus:border-signal focus:shadow-[0_0_10px_rgba(204,255,0,0.12)]
                            placeholder:text-gray-600 transition-all"
               />
-              {form.techStack && (
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {form.techStack.split(",").map((t_) => t_.trim()).filter(Boolean).map((tech) => (
-                    <span key={tech} className="text-[9px] font-mono text-signal bg-signal/10 border border-signal/20 px-2 py-0.5 rounded">
-                      {tech}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Core Team */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-[10px] font-mono text-gray-500 tracking-widest">
-                  <i className="fas fa-users mr-1 text-purple-400" />{t("verify_core_team").toUpperCase()}
-                </label>
-                <button
-                  onClick={addTeamMember}
-                  className="flex items-center gap-1 text-[9px] font-mono text-signal border border-signal/40 bg-signal/10
-                             px-2 py-1 rounded tracking-widest hover:bg-signal/20 active:scale-95 transition-all"
-                >
-                  <i className="fas fa-plus text-[8px]" />ADD
-                </button>
+              <div className="text-right text-[9px] font-mono text-gray-600 mt-0.5">
+                {form.verificationName.length}/60
               </div>
-              {form.coreTeam.length === 0 ? (
-                <div className="border border-dashed border-[#222] rounded-lg py-3 text-center text-[10px] font-mono text-gray-700">
-                  No team members yet.
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {form.coreTeam.map((member, idx) => (
-                    <div key={idx} className="flex gap-2 items-start bg-[#0d0d0d] border border-[#222] rounded-lg p-2.5">
-                      <div className="flex flex-col gap-1.5 flex-1">
-                        <input
-                          type="text"
-                          value={member.name}
-                          onChange={(e) => updateTeamMember(idx, "name", e.target.value)}
-                          placeholder="Name"
-                          className="bg-black border border-[#2a2a2a] text-white font-mono text-xs px-2.5 py-1.5 rounded
-                                     outline-none focus:border-purple-400/50 placeholder:text-gray-600 transition-all w-full"
-                          />
-                        <input
-                          type="text"
-                          value={member.role}
-                          onChange={(e) => updateTeamMember(idx, "role", e.target.value)}
-                          placeholder="Role (e.g. Director)"
-                          className="bg-black border border-[#2a2a2a] text-white font-mono text-xs px-2.5 py-1.5 rounded
-                                     outline-none focus:border-purple-400/50 placeholder:text-gray-600 transition-all w-full"
-                        />
-                      </div>
-                      <button
-                        onClick={() => removeTeamMember(idx)}
-                        className="w-6 h-6 bg-red-500/10 border border-red-500/30 rounded flex items-center justify-center
-                                   text-red-500 hover:bg-red-500/20 active:scale-90 transition-all flex-shrink-0 mt-0.5"
-                      >
-                        <i className="fas fa-times text-[9px]" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Portfolio */}
-            <div>
-              <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5">
-                <i className="fas fa-history mr-1 text-blue-400" />{t("verify_portfolio").toUpperCase()}
-              </label>
-              <textarea
-                value={form.portfolio}
-                onChange={(e) => updateForm("portfolio", e.target.value)}
-                rows={3}
-                maxLength={600}
-                placeholder={lang === "zh" ? "請描述您的過往作品、獲獎經歷或重要項目..." : "Describe your past works, awards, or notable projects..."}
-                className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
-                           outline-none focus:border-blue-400/50 focus:shadow-[0_0_10px_rgba(96,165,250,0.1)]
-                           placeholder:text-gray-600 resize-none transition-all leading-relaxed"
-              />
-              <div className="text-right text-[9px] font-mono text-gray-600 mt-0.5">{form.portfolio.length}/600</div>
             </div>
 
             {/* Next Button */}
@@ -555,7 +639,7 @@ export default function VerificationPage() {
           </div>
         )}
 
-        {/* ═══ STEP 2: Document Upload ══════════════════════════════════════ */}
+        {/* ═══ STEP 2: Document Upload + Payment ════════════════════════════ */}
         {step === 2 && (
           <div className="space-y-5 animate-in fade-in duration-300">
 
@@ -631,69 +715,22 @@ export default function VerificationPage() {
 
             {/* Review summary */}
             <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl p-4 space-y-2">
-              <div className="text-[9px] font-mono text-gray-600 tracking-widest mb-2">PROFILE SUMMARY</div>
+              <div className="text-[9px] font-mono text-gray-600 tracking-widest mb-2">APPLICATION SUMMARY</div>
               <div className="flex items-center gap-2 text-xs">
-                <span className="text-gray-600 font-mono w-20 shrink-0">TYPE</span>
+                <span className="text-gray-600 font-mono w-24 shrink-0">TYPE</span>
                 <span className="text-white font-mono">
                   {form.verificationType ? t(`verify_type_${form.verificationType}`) : "—"}
                 </span>
               </div>
-              <div className="flex items-start gap-2 text-xs">
-                <span className="text-gray-600 font-mono w-20 shrink-0 pt-0.5">BIO</span>
-                <span className="text-gray-400 font-mono text-[10px] leading-relaxed line-clamp-2">
-                  {form.bio || "—"}
-                </span>
-              </div>
-              {form.techStack && (
+              {form.verificationName && (
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="text-gray-600 font-mono w-20 shrink-0">TECH</span>
-                  <span className="text-gray-400 font-mono text-[10px] truncate">{form.techStack}</span>
-                </div>
-              )}
-              {form.coreTeam.length > 0 && (
-                <div className="flex items-center gap-2 text-xs">
-                  <span className="text-gray-600 font-mono w-20 shrink-0">TEAM</span>
-                  <span className="text-gray-400 font-mono text-[10px]">{form.coreTeam.length} members</span>
+                  <span className="text-gray-600 font-mono w-24 shrink-0">NAME</span>
+                  <span className="text-signal font-mono font-semibold">{form.verificationName}</span>
                 </div>
               )}
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={() => setStep(1)}
-                className="flex-1 py-3 bg-[#111] text-gray-300 font-heavy text-xs tracking-widest rounded-xl
-                           border border-[#333] hover:border-white hover:text-white active:scale-95 transition-all"
-              >
-                ← {t("btn_back")}
-              </button>
-              <button
-                onClick={() => setStep(3)}
-                className="flex-[2] py-3 bg-signal text-black font-heavy text-sm tracking-widest rounded-xl
-                           shadow-[0_0_20px_rgba(204,255,0,0.25)] hover:shadow-[0_0_30px_rgba(204,255,0,0.4)]
-                           active:scale-95 transition-all"
-              >
-                {t("verify_step2_pay")}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ═══ STEP 3: Payment ══════════════════════════════════════════════ */}
-        {step === 3 && (
-          <div className="space-y-6 animate-in fade-in duration-300">
-
-            {/* ── Header ──────────────────────────────────────────────────── */}
-            <div className="text-center">
-              <p className="font-mono text-[9px] tracking-[0.5em] text-gray-400 mb-1 uppercase">
-                HKAIIFF · {lang === "zh" ? "身份認證費" : "VERIFICATION FEE"}
-              </p>
-              <h2 className="text-3xl font-black text-white tracking-wide">
-                {lang === "zh" ? "選擇支付方式" : "SELECT PAYMENT"}
-              </h2>
-              <div className="mt-3 mx-auto h-px w-16 bg-gradient-to-r from-transparent via-signal/60 to-transparent" />
-            </div>
-
-            {/* ── 產品資訊卡（動態從後台讀取） ──────────────────────────── */}
+            {/* ── 產品資訊卡 ──────────────────────────────────────────────── */}
             <div className="w-full bg-[#080808] border border-[#1a1a1a] rounded-2xl p-5">
               <div className="font-mono text-[8px] tracking-[0.5em] text-[#333] mb-3 uppercase">
                 HKAIIFF · CREATOR VERIFICATION
@@ -737,13 +774,19 @@ export default function VerificationPage() {
             {/* ── UniversalCheckout ────────────────────────────────────────── */}
             <UniversalCheckout
               productCode="identity_verify"
-              extraMetadata={form.verificationType ? { identityType: form.verificationType } : undefined}
+              extraMetadata={
+                form.verificationType
+                  ? {
+                      identityType: form.verificationType,
+                      verificationName: form.verificationName,
+                    }
+                  : undefined
+              }
               variant="primary"
               label={lang === "zh" ? "SECURE PAY · 立即支付" : "SECURE PAY · VERIFY NOW"}
               className="w-full justify-center py-4 text-base rounded-2xl"
               successUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/success?type=creator_verification&amount=150&currency=AIF&name=${encodeURIComponent('創作者身份認證')}`}
               onSuccess={async () => {
-                // 立即清除 localStorage，防止 Success 頁面重複提交（並誤設 paymentMethod='fiat'）
                 localStorage.removeItem("pending_verification");
                 const token = await getAccessToken();
                 if (token) await submitVerification("aif", token);
@@ -752,7 +795,7 @@ export default function VerificationPage() {
 
             {/* ── Back button ─────────────────────────────────────────────── */}
             <button
-              onClick={() => setStep(2)}
+              onClick={() => setStep(1)}
               className="w-full font-mono text-[9px] tracking-[0.4em] text-gray-400 hover:text-white transition-colors
                          flex items-center justify-center gap-1.5 py-2"
             >
@@ -765,49 +808,21 @@ export default function VerificationPage() {
           </div>
         )}
 
-        {/* ═══ STEP 4: Success Screen ═══════════════════════════════════════ */}
-        {step === 4 && (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8 animate-in fade-in duration-500 text-center">
-            {/* Icon */}
-            <div className="relative">
-              <div className="w-24 h-24 rounded-full bg-signal/10 border-2 border-signal/40 flex items-center justify-center
-                              shadow-[0_0_40px_rgba(204,255,0,0.2)]">
-                <i className="fas fa-check-circle text-signal text-5xl" />
-              </div>
-              <div className="absolute inset-0 rounded-full border border-signal/20 animate-ping" />
+        {/* ═══ STEP 3: Loading / redirect ═══════════════════════════════════ */}
+        {step === 3 && (
+          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+            <div className="flex gap-1.5">
+              {[0, 1, 2].map((i) => (
+                <span key={i} className="w-2 h-2 bg-signal rounded-full animate-bounce"
+                  style={{ animationDelay: `${i * 0.12}s` }} />
+              ))}
             </div>
-
-            {/* Text */}
-            <div className="space-y-3">
-              <h2 className="font-heavy text-3xl text-white tracking-wider">
-                {t("verify_success_title").toUpperCase()}
-              </h2>
-              <p className="font-mono text-[11px] text-gray-400 tracking-widest leading-relaxed max-w-xs">
-                {t("verify_success_subtitle")}
-              </p>
-              <div className="flex items-center justify-center gap-2 mt-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
-                <span className="text-[9px] font-mono text-yellow-400/60 tracking-widest">48–72 HRS</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
-              </div>
-            </div>
-
-            {/* CTA */}
-            <button
-              onClick={() => router.replace("/me")}
-              className="flex items-center gap-2 px-8 py-3 bg-signal text-black font-heavy text-sm tracking-widest rounded-xl
-                         shadow-[0_0_20px_rgba(204,255,0,0.3)] hover:shadow-[0_0_35px_rgba(204,255,0,0.5)]
-                         active:scale-95 transition-all"
-            >
-              <i className="fas fa-home text-xs" />
-              {t("verify_back_to_me")}
-            </button>
-
-            <p className="font-mono text-[8px] tracking-[0.3em] text-gray-600">
-              HKAIIFF 2026 · CREATOR CREDENTIALING
+            <p className="font-mono text-xs text-gray-400 tracking-widest">
+              {lang === "zh" ? "處理中..." : "PROCESSING..."}
             </p>
           </div>
         )}
+
       </div>
     </div>
     </>

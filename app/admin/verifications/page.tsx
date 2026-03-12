@@ -26,12 +26,8 @@ interface VerificationRecord {
   identity_type: "creator" | "institution" | "curator" | null;
   verification_payment_method: "fiat" | "aif" | null;
   verification_submitted_at: string | null;
+  verification_name: string | null;
   expires_at: string | null;
-  bio: string | null;
-  tech_stack: string | null;
-  core_team: TeamMember[] | null;
-  portfolio: string | null;
-  verification_doc_url: string | null;
   rejection_reason: string | null;
 }
 
@@ -182,12 +178,11 @@ function FormDataModal({
   onClose: () => void;
 }) {
   const payload = {
-    bio: record.bio ?? null,
-    tech_stack: record.tech_stack ?? null,
-    core_team: record.core_team ?? null,
-    portfolio: record.portfolio ?? null,
+    verification_name: record.verification_name ?? null,
+    identity_type: record.identity_type ?? null,
     email: record.email ?? null,
     wallet_address: record.wallet_address ?? null,
+    user_id: record.user_id,
   };
 
   return (
@@ -462,7 +457,7 @@ export default function AdminVerificationsPage() {
   const filteredVerifications = verifications.filter((v) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
-    const certName = (v.display_name || "").toLowerCase();
+    const certName = (v.verification_name || v.display_name || "").toLowerCase();
     const origName = (v.name || v.agent_id || "").toLowerCase();
     const email = (v.email || "").toLowerCase();
     const id = v.id.toLowerCase();
@@ -657,8 +652,7 @@ export default function AdminVerificationsPage() {
                       ? record.agent_id.replace("did:privy:", "").slice(0, 12) +
                         "…"
                       : "—";
-                  const certName = record.display_name || "—";
-                  const docUrl = record.verification_doc_url;
+                  const certName = record.verification_name || record.display_name || "—";
                   const isPending =
                     record.verification_status === "pending";
                   const isProcessingThis = processingId === record.id;
@@ -724,27 +718,8 @@ export default function AdminVerificationsPage() {
                             className="text-[11px] text-[#1a73e8] hover:text-[#1558b0] font-medium transition-colors
                                        px-2.5 py-1 rounded-full border border-[#1a73e8]/20 hover:bg-[#1a73e8]/5"
                           >
-                            📄 表單
+                            📄 詳情
                           </button>
-                          {docUrl ? (
-                            <a
-                              href={docUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="text-[11px] text-gray-600 hover:text-gray-900 font-medium transition-colors
-                                         px-2.5 py-1 rounded-full border border-gray-200 hover:bg-gray-50"
-                            >
-                              📎 文件
-                            </a>
-                          ) : (
-                            <span
-                              className="text-[11px] text-gray-300 px-2.5 py-1 rounded-full border border-gray-100 cursor-not-allowed"
-                              title="無上傳文件"
-                            >
-                              📎 文件
-                            </span>
-                          )}
                         </div>
                       </td>
 

@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
   }
 
   // 從 creator_applications 查詢並關聯 users 資料
+  // 注意：僅 SELECT 表中真實存在的欄位，不包含 bio/tech_stack/core_team/portfolio
   const { data: applications, error } = await supabase
     .from('creator_applications')
     .select(`
@@ -44,11 +45,7 @@ export async function GET(req: NextRequest) {
       user_id,
       identity_type,
       status,
-      bio,
-      tech_stack,
-      core_team,
-      portfolio,
-      doc_url,
+      verification_name,
       payment_method,
       payment_session,
       submitted_at,
@@ -81,17 +78,13 @@ export async function GET(req: NextRequest) {
       id: app.id,
       user_id: app.user_id,
       identity_type: app.identity_type,
-      verification_status: app.status,  // 兼容前端現有欄位命名
-      verification_type: app.identity_type, // 兼容前端現有欄位命名
+      verification_status: app.status,           // 兼容前端現有欄位命名
+      verification_type: app.identity_type,      // 兼容前端現有欄位命名
       verification_payment_method: app.payment_method,
       verification_submitted_at: app.submitted_at,
-      verification_doc_url: app.doc_url,
+      verification_name: app.verification_name ?? null,
       expires_at: app.expires_at,
       rejection_reason: app.rejection_reason,
-      bio: app.bio,
-      tech_stack: app.tech_stack,
-      core_team: app.core_team,
-      portfolio: app.portfolio,
       // 用戶基本資料
       display_name: u?.display_name ?? null,
       name: u?.name ?? null,

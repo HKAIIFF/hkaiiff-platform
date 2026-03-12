@@ -36,9 +36,10 @@ const privyClient = new PrivyClient(
 
 // ── 業務邏輯（複用 product-aif 的邏輯）──────────────────────────────────────
 
-async function handleIdentityVerifyPaid(userId: string, identityType?: string): Promise<void> {
+async function handleIdentityVerifyPaid(userId: string, identityType?: string, verificationName?: string): Promise<void> {
   const now = new Date().toISOString();
   const resolvedIdentityType = identityType || 'creator';
+  const cleanName = (verificationName ?? '').trim() || null;
 
   // ── 1. UPSERT creator_applications 表（Admin 控制中心讀取此表）────────────
   // 先查找該 user_id + identity_type 是否有 awaiting_payment 草稿：
@@ -57,29 +58,30 @@ async function handleIdentityVerifyPaid(userId: string, identityType?: string): 
       .from('creator_applications')
       .update({
         status: 'pending',
+        verification_name: cleanName,
         payment_method: 'aif',
         submitted_at: now,
       })
       .eq('id', existing.id);
 
     if (appErr) {
-      console.error('🚨 [DEBUG] 寫入資料庫失敗:', appErr);
       console.error('[verify-aif] creator_applications update failed:', appErr.message);
     } else {
       console.log(`[verify-aif] Updated creator_application ${existing.id} → pending (AIF)`);
     }
   } else {
-    console.log('🚨 [DEBUG] 準備寫入認證申請至 creator_applications:', { userId, identityType: resolvedIdentityType });
     const { error: insertErr } = await adminSupabase
       .from('creator_applications')
       .insert({
         user_id: userId,
         identity_type: resolvedIdentityType,
         status: 'pending',
+        verification_name: cleanName,
+        payment_method: 'aif',
+        submitted_at: now,
       });
 
     if (insertErr) {
-      console.error('🚨 [DEBUG] 寫入資料庫失敗:', insertErr);
       console.error('[verify-aif] creator_applications insert failed:', insertErr.message);
     } else {
       console.log(`[verify-aif] Created creator_application for user ${userId} → pending (AIF, type=${resolvedIdentityType})`);
@@ -306,7 +308,7 @@ export async function POST(req: Request) {
     // ── 業務邏輯路由 ──────────────────────────────────────────────────────────
     try {
       if (productCode === 'identity_verify') {
-        await handleIdentityVerifyPaid(verifiedUserId, extraMetadata?.identityType);
+        await handleIdentityVerifyPaid(verifiedUserId, extraMetadata?.identityType, extraMetadata?.verificationName);
       } else if (productCode === 'film_entry') {
         const filmId = extraMetadata?.filmId;
         if (filmId) await handleFilmEntryPaid(verifiedUserId, filmId);

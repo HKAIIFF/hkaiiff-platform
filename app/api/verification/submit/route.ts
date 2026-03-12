@@ -3,18 +3,11 @@
  *
  * 身份認證申請提交 API（多重身份版）
  *
- * 支援兩種調用場景：
- *  1. 前置草稿（paymentMethod='fiat'）：
- *     用戶進入支付步驟前，先保存表單數據為 status='awaiting_payment'
- *     Stripe Webhook 支付成功後，再將狀態升級為 'pending'
+ * creator_applications 表只寫入以下欄位：
+ *   user_id, identity_type, status, verification_name, payment_method,
+ *   payment_session, submitted_at
  *
- *  2. AIF 支付成功後提交（paymentMethod='aif'）：
- *     AIF 扣款成功後直接創建 status='pending' 的申請記錄
- *     可傳入 applicationId 來更新既有草稿，否則新建記錄
- *
- * 防重複邏輯：
- *  - 同一用戶同一 identity_type 若已有 pending/awaiting_payment 記錄，拒絕新申請
- *  - 若已有 approved 且未過期記錄，拒絕新申請
+ * 不寫入 bio / tech_stack / core_team / portfolio 等 users 表欄位。
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -33,11 +26,7 @@ const supabase = createClient(
 
 export interface VerificationSubmitBody {
   verificationType: 'creator' | 'institution' | 'curator';
-  bio: string;
-  techStack: string;
-  coreTeam: Array<{ name: string; role: string }>;
-  portfolio: string;
-  docUrl?: string;
+  verificationName?: string;
   paymentMethod: 'fiat' | 'aif';
   /** 若傳入，則更新已有的草稿記錄（用於 AIF 支付後更新 awaiting_payment 草稿） */
   applicationId?: string;
@@ -59,24 +48,15 @@ export async function POST(req: NextRequest) {
   }
 
   const body: VerificationSubmitBody = await req.json();
-  const {
-    verificationType,
-    bio,
-    techStack,
-    coreTeam,
-    portfolio,
-    docUrl,
-    paymentMethod,
-    applicationId,
-  } = body;
+  const { verificationType, verificationName, paymentMethod, applicationId } = body;
 
   if (!verificationType || !paymentMethod) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
   }
 
   const now = new Date().toISOString();
-  const filteredTeam = (coreTeam || []).filter((m) => m.name?.trim());
   const targetStatus = paymentMethod === 'aif' ? 'pending' : 'awaiting_payment';
+  const cleanName = (verificationName ?? '').trim();
 
   // ── 如果是 AIF 更新既有草稿 ──────────────────────────────────────────────────
   if (applicationId) {
@@ -92,11 +72,7 @@ export async function POST(req: NextRequest) {
         .from('creator_applications')
         .update({
           status: targetStatus,
-          bio: bio || null,
-          tech_stack: techStack || null,
-          core_team: filteredTeam.length > 0 ? filteredTeam : null,
-          portfolio: portfolio || null,
-          doc_url: docUrl || null,
+          verification_name: cleanName || null,
           payment_method: paymentMethod,
           submitted_at: now,
         })
@@ -139,13 +115,16 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // ── 新建申請記錄 ──────────────────────────────────────────────────────────────
+  // ── 新建申請記錄（僅寫入 creator_applications 合法欄位）────────────────────
   const { data: application, error } = await supabase
     .from('creator_applications')
     .insert({
       user_id: userId,
       identity_type: verificationType,
       status: targetStatus,
+      verification_name: cleanName || null,
+      payment_method: paymentMethod,
+      submitted_at: now,
     })
     .select('id')
     .single();

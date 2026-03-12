@@ -143,13 +143,18 @@ async function handleFilmEntryPaid(
  * 同時兼容舊版 users 表欄位，確保舊數據不丟失
  *
  * @param identityType - 從 Stripe session metadata 中讀取的身份類型，用於 fallback 創建記錄
+ * @param verificationName - 用戶提交的認證名稱
  */
 async function handleVerificationPaid(
   db: ReturnType<typeof getAdminClient>,
   userId: string,
   sessionId: string,
-  identityType: string = 'creator'
+  identityType: string = 'creator',
+  verificationName?: string
 ): Promise<void> {
+  const now = new Date().toISOString();
+  const cleanName = (verificationName ?? '').trim() || null;
+
   // ── 新版：更新 creator_applications 表 ──────────────────────────────────────
   const { data: draftApps } = await db
     .from('creator_applications')
@@ -166,8 +171,10 @@ async function handleVerificationPaid(
       .from('creator_applications')
       .update({
         status: 'pending',
+        verification_name: cleanName,
         payment_method: 'fiat',
         payment_session: sessionId,
+        submitted_at: now,
       })
       .eq('id', draft.id);
 
@@ -188,6 +195,10 @@ async function handleVerificationPaid(
         user_id: userId,
         identity_type: resolvedType,
         status: 'pending',
+        verification_name: cleanName,
+        payment_method: 'fiat',
+        payment_session: sessionId,
+        submitted_at: now,
       });
     if (insertErr) {
       console.error('[stripe/webhook] creator_applications insert failed:', insertErr.message);
@@ -344,7 +355,7 @@ export async function POST(req: Request) {
         break;
 
       case 'identity_verification':
-        await handleVerificationPaid(db, userId, session.id, metadata.identityType ?? 'creator');
+        await handleVerificationPaid(db, userId, session.id, metadata.identityType ?? 'creator', metadata.verificationName);
         break;
 
       case 'lbs_application':
@@ -358,7 +369,7 @@ export async function POST(req: Request) {
           break;
         }
         if (productCode === 'identity_verify') {
-          await handleVerificationPaid(db, userId, session.id, metadata.identityType ?? 'creator');
+          await handleVerificationPaid(db, userId, session.id, metadata.identityType ?? 'creator', metadata.verificationName);
         } else if (productCode === 'film_entry') {
           const metaFilmId = metadata.filmId ?? null;
           if (!metaFilmId) {
