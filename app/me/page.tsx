@@ -162,14 +162,35 @@ export default function MePage() {
 
   /**
    * TOP UP 按鈕：打開 Modal。
-   * 【優化】若 dbProfile 中已有 deposit_address，立即同步到 depositAddress state，
-   * 確保 Modal 開啟時直接渲染 QR Code，無需再次調用 assign API。
+   * - 若 state/DB 中已有地址：直接渲染 QR Code，零等待。
+   * - 若完全無地址（極少數情況）：打開 Modal 的同時在背景自動呼叫
+   *   /api/wallet/assign，生成完畢後立即渲染 QR Code。
+   *   絕不顯示「手動生成」按鈕，用戶無需多點擊一次。
    */
   const handleOpenTopUp = () => {
-    if (!depositAddress && dbProfile?.deposit_address) {
-      setDepositAddress(dbProfile.deposit_address);
+    // 優先從 dbProfile 同步（避免 state 落後於 DB）
+    const resolvedAddress = depositAddress || dbProfile?.deposit_address || null;
+    if (resolvedAddress && !depositAddress) {
+      setDepositAddress(resolvedAddress);
     }
     setIsTopUpOpen(true);
+
+    // 若完全無地址，在背景自動分配，無需用戶干預
+    if (!resolvedAddress && !isFetchingDepositAddress) {
+      setIsFetchingDepositAddress(true);
+      callAssignWalletApi(displaySolanaAddress)
+        .then((address) => {
+          setDepositAddress(address);
+          setDbProfile((prev) => prev ? { ...prev, deposit_address: address } : prev);
+          showToast(lang === 'en' ? 'Deposit address ready!' : '專屬充值地址已就緒！', 'success');
+        })
+        .catch((err) => {
+          console.error('[handleOpenTopUp] auto-assign error:', err);
+          const msg = err instanceof Error ? err.message : (lang === 'en' ? 'Network error, please retry' : '網絡錯誤，請重試');
+          showToast(msg, 'error');
+        })
+        .finally(() => setIsFetchingDepositAddress(false));
+    }
   };
 
   /**
@@ -1414,32 +1435,15 @@ export default function MePage() {
                     </span>
                   </div>
                 ) : (
-                  /* ── 純新用戶無地址（極少數情況）：手動生成按鈕 ───── */
-                  <div className="w-full flex flex-col items-center gap-4 py-2">
-                    <div className="w-16 h-16 rounded-full border-2 border-dashed border-signal/40 flex items-center justify-center bg-signal/5">
-                      <i className="fas fa-wallet text-2xl text-signal/50" />
-                    </div>
-                    <div className="text-center space-y-1">
-                      <div className="text-[11px] font-mono text-gray-400 tracking-wider">
-                        NO DEPOSIT ADDRESS YET
-                      </div>
-                      <div className="text-[10px] font-mono text-gray-600">
-                        Generate a dedicated Solana address to receive $AIF
-                      </div>
-                    </div>
-                    <button
-                      onClick={handleGenerateAddress}
-                      className="flex items-center gap-2 bg-signal text-black font-heavy text-[11px] tracking-widest
-                                 px-5 py-2.5 rounded-xl shadow-[0_0_20px_rgba(204,255,0,0.35)]
-                                 hover:shadow-[0_0_30px_rgba(204,255,0,0.55)]
-                                 active:scale-95 transition-all"
-                    >
-                      <i className="fas fa-plus-circle text-sm" />
-                      Generate Deposit Address
-                    </button>
-                    <div className="text-[9px] font-mono text-gray-500 text-center">
-                      生成專屬充值地址
-                    </div>
+                  /* ── 自動生成中（用戶無需操作，handleOpenTopUp 已在背景觸發） ── */
+                  <div className="w-[186px] h-[186px] border-2 border-dashed border-signal/30 rounded-xl flex flex-col items-center justify-center gap-3 bg-signal/5">
+                    <i className="fas fa-circle-notch fa-spin text-3xl text-signal/50" />
+                    <span className="text-[10px] font-mono text-signal/60 tracking-wider text-center px-4">
+                      AUTO-GENERATING ADDRESS...
+                    </span>
+                    <span className="text-[9px] font-mono text-gray-600 text-center px-4">
+                      自動生成中，請稍候
+                    </span>
                   </div>
                 )}
               </div>
@@ -1498,7 +1502,7 @@ export default function MePage() {
                 <>
                   <i className="fas fa-circle-notch fa-spin text-signal/50 text-[10px] flex-shrink-0" />
                   <p className="text-[9px] font-mono text-gray-600 leading-relaxed tracking-wide">
-                    {lang === 'en' ? 'Generate a deposit address to start receiving AIF.' : '請先生成充值地址以接收 AIF。'}
+                    {lang === 'en' ? 'Generating your dedicated deposit address...' : '正在自動生成您的專屬充值地址...'}
                   </p>
                 </>
               )}
