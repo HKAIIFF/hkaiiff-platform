@@ -1485,12 +1485,13 @@ interface LedgerRow {
   related_deposit_address: string | null;
   tx_type: string | null;
   tx_hash: string | null;
-  stripe_charge_id: string | null;
+  stripe_session_id: string | null;
   amount: number | null;
   currency: string | null;
   payment_method: string | null;
   status: string | null;
   created_at: string;
+  _source?: string;
 }
 
 interface LedgerApiResponse {
@@ -1548,15 +1549,15 @@ function FinanceModule({ t, pushToast }: SharedProps) {
           {/* 匯總卡片 */}
           <div className="grid grid-cols-3 gap-4">
             <div className={`${CARD} p-4`}>
-              <p className="text-xs text-gray-500">總 USD 收入</p>
-              <p className="text-2xl font-black text-gray-900 mt-1">${ledgerSummary.total_usd.toFixed(2)}</p>
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">總法幣收入</p>
+              <p className="text-2xl font-black text-gray-900 mt-1">$ {ledgerSummary.total_usd.toFixed(2)}</p>
             </div>
             <div className={`${CARD} p-4`}>
-              <p className="text-xs text-gray-500">總 AIF 收入</p>
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">總 AIF 收入</p>
               <p className="text-2xl font-black text-gray-900 mt-1">{ledgerSummary.total_aif.toLocaleString()} AIF</p>
             </div>
             <div className={`${CARD} p-4`}>
-              <p className="text-xs text-gray-500">總交易筆數</p>
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">總交易筆數</p>
               <p className="text-2xl font-black text-gray-900 mt-1">{ledgerSummary.total_tx}</p>
             </div>
           </div>
@@ -1571,39 +1572,107 @@ function FinanceModule({ t, pushToast }: SharedProps) {
           {/* 數據表格 */}
           <div className={`${CARD} overflow-hidden`}>
             {ledgerLoading ? (
-              <div className="p-8 text-center text-sm text-gray-400">加載中…</div>
+              <div className="p-10 text-center text-sm text-gray-400">加載中…</div>
             ) : (
               <div className="overflow-x-auto">
-                <div className="min-w-[900px]">
-                  <div className="grid grid-cols-[180px_130px_120px_120px_100px_1fr] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
-                    <div className="p-3">用戶</div>
-                    <div className="p-3">業務類型</div>
-                    <div className="p-3">金額</div>
-                    <div className="p-3">幣種</div>
-                    <div className="p-3">狀態</div>
-                    <div className="p-3">時間</div>
-                  </div>
-                  {ledgerData.length === 0 ? (
-                    <div className="p-6 text-center text-sm text-gray-400">
-                      {ledgerError ? "資料加載失敗，請查看上方錯誤詳情" : "暫無數據"}
-                    </div>
-                  ) : (
-                    ledgerData.map((row) => (
-                      <div key={row.id} className="grid grid-cols-[180px_130px_120px_120px_100px_1fr] border-b border-gray-100 last:border-0 text-sm">
-                        <div className="p-3 truncate text-gray-700">{row.user_email ?? row.user_id ?? "—"}</div>
-                        <div className="p-3 text-gray-700">{row.tx_type ?? "—"}</div>
-                        <div className="p-3 font-mono text-gray-900">{row.amount != null ? (Number(row.amount) || 0).toLocaleString() : "—"}</div>
-                        <div className="p-3 text-gray-700">{row.currency ?? "—"}</div>
-                        <div className="p-3">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${row.status === "completed" ? "bg-green-100 text-green-700" : row.status === "failed" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>
-                            {row.status ?? "—"}
-                          </span>
-                        </div>
-                        <div className="p-3 text-gray-500 text-xs">{new Date(row.created_at).toLocaleString("zh-HK")}</div>
-                      </div>
-                    ))
-                  )}
-                </div>
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">交易時間</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">交易單號 / 憑證</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">付款用戶</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">業務類型</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">支付方式</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">交易金額</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">狀態</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {ledgerData.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">
+                          {ledgerError ? "資料加載失敗，請查看上方錯誤詳情" : "暫無財務流水記錄"}
+                        </td>
+                      </tr>
+                    ) : (
+                      ledgerData.map((row) => {
+                        // 業務類型友好名稱
+                        const txTypeLabel: Record<string, string> = {
+                          submission_fee: "參展作品提交",
+                          creator_cert: "身份認證審核",
+                          lbs_license: "LBS 節點授權",
+                          aif_topup: "AIF 充值",
+                          sweep: "資金歸集",
+                          funding: "資金歸集",
+                          dust_sweep: "零錢歸集",
+                          product_purchase: "產品購買",
+                        };
+                        const txLabel = row.tx_type ? (txTypeLabel[row.tx_type] ?? row.tx_type) : "—";
+
+                        // 凭证号（优先链上哈希，其次 Stripe session）
+                        const voucher = row.tx_hash ?? row.stripe_session_id ?? null;
+                        const voucherShort = voucher
+                          ? `${voucher.slice(0, 8)}…${voucher.slice(-6)}`
+                          : "—";
+
+                        // 支付方式判断
+                        const isAif = row.currency?.toUpperCase() === "AIF" || row.payment_method?.toLowerCase() === "aif";
+                        const isStripe = row.payment_method?.toLowerCase() === "stripe" || (!isAif && row.currency?.toUpperCase() === "USD");
+
+                        // 金额格式化
+                        const amountDisplay = row.amount != null
+                          ? isAif
+                            ? `${(Number(row.amount) || 0).toLocaleString()} AIF`
+                            : `$ ${(Number(row.amount) || 0).toFixed(2)}`
+                          : "—";
+
+                        // 状态颜色
+                        const statusStyle =
+                          row.status === "success" || row.status === "completed"
+                            ? "bg-green-100 text-green-700"
+                            : row.status === "failed"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-yellow-100 text-yellow-700";
+                        const statusLabel =
+                          row.status === "success" || row.status === "completed"
+                            ? "成功"
+                            : row.status === "failed"
+                            ? "失敗"
+                            : row.status ?? "—";
+
+                        return (
+                          <tr key={row.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
+                              {new Date(row.created_at).toLocaleString("zh-HK", { hour12: false })}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-xs text-gray-500" title={voucher ?? undefined}>
+                              {voucherShort}
+                            </td>
+                            <td className="px-4 py-3 text-gray-700 max-w-[180px] truncate" title={row.user_email ?? row.user_id ?? undefined}>
+                              {row.user_email ?? (row.user_id ? `${row.user_id.slice(0, 12)}…` : "—")}
+                            </td>
+                            <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{txLabel}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {isAif ? (
+                                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">AIF Token</span>
+                              ) : isStripe ? (
+                                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Stripe / 法幣</span>
+                              ) : (
+                                <span className="text-gray-400 text-xs">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 font-mono font-semibold text-gray-900 whitespace-nowrap">{amountDisplay}</td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${statusStyle}`}>
+                                {statusLabel}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>

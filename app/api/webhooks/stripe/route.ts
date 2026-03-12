@@ -144,13 +144,15 @@ async function handleFilmEntryPaid(
  *
  * @param identityType - 從 Stripe session metadata 中讀取的身份類型，用於 fallback 創建記錄
  * @param verificationName - 用戶提交的認證名稱
+ * @param amountUsd - 實際收款金額（美元）
  */
 async function handleVerificationPaid(
   db: ReturnType<typeof getAdminClient>,
   userId: string,
   sessionId: string,
   identityType: string = 'creator',
-  verificationName?: string
+  verificationName?: string,
+  amountUsd: number = 30
 ): Promise<void> {
   const now = new Date().toISOString();
   const cleanName = (verificationName ?? '').trim() || null;
@@ -226,6 +228,18 @@ async function handleVerificationPaid(
       .eq('id', userId);
   }
 
+  // 記錄財務流水
+  const { error: txErr } = await db.from('transactions').insert({
+    user_id: userId,
+    amount: amountUsd,
+    currency: 'USD',
+    tx_type: 'creator_cert',
+    payment_method: 'stripe',
+    status: 'success',
+    stripe_session_id: sessionId,
+  });
+  if (txErr) console.warn('[stripe/webhook] verification transaction insert failed:', txErr.message);
+
   await sendMessage({
     userId,
     type: 'system',
@@ -239,7 +253,8 @@ async function handleVerificationPaid(
 async function handleLbsApplicationPaid(
   db: ReturnType<typeof getAdminClient>,
   userId: string,
-  sessionId: string
+  sessionId: string,
+  amountUsd: number = 500
 ): Promise<void> {
   // 找最新一条该用户 pending 的 LBS 节点申请
   const { data: nodes } = await db
@@ -271,6 +286,19 @@ async function handleLbsApplicationPaid(
     console.error('[stripe/webhook] LBS node update failed:', error.message);
     throw new Error(error.message);
   }
+
+  // 記錄財務流水
+  const { error: lbsTxErr } = await db.from('transactions').insert({
+    user_id: userId,
+    related_lbs_id: node.id,
+    amount: amountUsd,
+    currency: 'USD',
+    tx_type: 'lbs_license',
+    payment_method: 'stripe',
+    status: 'success',
+    stripe_session_id: sessionId,
+  });
+  if (lbsTxErr) console.warn('[stripe/webhook] lbs transaction insert failed:', lbsTxErr.message);
 
   await sendMessage({
     userId,
@@ -355,11 +383,11 @@ export async function POST(req: Request) {
         break;
 
       case 'identity_verification':
-        await handleVerificationPaid(db, userId, session.id, metadata.identityType ?? 'creator', metadata.verificationName);
+        await handleVerificationPaid(db, userId, session.id, metadata.identityType ?? 'creator', metadata.verificationName, session.amount_total ? session.amount_total / 100 : 30);
         break;
 
       case 'lbs_application':
-        await handleLbsApplicationPaid(db, userId, session.id);
+        await handleLbsApplicationPaid(db, userId, session.id, session.amount_total ? session.amount_total / 100 : 500);
         break;
 
       // ── 通用產品購買（UniversalCheckout 路徑）──────────────────────────────
@@ -369,7 +397,7 @@ export async function POST(req: Request) {
           break;
         }
         if (productCode === 'identity_verify') {
-          await handleVerificationPaid(db, userId, session.id, metadata.identityType ?? 'creator', metadata.verificationName);
+          await handleVerificationPaid(db, userId, session.id, metadata.identityType ?? 'creator', metadata.verificationName, session.amount_total ? session.amount_total / 100 : 30);
         } else if (productCode === 'film_entry') {
           const metaFilmId = metadata.filmId ?? null;
           if (!metaFilmId) {
@@ -378,7 +406,7 @@ export async function POST(req: Request) {
             await handleFilmEntryPaid(db, userId, metaFilmId, session.id);
           }
         } else if (productCode === 'lbs_license') {
-          await handleLbsApplicationPaid(db, userId, session.id);
+          await handleLbsApplicationPaid(db, userId, session.id, session.amount_total ? session.amount_total / 100 : 500);
         } else {
           // 其他通用產品：僅記錄流水，無特定業務邏輯
           console.log(`[stripe/webhook] product_purchase generic productCode=${productCode}, recording only.`);
