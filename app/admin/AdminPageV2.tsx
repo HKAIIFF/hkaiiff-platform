@@ -1518,6 +1518,10 @@ function FinanceModule({ t, pushToast }: SharedProps) {
   const [ledgerSearch, setLedgerSearch] = useState("");
   const [ledgerStatusFilter, setLedgerStatusFilter] = useState<"" | "success" | "pending" | "failed">("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [ledgerTxTypeFilter, setLedgerTxTypeFilter] = useState("");
+  const [ledgerCurrencyFilter, setLedgerCurrencyFilter] = useState("");
+  const [ledgerStartDate, setLedgerStartDate] = useState("");
+  const [ledgerEndDate, setLedgerEndDate] = useState("");
 
   const settlements = [
     { id: "W-001", role: "Curator", amount: "$1,200 / 6,000 AIF", status: "pending" },
@@ -1559,6 +1563,8 @@ function FinanceModule({ t, pushToast }: SharedProps) {
     if (ledgerStatusFilter === "success") rows = rows.filter(r => successStatuses.includes(r.status ?? ""));
     else if (ledgerStatusFilter === "pending") rows = rows.filter(r => pendingStatuses.includes(r.status ?? ""));
     else if (ledgerStatusFilter === "failed") rows = rows.filter(r => failedStatuses.includes(r.status ?? ""));
+    if (ledgerTxTypeFilter) rows = rows.filter(r => r.tx_type === ledgerTxTypeFilter);
+    if (ledgerCurrencyFilter) rows = rows.filter(r => (r.currency ?? "").toUpperCase() === ledgerCurrencyFilter);
     if (ledgerSearch.trim()) {
       const q = ledgerSearch.trim().toLowerCase();
       rows = rows.filter(r =>
@@ -1571,7 +1577,7 @@ function FinanceModule({ t, pushToast }: SharedProps) {
       );
     }
     return rows;
-  }, [ledgerData, ledgerSearch, ledgerStatusFilter]);
+  }, [ledgerData, ledgerSearch, ledgerStatusFilter, ledgerTxTypeFilter, ledgerCurrencyFilter]);
 
   return (
     <div>
@@ -1611,14 +1617,36 @@ function FinanceModule({ t, pushToast }: SharedProps) {
           )}
 
           {/* 篩選條件 */}
-          <div className="flex flex-wrap gap-3 items-center">
+          <div className="flex flex-wrap gap-3 items-center bg-white rounded-xl border border-gray-200 p-3">
             <input
               type="text"
               value={ledgerSearch}
               onChange={e => setLedgerSearch(e.target.value)}
               placeholder="搜索 TX ID / 用戶 / 金額 / 業務類型"
-              className="flex-1 min-w-[220px] rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+              className="flex-1 min-w-[200px] rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
             />
+            <select
+              value={ledgerTxTypeFilter}
+              onChange={e => setLedgerTxTypeFilter(e.target.value)}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+            >
+              <option value="">全部業務類型</option>
+              <option value="submission_fee">參展報名費</option>
+              <option value="identity_verification">身份認證費</option>
+              <option value="lbs_hosting">LBS影展託管費</option>
+              <option value="aif_topup">AIF充值</option>
+              <option value="aif_withdraw">AIF提現</option>
+              <option value="platform_fee">平台服務費</option>
+            </select>
+            <select
+              value={ledgerCurrencyFilter}
+              onChange={e => setLedgerCurrencyFilter(e.target.value)}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+            >
+              <option value="">全部支付方式</option>
+              <option value="USD">法幣 (USD)</option>
+              <option value="AIF">AIF Token</option>
+            </select>
             <select
               value={ledgerStatusFilter}
               onChange={e => setLedgerStatusFilter(e.target.value as "" | "success" | "pending" | "failed")}
@@ -1629,6 +1657,41 @@ function FinanceModule({ t, pushToast }: SharedProps) {
               <option value="pending">待付款</option>
               <option value="failed">失敗</option>
             </select>
+            <input
+              type="date"
+              value={ledgerStartDate}
+              onChange={e => setLedgerStartDate(e.target.value)}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+            />
+            <input
+              type="date"
+              value={ledgerEndDate}
+              onChange={e => setLedgerEndDate(e.target.value)}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+            />
+            <button
+              onClick={() => {
+                setLedgerLoading(true);
+                setLedgerError(null);
+                const params = new URLSearchParams();
+                if (ledgerStartDate) params.set('startDate', ledgerStartDate);
+                if (ledgerEndDate) params.set('endDate', ledgerEndDate);
+                if (ledgerTxTypeFilter) params.set('txType', ledgerTxTypeFilter);
+                if (ledgerCurrencyFilter) params.set('currency', ledgerCurrencyFilter);
+                fetch(`/api/admin/finance/ledger?${params.toString()}`)
+                  .then(async res => {
+                    const json = await res.json();
+                    if (json.error) setLedgerError(`DB Error: ${json.error}`);
+                    setLedgerSummary(json.summary ?? { total_usd: 0, total_aif: 0, total_tx: 0 });
+                    setLedgerData(json.data ?? []);
+                  })
+                  .catch(err => setLedgerError((err as Error).message))
+                  .finally(() => setLedgerLoading(false));
+              }}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              查詢
+            </button>
             <span className="text-xs text-gray-400">{vLedgerData.length} 筆</span>
           </div>
 
