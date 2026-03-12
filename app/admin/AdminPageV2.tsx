@@ -1703,15 +1703,13 @@ export default function AdminPageV2() {
               </button>
             ))}
             {/* Identity Verification — standalone page */}
-            <button
+            <a
+              href="/admin/verifications"
               className="w-full text-left rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 border border-transparent flex items-center justify-between group"
-              onClick={() => { window.location.href = "/admin/verifications"; }}
             >
               <span>{lang === "zh" ? "身份資質審核" : "ID Verifications"}</span>
-              <span className="text-[10px] font-mono text-orange-500 bg-orange-50 border border-orange-100 px-1.5 py-0.5 rounded-full group-hover:bg-orange-100 transition-colors">
-                NEW
-              </span>
-            </button>
+              <span className="text-[10px] font-mono text-orange-500 bg-orange-50 border border-orange-100 px-1.5 py-0.5 rounded-full group-hover:bg-orange-100 transition-colors">NEW</span>
+            </a>
           </nav>
         </div>
 
@@ -1751,15 +1749,13 @@ export default function AdminPageV2() {
                   </button>
                 ))}
                 {/* Identity Verification — standalone page */}
-                <button
+                <a
+                  href="/admin/verifications"
                   className="w-full text-left rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 border border-transparent flex items-center justify-between group"
-                  onClick={() => { window.location.href = "/admin/verifications"; setMobileMenuOpen(false); }}
                 >
                   <span>{lang === "zh" ? "身份資質審核" : "ID Verifications"}</span>
-                  <span className="text-[10px] font-mono text-orange-500 bg-orange-50 border border-orange-100 px-1.5 py-0.5 rounded-full">
-                    NEW
-                  </span>
-                </button>
+                  <span className="text-[10px] font-mono text-orange-500 bg-orange-50 border border-orange-100 px-1.5 py-0.5 rounded-full">NEW</span>
+                </a>
               </nav>
             </div>
             <div className="border-t border-gray-200 p-4 space-y-3">
