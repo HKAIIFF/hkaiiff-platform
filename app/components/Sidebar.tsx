@@ -1,14 +1,36 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useI18n } from "@/app/context/I18nContext";
 import { usePrivy } from "@privy-io/react-auth";
+import { supabase } from "@/lib/supabase";
+import { AvatarWithBadges } from "@/app/components/IdentityBadges";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { t } = useI18n();
   const { authenticated, user } = usePrivy();
+
+  const [avatarSeed, setAvatarSeed] = useState<string>(user?.id ?? "Janus");
+  const [verifiedIdentities, setVerifiedIdentities] = useState<string[]>([]);
+  const [displayName, setDisplayName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from("users")
+      .select("avatar_seed, verified_identities, display_name")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (!data) return;
+        setAvatarSeed(data.avatar_seed ?? user.id);
+        setVerifiedIdentities(data.verified_identities ?? []);
+        setDisplayName(data.display_name ?? null);
+      });
+  }, [user?.id]);
 
   const NAV_NETWORK = [
     { href: "/", icon: "fa-film", label: t("nav_feed") },
@@ -26,9 +48,6 @@ export default function Sidebar() {
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
-
-  const avatarSeed = user?.id ?? "Janus";
-  const avatarUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(avatarSeed)}`;
 
   return (
     <aside className="w-60 lg:w-64 h-full bg-panel border-r border-[#1a1a1a] flex flex-col justify-between flex-shrink-0 z-30">
@@ -90,19 +109,29 @@ export default function Sidebar() {
           href="/me"
           className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#141414] cursor-pointer transition-colors border border-transparent hover:border-[#222] mt-1.5"
         >
-          <div className="relative shrink-0">
-            <img
-              src={avatarUrl}
-              alt="User Avatar"
-              className="w-7 h-7 bg-black rounded-full border border-[#333]"
+          {verifiedIdentities.length > 0 ? (
+            <AvatarWithBadges
+              avatarSeed={avatarSeed}
+              verifiedIdentities={verifiedIdentities}
+              size="xs"
             />
-            {authenticated && (
-              <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-signal rounded-full border-2 border-[#080808]" />
-            )}
-          </div>
+          ) : (
+            <div className="relative shrink-0">
+              <img
+                src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(avatarSeed)}`}
+                alt="User Avatar"
+                className="w-7 h-7 bg-black rounded-full border border-[#333]"
+              />
+              {authenticated && (
+                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-signal rounded-full border-2 border-[#080808]" />
+              )}
+            </div>
+          )}
           <div className="flex flex-col overflow-hidden min-w-0">
             <span className="text-xs font-bold text-white truncate">
-              {authenticated ? "My Profile" : "Sign In"}
+              {authenticated
+                ? (displayName || "My Profile")
+                : "Sign In"}
             </span>
             <span className="text-[9px] font-mono text-[#555] truncate">
               {authenticated ? "View account" : "Connect wallet"}

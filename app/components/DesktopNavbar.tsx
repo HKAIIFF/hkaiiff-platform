@@ -1,10 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePrivy } from "@privy-io/react-auth";
 import { useModal } from "@/app/context/ModalContext";
+import { supabase } from "@/lib/supabase";
+import { AvatarWithBadges } from "@/app/components/IdentityBadges";
 
 interface DesktopNavbarProps {
   onSearchChange?: (q: string) => void;
@@ -17,6 +19,22 @@ export default function DesktopNavbar({ onSearchChange, searchValue }: DesktopNa
   const { setActiveModal } = useModal();
 
   const [localQuery, setLocalQuery] = useState(searchValue ?? "");
+  const [avatarSeed, setAvatarSeed] = useState<string>(user?.id ?? "default");
+  const [verifiedIdentities, setVerifiedIdentities] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase
+      .from("users")
+      .select("avatar_seed, verified_identities")
+      .eq("id", user.id)
+      .single()
+      .then(({ data }) => {
+        if (!data) return;
+        setAvatarSeed(data.avatar_seed ?? user.id);
+        setVerifiedIdentities(data.verified_identities ?? []);
+      });
+  }, [user?.id]);
 
   const handleSearch = (val: string) => {
     setLocalQuery(val);
@@ -27,9 +45,6 @@ export default function DesktopNavbar({ onSearchChange, searchValue }: DesktopNa
       router.replace(`/?${params.toString()}`);
     }
   };
-
-  const avatarSeed = user?.id ?? "default";
-  const avatarUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(avatarSeed)}`;
 
   return (
     <div className="hidden md:flex h-14 w-full border-b border-[#1a1a1a] bg-[#050505]/98 backdrop-blur-xl items-center z-40 flex-shrink-0">
@@ -106,11 +121,19 @@ export default function DesktopNavbar({ onSearchChange, searchValue }: DesktopNa
             onClick={() => router.push("/me")}
             className="flex items-center gap-2 bg-[#0e0e0e] border border-[#1e1e1e] rounded-full pl-1.5 pr-3 py-1 hover:border-signal/30 transition-all group cursor-pointer"
           >
-            <img
-              src={avatarUrl}
-              alt="avatar"
-              className="w-6 h-6 rounded-full bg-black border border-[#333]"
-            />
+            {verifiedIdentities.length > 0 ? (
+              <AvatarWithBadges
+                avatarSeed={avatarSeed}
+                verifiedIdentities={verifiedIdentities}
+                size="xs"
+              />
+            ) : (
+              <img
+                src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(avatarSeed)}`}
+                alt="avatar"
+                className="w-6 h-6 rounded-full bg-black border border-[#333]"
+              />
+            )}
             <span className="text-[10px] font-mono text-[#777] group-hover:text-white transition-colors">
               Profile
             </span>

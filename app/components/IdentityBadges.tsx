@@ -6,9 +6,9 @@
  * 使用場景：Feed、Discover、ME、LBS 策展人詳情頁等所有顯示用戶資訊的地方
  *
  * 徽章樣式：
- *  CREATOR     (創作人)  → 金/黃色 (signal / #CCFF00)  V
- *  CURATOR     (策展人)  → 金黃色  (#FFC107)             V
- *  INSTITUTION (機構)   → 藍/紫色 (#9D00FF)             V
+ *  CREATOR     (創作人)  → 黑金配色：金色漸變 from-yellow-400 to-yellow-600，白邊框，金色發光
+ *  CURATOR     (策展人)  → 紫耀配色：紫紅漸變 from-purple-500 to-pink-500，白邊框，紫色發光
+ *  INSTITUTION (機構)   → 藍寶石配色：深藍漸變 from-blue-500 to-cyan-500，白邊框，藍色發光
  */
 
 // ── 徽章配置 ────────────────────────────────────────────────────────────────
@@ -19,9 +19,10 @@ const IDENTITY_CONFIG: Record<string, {
   text: string;
   border: string;
   glow: string;
-  dotBg: string;
+  dotGradient: string;
   dotText: string;
-  dotBorder: string;
+  dotRing: string;
+  dotGlow: string;
 }> = {
   creator: {
     label: '創作人',
@@ -29,9 +30,10 @@ const IDENTITY_CONFIG: Record<string, {
     text: 'text-signal',
     border: 'border-signal/40',
     glow: 'shadow-[0_0_8px_rgba(204,255,0,0.3)]',
-    dotBg: 'bg-signal',
-    dotText: 'text-black',
-    dotBorder: 'border-black',
+    dotGradient: 'bg-gradient-to-br from-yellow-400 to-yellow-600',
+    dotText: 'text-white',
+    dotRing: 'ring-2 ring-white',
+    dotGlow: 'shadow-[0_0_10px_rgba(250,204,21,0.7)]',
   },
   curator: {
     label: '策展人',
@@ -39,9 +41,10 @@ const IDENTITY_CONFIG: Record<string, {
     text: 'text-[#FFC107]',
     border: 'border-[#FFC107]/40',
     glow: 'shadow-[0_0_8px_rgba(255,193,7,0.3)]',
-    dotBg: 'bg-[#FFC107]',
-    dotText: 'text-black',
-    dotBorder: 'border-black',
+    dotGradient: 'bg-gradient-to-br from-purple-500 to-pink-500',
+    dotText: 'text-white',
+    dotRing: 'ring-2 ring-white',
+    dotGlow: 'shadow-[0_0_10px_rgba(168,85,247,0.7)]',
   },
   institution: {
     label: '機構',
@@ -49,9 +52,10 @@ const IDENTITY_CONFIG: Record<string, {
     text: 'text-[#9D00FF]',
     border: 'border-[#9D00FF]/40',
     glow: 'shadow-[0_0_8px_rgba(157,0,255,0.3)]',
-    dotBg: 'bg-[#9D00FF]',
+    dotGradient: 'bg-gradient-to-br from-blue-500 to-cyan-500',
     dotText: 'text-white',
-    dotBorder: 'border-black',
+    dotRing: 'ring-2 ring-white',
+    dotGlow: 'shadow-[0_0_10px_rgba(59,130,246,0.7)]',
   },
 };
 
@@ -106,10 +110,10 @@ export default function IdentityBadges({
     );
   }
 
-  // ── dot 模式：純圓點 V（頭像右下角） ────────────────────────────────────────
+  // ── dot 模式：實體大V徽章（頭像右下角絕對定位） ─────────────────────────────
   if (variant === 'dot') {
-    const content = (
-      <span className={`flex gap-0.5 ${avatarOverlay ? 'absolute -bottom-1 -right-1' : ''} ${className}`}>
+    return (
+      <span className={`flex gap-0.5 ${avatarOverlay ? 'absolute -bottom-2 -right-2' : ''} ${className}`}>
         {verifiedIdentities.map((identity) => {
           const cfg = IDENTITY_CONFIG[identity];
           if (!cfg) return null;
@@ -117,7 +121,7 @@ export default function IdentityBadges({
             <span
               key={identity}
               title={`${cfg.label}已認證`}
-              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center text-[8px] font-heavy ${cfg.dotBg} ${cfg.dotText} ${cfg.dotBorder}`}
+              className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-heavy ${cfg.dotGradient} ${cfg.dotText} ${cfg.dotRing} ${cfg.dotGlow}`}
             >
               V
             </span>
@@ -125,7 +129,6 @@ export default function IdentityBadges({
         })}
       </span>
     );
-    return content;
   }
 
   // ── icon 模式：中等圓形（Feed 卡片） ─────────────────────────────────────────
@@ -139,7 +142,7 @@ export default function IdentityBadges({
             <span
               key={identity}
               title={`${cfg.label}已認證`}
-              className={`w-6 h-6 rounded-full border flex items-center justify-center text-[10px] font-heavy ${cfg.dotBg} ${cfg.dotText} ${cfg.dotBorder} ${cfg.glow}`}
+              className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-heavy ${cfg.dotGradient} ${cfg.dotText} ${cfg.dotRing} ${cfg.dotGlow}`}
             >
               V
             </span>
@@ -157,7 +160,8 @@ export default function IdentityBadges({
 interface AvatarWithBadgesProps {
   avatarSeed: string;
   verifiedIdentities: string[];
-  size?: 'sm' | 'md' | 'lg';
+  /** xs = w-7 h-7（側邊欄/導航欄）, sm = w-8 h-8, md = w-12 h-12, lg = w-20 h-20 */
+  size?: 'xs' | 'sm' | 'md' | 'lg';
   className?: string;
 }
 
@@ -167,14 +171,17 @@ export function AvatarWithBadges({
   size = 'md',
   className = '',
 }: AvatarWithBadgesProps) {
-  const sizeMap = { sm: 'w-8 h-8', md: 'w-12 h-12', lg: 'w-20 h-20' };
+  const sizeMap = { xs: 'w-7 h-7', sm: 'w-8 h-8', md: 'w-12 h-12', lg: 'w-20 h-20' };
+  const ids = verifiedIdentities ?? [];
+
+  // 外框顏色：身份等級 institution > creator > curator > 無
   const borderColorClass =
-    (verifiedIdentities ?? []).includes('institution')
-      ? 'border-[#9D00FF] shadow-[0_0_10px_rgba(157,0,255,0.3)]'
-      : (verifiedIdentities ?? []).includes('creator')
-        ? 'border-signal shadow-[0_0_10px_rgba(204,255,0,0.3)]'
-        : (verifiedIdentities ?? []).includes('curator')
-          ? 'border-[#FFC107] shadow-[0_0_10px_rgba(255,193,7,0.3)]'
+    ids.includes('institution')
+      ? 'border-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.4)]'
+      : ids.includes('creator')
+        ? 'border-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.4)]'
+        : ids.includes('curator')
+          ? 'border-purple-500 shadow-[0_0_12px_rgba(168,85,247,0.4)]'
           : 'border-[#444]';
 
   return (
@@ -184,9 +191,9 @@ export function AvatarWithBadges({
         alt="avatar"
         className={`${sizeMap[size]} bg-black rounded-full border-2 p-0.5 ${borderColorClass}`}
       />
-      {(verifiedIdentities ?? []).length > 0 && (
+      {ids.length > 0 && (
         <IdentityBadges
-          verifiedIdentities={verifiedIdentities}
+          verifiedIdentities={ids}
           variant="dot"
           avatarOverlay
         />

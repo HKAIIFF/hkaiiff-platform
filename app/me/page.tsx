@@ -862,25 +862,25 @@ export default function MePage() {
                       : 'border-[#444]'
                 }`}
             />
-            {/* 多重身份 V 徽章：疊加顯示在頭像右下角 */}
+            {/* 多重身份 V 徽章：實體大V，絕對定位在頭像右下角 */}
             {(dbProfile?.verified_identities ?? []).length > 0 && (
-              <div className="absolute -bottom-1 -right-1 flex gap-0.5">
+              <div className="absolute -bottom-2 -right-2 flex gap-0.5">
                 {(dbProfile?.verified_identities ?? []).includes('creator') && (
-                  <div className="w-5 h-5 rounded-full bg-signal border-2 border-black flex items-center justify-center"
-                    title="創作人已認證">
-                    <span className="text-[8px] font-heavy text-black">V</span>
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 ring-2 ring-white shadow-[0_0_12px_rgba(250,204,21,0.7)] flex items-center justify-center"
+                    title="認證創作人">
+                    <span className="text-[10px] font-heavy text-white">V</span>
                   </div>
                 )}
                 {(dbProfile?.verified_identities ?? []).includes('curator') && (
-                  <div className="w-5 h-5 rounded-full bg-[#FFC107] border-2 border-black flex items-center justify-center"
-                    title="策展人已認證">
-                    <span className="text-[8px] font-heavy text-black">V</span>
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 ring-2 ring-white shadow-[0_0_12px_rgba(168,85,247,0.7)] flex items-center justify-center"
+                    title="認證策展人">
+                    <span className="text-[10px] font-heavy text-white">V</span>
                   </div>
                 )}
                 {(dbProfile?.verified_identities ?? []).includes('institution') && (
-                  <div className="w-5 h-5 rounded-full bg-[#9D00FF] border-2 border-black flex items-center justify-center"
-                    title="機構已認證">
-                    <span className="text-[8px] font-heavy text-white">V</span>
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 ring-2 ring-white shadow-[0_0_12px_rgba(59,130,246,0.7)] flex items-center justify-center"
+                    title="認證機構">
+                    <span className="text-[10px] font-heavy text-white">V</span>
                   </div>
                 )}
               </div>
@@ -914,7 +914,11 @@ export default function MePage() {
             {dbProfile ? (() => {
               const ids = dbProfile.verified_identities ?? [];
               if (ids.length === 0) return '普通用戶';
-              const labelMap: Record<string, string> = { creator: '創作人', curator: '策展人', institution: '機構' };
+              const labelMap: Record<string, string> = {
+                creator: '認證創作人',
+                curator: '認證策展人',
+                institution: '認證機構',
+              };
               return ids.map((id) => labelMap[id] ?? id).join(' · ');
             })() : '...'}
           </div>
@@ -1903,19 +1907,43 @@ export default function MePage() {
               >
                 CANCEL
               </button>
-              <button
-                onClick={handleSaveProfile}
-                disabled={isSaving}
-                className="flex-[2] py-2.5 bg-signal text-black font-heavy text-[11px] rounded-lg tracking-widest
-                           shadow-[0_0_20px_rgba(204,255,0,0.3)] hover:shadow-[0_0_30px_rgba(204,255,0,0.45)]
-                           active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
-              >
-                {isSaving ? (
-                  <><i className="fas fa-spinner fa-spin mr-1.5" />SAVING...</>
-                ) : (
-                  <><i className="fas fa-check mr-1.5" />SAVE PROFILE</>
-                )}
-              </button>
+              {(() => {
+                const isNameLocked =
+                  (dbProfile?.verified_identities?.length ?? 0) > 0 ||
+                  identityApplications.some(
+                    (a) => a.status === 'pending' || a.status === 'awaiting_payment'
+                  );
+                const isFullyVerified = (dbProfile?.verified_identities?.length ?? 0) > 0;
+
+                if (isNameLocked) {
+                  return (
+                    <button
+                      disabled
+                      className="flex-[2] py-2.5 bg-[#111] text-gray-500 font-heavy text-[11px] rounded-lg tracking-widest
+                                 border border-yellow-900/40 cursor-not-allowed flex items-center justify-center gap-1.5"
+                    >
+                      <i className="fas fa-lock text-yellow-600 text-[10px]" />
+                      {isFullyVerified ? '已認證，資料已鎖定 🔒' : '審核中，資料已鎖定 🔒'}
+                    </button>
+                  );
+                }
+
+                return (
+                  <button
+                    onClick={handleSaveProfile}
+                    disabled={isSaving}
+                    className="flex-[2] py-2.5 bg-signal text-black font-heavy text-[11px] rounded-lg tracking-widest
+                               shadow-[0_0_20px_rgba(204,255,0,0.3)] hover:shadow-[0_0_30px_rgba(204,255,0,0.45)]
+                               active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {isSaving ? (
+                      <><i className="fas fa-spinner fa-spin mr-1.5" />SAVING...</>
+                    ) : (
+                      <><i className="fas fa-check mr-1.5" />SAVE PROFILE</>
+                    )}
+                  </button>
+                );
+              })()}
             </div>
           </div>
         </div>
