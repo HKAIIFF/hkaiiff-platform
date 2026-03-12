@@ -1623,7 +1623,7 @@ function FinanceModule({ t, pushToast }: SharedProps) {
               value={ledgerSearch}
               onChange={e => setLedgerSearch(e.target.value)}
               placeholder="搜索 TX ID / 用戶 / 金額 / 業務類型"
-              className="flex-1 min-w-[200px] rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 mb-2"
             />
             <select
               value={ledgerTxTypeFilter}
