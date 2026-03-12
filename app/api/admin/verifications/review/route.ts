@@ -53,6 +53,9 @@ export async function POST(req: NextRequest) {
   // ── 解析目標申請 ────────────────────────────────────────────────────────────
   let applicationId = rawAppId;
 
+  console.log('[review] applicationId received:', applicationId);
+  console.log('[review] action:', action);
+
   if (!applicationId && legacyUserId) {
     // 兼容舊版 Admin 頁面傳 userId 的場景
     const { data: apps } = await supabase
@@ -79,6 +82,8 @@ export async function POST(req: NextRequest) {
     .select('id, user_id, identity_type, status')
     .eq('id', applicationId)
     .single();
+
+  console.log('[review] application found:', application, 'error:', fetchErr);
 
   if (fetchErr || !application) {
     return NextResponse.json({ error: '申請記錄不存在' }, { status: 404 });
