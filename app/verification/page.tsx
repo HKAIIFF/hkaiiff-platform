@@ -107,7 +107,7 @@ export default function VerificationPage() {
         // 查詢已有的申請（pending / awaiting_payment / approved 且未過期）
         const now = new Date().toISOString();
         const { data: existingApps } = await supabase
-          .from("identity_applications")
+          .from("creator_applications")
           .select("identity_type, status, expires_at")
           .eq("user_id", user.id)
           .in("status", ["awaiting_payment", "pending", "approved"]);

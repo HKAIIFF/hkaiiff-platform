@@ -40,12 +40,12 @@ async function handleIdentityVerifyPaid(userId: string, identityType?: string): 
   const now = new Date().toISOString();
   const resolvedIdentityType = identityType || 'creator';
 
-  // ── 1. UPSERT identity_applications 表（Admin 控制中心讀取此表）────────────
+  // ── 1. UPSERT creator_applications 表（Admin 控制中心讀取此表）────────────
   // 先查找該 user_id + identity_type 是否有 awaiting_payment 草稿：
   //   有 → UPDATE status 為 pending（升級草稿）
   //   無 → INSERT 新記錄（AIF 直接支付時不會預建草稿，必須主動插入）
   const { data: existing } = await adminSupabase
-    .from('identity_applications')
+    .from('creator_applications')
     .select('id')
     .eq('user_id', userId)
     .eq('identity_type', resolvedIdentityType)
@@ -54,7 +54,7 @@ async function handleIdentityVerifyPaid(userId: string, identityType?: string): 
 
   if (existing) {
     const { error: appErr } = await adminSupabase
-      .from('identity_applications')
+      .from('creator_applications')
       .update({
         status: 'pending',
         payment_method: 'aif',
@@ -63,13 +63,13 @@ async function handleIdentityVerifyPaid(userId: string, identityType?: string): 
       .eq('id', existing.id);
 
     if (appErr) {
-      console.error('[verify-aif] identity_applications update failed:', appErr.message);
+      console.error('[verify-aif] creator_applications update failed:', appErr.message);
     } else {
       console.log(`[verify-aif] Updated identity_application ${existing.id} → pending (AIF)`);
     }
   } else {
     const { error: insertErr } = await adminSupabase
-      .from('identity_applications')
+      .from('creator_applications')
       .insert({
         user_id: userId,
         identity_type: resolvedIdentityType,
@@ -79,7 +79,7 @@ async function handleIdentityVerifyPaid(userId: string, identityType?: string): 
       });
 
     if (insertErr) {
-      console.error('[verify-aif] identity_applications insert failed:', insertErr.message);
+      console.error('[verify-aif] creator_applications insert failed:', insertErr.message);
     } else {
       console.log(`[verify-aif] Created identity_application for user ${userId} → pending (AIF, type=${resolvedIdentityType})`);
     }

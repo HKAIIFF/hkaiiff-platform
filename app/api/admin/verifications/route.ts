@@ -1,7 +1,7 @@
 /**
  * GET /api/admin/verifications
  *
- * 從 identity_applications 表讀取身份認證申請列表（多重身份版）
+ * 從 creator_applications 表讀取身份認證申請列表（多重身份版）
  * 並 JOIN users 表取得用戶基本資料
  *
  * Query params:
@@ -36,9 +36,9 @@ export async function GET(req: NextRequest) {
     statusList = ['pending'];
   }
 
-  // 從 identity_applications 查詢並關聯 users 資料
+  // 從 creator_applications 查詢並關聯 users 資料
   const { data: applications, error } = await supabase
-    .from('identity_applications')
+    .from('creator_applications')
     .select(`
       id,
       user_id,

@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
   // ── 如果是 AIF 更新既有草稿 ──────────────────────────────────────────────────
   if (applicationId) {
     const { data: existing } = await supabase
-      .from('identity_applications')
+      .from('creator_applications')
       .select('id, user_id, status')
       .eq('id', applicationId)
       .eq('user_id', userId)
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
 
     if (existing && existing.status === 'awaiting_payment') {
       const { error } = await supabase
-        .from('identity_applications')
+        .from('creator_applications')
         .update({
           status: targetStatus,
           bio: bio || null,
@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
 
   // ── 防重複檢查 ───────────────────────────────────────────────────────────────
   const { data: blocking } = await supabase
-    .from('identity_applications')
+    .from('creator_applications')
     .select('id, status, expires_at')
     .eq('user_id', userId)
     .eq('identity_type', verificationType)
@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
 
   // ── 新建申請記錄 ──────────────────────────────────────────────────────────────
   const { data: application, error } = await supabase
-    .from('identity_applications')
+    .from('creator_applications')
     .insert({
       user_id: userId,
       identity_type: verificationType,

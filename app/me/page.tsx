@@ -464,7 +464,7 @@ export default function MePage() {
 
           // Step 2b: 加載多重身份申請記錄
           const { data: apps } = await supabase
-            .from('identity_applications')
+            .from('creator_applications')
             .select('id, identity_type, status, expires_at, rejection_reason, submitted_at')
             .eq('user_id', userId)
             .in('status', ['pending', 'approved', 'rejected', 'awaiting_payment'])

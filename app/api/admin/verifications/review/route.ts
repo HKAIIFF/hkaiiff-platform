@@ -5,19 +5,19 @@
  *
  * Body:
  *  {
- *    applicationId: string   — identity_applications.id
+ *    applicationId: string   — creator_applications.id
  *    action: 'approve' | 'reject'
  *    rejectionReason?: string
  *  }
  *
  * 通過（approve）邏輯：
- *  1. 將 identity_applications.status 設為 'approved'
+ *  1. 將 creator_applications.status 設為 'approved'
  *  2. 設定 expires_at = NOW() + INTERVAL '1 year'
  *  3. 將 identity_type 加入 users.verified_identities 陣列
  *  4. 同步更新 users.verification_status / verification_type（兼容舊版欄位）
  *
  * 退回（reject）邏輯：
- *  1. 將 identity_applications.status 設為 'rejected'
+ *  1. 將 creator_applications.status 設為 'rejected'
  *  2. 記錄 rejection_reason
  *  3. 從 users.verified_identities 移除對應身份（若存在）
  */
@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
   if (!applicationId && legacyUserId) {
     // 兼容舊版 Admin 頁面傳 userId 的場景
     const { data: apps } = await supabase
-      .from('identity_applications')
+      .from('creator_applications')
       .select('id')
       .eq('user_id', legacyUserId)
       .eq('status', 'pending')
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
 
   // ── 讀取申請記錄 ─────────────────────────────────────────────────────────────
   const { data: application, error: fetchErr } = await supabase
-    .from('identity_applications')
+    .from('creator_applications')
     .select('id, user_id, identity_type, status')
     .eq('id', applicationId)
     .single();
@@ -92,9 +92,9 @@ export async function POST(req: NextRequest) {
     const expiresAt = new Date(now);
     expiresAt.setFullYear(expiresAt.getFullYear() + 1);
 
-    // 1. 更新 identity_applications
+    // 1. 更新 creator_applications
     const { error: appErr } = await supabase
-      .from('identity_applications')
+      .from('creator_applications')
       .update({
         status: 'approved',
         reviewed_at: now.toISOString(),
@@ -152,7 +152,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { error: appErr } = await supabase
-      .from('identity_applications')
+      .from('creator_applications')
       .update({
         status: 'rejected',
         reviewed_at: new Date().toISOString(),

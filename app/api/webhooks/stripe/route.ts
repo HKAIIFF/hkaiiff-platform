@@ -137,7 +137,7 @@ async function handleFilmEntryPaid(
 /**
  * 身份認證費支付成功（Stripe）
  *
- * 優先更新 identity_applications 表（新版多重身份架構）：
+ * 優先更新 creator_applications 表（新版多重身份架構）：
  *  找到該用戶最新的 awaiting_payment 記錄，升級為 pending
  *
  * 同時兼容舊版 users 表欄位，確保舊數據不丟失
@@ -150,9 +150,9 @@ async function handleVerificationPaid(
   sessionId: string,
   identityType: string = 'creator'
 ): Promise<void> {
-  // ── 新版：更新 identity_applications 表 ──────────────────────────────────────
+  // ── 新版：更新 creator_applications 表 ──────────────────────────────────────
   const { data: draftApps } = await db
-    .from('identity_applications')
+    .from('creator_applications')
     .select('id, identity_type, status')
     .eq('user_id', userId)
     .eq('status', 'awaiting_payment')
@@ -163,7 +163,7 @@ async function handleVerificationPaid(
 
   if (draft) {
     const { error: appErr } = await db
-      .from('identity_applications')
+      .from('creator_applications')
       .update({
         status: 'pending',
         payment_method: 'fiat',
@@ -172,7 +172,7 @@ async function handleVerificationPaid(
       .eq('id', draft.id);
 
     if (appErr) {
-      console.error('[stripe/webhook] identity_applications update failed:', appErr.message);
+      console.error('[stripe/webhook] creator_applications update failed:', appErr.message);
       throw new Error(appErr.message);
     }
     console.log(`[stripe/webhook] Updated identity_application ${draft.id} to pending (type=${draft.identity_type})`);
@@ -183,7 +183,7 @@ async function handleVerificationPaid(
       : 'creator';
     console.warn(`[stripe/webhook] No awaiting_payment draft for user ${userId}, creating fallback record (type=${resolvedType})`);
     const { error: insertErr } = await db
-      .from('identity_applications')
+      .from('creator_applications')
       .insert({
         user_id: userId,
         identity_type: resolvedType,
@@ -193,7 +193,7 @@ async function handleVerificationPaid(
         submitted_at: new Date().toISOString(),
       });
     if (insertErr) {
-      console.error('[stripe/webhook] identity_applications insert failed:', insertErr.message);
+      console.error('[stripe/webhook] creator_applications insert failed:', insertErr.message);
       throw new Error(insertErr.message);
     }
   }

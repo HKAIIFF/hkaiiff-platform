@@ -11,7 +11,7 @@ interface TeamMember {
 }
 
 interface VerificationRecord {
-  /** identity_applications.id（新版主鍵，用於審核 API） */
+  /** creator_applications.id（新版主鍵，用於審核 API） */
   id: string;
   /** users.id（用戶唯一識別碼） */
   user_id: string;
