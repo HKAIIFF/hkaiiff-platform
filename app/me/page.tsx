@@ -70,7 +70,18 @@ export default function MePage() {
     verification_status: 'unverified' | 'pending' | 'approved' | 'rejected';
     verification_type: 'creator' | 'institution' | 'curator' | null;
     rejection_reason: string | null;
+    verified_identities: string[];
   } | null>(null);
+
+  /** 用戶所有的身份申請記錄（含多種身份） */
+  const [identityApplications, setIdentityApplications] = useState<Array<{
+    id: string;
+    identity_type: 'creator' | 'institution' | 'curator';
+    status: 'awaiting_payment' | 'pending' | 'approved' | 'rejected';
+    expires_at: string | null;
+    rejection_reason: string | null;
+    submitted_at: string;
+  }>>([]);
 
   const [displaySolanaAddress, setDisplaySolanaAddress] = useState<string | null>(null);
 
@@ -412,6 +423,7 @@ export default function MePage() {
         verification_status: 'unverified' as const,
         verification_type: null as 'creator' | 'institution' | 'curator' | null,
         rejection_reason: null as string | null,
+        verified_identities: [] as string[],
       };
 
       try {
@@ -440,15 +452,24 @@ export default function MePage() {
       try {
         const { data: profileRow, error: profileError } = await supabase
           .from('users')
-          .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team, deposit_address, wallet_index, verification_status, verification_type, rejection_reason')
+          .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team, deposit_address, wallet_index, verification_status, verification_type, rejection_reason, verified_identities')
           .eq('id', userId)
           .single();
 
         if (profileError) {
           console.error('❌ Failed to fetch profile:', profileError.message);
-          setDbProfile((prev) => prev ?? defaultProfile);
+          setDbProfile((prev) => prev ?? { ...defaultProfile, verified_identities: [] });
         } else if (profileRow) {
-          setDbProfile(profileRow);
+          setDbProfile({ ...profileRow, verified_identities: profileRow.verified_identities ?? [] });
+
+          // Step 2b: 加載多重身份申請記錄
+          const { data: apps } = await supabase
+            .from('identity_applications')
+            .select('id, identity_type, status, expires_at, rejection_reason, submitted_at')
+            .eq('user_id', userId)
+            .in('status', ['pending', 'approved', 'rejected', 'awaiting_payment'])
+            .order('submitted_at', { ascending: false });
+          setIdentityApplications(apps ?? []);
 
           if (profileRow.deposit_address) {
             setDepositAddress(profileRow.deposit_address);
@@ -613,29 +634,33 @@ export default function MePage() {
     };
   }, [authenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── 強制從 Supabase 拉取最新 aif_balance（每次掛載或支付回調後呼叫）────────
+  // ── 強制從服務端拉取最新 aif_balance（每次掛載或支付回調後呼叫）────────────
+  // 使用 /api/sync-user（Service Role Key）確保能繞過 RLS 讀取正確餘額
   const refreshBalance = async () => {
     if (!user?.id) return;
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('aif_balance, deposit_address, verification_status, verification_type, role')
-        .eq('id', user.id)
-        .single();
-      if (error) {
-        console.error('[me] refreshBalance error:', error.message);
+      const syncRes = await fetch('/api/sync-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user }),
+        cache: 'no-store',
+      });
+      if (!syncRes.ok) {
+        console.error('[me] refreshBalance sync-user failed:', syncRes.status);
         return;
       }
-      if (data) {
+      const data = await syncRes.json();
+      if (data && typeof data.aif_balance === 'number') {
         setDbProfile((prev) =>
           prev
             ? {
                 ...prev,
-                aif_balance: data.aif_balance ?? prev.aif_balance,
+                aif_balance: data.aif_balance,
                 deposit_address: data.deposit_address ?? prev.deposit_address,
                 verification_status: data.verification_status ?? prev.verification_status,
                 verification_type: data.verification_type ?? prev.verification_type,
                 role: data.role ?? prev.role,
+                verified_identities: data.verified_identities ?? prev.verified_identities,
               }
             : prev
         );
@@ -646,6 +671,15 @@ export default function MePage() {
       console.error('[me] refreshBalance exception:', err);
     }
   };
+
+  // ── 頁面掛載時強制刷新餘額（解決刷新顯示 0 的問題）──────────────────────────
+  useEffect(() => {
+    if (!authenticated || !user?.id) return;
+    // 延遲 500ms 確保 syncData 已先執行，refreshBalance 再做二次確認
+    const timer = setTimeout(() => { refreshBalance(); }, 500);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authenticated, user?.id]);
 
   // ── Stripe / AIF 支付回調：監聽 URL 參數並顯示 Toast ─────────────────────
   useEffect(() => {
@@ -751,30 +785,41 @@ export default function MePage() {
         {/* Avatar */}
         <div className="flex flex-col items-center gap-2 shrink-0">
           <div className="relative">
+            {/* 頭像：邊框顏色根據最高優先身份決定 */}
             <img
               src={`https://api.dicebear.com/7.x/bottts/svg?seed=${dbProfile?.avatar_seed || user?.id || 'default'}`}
               alt="avatar"
               className={`w-20 h-20 bg-black rounded-full border-2 p-1
-                ${dbProfile?.verification_status === 'approved'
-                  ? dbProfile?.verification_type === 'creator'
+                ${(dbProfile?.verified_identities ?? []).includes('institution')
+                  ? 'border-[#9D00FF] shadow-[0_0_14px_rgba(157,0,255,0.35)]'
+                  : (dbProfile?.verified_identities ?? []).includes('creator')
                     ? 'border-signal shadow-[0_0_14px_rgba(204,255,0,0.35)]'
-                    : dbProfile?.verification_type === 'institution'
-                      ? 'border-[#9D00FF] shadow-[0_0_14px_rgba(157,0,255,0.35)]'
-                      : 'border-[#FFC107] shadow-[0_0_14px_rgba(255,193,7,0.35)]'
-                  : 'border-[#444]'
+                    : (dbProfile?.verified_identities ?? []).includes('curator')
+                      ? 'border-[#FFC107] shadow-[0_0_14px_rgba(255,193,7,0.35)]'
+                      : 'border-[#444]'
                 }`}
             />
-            {dbProfile?.verification_status === 'approved' && (
-              <div
-                className={`absolute bottom-0 right-0 w-6 h-6 rounded-full border-2 border-black flex items-center justify-center text-[10px]
-                  ${dbProfile?.verification_type === 'institution'
-                    ? 'bg-[#9D00FF] text-white'
-                    : dbProfile?.verification_type === 'curator'
-                      ? 'bg-[#FFC107] text-black'
-                      : 'bg-signal text-black'
-                  }`}
-              >
-                <i className="fas fa-check text-[9px]" />
+            {/* 多重身份 V 徽章：疊加顯示在頭像右下角 */}
+            {(dbProfile?.verified_identities ?? []).length > 0 && (
+              <div className="absolute -bottom-1 -right-1 flex gap-0.5">
+                {(dbProfile?.verified_identities ?? []).includes('creator') && (
+                  <div className="w-5 h-5 rounded-full bg-signal border-2 border-black flex items-center justify-center"
+                    title="創作人已認證">
+                    <span className="text-[8px] font-heavy text-black">V</span>
+                  </div>
+                )}
+                {(dbProfile?.verified_identities ?? []).includes('curator') && (
+                  <div className="w-5 h-5 rounded-full bg-[#FFC107] border-2 border-black flex items-center justify-center"
+                    title="策展人已認證">
+                    <span className="text-[8px] font-heavy text-black">V</span>
+                  </div>
+                )}
+                {(dbProfile?.verified_identities ?? []).includes('institution') && (
+                  <div className="w-5 h-5 rounded-full bg-[#9D00FF] border-2 border-black flex items-center justify-center"
+                    title="機構已認證">
+                    <span className="text-[8px] font-heavy text-white">V</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -786,19 +831,21 @@ export default function MePage() {
             <h2 className="font-heavy text-2xl text-white tracking-wide truncate">
               {dbProfile?.display_name || (user?.id ? `Agent_${user.id.replace('did:privy:', '').substring(0, 6)}` : 'Agent_SYNCING')}
             </h2>
-            {/* Verification Badge — only when approved */}
-            {dbProfile?.verification_status === 'approved' && dbProfile.verification_type && (
-              <span className={`inline-flex items-center gap-1 text-[9px] font-heavy px-2 py-0.5 rounded-full tracking-wider shrink-0
-                ${dbProfile.verification_type === 'creator'
-                  ? 'bg-signal/20 text-signal border border-signal/40'
-                  : dbProfile.verification_type === 'institution'
-                    ? 'bg-[#9D00FF]/20 text-[#9D00FF] border border-[#9D00FF]/40'
-                    : 'bg-[#FFC107]/20 text-[#FFC107] border border-[#FFC107]/40'
-                }`}>
-                <i className={`fas fa-check-circle text-[8px]`} />
-                {t(`verify_badge_${dbProfile.verification_type}`)}
-              </span>
-            )}
+            {/* 多重身份認證徽章 */}
+            {(dbProfile?.verified_identities ?? []).map((identity) => {
+              const cfg = {
+                creator: { cls: 'bg-signal/20 text-signal border-signal/40', label: t('verify_badge_creator') },
+                institution: { cls: 'bg-[#9D00FF]/20 text-[#9D00FF] border-[#9D00FF]/40', label: t('verify_badge_institution') },
+                curator: { cls: 'bg-[#FFC107]/20 text-[#FFC107] border-[#FFC107]/40', label: t('verify_badge_curator') },
+              }[identity];
+              if (!cfg) return null;
+              return (
+                <span key={identity} className={`inline-flex items-center gap-1 text-[9px] font-heavy px-2 py-0.5 rounded-full tracking-wider shrink-0 border ${cfg.cls}`}>
+                  <i className="fas fa-check-circle text-[8px]" />
+                  {cfg.label}
+                </span>
+              );
+            })}
           </div>
           <div className="text-[9px] text-gray-400 font-mono mb-2 tracking-wider uppercase pr-14">
             {dbProfile ? t(`role_${dbProfile?.role || 'human'}`).toUpperCase() : '...'}
@@ -818,38 +865,71 @@ export default function MePage() {
               <i className="far fa-copy"></i>
             </button>
 
-            {/* ── Verify Pill —精緻 Web3 Pill 樣式，融入 Flex 流 ── */}
-            {dbProfile && (
-              dbProfile.verification_status === 'approved' ? null :
-              dbProfile.verification_status === 'pending' ? (
-                <span className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-neutral-800 text-neutral-400 border border-neutral-700 rounded-full px-3 py-1.5 whitespace-nowrap">
-                  <i className="fas fa-clock text-[8px]" />
-                  {t('verify_btn_pending')}
-                </span>
-              ) : (
-                <button
-                  onClick={() => router.push('/verification')}
-                  className="inline-flex items-center gap-1.5 text-[10px] font-bold bg-white text-black rounded-full px-4 py-1.5 hover:scale-105 transition-transform uppercase tracking-wider whitespace-nowrap shadow-[0_0_10px_rgba(255,255,255,0.15)]"
-                >
-                  <i className="fas fa-shield-alt text-[9px]" />
-                  {t('verify_inline_verify')}
-                </button>
-              )
-            )}
+            {/* ── 多重身份狀態 Pills ── */}
+            {dbProfile && (() => {
+              const verifiedIds = dbProfile.verified_identities ?? [];
+              const pendingApps = identityApplications.filter(
+                (a) => a.status === 'pending' || a.status === 'awaiting_payment'
+              );
+              const hasAnyVerified = verifiedIds.length > 0;
+              const hasAnyPending = pendingApps.length > 0;
+
+              // 顯示所有待審核的身份
+              const pendingPills = pendingApps.map((app) => {
+                const label = { creator: '創作人', institution: '機構', curator: '策展人' }[app.identity_type] ?? app.identity_type;
+                return (
+                  <span key={app.id} className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-neutral-800 text-yellow-400 border border-yellow-700/40 rounded-full px-3 py-1.5 whitespace-nowrap">
+                    <i className="fas fa-clock text-[8px]" />
+                    {label} 審核中
+                  </span>
+                );
+              });
+
+              // 若有可申請的身份，顯示 Verify 按鈕
+              const allTypes: ('creator' | 'institution' | 'curator')[] = ['creator', 'institution', 'curator'];
+              const blockedInMe = new Set([
+                ...verifiedIds,
+                ...pendingApps.map((a) => a.identity_type),
+              ]);
+              const canApply = allTypes.some((t) => !blockedInMe.has(t));
+
+              return (
+                <>
+                  {pendingPills}
+                  {canApply && (
+                    <button
+                      onClick={() => router.push('/verification')}
+                      className="inline-flex items-center gap-1.5 text-[10px] font-bold bg-white text-black rounded-full px-4 py-1.5 hover:scale-105 transition-transform uppercase tracking-wider whitespace-nowrap shadow-[0_0_10px_rgba(255,255,255,0.15)]"
+                    >
+                      <i className="fas fa-shield-alt text-[9px]" />
+                      {hasAnyVerified || hasAnyPending ? '+ 認證' : t('verify_inline_verify')}
+                    </button>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
       </div>
 
-      {/* ── Rejection notice (compact, no full banner) ─────────────────── */}
-      {dbProfile && dbProfile.verification_status === 'rejected' && dbProfile.rejection_reason && (
-        <div className="mb-4 bg-red-500/5 border border-red-500/20 rounded-lg px-4 py-2.5 flex items-start gap-2">
-          <i className="fas fa-exclamation-circle text-red-400 mt-0.5 text-xs shrink-0" />
-          <p className="text-red-400 text-[11px] font-mono leading-relaxed">{dbProfile.rejection_reason}</p>
-        </div>
-      )}
+      {/* ── 退回通知（每個被退回的身份都顯示） ──────────────────────────── */}
+      {identityApplications
+        .filter((app) => app.status === 'rejected' && app.rejection_reason)
+        .map((app) => {
+          const typeLabel = { creator: '創作人', institution: '機構', curator: '策展人' }[app.identity_type] ?? app.identity_type;
+          return (
+            <div key={app.id} className="mb-2 bg-red-500/5 border border-red-500/20 rounded-lg px-4 py-2.5 flex items-start gap-2">
+              <i className="fas fa-exclamation-circle text-red-400 mt-0.5 text-xs shrink-0" />
+              <p className="text-red-400 text-[11px] font-mono leading-relaxed">
+                <span className="font-bold">[{typeLabel}]</span> {app.rejection_reason}
+              </p>
+            </div>
+          );
+        })
+      }
 
       {/* ── LBS Curator Entry Banner ───────────────────────────────────── */}
-      {dbProfile?.verification_status === 'approved' && dbProfile?.verification_type === 'curator' && (
+      {(dbProfile?.verified_identities ?? []).includes('curator') && (
         <div
           onClick={() => router.push('/lbs/apply')}
           className="bg-gradient-to-r from-[#111] to-black border border-[#FFC107] hover:border-[#FFC107]/80 transition-all rounded-xl p-5 mb-6 cursor-pointer group relative overflow-hidden"

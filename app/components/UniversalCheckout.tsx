@@ -24,7 +24,7 @@ import { supabase } from '@/lib/supabase';
 
 interface UniversalCheckoutProps {
   productCode: string;
-  onSuccess?: () => void;
+  onSuccess?: () => void | Promise<void>;
   variant?: 'primary' | 'outline' | 'ghost';
   label?: string;
   className?: string;
@@ -147,18 +147,25 @@ export default function UniversalCheckout({
     if (!isOpen || !authenticated || !user?.id) return;
     let cancelled = false;
     setBalanceLoading(true);
-    supabase
-      .from('users')
-      .select('aif_balance')
-      .eq('id', user.id)
-      .single()
-      .then(({ data }) => {
+
+    const loadBalance = async () => {
+      try {
+        const { data } = await supabase
+          .from('users')
+          .select('aif_balance')
+          .eq('id', user.id)
+          .single();
         if (!cancelled) {
           setAifBalance(data?.aif_balance ?? 0);
-          setBalanceLoading(false);
         }
-      })
-      .catch(() => { if (!cancelled) setBalanceLoading(false); });
+      } catch {
+        // 靜默忽略餘額載入錯誤
+      } finally {
+        if (!cancelled) setBalanceLoading(false);
+      }
+    };
+
+    loadBalance();
     return () => { cancelled = true; };
   }, [isOpen, authenticated, user?.id]);
 
@@ -224,8 +231,16 @@ export default function UniversalCheckout({
         setAifBalance(json.newBalance);
       }
 
-      // 先呼叫 onSuccess（例如驗證頁面需要提交表單資料）
-      onSuccess?.();
+      // 先等待 onSuccess 完成（例如驗證頁面需要將表單資料寫入 DB）
+      // 必須 await，確保在跳轉前後端資料已更新，Admin 控制台能即時看到申請
+      if (onSuccess) {
+        try {
+          await Promise.resolve(onSuccess());
+        } catch (onSuccessErr) {
+          console.error('[UniversalCheckout] onSuccess callback error:', onSuccessErr);
+          // onSuccess 失敗不阻斷跳轉，因為扣款已成功
+        }
+      }
 
       // 構建成功跳轉 URL：優先使用外部傳入的 successUrl，否則導向通用成功頁
       const targetUrl = successUrl

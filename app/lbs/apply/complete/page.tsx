@@ -45,17 +45,18 @@ function CompleteContent() {
     }
 
     // Insert the LBS node record
-    supabase
-      .from('lbs_nodes')
-      .insert({
-        ...formData,
-        submitted_by: user.id,
-        stripe_session_id: sessionId,
-        status: 'pending',
-        state: 'locked_geo',
-        payment_method: 'stripe',
-      })
-      .then(({ error }) => {
+    const insertNode = async () => {
+      try {
+        const { error } = await supabase
+          .from('lbs_nodes')
+          .insert({
+            ...formData,
+            submitted_by: user.id,
+            stripe_session_id: sessionId,
+            status: 'pending',
+            state: 'locked_geo',
+            payment_method: 'stripe',
+          });
         if (error) {
           setErrorMsg(error.message);
           setStatus('error');
@@ -63,7 +64,12 @@ function CompleteContent() {
         }
         sessionStorage.removeItem('lbs_apply_pending');
         setStatus('success');
-      });
+      } catch (err: unknown) {
+        setErrorMsg(err instanceof Error ? err.message : 'Submission failed');
+        setStatus('error');
+      }
+    };
+    insertNode();
   }, [ready, authenticated, user?.id, searchParams, router]);
 
   if (status === 'loading') return <CyberLoading text="PROCESSING APPLICATION..." />;

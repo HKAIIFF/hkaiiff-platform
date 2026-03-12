@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 
 /** PostgreSQL unique_violation error code */
 const PG_UNIQUE_VIOLATION = '23505';
+
+// 使用 Service Role Key 繞過 RLS，確保伺服器端能讀寫所有欄位（含 aif_balance）
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } }
+);
 
 export async function POST(req: Request) {
   try {

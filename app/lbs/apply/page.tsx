@@ -360,7 +360,7 @@ export default function LbsApplyPage() {
     }
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Stripe 回跳後：讀取 sessionStorage 並插入 LBS 節點記錄
+    // Stripe 回跳後：讀取 sessionStorage 並插入 LBS 節點記錄
   useEffect(() => {
     const url = new URL(window.location.href);
     const paymentSuccess = url.searchParams.get('payment') === 'success';
@@ -369,13 +369,21 @@ export default function LbsApplyPage() {
       const pending = sessionStorage.getItem('lbs_apply_pending');
       if (pending) {
         sessionStorage.removeItem('lbs_apply_pending');
-        supabase
-          .from('lbs_nodes')
-          .insert([{ ...JSON.parse(pending), payment_method: 'stripe' }])
-          .then(({ error }) => {
-            if (!error) setIsSuccess(true);
-            else showToast('Submission failed after payment', 'error');
-          });
+        const submitStripeNode = async () => {
+          try {
+            const { error } = await supabase
+              .from('lbs_nodes')
+              .insert([{ ...JSON.parse(pending), payment_method: 'stripe' }]);
+            if (!error) {
+              setIsSuccess(true);
+            } else {
+              showToast('Submission failed after payment', 'error');
+            }
+          } catch (err: unknown) {
+            showToast(err instanceof Error ? err.message : 'Submission failed', 'error');
+          }
+        };
+        submitStripeNode();
       } else {
         setIsSuccess(true);
       }

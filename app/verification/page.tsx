@@ -69,6 +69,11 @@ export default function VerificationPage() {
   const [aifBalance, setAifBalance] = useState(0);
   const [isLoadingBalance, setIsLoadingBalance] = useState(true);
   const [isDocUploading, setIsDocUploading] = useState(false);
+  /** 保存草稿後的 applicationId，用於 AIF 支付成功後更新狀態 */
+  const [draftApplicationId, setDraftApplicationId] = useState<string | null>(null);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  /** 已有申請的身份類型（blocked types） */
+  const [blockedTypes, setBlockedTypes] = useState<VerificationType[]>([]);
 
   const [form, setForm] = useState<VerificationForm>({
     verificationType: null,
@@ -85,23 +90,49 @@ export default function VerificationPage() {
     if (ready && !authenticated) router.replace("/");
   }, [ready, authenticated, router]);
 
-  // Load AIF balance
+  // 加載 AIF 餘額 + 檢查已有申請（防止重複提交）
   useEffect(() => {
     if (!authenticated || !user?.id) return;
     const fetch_ = async () => {
       setIsLoadingBalance(true);
-      const { data } = await supabase
-        .from("users")
-        .select("aif_balance, verification_status")
-        .eq("id", user.id)
-        .single();
-      setAifBalance(data?.aif_balance ?? 0);
-      // If already pending/approved, redirect back
-      if (data?.verification_status === "approved") {
-        showToast(lang === "zh" ? "您已通過認證" : "Already verified", "info");
-        router.replace("/me");
+      try {
+        // 取得 AIF 餘額
+        const { data: userData } = await supabase
+          .from("users")
+          .select("aif_balance")
+          .eq("id", user.id)
+          .single();
+        setAifBalance(userData?.aif_balance ?? 0);
+
+        // 查詢已有的申請（pending / awaiting_payment / approved 且未過期）
+        const now = new Date().toISOString();
+        const { data: existingApps } = await supabase
+          .from("identity_applications")
+          .select("identity_type, status, expires_at")
+          .eq("user_id", user.id)
+          .in("status", ["awaiting_payment", "pending", "approved"]);
+
+        const blocked: VerificationType[] = [];
+        for (const app of existingApps ?? []) {
+          if (app.status === "awaiting_payment" || app.status === "pending") {
+            blocked.push(app.identity_type as VerificationType);
+          } else if (app.status === "approved") {
+            const isExpired = app.expires_at && app.expires_at < now;
+            if (!isExpired) {
+              blocked.push(app.identity_type as VerificationType);
+            }
+          }
+        }
+        setBlockedTypes(blocked);
+
+        // 若所有身份都已通過且未過期，提示並返回
+        if (blocked.length === 3) {
+          showToast(lang === "zh" ? "您的三種身份均已完成認證" : "All identities verified", "info");
+          router.replace("/me");
+        }
+      } finally {
+        setIsLoadingBalance(false);
       }
-      setIsLoadingBalance(false);
     };
     fetch_();
   }, [authenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -132,6 +163,13 @@ export default function VerificationPage() {
   function validateStep1(): boolean {
     if (!form.verificationType) {
       showToast(lang === "zh" ? "請選擇身份類型" : "Please select an identity type", "error");
+      return false;
+    }
+    if (blockedTypes.includes(form.verificationType)) {
+      showToast(
+        lang === "zh" ? "此身份已有進行中或通過的申請，請勿重複提交" : "You already have an active application for this identity type",
+        "error"
+      );
       return false;
     }
     return true;
@@ -178,6 +216,11 @@ export default function VerificationPage() {
     }
   }
 
+  /**
+   * AIF 支付成功後的提交：
+   * 若有草稿 applicationId → 更新草稿為 pending
+   * 否則 → 直接新建 pending 記錄
+   */
   async function submitVerification(paymentMethod: "fiat" | "aif", token: string) {
     const res = await fetch("/api/verification/submit", {
       method: "POST",
@@ -193,22 +236,65 @@ export default function VerificationPage() {
         portfolio: form.portfolio,
         docUrl: form.docUrl || null,
         paymentMethod,
+        applicationId: draftApplicationId ?? undefined,
       }),
     });
     const data = await res.json();
     if (!res.ok) {
-      showToast(data.error ?? "Submission failed", "error");
+      const msg = data.message ?? data.error ?? "Submission failed";
+      showToast(msg, "error");
       return;
     }
     showToast(t("verify_success"), "success");
     setStep(4);
   }
 
-  // ── 進入 Step 3 時自動保存表單數據到 localStorage（供 Stripe 回跳後恢復）──────
+  /**
+   * 進入 Step 3 時，先將表單數據保存為草稿（status='awaiting_payment'）
+   * 這樣 Stripe Webhook 觸發後，可直接找到這條草稿並將狀態升級為 pending
+   */
   useEffect(() => {
-    if (step === 3) {
-      localStorage.setItem("pending_verification", JSON.stringify({ ...form, paymentMethod: "fiat" }));
-    }
+    if (step !== 3 || !authenticated || !user?.id || isSavingDraft || draftApplicationId) return;
+
+    const saveDraft = async () => {
+      setIsSavingDraft(true);
+      try {
+        const token = await getAccessToken();
+        if (!token) return;
+        const res = await fetch("/api/verification/submit", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            verificationType: form.verificationType,
+            bio: form.bio,
+            techStack: form.techStack,
+            coreTeam: form.coreTeam,
+            portfolio: form.portfolio,
+            docUrl: form.docUrl || null,
+            paymentMethod: "fiat",
+          }),
+        });
+        const data = await res.json();
+        if (res.ok && data.applicationId) {
+          setDraftApplicationId(data.applicationId);
+          // 保留 localStorage 以兼容舊邏輯
+          localStorage.setItem("pending_verification", JSON.stringify({
+            ...form,
+            paymentMethod: "fiat",
+            applicationId: data.applicationId,
+          }));
+        }
+      } catch (err) {
+        console.error("[verification] failed to save draft:", err);
+      } finally {
+        setIsSavingDraft(false);
+      }
+    };
+
+    saveDraft();
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Handle return from Stripe ──────────────────────────────────────────────
@@ -311,21 +397,34 @@ export default function VerificationPage() {
                 IDENTITY TYPE *
               </label>
               <div className="grid grid-cols-3 gap-2">
-                {IDENTITY_TYPES.map(({ value, icon, color }) => (
-                  <button
-                    key={value}
-                    onClick={() => updateForm("verificationType", value)}
-                    className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all active:scale-95
-                      ${form.verificationType === value
-                        ? `border-signal bg-signal/10 text-signal shadow-[0_0_12px_rgba(204,255,0,0.15)]`
-                        : "border-[#2a2a2a] bg-[#0d0d0d] text-gray-500 hover:border-[#444]"}`}
-                  >
-                    <i className={`fas ${icon} text-xl`} />
-                    <span className="text-[10px] font-heavy tracking-wider">
-                      {t(`verify_type_${value}`)}
-                    </span>
-                  </button>
-                ))}
+                {IDENTITY_TYPES.map(({ value, icon }) => {
+                  const isBlocked = blockedTypes.includes(value);
+                  const isSelected = form.verificationType === value;
+                  return (
+                    <button
+                      key={value}
+                      onClick={() => !isBlocked && updateForm("verificationType", value)}
+                      disabled={isBlocked}
+                      className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all relative
+                        ${isBlocked
+                          ? "border-[#222] bg-[#0a0a0a] text-gray-700 cursor-not-allowed opacity-60"
+                          : isSelected
+                            ? "border-signal bg-signal/10 text-signal shadow-[0_0_12px_rgba(204,255,0,0.15)] active:scale-95"
+                            : "border-[#2a2a2a] bg-[#0d0d0d] text-gray-500 hover:border-[#444] active:scale-95"
+                        }`}
+                    >
+                      <i className={`fas ${icon} text-xl`} />
+                      <span className="text-[10px] font-heavy tracking-wider">
+                        {t(`verify_type_${value}`)}
+                      </span>
+                      {isBlocked && (
+                        <span className="text-[8px] font-mono text-yellow-500/80 tracking-wider">
+                          審核中
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -642,10 +741,11 @@ export default function VerificationPage() {
               label={lang === "zh" ? "SECURE PAY · 立即支付" : "SECURE PAY · VERIFY NOW"}
               className="w-full justify-center py-4 text-base rounded-2xl"
               successUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/success?type=creator_verification&amount=150&currency=AIF&name=${encodeURIComponent('創作者身份認證')}`}
-              onSuccess={() => {
-                getAccessToken().then((token) => {
-                  if (token) submitVerification("aif", token);
-                });
+              onSuccess={async () => {
+                // 立即清除 localStorage，防止 Success 頁面重複提交（並誤設 paymentMethod='fiat'）
+                localStorage.removeItem("pending_verification");
+                const token = await getAccessToken();
+                if (token) await submitVerification("aif", token);
               }}
             />
 
