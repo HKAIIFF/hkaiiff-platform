@@ -3,6 +3,7 @@ import { useRef, useEffect, useState } from "react";
 import { FILMS } from "@/lib/data";
 import type { Film } from "@/lib/data";
 import { useModal } from "@/app/context/ModalContext";
+import FeedVideo from "@/components/FeedVideo";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -15,32 +16,11 @@ function fmt(s: number) {
 // ─── FeedItem ─────────────────────────────────────────────────────────────────
 
 function FeedItem({ film, timeLeft }: { film: Film; timeLeft: number }) {
-  const videoRef  = useRef<HTMLVideoElement>(null);
   const [showUser, setShowUser] = useState(false);
   const [isInteractOpen, setIsInteractOpen] = useState(false);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
   const { setActiveModal, setSelectedFilm, setInteractTab, setSelectedCreator } = useModal();
-
-  // ── IntersectionObserver: auto-play / pause when scrolled into view ──────
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && entry.intersectionRatio >= 0.7) {
-          video.play().catch(() => {});
-        } else {
-          video.pause();
-        }
-      },
-      { threshold: [0, 0.5, 0.7, 1] }
-    );
-
-    observer.observe(video);
-    return () => observer.disconnect();
-  }, []);
 
   // ── Swipe gesture: left → show parallel universe, right → hide ───────────
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -86,17 +66,13 @@ function FeedItem({ film, timeLeft }: { film: Film; timeLeft: number }) {
           pointerEvents: showUser ? "none" : "auto",
         }}
       >
-        {/* Background — video element ready for real videoUrl; poster = Unsplash thumbnail */}
-        <video
-          ref={videoRef}
+        {/* FeedVideo: HLS 懒加载，滑出视口自动销毁 Hls 实例截断流量 */}
+        <FeedVideo
+          videoUrl={film.videoUrl}
+          posterUrl={film.video}
           className="absolute inset-0 w-full h-full object-cover"
           style={{ opacity: 0.75 }}
-          poster={film.video}
-          src={film.videoUrl ?? ""}
-          loop
-          muted
-          playsInline
-          preload="none"
+          visibilityThreshold={0.7}
         />
 
         {/* Gradient vignette */}

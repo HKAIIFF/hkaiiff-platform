@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 import { buildOssUrl } from "@/lib/utils/oss";
 import Link from "next/link";
 import IdentityBadges from "@/app/components/IdentityBadges";
+import FeedVideo from "@/components/FeedVideo";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -188,7 +189,6 @@ function MobileFeedItem({
   isMuted: boolean;
   onToggleMute: () => void;
 }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const [showUser, setShowUser] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -207,24 +207,6 @@ function MobileFeedItem({
 
   const parallelState = getParallelState(film.parallel_start_time, currentTime);
   const countdownSeconds = parallelState === "LIVE" ? getCountdownSeconds(film.parallel_start_time, currentTime) : 0;
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && entry.intersectionRatio >= 0.6) {
-          video.play().catch(() => {});
-        } else {
-          video.pause();
-          video.currentTime = 0;
-        }
-      },
-      { threshold: [0, 0.6, 1] }
-    );
-    observer.observe(video);
-    return () => observer.disconnect();
-  }, []);
 
   const handleShare = async () => {
     const shareData = {
@@ -278,16 +260,13 @@ function MobileFeedItem({
         onTouchEnd={handleTouchEnd}
       >
         <div className="layer-original">
-          <video
-            ref={videoRef}
+          {/* FeedVideo: HLS 懒加载，滑出视口自动销毁 Hls 实例截断流量 */}
+          <FeedVideo
+            videoUrl={videoSrc}
+            posterUrl={posterSrc}
             className="bg-media"
-            src={videoSrc}
-            poster={posterSrc}
-            loop
             muted={isMuted}
-            playsInline
-            autoPlay
-            preload="none"
+            visibilityThreshold={0.6}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-90 pointer-events-none" />
           <div className="ui-layer">
