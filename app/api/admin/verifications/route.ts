@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 
   const { data: apps, error: appsError } = await supabase
     .from('creator_applications')
-    .select('*')
+    .select('id, user_id, identity_type, status, verification_name, payment_method, payment_session, submitted_at, reviewed_at, expires_at')
     .in('status', statusList)
     .order('submitted_at', { ascending: false });
 
