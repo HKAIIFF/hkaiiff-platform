@@ -83,6 +83,9 @@ export default function MePage() {
     submitted_at: string;
   }>>([]);
 
+  /** 認證按鈕鎖定：有任何 pending 或 approved 未過期的記錄即鎖定 */
+  const [isVerifyLocked, setIsVerifyLocked] = useState(false);
+
   const [displaySolanaAddress, setDisplaySolanaAddress] = useState<string | null>(null);
 
   // ── Supabase Realtime 狀態 ────────────────────────────────────────────────
@@ -470,6 +473,16 @@ export default function MePage() {
             .in('status', ['pending', 'approved', 'rejected', 'awaiting_payment'])
             .order('submitted_at', { ascending: false });
           setIdentityApplications(apps ?? []);
+
+          // 計算認證按鈕鎖定狀態：有任何 pending 或 approved 未過期記錄即鎖定
+          const nowTs = new Date().toISOString();
+          const locked = (apps ?? []).some(
+            (a) =>
+              a.status === 'pending' ||
+              a.status === 'awaiting_payment' ||
+              (a.status === 'approved' && (!a.expires_at || a.expires_at > nowTs))
+          );
+          setIsVerifyLocked(locked);
 
           if (profileRow.deposit_address) {
             setDepositAddress(profileRow.deposit_address);
@@ -865,16 +878,12 @@ export default function MePage() {
               <i className="far fa-copy"></i>
             </button>
 
-            {/* ── 多重身份狀態 Pills ── */}
+            {/* ── 多重身份狀態 Pills + 認證按鈕 ── */}
             {dbProfile && (() => {
-              const verifiedIds = dbProfile.verified_identities ?? [];
               const pendingApps = identityApplications.filter(
                 (a) => a.status === 'pending' || a.status === 'awaiting_payment'
               );
-              const hasAnyVerified = verifiedIds.length > 0;
-              const hasAnyPending = pendingApps.length > 0;
 
-              // 顯示所有待審核的身份
               const pendingPills = pendingApps.map((app) => {
                 const label = { creator: '創作人', institution: '機構', curator: '策展人' }[app.identity_type] ?? app.identity_type;
                 return (
@@ -885,24 +894,24 @@ export default function MePage() {
                 );
               });
 
-              // 若有可申請的身份，顯示 Verify 按鈕
-              const allTypes: ('creator' | 'institution' | 'curator')[] = ['creator', 'institution', 'curator'];
-              const blockedInMe = new Set([
-                ...verifiedIds,
-                ...pendingApps.map((a) => a.identity_type),
-              ]);
-              const canApply = allTypes.some((t) => !blockedInMe.has(t));
-
               return (
                 <>
                   {pendingPills}
-                  {canApply && (
+                  {isVerifyLocked ? (
+                    <button
+                      disabled
+                      className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-neutral-800/60 text-gray-500 border border-gray-700/40 rounded-full px-4 py-1.5 opacity-50 cursor-not-allowed whitespace-nowrap"
+                    >
+                      <i className="fas fa-lock text-[8px]" />
+                      {lang === 'zh' ? '認證中' : 'In Review'}
+                    </button>
+                  ) : (
                     <button
                       onClick={() => router.push('/verification')}
                       className="inline-flex items-center gap-1.5 text-[10px] font-bold bg-white text-black rounded-full px-4 py-1.5 hover:scale-105 transition-transform uppercase tracking-wider whitespace-nowrap shadow-[0_0_10px_rgba(255,255,255,0.15)]"
                     >
                       <i className="fas fa-shield-alt text-[9px]" />
-                      {hasAnyVerified || hasAnyPending ? '+ 認證' : t('verify_inline_verify')}
+                      {lang === 'zh' ? '立即認證' : t('verify_inline_verify')}
                     </button>
                   )}
                 </>

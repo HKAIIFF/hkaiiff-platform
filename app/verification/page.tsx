@@ -994,7 +994,7 @@ export default function VerificationPage() {
               variant="primary"
               label={lang === "zh" ? "SECURE PAY · 立即支付" : "SECURE PAY · VERIFY NOW"}
               className="w-full justify-center py-4 text-base rounded-2xl"
-              successUrl={`${typeof window !== "undefined" ? window.location.origin : ""}/success?type=creator_verification&amount=150&currency=AIF&name=${encodeURIComponent('創作者身份認證')}`}
+              successUrl=""
               onSuccess={async () => {
                 localStorage.removeItem("pending_verification");
                 setPageState("B");

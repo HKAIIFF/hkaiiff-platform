@@ -242,14 +242,21 @@ export default function UniversalCheckout({
         }
       }
 
-      // 構建成功跳轉 URL：優先使用外部傳入的 successUrl，否則導向通用成功頁
-      const targetUrl = successUrl
-        || `/success?type=${productCode}&amount=${Number(product.price_aif).toLocaleString()}&currency=AIF&name=${encodeURIComponent(product.name_zh || productCode)}`;
+      // successUrl 語意：
+      //   undefined（未傳入）→ 跳轉到通用成功頁 /success
+      //   ""（空字串）       → 留在當前頁，由 onSuccess 回調控制，關閉 Modal
+      //   "https://..."      → 跳轉到指定頁面
+      const targetUrl = successUrl === undefined
+        ? `/success?type=${productCode}&amount=${Number(product.price_aif).toLocaleString()}&currency=AIF&name=${encodeURIComponent(product.name_zh || productCode)}`
+        : successUrl || null;
 
-      // 短暫顯示成功狀態後跳轉（讓用戶有視覺反饋）
       setModalState('success');
       setTimeout(() => {
-        window.location.href = targetUrl;
+        if (targetUrl) {
+          window.location.href = targetUrl;
+        } else {
+          handleClose();
+        }
       }, 800);
     } catch (err: unknown) {
       setErrorMsg(err instanceof Error ? err.message : 'AIF payment failed');
