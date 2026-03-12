@@ -63,11 +63,13 @@ async function handleIdentityVerifyPaid(userId: string, identityType?: string): 
       .eq('id', existing.id);
 
     if (appErr) {
+      console.error('🚨 [DEBUG] 寫入資料庫失敗:', appErr);
       console.error('[verify-aif] creator_applications update failed:', appErr.message);
     } else {
-      console.log(`[verify-aif] Updated identity_application ${existing.id} → pending (AIF)`);
+      console.log(`[verify-aif] Updated creator_application ${existing.id} → pending (AIF)`);
     }
   } else {
+    console.log('🚨 [DEBUG] 準備寫入認證申請至 creator_applications:', { userId, identityType: resolvedIdentityType });
     const { error: insertErr } = await adminSupabase
       .from('creator_applications')
       .insert({
@@ -79,9 +81,10 @@ async function handleIdentityVerifyPaid(userId: string, identityType?: string): 
       });
 
     if (insertErr) {
+      console.error('🚨 [DEBUG] 寫入資料庫失敗:', insertErr);
       console.error('[verify-aif] creator_applications insert failed:', insertErr.message);
     } else {
-      console.log(`[verify-aif] Created identity_application for user ${userId} → pending (AIF, type=${resolvedIdentityType})`);
+      console.log(`[verify-aif] Created creator_application for user ${userId} → pending (AIF, type=${resolvedIdentityType})`);
     }
   }
 

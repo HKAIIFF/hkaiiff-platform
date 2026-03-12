@@ -1,10 +1,10 @@
 -- ============================================================
--- identity_applications — 多重身份申請表
+-- creator_applications — 多重身份申請表
 -- 支援每位用戶申請多種身份（creator / institution / curator）
 -- 每種身份通過後效期 1 年，到期可重新申請
 -- ============================================================
 
-CREATE TABLE IF NOT EXISTS public.identity_applications (
+CREATE TABLE IF NOT EXISTS public.creator_applications (
   id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id         TEXT        NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   identity_type   TEXT        NOT NULL
@@ -25,14 +25,14 @@ CREATE TABLE IF NOT EXISTS public.identity_applications (
 );
 
 -- 查詢效能索引
-CREATE INDEX IF NOT EXISTS idx_ia_user_id
-  ON public.identity_applications (user_id);
+CREATE INDEX IF NOT EXISTS idx_ca_user_id
+  ON public.creator_applications (user_id);
 
-CREATE INDEX IF NOT EXISTS idx_ia_status
-  ON public.identity_applications (status);
+CREATE INDEX IF NOT EXISTS idx_ca_status
+  ON public.creator_applications (status);
 
-CREATE INDEX IF NOT EXISTS idx_ia_user_type
-  ON public.identity_applications (user_id, identity_type);
+CREATE INDEX IF NOT EXISTS idx_ca_user_type
+  ON public.creator_applications (user_id, identity_type);
 
 -- ============================================================
 -- 為 users 表添加 verified_identities 陣列欄位
