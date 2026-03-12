@@ -694,7 +694,7 @@ export default function LbsApplyPage() {
         <div className="bg-[#0a0a0a] border border-[#1e1e1e] rounded-xl p-5 mb-8">
           <div className="text-[9px] font-mono text-[#FFC107]/50 tracking-widest mb-4 flex items-center gap-2">
             <i className="fas fa-images text-[#FFC107]/30" />
-            {lang === 'zh' ? '素材上傳 (阿里雲 OSS)' : 'ASSETS UPLOAD (ALIYUN OSS)'}
+            {lang === 'zh' ? '素材上傳 (Cloudflare R2)' : 'ASSETS UPLOAD (CLOUDFLARE R2)'}
           </div>
           <div className="grid grid-cols-2 gap-5">
             {/* Poster 2:3 */}

@@ -201,9 +201,11 @@ export async function POST(req: Request) {
       ? `https://${cdnHostname}/${objectKey}`
       : `https://vz-eb1ce7ba-274.b-cdn.net/${objectKey}`;
   } else {
-    // 旧版 OSS Object Key（历史数据向后兼容）
-    const ossBase = 'https://hkaiiff-media-node.oss-ap-southeast-1.aliyuncs.com';
-    resolvedUrl = `${ossBase}/${objectKey.replace(/^\//, '')}`;
+    // 旧版 OSS Object Key（历史数据向后兼容，只读访问）
+    // 这部分仅处理 DB 中尚未迁移的历史记录，新上传内容均存储为完整 https:// URL
+    const legacyOssBase = process.env.LEGACY_OSS_BASE_URL
+      ?? 'https://hkaiiff-media-node.oss-ap-southeast-1.aliyuncs.com';
+    resolvedUrl = `${legacyOssBase}/${objectKey.replace(/^\//, '')}`;
   }
 
   return NextResponse.json({

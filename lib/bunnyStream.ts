@@ -129,8 +129,8 @@ export async function uploadToBunny(
  *
  * @example
  *   const guid = await fetchFromUrlToBunny(
- *     'https://hkaiiff-media-node.oss-ap-southeast-1.aliyuncs.com/films/xxx/trailer.mp4',
- *     '旧片段迁移'
+ *     'https://pub-xxxx.r2.dev/uploads/1749001234567-abc.mp4',
+ *     '影片迁移'
  *   );
  */
 export async function fetchFromUrlToBunny(
