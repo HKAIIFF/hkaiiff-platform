@@ -3618,11 +3618,19 @@ function FinKpiCard({ label, value, sub }: { label: string; value: string; sub?:
 
 function FinStatusPill({ status }: { status: string | null }) {
   const s = status?.toLowerCase() ?? "";
-  if (["success", "approved", "paid"].includes(s))
-    return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200">已付款</span>;
-  if (["pending", "awaiting_payment"].includes(s))
+  if (s === "approved")
+    return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200">已通過</span>;
+  if (s === "rejected")
+    return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200">已退回</span>;
+  if (s === "cancelled")
+    return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-neutral-100 text-neutral-500 border border-neutral-200">已取消</span>;
+  if (s === "awaiting_payment")
     return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200">待付款</span>;
-  if (["failed", "rejected", "cancelled"].includes(s))
+  if (["success", "paid"].includes(s))
+    return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200">已付款</span>;
+  if (s === "pending")
+    return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200">待付款</span>;
+  if (s === "failed")
     return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200">失敗</span>;
   return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-neutral-100 text-neutral-500">{status ?? "—"}</span>;
 }
@@ -3636,7 +3644,18 @@ function FinPaymentBadge({ method }: { method: string | null }) {
 
 function FinTxTypePill({ txType }: { txType: string | null }) {
   const label = txType ? (FIN_TX_TYPE_LABELS[txType] ?? txType) : "—";
-  return <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium border border-neutral-200 text-neutral-600 bg-neutral-50">{label}</span>;
+  const cls: Record<string, string> = {
+    submission_fee: "bg-blue-50 text-blue-700 border-blue-200",
+    identity_verification: "bg-purple-50 text-purple-700 border-purple-200",
+    creator_cert: "bg-purple-50 text-purple-700 border-purple-200",
+    lbs_license: "bg-orange-50 text-orange-700 border-orange-200",
+    aif_topup: "bg-green-50 text-green-700 border-green-200",
+    sweep: "bg-neutral-50 text-neutral-500 border-neutral-200",
+    funding: "bg-neutral-50 text-neutral-500 border-neutral-200",
+    dust_sweep: "bg-neutral-50 text-neutral-500 border-neutral-200",
+  };
+  const color = txType ? (cls[txType] ?? "bg-neutral-50 text-neutral-600 border-neutral-200") : "bg-neutral-50 text-neutral-600 border-neutral-200";
+  return <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium border ${color}`}>{label}</span>;
 }
 
 function FinInlineCopy({ text }: { text: string }) {
@@ -3669,6 +3688,13 @@ function FinLedgerTab() {
   const [endDate, setEndDate] = useState("");
   const [ledgerSearch, setLedgerSearch] = useState("");
   const [ledgerStatusFilter, setLedgerStatusFilter] = useState("");
+  const [copiedKey, setCopiedKey] = useState<string|null>(null);
+  const copyText = (text: string, key: string) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 1500);
+    });
+  };
 
   const buildUrl = useCallback(() => {
     const params = new URLSearchParams();
@@ -3848,12 +3874,12 @@ function FinLedgerTab() {
                 return (
                   <tr key={r.id} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/60 transition-colors">
                     {/* TX ID */}
-                    <td className="px-4 py-3.5">
-                      <div className="font-mono text-xs text-neutral-700">{r.id.slice(0, 8)}…</div>
-                      {refId && (
-                        <div className="mt-0.5 flex items-center gap-1">
-                          <FinInlineCopy text={refId} />
-                        </div>
+                    <td className="px-4 py-3.5 font-mono text-xs text-neutral-500 whitespace-nowrap">
+                      {r.id ? r.id.slice(0,8) + "…" : "—"}
+                      {r.id && (
+                        <button onClick={() => copyText(r.id!, `tx_${r.id}`)} className="ml-1 text-neutral-300 hover:text-neutral-600">
+                          {copiedKey === `tx_${r.id}` ? <span className="text-green-500 text-[10px]">✓</span> : <svg className="w-3 h-3 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}
+                        </button>
                       )}
                     </td>
                     {/* 業務類型 */}
@@ -3861,17 +3887,31 @@ function FinLedgerTab() {
                       <FinTxTypePill txType={r.tx_type} />
                     </td>
                     {/* 金額 */}
-                    <td className="px-4 py-3.5 font-semibold whitespace-nowrap">
-                      <span className={isAif ? "text-emerald-600" : "text-neutral-900"}>{displayAmt}</span>
+                    <td className="px-4 py-3.5 font-mono font-semibold whitespace-nowrap">
+                      {r.amount != null
+                        ? (r.currency?.toUpperCase() === "AIF"
+                          ? <span className="text-blue-600">+{Number(r.amount).toLocaleString()} AIF</span>
+                          : <span className="text-neutral-900">+${Number(r.amount).toFixed(2)} USD</span>)
+                        : "—"
+                      }
                     </td>
                     {/* 支付方式 */}
-                    <td className="px-4 py-3.5">
-                      <FinPaymentBadge method={r.payment_method} />
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      {r.currency?.toUpperCase() === "AIF" || r.payment_method?.toLowerCase() === "aif"
+                        ? <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">AIF</span>
+                        : r.currency?.toUpperCase() === "USD" || r.payment_method?.toLowerCase() === "stripe"
+                        ? <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200">Stripe</span>
+                        : <span className="text-neutral-400 text-xs">—</span>
+                      }
                     </td>
                     {/* 用戶 */}
-                    <td className="px-4 py-3.5">
-                      <div className="text-xs text-neutral-700 max-w-[160px] truncate" title={r.user_email ?? r.user_id ?? ""}>{userLabel}</div>
-                      {subTitle && <div className="text-[10px] text-neutral-400 mt-0.5 max-w-[160px] truncate">{subTitle}</div>}
+                    <td className="px-4 py-3.5 text-xs text-neutral-700 whitespace-nowrap">
+                      {r.user_email ?? (r.user_id ? r.user_id.slice(0,12) + "…" : "—")}
+                      {(r.user_email || r.user_id) && (
+                        <button onClick={() => copyText(r.user_email ?? r.user_id ?? "", `user_${r.id}`)} className="ml-1 text-neutral-300 hover:text-neutral-600">
+                          {copiedKey === `user_${r.id}` ? <span className="text-green-500 text-[10px]">✓</span> : <svg className="w-3 h-3 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>}
+                        </button>
+                      )}
                     </td>
                     {/* 時間 */}
                     <td className="px-4 py-3.5 text-xs text-neutral-500 whitespace-nowrap">{finFormatDate(r.created_at)}</td>

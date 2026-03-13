@@ -102,7 +102,7 @@ export async function GET(req: Request) {
       tx_type: 'identity_verification',
       tx_hash: null,
       stripe_session_id: null,
-      amount: r.payment_method === 'aif' ? 150 : 30,
+      amount: r.amount ?? (r.payment_method === 'aif' ? 150 : 30),
       currency: r.payment_method === 'aif' ? 'AIF' : 'USD',
       payment_method: r.payment_method,
       status: r.status === 'approved' ? 'success' : r.status,
