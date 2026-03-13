@@ -1,4 +1,5 @@
 "use client";
+console.log("AdminPageV2 loaded v2");
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
@@ -1723,6 +1724,7 @@ function FinanceModule({ t, pushToast }: SharedProps) {
                     ) : (
                       vLedgerData.map((row) => {
                         const txLabel = row.tx_type ? (TX_TYPE_LABEL[row.tx_type] ?? row.tx_type) : "—";
+                        console.log("txLabel:", txLabel, "tx_type:", row.tx_type);
 
                         const isAif = row.currency?.toUpperCase() === "AIF" || row.payment_method?.toLowerCase() === "aif";
                         const isStripe = row.payment_method?.toLowerCase() === "stripe" || (!isAif && row.currency?.toUpperCase() === "USD");
