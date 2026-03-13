@@ -2,8 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
-import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/app/context/ToastContext';
 import { useI18n } from '@/app/context/I18nContext';
 import CyberLoading from '@/app/components/CyberLoading';
@@ -34,9 +33,12 @@ const TERMINAL_LINES = [
   '> Generating certificate...',
 ];
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export default function UploadPage() {
   const { user, authenticated, ready, getAccessToken } = usePrivy();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { showToast } = useToast();
   const { t } = useI18n();
 
@@ -46,6 +48,16 @@ export default function UploadPage() {
       router.replace('/');
     }
   }, [ready, authenticated, router]);
+
+  // ── URL 参数中的 film_id 格式校验 ─────────────────────────────────────────
+  // 若有 film_id 参数但不是合法 UUID，立即清除并提示
+  useEffect(() => {
+    const filmIdParam = searchParams.get('film_id');
+    if (filmIdParam && !UUID_REGEX.test(filmIdParam)) {
+      showToast('film_id 参数格式错误，已重置', 'error');
+      router.replace('/upload');
+    }
+  }, [searchParams, router, showToast]);
 
   const [step, setStep] = useState<Step>(1);
   const [formData, setFormData] = useState({
@@ -99,22 +111,23 @@ export default function UploadPage() {
   }, [terminalLines]);
 
   // 一旦用戶已驗證就拉取 AIF 餘額（無需等到 Step 2 才觸發）
-  // 進入 Step 2 時也會因 step 變化而重新拉取，確保資料最新
+  // 使用 Bearer token API 路由，避免 anon 客户端直接查询 users 表可能的类型不匹配问题
   useEffect(() => {
     if (!authenticated || !user?.id) return;
     const fetchBalance = async () => {
       setIsLoadingBalance(true);
       try {
-        const { data, error } = await supabase
-          .from('users')
-          .select('aif_balance')
-          .eq('id', user.id)
-          .single();
-        if (error) {
-          console.error('[upload] fetchBalance error:', error.message);
-          setAifBalance(0);
+        const token = await getAccessToken();
+        if (!token) { setAifBalance(0); return; }
+        const res = await fetch('/api/user-balance', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const json = await res.json() as { aif_balance?: number };
+          setAifBalance(json.aif_balance ?? 0);
         } else {
-          setAifBalance(data?.aif_balance ?? 0);
+          console.error('[upload] fetchBalance API error:', res.status);
+          setAifBalance(0);
         }
       } catch (err) {
         console.error('[upload] fetchBalance exception:', err);

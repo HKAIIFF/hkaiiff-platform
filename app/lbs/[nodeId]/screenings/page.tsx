@@ -242,11 +242,11 @@ export default function ScreeningsPage() {
   // ── 加载可用影片 ──────────────────────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
-      // 仅用迁移中实际存在的列过滤（is_feed_published），creator_id 改为 user_id
+      // 放宽查询条件：只要有 trailer_url 的影片都可加入排片池，方便测试
       const { data, error } = await supabase
         .from('films')
         .select('id, title, poster_url, trailer_url, user_id')
-        .eq('is_feed_published', true)
+        .not('trailer_url', 'is', null)
         .order('created_at', { ascending: false });
       if (error) console.error('[screenings] films fetch error:', error.message);
       // 映射 user_id → creator_id 以保持 Film 类型兼容
