@@ -3129,6 +3129,7 @@ const FIN_TX_TYPES: { value: string; label: string }[] = [
 
 const FIN_TX_TYPE_LABELS: Record<string, string> = {
   creator_cert: "創作者認證",
+  identity_verification: "身份認證費",
   submission_fee: "參展報名費",
   lbs_license: "LBS 授權費",
   aif_topup: "AIF 充值",
@@ -3617,9 +3618,12 @@ function FinKpiCard({ label, value, sub }: { label: string; value: string; sub?:
 
 function FinStatusPill({ status }: { status: string | null }) {
   const s = status?.toLowerCase() ?? "";
-  if (s === "success") return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-700">Success</span>;
-  if (s === "pending") return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-50 text-yellow-700">Pending</span>;
-  if (s === "failed") return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-700">Failed</span>;
+  if (["success", "approved", "paid"].includes(s))
+    return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200">已付款</span>;
+  if (["pending", "awaiting_payment"].includes(s))
+    return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-yellow-50 text-yellow-700 border border-yellow-200">待付款</span>;
+  if (["failed", "rejected", "cancelled"].includes(s))
+    return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200">失敗</span>;
   return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-neutral-100 text-neutral-500">{status ?? "—"}</span>;
 }
 
@@ -3663,6 +3667,8 @@ function FinLedgerTab() {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [ledgerSearch, setLedgerSearch] = useState("");
+  const [ledgerStatusFilter, setLedgerStatusFilter] = useState("");
 
   const buildUrl = useCallback(() => {
     const params = new URLSearchParams();
@@ -3694,6 +3700,26 @@ function FinLedgerTab() {
 
   const SELECT_CLS = "rounded-xl border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-700 focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/20 transition-colors";
 
+  const filteredRows = rows.filter(r => {
+    if (ledgerStatusFilter) {
+      const s = r.status?.toLowerCase() ?? "";
+      if (ledgerStatusFilter === "success" && !["success", "approved", "paid"].includes(s)) return false;
+      if (ledgerStatusFilter === "pending" && !["pending", "awaiting_payment"].includes(s)) return false;
+      if (ledgerStatusFilter === "failed" && !["failed", "rejected", "cancelled"].includes(s)) return false;
+    }
+    if (ledgerSearch.trim()) {
+      const q = ledgerSearch.trim().toLowerCase();
+      return (
+        (r.id ?? "").toLowerCase().includes(q) ||
+        (r.user_id ?? "").toLowerCase().includes(q) ||
+        (r.user_email ?? "").toLowerCase().includes(q) ||
+        (r.tx_type ?? "").toLowerCase().includes(q) ||
+        String(r.amount ?? "").includes(q)
+      );
+    }
+    return true;
+  });
+
   return (
     <div className="space-y-4">
       {/* ── KPI 大盤 ── */}
@@ -3718,6 +3744,25 @@ function FinLedgerTab() {
       {/* ── 篩選器工具列 ── */}
       <div className={`${CARD} p-4`}>
         <div className="flex flex-wrap gap-3 items-end">
+          <div className="flex flex-col gap-1 flex-1 min-w-[200px]">
+            <label className="text-[10px] text-neutral-500 font-medium uppercase tracking-wider">搜索</label>
+            <input
+              type="text"
+              value={ledgerSearch}
+              onChange={e => setLedgerSearch(e.target.value)}
+              placeholder="TX ID / 用戶 / 金額"
+              className={SELECT_CLS}
+            />
+          </div>
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] text-neutral-500 font-medium uppercase tracking-wider">付款狀態</label>
+            <select value={ledgerStatusFilter} onChange={e => setLedgerStatusFilter(e.target.value)} className={SELECT_CLS}>
+              <option value="">全部狀態</option>
+              <option value="success">已付款</option>
+              <option value="pending">待付款</option>
+              <option value="failed">失敗</option>
+            </select>
+          </div>
           <div className="flex flex-col gap-1">
             <label className="text-[10px] text-neutral-500 font-medium uppercase tracking-wider">業務類型</label>
             <select value={txType} onChange={(e) => setTxType(e.target.value)} className={SELECT_CLS}>
@@ -3740,8 +3785,8 @@ function FinLedgerTab() {
           </div>
           <button onClick={fetchData} className={`${BTN_PRIMARY} h-[38px]`}>查詢</button>
           <button
-            onClick={() => finExportCsv(rows)}
-            disabled={rows.length === 0}
+            onClick={() => finExportCsv(filteredRows)}
+            disabled={filteredRows.length === 0}
             className={`${BTN_GHOST} h-[38px] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5`}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -3781,12 +3826,12 @@ function FinLedgerTab() {
                   </tr>
                 ))
               )}
-              {!loading && rows.length === 0 && (
+              {!loading && filteredRows.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-12 text-center text-sm text-neutral-400">暫無交易記錄</td>
                 </tr>
               )}
-              {!loading && rows.map((r) => {
+              {!loading && filteredRows.map((r) => {
                 const isAif = r.currency?.toUpperCase() === "AIF";
                 const isSolLamports = r.currency?.toUpperCase() === "SOL_LAMPORTS";
                 const displayAmt = r.amount != null
