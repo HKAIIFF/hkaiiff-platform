@@ -21,7 +21,7 @@ const IDENTITY_CONFIG: Record<string, {
   glow: string;
   dotGradient: string;
   dotText: string;
-  dotRing: string;
+  dotBorder: string;
   dotGlow: string;
 }> = {
   creator: {
@@ -30,10 +30,10 @@ const IDENTITY_CONFIG: Record<string, {
     text: 'text-signal',
     border: 'border-signal/40',
     glow: 'shadow-[0_0_8px_rgba(204,255,0,0.3)]',
-    dotGradient: 'bg-gradient-to-br from-yellow-400 to-yellow-600',
+    dotGradient: 'bg-gradient-to-br from-[#FFD700] to-[#F59E0B]',
     dotText: 'text-white',
-    dotRing: 'ring-2 ring-white',
-    dotGlow: 'shadow-[0_0_10px_rgba(250,204,21,0.7)]',
+    dotBorder: 'border-[3px] border-white',
+    dotGlow: 'shadow-[0_4px_12px_rgba(245,158,11,0.6)]',
   },
   curator: {
     label: '策展人',
@@ -41,10 +41,10 @@ const IDENTITY_CONFIG: Record<string, {
     text: 'text-[#FFC107]',
     border: 'border-[#FFC107]/40',
     glow: 'shadow-[0_0_8px_rgba(255,193,7,0.3)]',
-    dotGradient: 'bg-gradient-to-br from-purple-500 to-pink-500',
+    dotGradient: 'bg-gradient-to-br from-[#9333EA] to-[#EC4899]',
     dotText: 'text-white',
-    dotRing: 'ring-2 ring-white',
-    dotGlow: 'shadow-[0_0_10px_rgba(168,85,247,0.7)]',
+    dotBorder: 'border-[3px] border-white',
+    dotGlow: 'shadow-[0_4px_12px_rgba(147,51,234,0.6)]',
   },
   institution: {
     label: '機構',
@@ -52,10 +52,10 @@ const IDENTITY_CONFIG: Record<string, {
     text: 'text-[#9D00FF]',
     border: 'border-[#9D00FF]/40',
     glow: 'shadow-[0_0_8px_rgba(157,0,255,0.3)]',
-    dotGradient: 'bg-gradient-to-br from-blue-500 to-cyan-500',
+    dotGradient: 'bg-gradient-to-br from-[#2563EB] to-[#06B6D4]',
     dotText: 'text-white',
-    dotRing: 'ring-2 ring-white',
-    dotGlow: 'shadow-[0_0_10px_rgba(59,130,246,0.7)]',
+    dotBorder: 'border-[3px] border-white',
+    dotGlow: 'shadow-[0_4px_12px_rgba(37,99,235,0.6)]',
   },
 };
 
@@ -113,7 +113,7 @@ export default function IdentityBadges({
   // ── dot 模式：實體大V徽章（頭像右下角絕對定位） ─────────────────────────────
   if (variant === 'dot') {
     return (
-      <span className={`flex gap-0.5 ${avatarOverlay ? 'absolute -bottom-2 -right-2' : ''} ${className}`}>
+      <span className={`flex gap-0.5 ${avatarOverlay ? 'absolute -bottom-2 -right-2 z-10' : ''} ${className}`}>
         {verifiedIdentities.map((identity) => {
           const cfg = IDENTITY_CONFIG[identity];
           if (!cfg) return null;
@@ -121,9 +121,9 @@ export default function IdentityBadges({
             <span
               key={identity}
               title={`${cfg.label}已認證`}
-              className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-heavy ${cfg.dotGradient} ${cfg.dotText} ${cfg.dotRing} ${cfg.dotGlow}`}
+              className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-heavy ${cfg.dotGradient} ${cfg.dotText} ${cfg.dotBorder} ${cfg.dotGlow}`}
             >
-              V
+              <span className="font-black text-white leading-none">V</span>
             </span>
           );
         })}
@@ -142,9 +142,9 @@ export default function IdentityBadges({
             <span
               key={identity}
               title={`${cfg.label}已認證`}
-              className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-heavy ${cfg.dotGradient} ${cfg.dotText} ${cfg.dotRing} ${cfg.dotGlow}`}
+              className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-heavy ${cfg.dotGradient} ${cfg.dotText} ${cfg.dotBorder} ${cfg.dotGlow}`}
             >
-              V
+              <span className="font-black text-white leading-none">V</span>
             </span>
           );
         })}
@@ -177,11 +177,11 @@ export function AvatarWithBadges({
   // 外框顏色：身份等級 institution > creator > curator > 無
   const borderColorClass =
     ids.includes('institution')
-      ? 'border-blue-500 shadow-[0_0_12px_rgba(59,130,246,0.4)]'
+      ? 'border-[#2563EB] shadow-[0_0_16px_rgba(37,99,235,0.5)]'
       : ids.includes('creator')
-        ? 'border-yellow-400 shadow-[0_0_12px_rgba(250,204,21,0.4)]'
+        ? 'border-[#FFD700] shadow-[0_0_16px_rgba(245,158,11,0.5)]'
         : ids.includes('curator')
-          ? 'border-purple-500 shadow-[0_0_12px_rgba(168,85,247,0.4)]'
+          ? 'border-[#9333EA] shadow-[0_0_16px_rgba(147,51,234,0.5)]'
           : 'border-[#444]';
 
   return (

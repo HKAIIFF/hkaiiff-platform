@@ -24,6 +24,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { revalidatePath } from 'next/cache';
 import { sendMessage } from '@/lib/actions/message';
 
 const supabase = createClient(
@@ -203,6 +204,9 @@ export async function POST(req: NextRequest) {
   } else {
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   }
+
+  // 💥 强制清空全局缓存，确保前端立即获取最新认证状态
+  revalidatePath('/', 'layout');
 
   return NextResponse.json({ success: true });
 }

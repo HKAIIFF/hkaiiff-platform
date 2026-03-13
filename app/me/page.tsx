@@ -854,33 +854,33 @@ export default function MePage() {
               alt="avatar"
               className={`w-20 h-20 bg-black rounded-full border-2 p-1
                 ${(dbProfile?.verified_identities ?? []).includes('institution')
-                  ? 'border-[#9D00FF] shadow-[0_0_14px_rgba(157,0,255,0.35)]'
+                  ? 'border-[#2563EB] shadow-[0_0_16px_rgba(37,99,235,0.5)]'
                   : (dbProfile?.verified_identities ?? []).includes('creator')
-                    ? 'border-signal shadow-[0_0_14px_rgba(204,255,0,0.35)]'
+                    ? 'border-[#FFD700] shadow-[0_0_16px_rgba(245,158,11,0.5)]'
                     : (dbProfile?.verified_identities ?? []).includes('curator')
-                      ? 'border-[#FFC107] shadow-[0_0_14px_rgba(255,193,7,0.35)]'
+                      ? 'border-[#9333EA] shadow-[0_0_16px_rgba(147,51,234,0.5)]'
                       : 'border-[#444]'
                 }`}
             />
             {/* 多重身份 V 徽章：實體大V，絕對定位在頭像右下角 */}
             {(dbProfile?.verified_identities ?? []).length > 0 && (
-              <div className="absolute -bottom-2 -right-2 flex gap-0.5">
+              <div className="absolute -bottom-2 -right-2 z-10 flex gap-0.5">
                 {(dbProfile?.verified_identities ?? []).includes('creator') && (
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600 ring-2 ring-white shadow-[0_0_12px_rgba(250,204,21,0.7)] flex items-center justify-center"
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FFD700] to-[#F59E0B] border-[3px] border-white shadow-[0_4px_12px_rgba(245,158,11,0.6)] flex items-center justify-center"
                     title="認證創作人">
-                    <span className="text-[10px] font-heavy text-white">V</span>
+                    <span className="text-[11px] font-black text-white leading-none">V</span>
                   </div>
                 )}
                 {(dbProfile?.verified_identities ?? []).includes('curator') && (
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 ring-2 ring-white shadow-[0_0_12px_rgba(168,85,247,0.7)] flex items-center justify-center"
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#9333EA] to-[#EC4899] border-[3px] border-white shadow-[0_4px_12px_rgba(147,51,234,0.6)] flex items-center justify-center"
                     title="認證策展人">
-                    <span className="text-[10px] font-heavy text-white">V</span>
+                    <span className="text-[11px] font-black text-white leading-none">V</span>
                   </div>
                 )}
                 {(dbProfile?.verified_identities ?? []).includes('institution') && (
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 ring-2 ring-white shadow-[0_0_12px_rgba(59,130,246,0.7)] flex items-center justify-center"
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#2563EB] to-[#06B6D4] border-[3px] border-white shadow-[0_4px_12px_rgba(37,99,235,0.6)] flex items-center justify-center"
                     title="認證機構">
-                    <span className="text-[10px] font-heavy text-white">V</span>
+                    <span className="text-[11px] font-black text-white leading-none">V</span>
                   </div>
                 )}
               </div>
@@ -1760,10 +1760,11 @@ export default function MePage() {
                         maxLength={40}
                         placeholder="Enter display name..."
                         disabled={isNameLocked}
-                        className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-sm px-3 py-2.5 rounded-lg
-                                   outline-none focus:border-signal focus:shadow-[0_0_12px_rgba(204,255,0,0.15)]
-                                   placeholder:text-gray-600 transition-all
-                                   disabled:opacity-50 disabled:cursor-not-allowed disabled:border-[#1a1a1a]"
+                        className={`w-full font-mono text-sm px-3 py-2.5 rounded-lg outline-none transition-all
+                          ${isNameLocked
+                            ? 'bg-[#111] border border-yellow-900/30 text-gray-500 cursor-not-allowed opacity-60 select-none'
+                            : 'bg-[#0d0d0d] border border-[#2a2a2a] text-white focus:border-signal focus:shadow-[0_0_12px_rgba(204,255,0,0.15)] placeholder:text-gray-600'
+                          }`}
                       />
                     </div>
                   );
@@ -1919,11 +1920,11 @@ export default function MePage() {
                   return (
                     <button
                       disabled
-                      className="flex-[2] py-2.5 bg-[#111] text-gray-500 font-heavy text-[11px] rounded-lg tracking-widest
-                                 border border-yellow-900/40 cursor-not-allowed flex items-center justify-center gap-1.5"
+                      className="flex-[2] py-2.5 bg-gray-800/60 text-gray-500 font-heavy text-[11px] rounded-lg tracking-widest
+                                 border border-yellow-900/40 cursor-not-allowed opacity-70 flex items-center justify-center gap-1.5"
                     >
                       <i className="fas fa-lock text-yellow-600 text-[10px]" />
-                      {isFullyVerified ? '已認證，資料已鎖定 🔒' : '審核中，資料已鎖定 🔒'}
+                      {isFullyVerified ? '🔒 身份已認證，資料已鎖定' : '🔒 審核中，資料已鎖定'}
                     </button>
                   );
                 }
