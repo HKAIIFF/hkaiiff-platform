@@ -1691,7 +1691,7 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
     if (form.country) payload.country = form.country;
     if (form.city) payload.city = form.city;
     if (form.venue) payload.venue = form.venue;
-    if (form.unlockRadius) payload.radius = Number(form.unlockRadius);
+    if (form.unlockRadius) payload.unlock_radius = Number(form.unlockRadius);
     if (form.ticketAif) payload.ticket_price_aif = Number(form.ticketAif);
     if (form.start_time) payload.start_time = form.start_time;
     if (form.end_time) payload.end_time = form.end_time;

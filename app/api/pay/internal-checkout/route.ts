@@ -109,20 +109,25 @@ async function handleIdentityVerifyPaid(userId: string, identityType?: string, v
 }
 
 async function handleFilmEntryPaid(userId: string, filmId: string): Promise<void> {
-  const { data: film } = await adminSupabase
+  console.log('[internal-checkout] handleFilmEntryPaid filmId:', filmId, 'userId:', userId);
+
+  const { data: film, error: filmFetchError } = await adminSupabase
     .from('films')
     .select('id, title, payment_status')
     .eq('id', filmId)
     .eq('user_id', userId)
     .single();
 
+  if (filmFetchError) console.error('[internal-checkout] film fetch error:', filmFetchError.message);
   if (!film || film.payment_status === 'paid') return;
 
-  await adminSupabase
+  // status 值必须符合 films 表 CHECK 约束 ('pending','approved','rejected')
+  const { error: updateError } = await adminSupabase
     .from('films')
-    .update({ payment_status: 'paid', payment_method: 'aif', status: 'pending_review' })
+    .update({ payment_status: 'paid', payment_method: 'aif', status: 'pending' })
     .eq('id', filmId)
     .eq('user_id', userId);
+  if (updateError) console.error('[internal-checkout] film update error:', updateError.message);
 
   await sendMessage({
     userId,
@@ -214,6 +219,8 @@ export async function POST(req: Request) {
       );
     }
 
+    console.log('[internal-checkout] productCode:', productCode, 'userId:', verifiedUserId, 'extraMetadata:', extraMetadata);
+
     // ── Step 3: 從服務端 DB 取產品（防止前端偽造價格）───────────────────────
     const { data: product, error: productError } = await adminSupabase
       .from('platform_products')
@@ -223,6 +230,7 @@ export async function POST(req: Request) {
       .single();
 
     if (productError || !product) {
+      console.error('[internal-checkout] product lookup error:', productError?.message, 'code:', productCode);
       return NextResponse.json(
         { error: 'Product not found or inactive' },
         { status: 404 }
@@ -276,7 +284,7 @@ export async function POST(req: Request) {
 
     if (rpcError) {
       // RPC 不可用時降級：帶 WHERE 守衛的直接 UPDATE
-      console.warn('[internal-checkout] deduct_aif_balance RPC 不可用，降級處理:', rpcError.message);
+      console.warn('[internal-checkout] deduct_aif_balance RPC 失敗，降級處理. error:', rpcError.message, 'code:', rpcError.code, 'userId:', verifiedUserId);
 
       const { data: atomicUpdate, error: atomicError } = await adminSupabase
         .from('users')

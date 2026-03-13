@@ -38,15 +38,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'submitted_by is required' }, { status: 400 });
     }
 
+    // 只传数据库中实际存在的列，杜绝任何额外字段（如 radius）导致 PostgREST 报错
+    const safePayload = {
+      title: payload.title,
+      location: payload.location,
+      lat: payload.lat,
+      lng: payload.lng,
+      unlock_radius: payload.unlock_radius,
+      start_time: payload.start_time,
+      end_time: payload.end_time,
+      description: payload.description,
+      contract_req: payload.contract_req,
+      ticket_price_aif: payload.ticket_price_aif,
+      poster_url: payload.poster_url,
+      background_url: payload.background_url,
+      status: payload.status,
+      state: payload.state,
+      submitted_by: payload.submitted_by,
+    };
+
+    console.log('[save-draft] nodeId:', nodeId, 'payload keys:', Object.keys(safePayload));
+
     if (nodeId) {
       // 更新已有草稿
       const { error } = await supabaseAdmin
         .from('lbs_nodes')
-        .update(payload)
+        .update(safePayload)
         .eq('id', nodeId)
-        .eq('submitted_by', payload.submitted_by);
+        .eq('submitted_by', safePayload.submitted_by);
 
       if (error) {
+        console.error('[save-draft] update error:', error.message);
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 
@@ -55,11 +77,12 @@ export async function POST(req: NextRequest) {
       // 新建草稿
       const { data, error } = await supabaseAdmin
         .from('lbs_nodes')
-        .insert([payload])
+        .insert([safePayload])
         .select('id')
         .single();
 
       if (error) {
+        console.error('[save-draft] insert error:', error.message);
         return NextResponse.json({ error: error.message }, { status: 500 });
       }
 

@@ -193,6 +193,8 @@ function ScreeningSlot({
   );
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /* ─── 主页面 ───────────────────────────────────────────────────────────────── */
 
 export default function ScreeningsPage() {
@@ -217,12 +219,20 @@ export default function ScreeningsPage() {
     if (!ready) return;
     if (!authenticated) { router.replace('/'); return; }
 
+    // nodeId 必须是合法 UUID，否则直接拒绝，防止非 UUID 字符串传入 UUID 列触发 PostgREST pattern 报错
+    if (!nodeId || !UUID_RE.test(nodeId)) {
+      console.error('[screenings] Invalid nodeId:', nodeId);
+      router.replace('/lbs/apply');
+      return;
+    }
+
     const load = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('lbs_nodes')
         .select('id, title, review_status, is_online, submitted_by')
         .eq('id', nodeId)
         .maybeSingle();
+      if (error) console.error('[screenings] lbs_nodes fetch error:', error.message);
       setNode(data as LbsNode | null);
       setLoadingNode(false);
     };
@@ -232,13 +242,18 @@ export default function ScreeningsPage() {
   // ── 加载可用影片 ──────────────────────────────────────────────────────────
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
+      // 仅用迁移中实际存在的列过滤（is_feed_published），creator_id 改为 user_id
+      const { data, error } = await supabase
         .from('films')
-        .select('id, title, poster_url, trailer_url, creator_id')
+        .select('id, title, poster_url, trailer_url, user_id')
         .eq('is_feed_published', true)
-        .eq('feed_enabled', true)
         .order('created_at', { ascending: false });
-      setFilms((data as Film[]) ?? []);
+      if (error) console.error('[screenings] films fetch error:', error.message);
+      // 映射 user_id → creator_id 以保持 Film 类型兼容
+      setFilms((data ?? []).map((f: { id: string; title: string; poster_url: string | null; trailer_url: string | null; user_id: string | null }) => ({
+        ...f,
+        creator_id: f.user_id,
+      })));
       setLoadingFilms(false);
     };
     load();
@@ -246,12 +261,13 @@ export default function ScreeningsPage() {
 
   // ── 恢复已选排片 ──────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!nodeId) return;
+    if (!nodeId || !UUID_RE.test(nodeId)) return;
     const restore = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('lbs_screenings')
         .select('film_id')
         .eq('lbs_node_id', nodeId);
+      if (error) console.error('[screenings] lbs_screenings restore error:', error.message);
       if (data) {
         setSelectedIds(new Set(data.map((r: { film_id: string }) => r.film_id)));
       }
