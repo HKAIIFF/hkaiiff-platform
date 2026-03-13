@@ -864,25 +864,22 @@ export default function MePage() {
                       : 'border-[#444]'
                 }`}
             />
-            {/* 多重身份 V 徽章：實體大V，絕對定位在頭像右下角 */}
+            {/* 多重身份 V 徽章：X 風格勾號，絕對定位在頭像右下角 */}
             {(dbProfile?.verified_identities ?? []).length > 0 && (
-              <div className="absolute -bottom-2 -right-2 z-10 flex gap-0.5">
+              <div className="absolute -bottom-1 -right-1 z-10 flex gap-0.5">
                 {(dbProfile?.verified_identities ?? []).includes('creator') && (
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FFD700] to-[#F59E0B] border-[3px] border-white shadow-[0_4px_12px_rgba(245,158,11,0.6)] flex items-center justify-center"
-                    title="認證創作人">
-                    <span className="text-[11px] font-black text-white leading-none">V</span>
+                  <div className="w-4 h-4 rounded-full bg-[#FFD700] border-2 border-black flex items-center justify-center" title="認證創作人">
+                    <svg viewBox="0 0 24 24" className="w-2 h-2 fill-white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
                   </div>
                 )}
                 {(dbProfile?.verified_identities ?? []).includes('curator') && (
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#9333EA] to-[#EC4899] border-[3px] border-white shadow-[0_4px_12px_rgba(147,51,234,0.6)] flex items-center justify-center"
-                    title="認證策展人">
-                    <span className="text-[11px] font-black text-white leading-none">V</span>
+                  <div className="w-4 h-4 rounded-full bg-[#1D9BF0] border-2 border-black flex items-center justify-center" title="認證策展人">
+                    <svg viewBox="0 0 24 24" className="w-2 h-2 fill-white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
                   </div>
                 )}
                 {(dbProfile?.verified_identities ?? []).includes('institution') && (
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#2563EB] to-[#06B6D4] border-[3px] border-white shadow-[0_4px_12px_rgba(37,99,235,0.6)] flex items-center justify-center"
-                    title="認證機構">
-                    <span className="text-[11px] font-black text-white leading-none">V</span>
+                  <div className="w-4 h-4 rounded-full bg-[#829AAB] border-2 border-black flex items-center justify-center" title="認證機構">
+                    <svg viewBox="0 0 24 24" className="w-2 h-2 fill-white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
                   </div>
                 )}
               </div>
@@ -912,37 +909,11 @@ export default function MePage() {
               );
             })}
           </div>
-          <div className="flex flex-wrap items-center gap-1.5 mb-2 pr-14">
-            {dbProfile ? (() => {
-              const ids = dbProfile.verified_identities ?? [];
-              if (ids.length === 0) {
-                return <span className="text-[9px] text-gray-400 font-mono tracking-wider uppercase">普通用戶</span>;
-              }
-              const cfg: Record<string, { label: string; badge: React.ReactElement }> = {
-                creator: {
-                  label: '認證創作人',
-                  badge: <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 shadow-lg border-2 border-white text-white text-[9px] font-black">V</span>,
-                },
-                curator: {
-                  label: '認證策展人',
-                  badge: <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg border-2 border-white text-white text-[9px] font-black">V</span>,
-                },
-                institution: {
-                  label: '認證機構',
-                  badge: <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-br from-blue-600 to-cyan-400 shadow-lg border-2 border-white text-white text-[9px] font-black">V</span>,
-                },
-              };
-              return ids.map((id) => {
-                const c = cfg[id];
-                if (!c) return null;
-                return (
-                  <span key={id} className="inline-flex items-center gap-1 text-[9px] text-gray-400 font-mono tracking-wider uppercase">
-                    {c.badge}{c.label}
-                  </span>
-                );
-              });
-            })() : <span className="text-[9px] text-gray-400 font-mono tracking-wider">...</span>}
-          </div>
+          {(dbProfile?.verified_identities?.length ?? 0) === 0 && (
+            <div className="mb-2 pr-14">
+              <span className="text-[9px] text-gray-400 font-mono tracking-wider uppercase">普通用戶</span>
+            </div>
+          )}
           {/* Wallet address + Verify button — full width, no padding constraint */}
           <div className="flex flex-wrap items-center gap-2 mt-1">
             <button

@@ -19,10 +19,7 @@ const IDENTITY_CONFIG: Record<string, {
   text: string;
   border: string;
   glow: string;
-  dotGradient: string;
-  dotText: string;
-  dotBorder: string;
-  dotGlow: string;
+  dotBg: string;
 }> = {
   creator: {
     label: '創作人',
@@ -30,10 +27,7 @@ const IDENTITY_CONFIG: Record<string, {
     text: 'text-signal',
     border: 'border-signal/40',
     glow: 'shadow-[0_0_8px_rgba(204,255,0,0.3)]',
-    dotGradient: 'bg-gradient-to-br from-[#FFD700] to-[#F59E0B]',
-    dotText: 'text-white',
-    dotBorder: 'border-[3px] border-white',
-    dotGlow: 'shadow-[0_4px_12px_rgba(245,158,11,0.6)]',
+    dotBg: '#FFD700',
   },
   curator: {
     label: '策展人',
@@ -41,10 +35,7 @@ const IDENTITY_CONFIG: Record<string, {
     text: 'text-[#FFC107]',
     border: 'border-[#FFC107]/40',
     glow: 'shadow-[0_0_8px_rgba(255,193,7,0.3)]',
-    dotGradient: 'bg-gradient-to-br from-[#9333EA] to-[#EC4899]',
-    dotText: 'text-white',
-    dotBorder: 'border-[3px] border-white',
-    dotGlow: 'shadow-[0_4px_12px_rgba(147,51,234,0.6)]',
+    dotBg: '#1D9BF0',
   },
   institution: {
     label: '機構',
@@ -52,12 +43,15 @@ const IDENTITY_CONFIG: Record<string, {
     text: 'text-[#9D00FF]',
     border: 'border-[#9D00FF]/40',
     glow: 'shadow-[0_0_8px_rgba(157,0,255,0.3)]',
-    dotGradient: 'bg-gradient-to-br from-[#2563EB] to-[#06B6D4]',
-    dotText: 'text-white',
-    dotBorder: 'border-[3px] border-white',
-    dotGlow: 'shadow-[0_4px_12px_rgba(37,99,235,0.6)]',
+    dotBg: '#829AAB',
   },
 };
+
+const CheckIcon = () => (
+  <svg viewBox="0 0 24 24" className="w-2 h-2 fill-white">
+    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+  </svg>
+);
 
 // ── Inline Pill Badge ────────────────────────────────────────────────────────
 
@@ -110,10 +104,10 @@ export default function IdentityBadges({
     );
   }
 
-  // ── dot 模式：實體大V徽章（頭像右下角絕對定位） ─────────────────────────────
+  // ── dot 模式：X 風格勾號徽章（頭像右下角絕對定位） ─────────────────────────
   if (variant === 'dot') {
     return (
-      <span className={`flex gap-0.5 ${avatarOverlay ? 'absolute -bottom-2 -right-2 z-10' : ''} ${className}`}>
+      <span className={`flex gap-0.5 ${avatarOverlay ? 'absolute -bottom-1 -right-1 z-10' : ''} ${className}`}>
         {verifiedIdentities.map((identity) => {
           const cfg = IDENTITY_CONFIG[identity];
           if (!cfg) return null;
@@ -121,9 +115,10 @@ export default function IdentityBadges({
             <span
               key={identity}
               title={`${cfg.label}已認證`}
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-heavy ${cfg.dotGradient} ${cfg.dotText} ${cfg.dotBorder} ${cfg.dotGlow}`}
+              style={{ backgroundColor: cfg.dotBg }}
+              className="w-4 h-4 rounded-full border-2 border-black flex items-center justify-center"
             >
-              <span className="font-black text-white leading-none">V</span>
+              <CheckIcon />
             </span>
           );
         })}
@@ -131,7 +126,7 @@ export default function IdentityBadges({
     );
   }
 
-  // ── icon 模式：中等圓形（Feed 卡片） ─────────────────────────────────────────
+  // ── icon 模式：X 風格勾號（Feed 卡片） ───────────────────────────────────────
   if (variant === 'icon') {
     return (
       <span className={`inline-flex gap-1 ${className}`}>
@@ -142,9 +137,10 @@ export default function IdentityBadges({
             <span
               key={identity}
               title={`${cfg.label}已認證`}
-              className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-heavy ${cfg.dotGradient} ${cfg.dotText} ${cfg.dotBorder} ${cfg.dotGlow}`}
+              style={{ backgroundColor: cfg.dotBg }}
+              className="w-4 h-4 rounded-full border-2 border-black flex items-center justify-center"
             >
-              <span className="font-black text-white leading-none">V</span>
+              <CheckIcon />
             </span>
           );
         })}

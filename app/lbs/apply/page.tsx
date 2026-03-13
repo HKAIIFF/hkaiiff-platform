@@ -40,11 +40,8 @@ interface LbsFormData {
 }
 
 const CONTRACT_STRATEGIES = [
-  { value: 'none', label_en: 'No Restriction (Public Access)', label_zh: '無限制（公開存取）' },
-  { value: 'nft_required', label_en: 'Requires Specific NFT', label_zh: '需持有特定 NFT' },
-  { value: 'aif_stake', label_en: 'Requires AIF Staking', label_zh: '需質押 AIF' },
-  { value: 'whitelist', label_en: 'Whitelist Only', label_zh: '白名單限定' },
-  { value: 'token_gated', label_en: 'Token-Gated Access', label_zh: '代幣門控' },
+  { value: 'free', label_en: 'Free Admission (Public Access)', label_zh: '免票（公開存取）' },
+  { value: 'ticket', label_en: 'Requires Ticket', label_zh: '需要門票' },
 ];
 
 /* ─── Dark Input Component ───────────────────────────────────────────────── */
@@ -189,7 +186,7 @@ export default function LbsApplyPage() {
     startTime: '',
     endTime: '',
     description: '',
-    contractStrategy: 'none',
+    contractStrategy: 'free',
     ticketPriceAif: 0,
     ticketPriceUsd: 0,
     posterUrl: '',
@@ -457,25 +454,18 @@ export default function LbsApplyPage() {
   /* STEP 1 — Application Form                                               */
   /* ─────────────────────────────────────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-[#040404] px-4 pt-28 pb-32">
+    <div className="min-h-screen bg-[#040404] px-4 pt-8 pb-32">
+      {/* ── 毛玻璃返回按鈕 ──────────────────────────────────────────── */}
+      <button
+        onClick={() => router.push('/me')}
+        className="fixed top-4 left-4 z-50 backdrop-blur-md bg-white/20 border border-white/30 rounded-full w-10 h-10 flex items-center justify-center text-white shadow-lg"
+      >
+        ←
+      </button>
       <div className="max-w-2xl mx-auto">
 
         {/* ── Page Header ─────────────────────────────────────────────── */}
         <div className="mb-8">
-          <button
-            onClick={() => router.push('/me')}
-            className="font-mono text-[9px] tracking-[0.4em] text-[#444] hover:text-[#FFC107]/60 transition-colors flex items-center gap-1.5 mb-6"
-          >
-            ← {lang === 'zh' ? '返回' : 'BACK'}
-          </button>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-[#FFC107]/10 border border-[#FFC107]/20 flex items-center justify-center">
-              <i className="fas fa-map-marker-alt text-[#FFC107] text-sm" />
-            </div>
-            <span className="font-mono text-[9px] tracking-[0.5em] text-[#FFC107]/60 uppercase">
-              CURATOR · LBS APPLICATION
-            </span>
-          </div>
           <h1 className="font-black text-3xl text-white tracking-wider uppercase">
             {lang === 'zh' ? 'LBS 影展/影院申請' : 'LBS FESTIVAL / CINEMA'}
           </h1>
@@ -658,35 +648,37 @@ export default function LbsApplyPage() {
               </select>
             </div>
 
-            {/* Ticket Pricing */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-mono text-[#666] tracking-widest uppercase">
-                  {lang === 'zh' ? '門票費用 (AIF)' : 'TICKET PRICE (AIF)'}
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={form.ticketPriceAif}
-                  onChange={(e) => setForm((p) => ({ ...p, ticketPriceAif: parseFloat(e.target.value) || 0 }))}
-                  placeholder="0"
-                  className="w-full bg-[#0a0a0a] border border-[#333] text-white text-sm px-3 py-2.5 rounded-lg outline-none focus:border-[#FFC107]/50 transition-all placeholder-[#444] font-mono"
-                />
+            {/* Ticket Pricing — 僅在「需要門票」時顯示 */}
+            {form.contractStrategy === 'ticket' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-mono text-[#666] tracking-widest uppercase">
+                    {lang === 'zh' ? '門票費用 (AIF)' : 'TICKET PRICE (AIF)'}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.ticketPriceAif || ''}
+                    onChange={(e) => setForm((p) => ({ ...p, ticketPriceAif: parseFloat(e.target.value) || 0 }))}
+                    placeholder={lang === 'zh' ? '請輸入金額' : 'Enter amount'}
+                    className="w-full bg-[#0a0a0a] border border-[#333] text-white text-sm px-3 py-2.5 rounded-lg outline-none focus:border-[#FFC107]/50 transition-all placeholder-[#444] font-mono"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-mono text-[#666] tracking-widest uppercase">
+                    {lang === 'zh' ? '門票費用 (USD)' : 'TICKET PRICE (USD)'}
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={form.ticketPriceUsd || ''}
+                    onChange={(e) => setForm((p) => ({ ...p, ticketPriceUsd: parseFloat(e.target.value) || 0 }))}
+                    placeholder={lang === 'zh' ? '請輸入金額' : 'Enter amount'}
+                    className="w-full bg-[#0a0a0a] border border-[#333] text-white text-sm px-3 py-2.5 rounded-lg outline-none focus:border-[#FFC107]/50 transition-all placeholder-[#444] font-mono"
+                  />
+                </div>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-mono text-[#666] tracking-widest uppercase">
-                  {lang === 'zh' ? '門票費用 (USD)' : 'TICKET PRICE (USD)'}
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={form.ticketPriceUsd}
-                  onChange={(e) => setForm((p) => ({ ...p, ticketPriceUsd: parseFloat(e.target.value) || 0 }))}
-                  placeholder="0"
-                  className="w-full bg-[#0a0a0a] border border-[#333] text-white text-sm px-3 py-2.5 rounded-lg outline-none focus:border-[#FFC107]/50 transition-all placeholder-[#444] font-mono"
-                />
-              </div>
-            </div>
+            )}
           </div>
         </div>
 
