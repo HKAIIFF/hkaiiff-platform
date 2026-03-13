@@ -249,32 +249,48 @@ async function handleVerificationPaid(
   }).catch((e) => console.error('[stripe/webhook] sendMessage failed:', e));
 }
 
-/** LBS 节点授权费支付成功 → lbs_nodes.status = 'under_review' */
+/** LBS 节点授权费支付成功 → lbs_nodes.review_status = 'pending', status = 'under_review' */
 async function handleLbsApplicationPaid(
   db: ReturnType<typeof getAdminClient>,
   userId: string,
   sessionId: string,
-  amountUsd: number = 500
+  amountUsd: number = 500,
+  nodeId?: string | null
 ): Promise<void> {
-  // 找最新一条该用户 pending 的 LBS 节点申请
-  const { data: nodes } = await db
-    .from('lbs_nodes')
-    .select('id, title, status')
-    .eq('submitted_by', userId)
-    .in('status', ['pending', 'pending_payment'])
-    .order('created_at', { ascending: false })
-    .limit(1);
+  let node: { id: string; title: string; status: string } | null = null;
 
-  const node = nodes?.[0];
+  // 优先用 nodeId（新流程：草稿节点）
+  if (nodeId) {
+    const { data } = await db
+      .from('lbs_nodes')
+      .select('id, title, status')
+      .eq('id', nodeId)
+      .eq('submitted_by', userId)
+      .maybeSingle();
+    node = data ?? null;
+  }
+
+  // Fallback：找最新一条该用户的草稿/pending 节点
+  if (!node) {
+    const { data: nodes } = await db
+      .from('lbs_nodes')
+      .select('id, title, status')
+      .eq('submitted_by', userId)
+      .in('status', ['pending', 'pending_payment', 'draft'])
+      .order('created_at', { ascending: false })
+      .limit(1);
+    node = nodes?.[0] ?? null;
+  }
 
   if (!node) {
-    console.warn(`[stripe/webhook] No pending LBS node found for user ${userId}`);
+    console.warn(`[stripe/webhook] No LBS node found for user ${userId}`);
     return;
   }
 
   const { error } = await db
     .from('lbs_nodes')
     .update({
+      review_status: 'pending',
       status: 'under_review',
       payment_method: 'stripe',
       stripe_session_id: sessionId,
@@ -387,7 +403,7 @@ export async function POST(req: Request) {
         break;
 
       case 'lbs_application':
-        await handleLbsApplicationPaid(db, userId, session.id, session.amount_total ? session.amount_total / 100 : 500);
+        await handleLbsApplicationPaid(db, userId, session.id, session.amount_total ? session.amount_total / 100 : 500, metadata.nodeId ?? null);
         break;
 
       // ── 通用產品購買（UniversalCheckout 路徑）──────────────────────────────
@@ -406,7 +422,7 @@ export async function POST(req: Request) {
             await handleFilmEntryPaid(db, userId, metaFilmId, session.id);
           }
         } else if (productCode === 'lbs_license') {
-          await handleLbsApplicationPaid(db, userId, session.id, session.amount_total ? session.amount_total / 100 : 500);
+          await handleLbsApplicationPaid(db, userId, session.id, session.amount_total ? session.amount_total / 100 : 500, metadata.nodeId ?? null);
         } else {
           // 其他通用產品：僅記錄流水，無特定業務邏輯
           console.log(`[stripe/webhook] product_purchase generic productCode=${productCode}, recording only.`);

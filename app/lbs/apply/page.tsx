@@ -7,10 +7,8 @@ import { useI18n } from '@/app/context/I18nContext';
 import { useToast } from '@/app/context/ToastContext';
 import { supabase } from '@/lib/supabase';
 import CyberLoading from '@/app/components/CyberLoading';
-import UniversalCheckout from '@/app/components/UniversalCheckout';
 
 /* ─── UI Primitives ─────────────────────────────────────────────────────── */
-
 
 function Spinner({ color }: { color: string }) {
   return (
@@ -39,6 +37,8 @@ interface LbsFormData {
   backgroundUrl: string;
 }
 
+type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
+
 const CONTRACT_STRATEGIES = [
   { value: 'free', label_en: 'Free Admission (Public Access)', label_zh: '免票（公開存取）' },
   { value: 'ticket', label_en: 'Requires Ticket', label_zh: '需要門票' },
@@ -47,10 +47,10 @@ const CONTRACT_STRATEGIES = [
 /* ─── Dark Input Component ───────────────────────────────────────────────── */
 
 function DarkInput({
-  label, value, onChange, type = 'text', placeholder = '', required = false, className = '',
+  label, value, onChange, type = 'text', placeholder = '', required = false, className = '', disabled = false,
 }: {
   label: string; value: string | number; onChange: (v: string) => void;
-  type?: string; placeholder?: string; required?: boolean; className?: string;
+  type?: string; placeholder?: string; required?: boolean; className?: string; disabled?: boolean;
 }) {
   return (
     <div className={`space-y-1.5 ${className}`}>
@@ -67,7 +67,8 @@ function DarkInput({
               const time = value ? String(value).split('T')[1] || '00:00' : '00:00';
               onChange(`${e.target.value}T${time}`);
             }}
-            className="flex-1 bg-[#0a0a0a] border border-[#333] text-white text-sm px-3 py-2.5 rounded-lg outline-none focus:border-[#FFC107]/50 transition-all font-mono [color-scheme:dark]"
+            disabled={disabled}
+            className={`flex-1 bg-[#0a0a0a] border border-[#333] text-white text-sm px-3 py-2.5 rounded-lg outline-none focus:border-[#FFC107]/50 transition-all font-mono [color-scheme:dark] ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
           />
           <input
             type="time"
@@ -76,7 +77,8 @@ function DarkInput({
               const date = value ? String(value).split('T')[0] : new Date().toISOString().split('T')[0];
               onChange(`${date}T${e.target.value}`);
             }}
-            className="w-28 bg-[#0a0a0a] border border-[#333] text-white text-sm px-3 py-2.5 rounded-lg outline-none focus:border-[#FFC107]/50 transition-all font-mono [color-scheme:dark]"
+            disabled={disabled}
+            className={`w-28 bg-[#0a0a0a] border border-[#333] text-white text-sm px-3 py-2.5 rounded-lg outline-none focus:border-[#FFC107]/50 transition-all font-mono [color-scheme:dark] ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
           />
         </div>
       ) : (
@@ -85,9 +87,11 @@ function DarkInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
-          className="w-full bg-[#0a0a0a] border border-[#333] text-white text-sm px-3 py-2.5 rounded-lg
+          disabled={disabled}
+          className={`w-full bg-[#0a0a0a] border border-[#333] text-white text-sm px-3 py-2.5 rounded-lg
                      outline-none focus:border-[#FFC107]/50 focus:shadow-[0_0_0_2px_rgba(255,193,7,0.08)]
-                     transition-all placeholder-[#444] font-mono"
+                     transition-all placeholder-[#444] font-mono
+                     ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         />
       )}
     </div>
@@ -96,8 +100,8 @@ function DarkInput({
 
 /* ─── DateTime Picker Field ─────────────────────────────────────────────── */
 
-function DateTimePickerField({ label, value, onChange, required }: {
-  label: string; value: string; onChange: (v: string) => void; required?: boolean;
+function DateTimePickerField({ label, value, onChange, required, disabled }: {
+  label: string; value: string; onChange: (v: string) => void; required?: boolean; disabled?: boolean;
 }) {
   const dateVal = value ? value.split('T')[0] : '';
   const hourVal = value ? value.split('T')[1]?.slice(0, 2) || '' : '';
@@ -117,9 +121,10 @@ function DateTimePickerField({ label, value, onChange, required }: {
           type="date"
           value={dateVal}
           onChange={(e) => update(e.target.value, hourVal, minVal)}
-          className="flex-1 bg-[#0a0a0a] border border-[#333] text-white text-sm px-3 py-2.5 rounded-lg outline-none focus:border-[#FFC107]/50 font-mono [color-scheme:dark]"
+          disabled={disabled}
+          className={`flex-1 bg-[#0a0a0a] border border-[#333] text-white text-sm px-3 py-2.5 rounded-lg outline-none focus:border-[#FFC107]/50 font-mono [color-scheme:dark] ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
         />
-        <div className="flex items-center gap-1 bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2.5">
+        <div className={`flex items-center gap-1 bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2.5 ${disabled ? 'opacity-50' : ''}`}>
           <input
             type="number"
             min={0}
@@ -127,6 +132,7 @@ function DateTimePickerField({ label, value, onChange, required }: {
             value={hourVal}
             onChange={(e) => update(dateVal, e.target.value, minVal)}
             placeholder="HH"
+            disabled={disabled}
             className="w-8 bg-transparent text-white text-sm outline-none font-mono text-center"
           />
           <span className="text-[#666] font-mono">:</span>
@@ -137,6 +143,7 @@ function DateTimePickerField({ label, value, onChange, required }: {
             value={minVal}
             onChange={(e) => update(dateVal, hourVal, e.target.value)}
             placeholder="MM"
+            disabled={disabled}
             className="w-8 bg-transparent text-white text-sm outline-none font-mono text-center"
           />
         </div>
@@ -153,26 +160,37 @@ function DateTimePickerField({ label, value, onChange, required }: {
 /* ─── Upload Zone ────────────────────────────────────────────────────────── */
 
 function UploadZone({
-  label, spec, aspectLabel, previewUrl, isUploading, onFileChange, accept = 'image/*',
+  label, spec, aspectLabel, previewUrl, uploadStatus, uploadError, onFileChange, accept = 'image/*', disabled = false,
 }: {
   label: string; spec: string; aspectLabel: string; previewUrl: string;
-  isUploading: boolean; onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  accept?: string;
+  uploadStatus: UploadStatus; uploadError?: string;
+  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  accept?: string; disabled?: boolean;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const isUploading = uploadStatus === 'uploading';
+  const isSuccess = uploadStatus === 'success';
+  const isError = uploadStatus === 'error';
+
   return (
     <div className="space-y-2">
       <div className="text-[10px] font-mono text-[#666] tracking-widest uppercase">{label}</div>
       <button
         type="button"
-        onClick={() => inputRef.current?.click()}
-        disabled={isUploading}
+        onClick={() => !disabled && inputRef.current?.click()}
+        disabled={isUploading || disabled}
         className={`w-full relative rounded-xl border-2 border-dashed transition-all overflow-hidden
           ${previewUrl
-            ? 'border-[#FFC107]/40 hover:border-[#FFC107]/70'
-            : 'border-[#333] hover:border-[#FFC107]/40 hover:shadow-[0_0_20px_rgba(255,193,7,0.04)]'
+            ? isError
+              ? 'border-red-500/50 hover:border-red-500/70'
+              : 'border-[#FFC107]/40 hover:border-[#FFC107]/70'
+            : isError
+              ? 'border-red-500/40'
+              : isSuccess
+                ? 'border-green-500/40'
+                : 'border-[#333] hover:border-[#FFC107]/40 hover:shadow-[0_0_20px_rgba(255,193,7,0.04)]'
           }
-          ${isUploading ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
+          ${(isUploading || disabled) ? 'opacity-60 cursor-not-allowed' : 'cursor-pointer'}`}
         style={{ aspectRatio: aspectLabel === '2:3' ? '2/3' : '16/9', minHeight: aspectLabel === '2:3' ? '180px' : '100px', maxHeight: aspectLabel === '2:3' ? '220px' : '120px' }}
       >
         {previewUrl ? (
@@ -181,11 +199,37 @@ function UploadZone({
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
               <span className="text-white text-[10px] font-mono tracking-widest">CHANGE</span>
             </div>
+            {/* 成功角标 */}
+            {isSuccess && (
+              <div className="absolute top-2 right-2 w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                  <path d="M20 6L9 17l-5-5" strokeLinecap="round" />
+                </svg>
+              </div>
+            )}
           </>
         ) : (
           <div className="flex flex-col items-center justify-center h-full py-6 gap-2">
             {isUploading ? (
               <Spinner color="#FFC107" />
+            ) : isSuccess ? (
+              <>
+                <div className="w-8 h-8 rounded-full bg-green-500/20 border border-green-500/40 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-green-400" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path d="M20 6L9 17l-5-5" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <span className="text-green-400 text-[10px] font-mono tracking-wider">上传成功</span>
+              </>
+            ) : isError ? (
+              <>
+                <div className="w-8 h-8 rounded-full bg-red-500/20 border border-red-500/40 flex items-center justify-center">
+                  <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+                  </svg>
+                </div>
+                <span className="text-red-400 text-[10px] font-mono tracking-wider">上传失败</span>
+              </>
             ) : (
               <>
                 <i className="fas fa-cloud-upload-alt text-[#FFC107]/40 text-2xl" />
@@ -201,41 +245,28 @@ function UploadZone({
         accept={accept}
         className="hidden"
         onChange={onFileChange}
+        disabled={isUploading || disabled}
       />
+      {/* 状态文字 */}
       {isUploading && (
-        <div className="text-[10px] text-[#FFC107]/60 font-mono tracking-widest animate-pulse">UPLOADING...</div>
+        <div className="text-[10px] text-[#FFC107]/60 font-mono tracking-widest animate-pulse">正在上传...</div>
       )}
-    </div>
-  );
-}
-
-/* ─── Success Screen ─────────────────────────────────────────────────────── */
-
-function SuccessScreen({ lang, onBack }: { lang: string; onBack: () => void }) {
-  return (
-    <div className="min-h-screen bg-[#040404] flex flex-col items-center justify-center px-4 py-14 text-center">
-      <div className="w-20 h-20 rounded-full bg-[#FFC107]/10 border border-[#FFC107]/30 flex items-center justify-center mb-6 animate-pulse">
-        <i className="fas fa-map-marker-alt text-[#FFC107] text-3xl" />
-      </div>
-      <div className="font-mono text-[9px] tracking-[0.5em] text-[#FFC107]/60 mb-3 uppercase">
-        LBS APPLICATION SUBMITTED
-      </div>
-      <h1 className="text-4xl font-black text-white tracking-wider mb-4">
-        {lang === 'zh' ? '提交成功！' : 'SUCCESS!'}
-      </h1>
-      <p className="text-gray-400 text-sm font-mono max-w-sm leading-relaxed mb-8">
-        {lang === 'zh'
-          ? '您的 LBS 影展申請已提交。請等待控制中心審核開通，審核時間約 48-72 小時。'
-          : 'Your LBS Festival application has been submitted. Please await review from the control center. Estimated review time: 48-72 hours.'}
-      </p>
-      <div className="mx-auto h-px w-24 bg-gradient-to-r from-transparent via-[#FFC107]/40 to-transparent mb-8" />
-      <button
-        onClick={onBack}
-        className="font-mono text-[10px] tracking-[0.4em] text-[#FFC107]/60 hover:text-[#FFC107] transition-colors flex items-center gap-2"
-      >
-        <i className="fas fa-arrow-left text-xs" />
-        {lang === 'zh' ? '返回我的主頁' : 'BACK TO ME'}
-      </button>
+      {isSuccess && !previewUrl && (
+        <div className="text-[10px] text-green-400/80 font-mono tracking-wider flex items-center gap-1">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+            <path d="M20 6L9 17l-5-5" strokeLinecap="round" />
+          </svg>
+          上传成功
+        </div>
+      )}
+      {isError && uploadError && (
+        <div className="text-[10px] text-red-400/80 font-mono tracking-wider flex items-center gap-1">
+          <svg className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+          </svg>
+          {uploadError}
+        </div>
+      )}
     </div>
   );
 }
@@ -243,18 +274,18 @@ function SuccessScreen({ lang, onBack }: { lang: string; onBack: () => void }) {
 /* ─── Main Page ──────────────────────────────────────────────────────────── */
 
 export default function LbsApplyPage() {
-  const { user, authenticated, ready, getAccessToken } = usePrivy();
+  const { user, authenticated, ready } = usePrivy();
   const router = useRouter();
   const { lang } = useI18n();
   const { showToast } = useToast();
 
-  const [step, setStep] = useState<1 | 2>(1);
   const [isLocating, setIsLocating] = useState(false);
-  const [isUploadingPoster, setIsUploadingPoster] = useState(false);
-  const [isUploadingBg, setIsUploadingBg] = useState(false);
-  const [aifBalance, setAifBalance] = useState(0);
-  const [isLoadingBalance, setIsLoadingBalance] = useState(true);
-  const [isSuccess, setIsSuccess] = useState(false);
+  const [posterUploadStatus, setPosterUploadStatus] = useState<UploadStatus>('idle');
+  const [posterUploadError, setPosterUploadError] = useState('');
+  const [bgUploadStatus, setBgUploadStatus] = useState<UploadStatus>('idle');
+  const [bgUploadError, setBgUploadError] = useState('');
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [existingNodeId, setExistingNodeId] = useState<string | null>(null);
 
   const [form, setForm] = useState<LbsFormData>({
     title: '',
@@ -277,20 +308,18 @@ export default function LbsApplyPage() {
     if (ready && !authenticated) router.replace('/');
   }, [ready, authenticated, router]);
 
-  // Load AIF balance
+  // 恢复 sessionStorage 中的草稿数据（用于从排片页面返回）
   useEffect(() => {
-    if (!authenticated || !user?.id) return;
-    (async () => {
-      setIsLoadingBalance(true);
-      const { data } = await supabase
-        .from('users')
-        .select('aif_balance')
-        .eq('id', user.id)
-        .single();
-      setAifBalance(data?.aif_balance ?? 0);
-      setIsLoadingBalance(false);
-    })();
-  }, [authenticated, user?.id]);
+    const saved = sessionStorage.getItem('lbs_apply_form');
+    const savedNodeId = sessionStorage.getItem('lbs_draft_node_id');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as LbsFormData;
+        setForm(parsed);
+      } catch { /* ignore */ }
+    }
+    if (savedNodeId) setExistingNodeId(savedNodeId);
+  }, []);
 
   const setField = (key: keyof LbsFormData) => (val: string) =>
     setForm((prev) => ({ ...prev, [key]: val }));
@@ -321,7 +350,7 @@ export default function LbsApplyPage() {
   };
 
   // R2 upload via unified /api/upload
-  const uploadToOss = async (file: File, _prefix: string): Promise<string> => {
+  const uploadToOss = async (file: File): Promise<string> => {
     const fd = new FormData();
     fd.append('file', file);
     const res = await fetch('/api/upload', { method: 'POST', body: fd });
@@ -337,30 +366,40 @@ export default function LbsApplyPage() {
   const handlePosterUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { showToast('Poster must be under 5MB', 'error'); return; }
-    setIsUploadingPoster(true);
+    if (file.size > 5 * 1024 * 1024) {
+      setPosterUploadStatus('error');
+      setPosterUploadError('文件不能超过 5MB');
+      return;
+    }
+    setPosterUploadStatus('uploading');
+    setPosterUploadError('');
     try {
-      const url = await uploadToOss(file, 'posters');
+      const url = await uploadToOss(file);
       setForm((prev) => ({ ...prev, posterUrl: url }));
-    } catch {
-      showToast('Upload failed. Please try again.', 'error');
-    } finally {
-      setIsUploadingPoster(false);
+      setPosterUploadStatus('success');
+    } catch (err) {
+      setPosterUploadStatus('error');
+      setPosterUploadError(err instanceof Error ? err.message : '上传失败，请重试');
     }
   };
 
   const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 10 * 1024 * 1024) { showToast('Background must be under 10MB', 'error'); return; }
-    setIsUploadingBg(true);
+    if (file.size > 10 * 1024 * 1024) {
+      setBgUploadStatus('error');
+      setBgUploadError('文件不能超过 10MB');
+      return;
+    }
+    setBgUploadStatus('uploading');
+    setBgUploadError('');
     try {
-      const url = await uploadToOss(file, 'backgrounds');
+      const url = await uploadToOss(file);
       setForm((prev) => ({ ...prev, backgroundUrl: url }));
-    } catch {
-      showToast('Upload failed. Please try again.', 'error');
-    } finally {
-      setIsUploadingBg(false);
+      setBgUploadStatus('success');
+    } catch (err) {
+      setBgUploadStatus('error');
+      setBgUploadError(err instanceof Error ? err.message : '上传失败，请重试');
     }
   };
 
@@ -374,150 +413,71 @@ export default function LbsApplyPage() {
     return true;
   };
 
-  const handleNextStep = () => {
+  // 创建或更新草稿节点，然后跳转到排片页面
+  const handleNextStep = async () => {
     if (!validateForm()) return;
-    setStep(2);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  // Build Supabase payload
-  const buildDbPayload = (paymentMethod: 'stripe' | 'aif') => ({
-    title: form.title.trim(),
-    location: form.location.trim(),
-    lat: parseFloat(form.lat),
-    lng: parseFloat(form.lng),
-    radius: form.unlockRadius,
-    unlock_radius: form.unlockRadius,
-    start_time: form.startTime || null,
-    end_time: form.endTime || null,
-    description: form.description.trim() || null,
-    contract_req: form.contractStrategy,
-    ticket_price_aif: form.ticketPriceAif > 0 ? form.ticketPriceAif : null,
-    poster_url: form.posterUrl || null,
-    background_url: form.backgroundUrl || null,
-    status: 'pending',
-    state: 'locked_geo',
-    submitted_by: user?.id ?? null,
-    payment_method: paymentMethod,
-  });
-
-  // AIF 支付後：插入 LBS 節點申請記錄（AIF 路徑的業務邏輯在前端完成表單提交）
-  const handleLbsAifSuccess = async () => {
     if (!user?.id) return;
+
+    setIsSavingDraft(true);
+
+    const dbPayload = {
+      title: form.title.trim(),
+      location: form.location.trim(),
+      lat: parseFloat(form.lat),
+      lng: parseFloat(form.lng),
+      radius: form.unlockRadius,
+      unlock_radius: form.unlockRadius,
+      start_time: form.startTime || null,
+      end_time: form.endTime || null,
+      description: form.description.trim() || null,
+      contract_req: form.contractStrategy,
+      ticket_price_aif: form.ticketPriceAif > 0 ? form.ticketPriceAif : null,
+      poster_url: form.posterUrl || null,
+      background_url: form.backgroundUrl || null,
+      status: 'draft',
+      state: 'locked_geo',
+      submitted_by: user.id,
+    };
+
     try {
-      const { error } = await supabase
-        .from('lbs_nodes')
-        .insert([buildDbPayload('aif')]);
-      if (error) throw error;
-      setIsSuccess(true);
+      let nodeId = existingNodeId;
+
+      if (nodeId) {
+        // 更新已有草稿
+        const { error } = await supabase
+          .from('lbs_nodes')
+          .update(dbPayload)
+          .eq('id', nodeId)
+          .eq('submitted_by', user.id);
+        if (error) throw error;
+      } else {
+        // 新建草稿
+        const { data, error } = await supabase
+          .from('lbs_nodes')
+          .insert([dbPayload])
+          .select('id')
+          .single();
+        if (error) throw error;
+        nodeId = (data as { id: string }).id;
+        setExistingNodeId(nodeId);
+        sessionStorage.setItem('lbs_draft_node_id', nodeId!);
+      }
+
+      // 保存表单数据到 sessionStorage（以便返回时恢复）
+      sessionStorage.setItem('lbs_apply_form', JSON.stringify(form));
+
+      router.push(`/lbs/${nodeId}/screenings`);
     } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Submission failed', 'error');
+      showToast(err instanceof Error ? err.message : '保存失败，请重试', 'error');
+      setIsSavingDraft(false);
     }
   };
-
-  // 進入 Step 2 時保存表單數據到 sessionStorage（供 Stripe 回跳後恢復）
-  useEffect(() => {
-    if (step === 2) {
-      sessionStorage.setItem('lbs_apply_pending', JSON.stringify(buildDbPayload('stripe')));
-    }
-  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
-
-    // Stripe 回跳後：讀取 sessionStorage 並插入 LBS 節點記錄
-  useEffect(() => {
-    const url = new URL(window.location.href);
-    const paymentSuccess = url.searchParams.get('payment') === 'success';
-    const product = url.searchParams.get('product');
-    if (paymentSuccess && product === 'lbs_license' && user?.id) {
-      const pending = sessionStorage.getItem('lbs_apply_pending');
-      if (pending) {
-        sessionStorage.removeItem('lbs_apply_pending');
-        const submitStripeNode = async () => {
-          try {
-            const { error } = await supabase
-              .from('lbs_nodes')
-              .insert([{ ...JSON.parse(pending), payment_method: 'stripe' }]);
-            if (!error) {
-              setIsSuccess(true);
-            } else {
-              showToast('Submission failed after payment', 'error');
-            }
-          } catch (err: unknown) {
-            showToast(err instanceof Error ? err.message : 'Submission failed', 'error');
-          }
-        };
-        submitStripeNode();
-      } else {
-        setIsSuccess(true);
-      }
-    }
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Guards ─────────────────────────────────────────────────────────────── */
   if (!ready) return <CyberLoading text="AUTHENTICATING..." />;
   if (!authenticated) return null;
-  if (isSuccess) return <SuccessScreen lang={lang} onBack={() => router.push('/me')} />;
 
-  /* ─────────────────────────────────────────────────────────────────────── */
-  /* STEP 2 — Payment                                                        */
-  /* ─────────────────────────────────────────────────────────────────────── */
-  if (step === 2) {
-    return (
-      <div className="min-h-screen bg-[#040404] flex flex-col items-center justify-center px-4 py-14">
-
-        {/* ── Application Summary Badge ──────────────────────────────── */}
-        <div className="mb-8 w-full max-w-sm bg-[#0a0a0a] border border-[#FFC107]/20 rounded-xl px-5 py-4">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-lg bg-[#FFC107]/10 border border-[#FFC107]/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <i className="fas fa-map-marker-alt text-[#FFC107] text-sm" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="font-heavy text-white text-sm truncate">{form.title || 'LBS Festival'}</div>
-              <div className="text-gray-400 text-[11px] font-mono mt-0.5 truncate">{form.location}</div>
-              <div className="text-[#FFC107]/60 text-[10px] font-mono mt-1 tracking-wider">
-                {lang === 'zh' ? '節點授權費 · 一次性繳納' : 'NODE LICENSE FEE · ONE-TIME'}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Header ────────────────────────────────────────────────────── */}
-        <div className="text-center mb-10">
-          <p className="font-mono text-[9px] tracking-[0.6em] text-[#2a2a2a] mb-3 uppercase">
-            HKAIIFF 2026 · LBS Node License
-          </p>
-          <h1 className="text-5xl font-black text-white tracking-[0.12em] uppercase leading-tight">
-            SELECT PAYMENT
-          </h1>
-          <div className="mt-5 mx-auto h-px w-24 bg-gradient-to-r from-transparent via-[#FFC107]/60 to-transparent" />
-        </div>
-
-        {/* ── UniversalCheckout ─────────────────────────────────────────── */}
-        <div className="w-full max-w-sm flex flex-col items-center gap-4">
-          <UniversalCheckout
-            productCode="lbs_license"
-            variant="primary"
-            label={lang === 'zh' ? '支付節點授權費' : 'PAY LICENSE FEE'}
-            className="w-full justify-center py-4 text-base font-black tracking-widest rounded-2xl"
-            successUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/lbs/apply?payment=success&product=lbs_license`}
-            cancelUrl={`${typeof window !== 'undefined' ? window.location.origin : ''}/lbs/apply`}
-            onSuccess={handleLbsAifSuccess}
-          />
-
-          <button
-            onClick={() => setStep(1)}
-            className="font-mono text-[9px] tracking-[0.4em] text-[#1e1e1e] hover:text-[#444] transition-colors flex items-center gap-1.5"
-          >
-            ← {lang === 'zh' ? '返回填表' : 'BACK TO FORM'}
-          </button>
-
-          <p className="font-mono text-[8px] tracking-[0.4em] text-[#111]">
-            SECURED BY STRIPE &amp; SOLANA BLOCKCHAIN · 2026
-          </p>
-        </div>
-
-      </div>
-    );
-  }
+  const isUploadingAny = posterUploadStatus === 'uploading' || bgUploadStatus === 'uploading';
 
   /* ─────────────────────────────────────────────────────────────────────── */
   /* STEP 1 — Application Form                                               */
@@ -531,9 +491,10 @@ export default function LbsApplyPage() {
         style={{ top: 'max(16px, env(safe-area-inset-top))', left: '16px' }}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <path d="M19 12H5M12 5l-7 7 7 7"/>
+          <path d="M19 12H5M12 5l-7 7 7 7" />
         </svg>
       </button>
+
       <div className="max-w-2xl mx-auto">
 
         {/* ── Page Header ─────────────────────────────────────────────── */}
@@ -560,7 +521,16 @@ export default function LbsApplyPage() {
               <span className="text-[#555] text-[10px] font-black">2</span>
             </div>
             <span className="font-mono text-[9px] text-[#444] tracking-widest">
-              {lang === 'zh' ? '支付授權費' : 'PAYMENT'}
+              {lang === 'zh' ? '排片池' : 'SCREENINGS'}
+            </span>
+          </div>
+          <div className="flex-1 h-px bg-[#333]" />
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-[#333] flex items-center justify-center">
+              <span className="text-[#555] text-[10px] font-black">3</span>
+            </div>
+            <span className="font-mono text-[9px] text-[#444] tracking-widest">
+              {lang === 'zh' ? '支付' : 'PAYMENT'}
             </span>
           </div>
         </div>
@@ -686,7 +656,6 @@ export default function LbsApplyPage() {
             {lang === 'zh' ? '內容與合約' : 'CONTENT & CONTRACT'}
           </div>
           <div className="space-y-4">
-            {/* Description */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-mono text-[#666] tracking-widest uppercase">
                 {lang === 'zh' ? '影展簡介' : 'FESTIVAL DESCRIPTION'}
@@ -700,7 +669,6 @@ export default function LbsApplyPage() {
               />
             </div>
 
-            {/* Smart Contract Strategy */}
             <div className="space-y-1.5">
               <label className="text-[10px] font-mono text-[#666] tracking-widest uppercase">
                 {lang === 'zh' ? '智能合約策略' : 'SMART CONTRACT STRATEGY'}
@@ -718,7 +686,6 @@ export default function LbsApplyPage() {
               </select>
             </div>
 
-            {/* Ticket Pricing — 僅在「需要門票」時顯示 */}
             {form.contractStrategy === 'ticket' && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
@@ -756,26 +723,26 @@ export default function LbsApplyPage() {
         <div className="bg-[#0a0a0a] border border-[#1e1e1e] rounded-xl p-5 mb-8">
           <div className="text-[9px] font-mono text-[#FFC107]/50 tracking-widest mb-4 flex items-center gap-2">
             <i className="fas fa-images text-[#FFC107]/30" />
-            {lang === 'zh' ? '素材上傳 (Cloudflare R2)' : 'ASSETS UPLOAD (CLOUDFLARE R2)'}
+            {lang === 'zh' ? '素材上傳' : 'ASSETS UPLOAD'}
           </div>
           <div className="grid grid-cols-2 gap-5">
-            {/* Poster 2:3 */}
             <UploadZone
               label={lang === 'zh' ? 'LBS 影展海報' : 'LBS FESTIVAL POSTER'}
               spec={lang === 'zh' ? '最大 5MB' : 'Max 5MB'}
               aspectLabel="2:3"
               previewUrl={form.posterUrl}
-              isUploading={isUploadingPoster}
+              uploadStatus={posterUploadStatus}
+              uploadError={posterUploadError}
               onFileChange={handlePosterUpload}
               accept="image/*"
             />
-            {/* Background 16:9 */}
             <UploadZone
               label={lang === 'zh' ? 'LBS 背景圖' : 'LBS BACKGROUND'}
               spec={lang === 'zh' ? '最大 10MB' : 'Max 10MB'}
               aspectLabel="16:9"
               previewUrl={form.backgroundUrl}
-              isUploading={isUploadingBg}
+              uploadStatus={bgUploadStatus}
+              uploadError={bgUploadError}
               onFileChange={handleBgUpload}
               accept="image/*"
             />
@@ -785,18 +752,27 @@ export default function LbsApplyPage() {
         {/* ── Submit Button ───────────────────────────────────────────── */}
         <button
           onClick={handleNextStep}
-          disabled={isUploadingPoster || isUploadingBg}
+          disabled={isUploadingAny || isSavingDraft}
           className="w-full py-4 rounded-xl bg-[#FFC107] text-black font-heavy tracking-[0.2em] uppercase text-sm
                      shadow-[0_0_24px_rgba(255,193,7,0.3)] hover:shadow-[0_0_36px_rgba(255,193,7,0.5)]
                      active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed
                      flex items-center justify-center gap-2"
         >
-          <i className="fas fa-arrow-right text-xs" />
-          {lang === 'zh' ? '下一步：支付授權費' : 'PROCEED TO PAYMENT'}
+          {isSavingDraft ? (
+            <>
+              <Spinner color="#000" />
+              {lang === 'zh' ? '保存中...' : 'SAVING...'}
+            </>
+          ) : (
+            <>
+              <i className="fas fa-film text-xs" />
+              {lang === 'zh' ? '下一步：選擇排片' : 'NEXT: SELECT SCREENINGS'}
+            </>
+          )}
         </button>
 
         <p className="text-center text-[10px] text-[#333] font-mono mt-4 tracking-wider">
-          {lang === 'zh' ? '提交後進入審核流程，授權費不予退還' : 'NON-REFUNDABLE LICENSE FEE · SUBJECT TO ADMIN REVIEW'}
+          {lang === 'zh' ? '提交後進入排片池，完成選片後進行支付' : 'PROCEED TO FILM SELECTION → PAYMENT'}
         </p>
 
       </div>
