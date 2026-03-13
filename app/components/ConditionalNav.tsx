@@ -15,9 +15,18 @@ import DesktopNavbar from "./DesktopNavbar";
  *    - Desktop (md:+): DesktopNavbar (top, full-width) + Sidebar (left) + main (right)
  *    - Mobile  (<md): MobileTopBar (floating logo) + main + BottomNav (fixed bottom tabs)
  */
+/**
+ * 需要隱藏 MobileTopBar（含 HKAIIFF logo + 小地球）的路由前綴。
+ * 這些頁面有自己的頂部導航，不需要全局 logo。
+ */
+const HIDE_MOBILE_TOPBAR_PATHS = ['/lbs/apply', '/lbs/apply/'];
+
 export default function ConditionalNav({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const isAdmin = pathname?.startsWith("/admin");
+  const hideMobileTopBar = HIDE_MOBILE_TOPBAR_PATHS.some(
+    (p) => pathname === p || pathname?.startsWith(p + '?')
+  );
 
   if (isAdmin) {
     return <>{children}</>;
@@ -44,7 +53,8 @@ export default function ConditionalNav({ children }: { children: ReactNode }) {
       </div>
 
       {/* ── Mobile-only components ── */}
-      <MobileTopBar />
+      {/* MobileTopBar 在特定獨立頁面（如 LBS 申請）中隱藏，避免和頁面自有導航衝突 */}
+      {!hideMobileTopBar && <MobileTopBar />}
       <BottomNav />
       <GlobalModals />
     </div>
