@@ -41,8 +41,18 @@ export async function POST(req: Request) {
       const videoTitle = title?.trim() || file.name || 'Untitled';
       console.log(`[/api/upload] 视频分流 → Bunny Stream，title="${videoTitle}"，size=${buffer.byteLength}`);
 
-      const guid = await createBunnyVideo(videoTitle);
-      await uploadToBunny(guid, buffer);
+      // Bunny 上传超时 540s（Vercel maxDuration=300，所以不会超过限制）
+      const bunnyTimeout = setTimeout(() => {
+        throw new Error('Bunny Stream 上传超时，请重试');
+      }, 540_000);
+
+      let guid: string;
+      try {
+        guid = await createBunnyVideo(videoTitle);
+        await uploadToBunny(guid, buffer);
+      } finally {
+        clearTimeout(bunnyTimeout);
+      }
       const hlsUrl = getBunnyHlsUrl(guid);
 
       console.log(`[/api/upload] Bunny 上传完成，guid=${guid}，HLS=${hlsUrl}`);
@@ -51,7 +61,15 @@ export async function POST(req: Request) {
       // ── 图片 / PDF / 其他 → Cloudflare R2 ────────────────────────────────
       console.log(`[/api/upload] 静态文件分流 → R2，name="${file.name}"，type=${file.type}，size=${buffer.byteLength}`);
 
-      const url = await uploadFileToR2(buffer, file.name, file.type || 'application/octet-stream');
+      // R2 上传超时 50s
+      const r2Timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Cloudflare R2 上传超时，请检查网络或 R2 凭证配置')), 50_000)
+      );
+
+      const url = await Promise.race([
+        uploadFileToR2(buffer, file.name, file.type || 'application/octet-stream'),
+        r2Timeout,
+      ]);
 
       console.log(`[/api/upload] R2 上传完成，url=${url}`);
       return NextResponse.json({ success: true, url, type: 'image' });

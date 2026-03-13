@@ -273,7 +273,7 @@ function UploadZone({
 /* ─── Main Page ──────────────────────────────────────────────────────────── */
 
 export default function LbsApplyPage() {
-  const { user, authenticated, ready } = usePrivy();
+  const { user, authenticated, ready, getAccessToken } = usePrivy();
   const router = useRouter();
   const { lang } = useI18n();
   const { showToast } = useToast();
@@ -419,7 +419,7 @@ export default function LbsApplyPage() {
 
     setIsSavingDraft(true);
 
-    // 只包含 lbs_nodes 表实际存在的列（以数据库 schema 为准）
+    // 不把 creator_id 放进 payload，由服务端从 Bearer token 中提取（更安全可靠）
     const dbPayload = {
       title: form.title.trim(),
       location: form.location.trim(),
@@ -433,15 +433,18 @@ export default function LbsApplyPage() {
       poster_url: form.posterUrl || null,
       background_url: form.backgroundUrl || null,
       status: 'draft',
-      creator_id: user.id,
     };
 
     try {
       let nodeId = existingNodeId;
 
+      const token = await getAccessToken();
       const res = await fetch('/api/lbs/save-draft', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
         body: JSON.stringify({ nodeId: nodeId ?? undefined, payload: dbPayload }),
       });
 

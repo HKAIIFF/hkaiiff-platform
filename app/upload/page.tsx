@@ -182,13 +182,33 @@ export default function UploadPage() {
     setStep(2);
   };
 
-  // ── 统一上传助手：调用 /api/upload 分流路由 ──────────────────────────────
+  // ── 统一上传助手：调用 /api/upload 分流路由（含超时保护）─────────────────
   const uploadFile = async (file: File, title?: string): Promise<string> => {
     const fd = new FormData();
     fd.append('file', file);
     if (title) fd.append('title', title);
 
-    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    // 图片 60s，视频 600s（10 分钟）
+    const timeoutMs = file.type.startsWith('video/') ? 600_000 : 60_000;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    let res: Response;
+    try {
+      res = await fetch('/api/upload', {
+        method: 'POST',
+        body: fd,
+        signal: controller.signal,
+      });
+    } catch (err) {
+      if ((err as Error)?.name === 'AbortError') {
+        throw new Error(`上传超时（${file.name}），请检查网络连接后重试`);
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
+    }
+
     const data = await res.json();
     if (!res.ok || !data.success) {
       throw new Error(data.error ?? `上传失败 (${file.name})`);
