@@ -47,21 +47,26 @@ export async function GET(req: Request) {
       for (const f of films ?? []) filmMap[f.id] = f.title;
     }
 
-    // 同時查詢 creator_applications（法幣身份認證費）
-    let caRows: any[] = [];
+    // ── Source 2: creator_applications（身份認證費）─────────────────────────
     let caQuery = adminSupabase
       .from('creator_applications')
-      .select('id, user_id, identity_type, payment_method, payment_session, submitted_at, status, amount')
+      .select('id, user_id, identity_type, payment_method, submitted_at, status')
       .in('status', ['pending', 'approved', 'rejected'])
       .order('submitted_at', { ascending: false });
+
     if (startDate) caQuery = caQuery.gte('submitted_at', new Date(startDate).toISOString());
     if (endDate) {
       const end = new Date(endDate);
       end.setHours(23, 59, 59, 999);
       caQuery = caQuery.lte('submitted_at', end.toISOString());
     }
-    const { data: caData } = await caQuery;
-    caRows = caData ?? [];
+
+    const { data: caData, error: caError } = await caQuery;
+    if (caError) {
+      console.warn('creator_applications 查詢失敗:', caError.message);
+    }
+
+    const caRows = caData ?? [];
 
     // 組裝 transactions 數據
     const txData = (txRows ?? []).map(r => ({
@@ -85,7 +90,7 @@ export async function GET(req: Request) {
     }));
 
     // 組裝 creator_applications 數據
-    const caData2 = caRows.map(r => ({
+    const caFormatted = caRows.map((r: any) => ({
       id: r.id,
       user_id: r.user_id,
       user_email: userMap[r.user_id] ?? null,
@@ -96,16 +101,16 @@ export async function GET(req: Request) {
       related_deposit_address: null,
       tx_type: 'identity_verification',
       tx_hash: null,
-      stripe_session_id: r.payment_session,
-      amount: r.amount ?? (r.payment_method === 'fiat' ? 30 : 150),
-      currency: r.payment_method === 'fiat' ? 'USD' : 'AIF',
+      stripe_session_id: null,
+      amount: r.payment_method === 'aif' ? 150 : 30,
+      currency: r.payment_method === 'aif' ? 'AIF' : 'USD',
       payment_method: r.payment_method,
-      status: r.status,
+      status: r.status === 'approved' ? 'success' : r.status,
       created_at: r.submitted_at,
       _source: 'creator_applications',
     }));
 
-    const allData = [...txData, ...caData2].sort(
+    const allData = [...txData, ...caFormatted].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
 
