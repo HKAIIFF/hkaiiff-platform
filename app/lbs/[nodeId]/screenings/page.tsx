@@ -279,19 +279,14 @@ export default function ScreeningsPage() {
     });
 
     try {
-      if (isSelected) {
-        const { error } = await supabase
-          .from('lbs_screenings')
-          .delete()
-          .eq('lbs_node_id', nodeId)
-          .eq('film_id', filmId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
-          .from('lbs_screenings')
-          .insert({ lbs_node_id: nodeId, film_id: filmId });
-        if (error) throw error;
-      }
+      const method = isSelected ? 'DELETE' : 'POST';
+      const res = await fetch('/api/lbs/screenings', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nodeId, filmId, userId: user?.id }),
+      });
+      const json = await res.json() as { error?: string };
+      if (!res.ok) throw new Error(json.error ?? '操作失败');
     } catch (err: unknown) {
       // 回滚乐观更新
       setSelectedIds((prev) => {
@@ -302,22 +297,15 @@ export default function ScreeningsPage() {
       });
       showToast(err instanceof Error ? err.message : '操作失败', 'error');
     }
-  }, [isReadonly, selectedIds, nodeId, showToast]);
+  }, [isReadonly, selectedIds, nodeId, user?.id, showToast]);
 
-  // ── AIF 支付成功回调 ──────────────────────────────────────────────────────
+  // ── AIF 支付成功回调（节点状态由 internal-checkout 的 handleLbsLicensePaid 负责更新）──
   const handleAifPaymentSuccess = useCallback(async () => {
-    if (!user?.id) return;
-    await supabase
-      .from('lbs_nodes')
-      .update({ review_status: 'pending', status: 'under_review', payment_method: 'aif' })
-      .eq('id', nodeId)
-      .eq('submitted_by', user.id);
-
     sessionStorage.removeItem('lbs_draft_node_id');
     sessionStorage.removeItem('lbs_apply_form');
     showToast('支付成功！您的申请已提交，等待审核。', 'success');
     setTimeout(() => router.push(`/lbs/${nodeId}/review-pending`), 800);
-  }, [nodeId, user?.id, router, showToast]);
+  }, [nodeId, router, showToast]);
 
   // ── 过滤影片 ──────────────────────────────────────────────────────────────
   const filteredFilms = search.trim()

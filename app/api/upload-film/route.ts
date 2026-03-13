@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+const adminSupabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } },
+);
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -25,7 +31,7 @@ export async function POST(req: Request) {
     }
 
     // 插入影片記錄：user_id 強制綁定 creator_id，初始狀態為待支付
-    const { data: film, error: filmError } = await supabase
+    const { data: film, error: filmError } = await adminSupabase
       .from('films')
       .insert([{
         user_id:        creator_id.trim(),

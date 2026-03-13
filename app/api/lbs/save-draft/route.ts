@@ -11,7 +11,6 @@ interface DraftPayload {
   location: string;
   lat: number;
   lng: number;
-  radius: number;
   unlock_radius: number;
   start_time: string | null;
   end_time: string | null;
@@ -25,10 +24,15 @@ interface DraftPayload {
   submitted_by: string;
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { nodeId, payload } = body as { nodeId?: string; payload: DraftPayload };
+    const { nodeId: rawNodeId, payload } = body as { nodeId?: string; payload: DraftPayload };
+
+    // 非 UUID 格式的 nodeId 视为无效，走新建逻辑（避免 stale sessionStorage 数据触发 PostgREST 格式错误）
+    const nodeId = rawNodeId && UUID_RE.test(rawNodeId) ? rawNodeId : undefined;
 
     if (!payload?.submitted_by) {
       return NextResponse.json({ error: 'submitted_by is required' }, { status: 400 });

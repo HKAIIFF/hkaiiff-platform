@@ -424,7 +424,6 @@ export default function LbsApplyPage() {
       location: form.location.trim(),
       lat: parseFloat(form.lat),
       lng: parseFloat(form.lng),
-      radius: form.unlockRadius,
       unlock_radius: form.unlockRadius,
       start_time: form.startTime || null,
       end_time: form.endTime || null,

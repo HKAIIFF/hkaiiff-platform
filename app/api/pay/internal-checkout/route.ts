@@ -133,21 +133,37 @@ async function handleFilmEntryPaid(userId: string, filmId: string): Promise<void
   }).catch((e: unknown) => console.error('[internal-checkout] sendMessage failed:', e));
 }
 
-async function handleLbsLicensePaid(userId: string): Promise<void> {
-  const { data: nodes } = await adminSupabase
-    .from('lbs_nodes')
-    .select('id, title, status')
-    .eq('submitted_by', userId)
-    .in('status', ['pending', 'pending_payment'])
-    .order('created_at', { ascending: false })
-    .limit(1);
+async function handleLbsLicensePaid(userId: string, nodeId?: string | null): Promise<void> {
+  let node: { id: string; title: string; status: string } | null = null;
 
-  const node = nodes?.[0];
+  // 优先用 nodeId（新流程：草稿节点）
+  if (nodeId) {
+    const { data } = await adminSupabase
+      .from('lbs_nodes')
+      .select('id, title, status')
+      .eq('id', nodeId)
+      .eq('submitted_by', userId)
+      .maybeSingle();
+    node = data ?? null;
+  }
+
+  // Fallback：查找该用户最新的草稿/pending 节点
+  if (!node) {
+    const { data: nodes } = await adminSupabase
+      .from('lbs_nodes')
+      .select('id, title, status')
+      .eq('submitted_by', userId)
+      .in('status', ['draft', 'pending', 'pending_payment'])
+      .order('created_at', { ascending: false })
+      .limit(1);
+    node = nodes?.[0] ?? null;
+  }
+
   if (!node) return;
 
   await adminSupabase
     .from('lbs_nodes')
-    .update({ status: 'under_review', payment_method: 'aif' })
+    .update({ review_status: 'pending', status: 'under_review', payment_method: 'aif' })
     .eq('id', node.id)
     .eq('submitted_by', userId);
 
@@ -326,7 +342,7 @@ export async function POST(req: Request) {
         if (filmId) await handleFilmEntryPaid(verifiedUserId, filmId);
         else console.warn('[internal-checkout] film_entry missing filmId in extraMetadata');
       } else if (productCode === 'lbs_license') {
-        await handleLbsLicensePaid(verifiedUserId);
+        await handleLbsLicensePaid(verifiedUserId, extraMetadata?.nodeId ?? null);
       }
     } catch (bizErr: unknown) {
       console.error('[internal-checkout] Business logic failed after deduction:', bizErr);
