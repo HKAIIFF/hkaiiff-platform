@@ -5,7 +5,6 @@ import { usePrivy } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
 import { useI18n } from '@/app/context/I18nContext';
 import { useToast } from '@/app/context/ToastContext';
-import { supabase } from '@/lib/supabase';
 import CyberLoading from '@/app/components/CyberLoading';
 
 /* ─── UI Primitives ─────────────────────────────────────────────────────── */
@@ -442,25 +441,22 @@ export default function LbsApplyPage() {
     try {
       let nodeId = existingNodeId;
 
-      if (nodeId) {
-        // 更新已有草稿
-        const { error } = await supabase
-          .from('lbs_nodes')
-          .update(dbPayload)
-          .eq('id', nodeId)
-          .eq('submitted_by', user.id);
-        if (error) throw error;
-      } else {
-        // 新建草稿
-        const { data, error } = await supabase
-          .from('lbs_nodes')
-          .insert([dbPayload])
-          .select('id')
-          .single();
-        if (error) throw error;
-        nodeId = (data as { id: string }).id;
+      const res = await fetch('/api/lbs/save-draft', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nodeId: nodeId ?? undefined, payload: dbPayload }),
+      });
+
+      const json = await res.json() as { id?: string; error?: string };
+
+      if (!res.ok) {
+        throw new Error(json.error ?? '保存失败，请重试');
+      }
+
+      if (!nodeId) {
+        nodeId = json.id!;
         setExistingNodeId(nodeId);
-        sessionStorage.setItem('lbs_draft_node_id', nodeId!);
+        sessionStorage.setItem('lbs_draft_node_id', nodeId);
       }
 
       // 保存表单数据到 sessionStorage（以便返回时恢复）
