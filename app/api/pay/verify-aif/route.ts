@@ -123,11 +123,12 @@ async function handleFilmEntryPaid(userId: string, filmId: string): Promise<void
 
   if (!film || film.payment_status === 'paid') return;
 
-  await adminSupabase
+  const { error: filmUpdateErr } = await adminSupabase
     .from('films')
-    .update({ payment_status: 'paid', payment_method: 'aif', status: 'pending_review' })
+    .update({ payment_status: 'paid', payment_method: 'aif', status: 'pending' })
     .eq('id', filmId)
     .eq('user_id', userId);
+  if (filmUpdateErr) console.error('[verify-aif] film update error:', filmUpdateErr.message);
 
   await sendMessage({
     userId,
@@ -142,8 +143,8 @@ async function handleLbsLicensePaid(userId: string): Promise<void> {
   const { data: nodes } = await adminSupabase
     .from('lbs_nodes')
     .select('id, title, status')
-    .eq('submitted_by', userId)
-    .in('status', ['pending', 'pending_payment'])
+    .eq('creator_id', userId)
+    .in('status', ['draft', 'pending', 'pending_payment'])
     .order('created_at', { ascending: false })
     .limit(1);
 
@@ -152,9 +153,9 @@ async function handleLbsLicensePaid(userId: string): Promise<void> {
 
   await adminSupabase
     .from('lbs_nodes')
-    .update({ status: 'under_review', payment_method: 'aif' })
+    .update({ review_status: 'pending', status: 'under_review' })
     .eq('id', node.id)
-    .eq('submitted_by', userId);
+    .eq('creator_id', userId);
 
   await sendMessage({
     userId,

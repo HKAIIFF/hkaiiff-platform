@@ -265,7 +265,7 @@ async function handleLbsApplicationPaid(
       .from('lbs_nodes')
       .select('id, title, status')
       .eq('id', nodeId)
-      .eq('submitted_by', userId)
+      .eq('creator_id', userId)
       .maybeSingle();
     node = data ?? null;
   }
@@ -275,7 +275,7 @@ async function handleLbsApplicationPaid(
     const { data: nodes } = await db
       .from('lbs_nodes')
       .select('id, title, status')
-      .eq('submitted_by', userId)
+      .eq('creator_id', userId)
       .in('status', ['pending', 'pending_payment', 'draft'])
       .order('created_at', { ascending: false })
       .limit(1);
@@ -292,11 +292,9 @@ async function handleLbsApplicationPaid(
     .update({
       review_status: 'pending',
       status: 'under_review',
-      payment_method: 'stripe',
-      stripe_session_id: sessionId,
     })
     .eq('id', node.id)
-    .eq('submitted_by', userId);
+    .eq('creator_id', userId);
 
   if (error) {
     console.error('[stripe/webhook] LBS node update failed:', error.message);

@@ -23,7 +23,7 @@ interface LbsNode {
   title: string;
   review_status: string | null;
   is_online: boolean | null;
-  submitted_by: string | null;
+  creator_id: string | null;
 }
 
 const MAX_SCREENINGS = 18;
@@ -229,7 +229,7 @@ export default function ScreeningsPage() {
     const load = async () => {
       const { data, error } = await supabase
         .from('lbs_nodes')
-        .select('id, title, review_status, is_online, submitted_by')
+        .select('id, title, review_status, is_online, creator_id')
         .eq('id', nodeId)
         .maybeSingle();
       if (error) console.error('[screenings] lbs_nodes fetch error:', error.message);

@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       .from('lbs_nodes')
       .select('id')
       .eq('id', nodeId)
-      .eq('submitted_by', userId)
+      .eq('creator_id', userId)
       .maybeSingle();
 
     if (!node) {

@@ -40,9 +40,9 @@ interface LbsNode {
   start_time: string | null; end_time: string | null; contract_req: string | null;
   film_ids: string[] | null; created_at: string;
   country?: string | null; city?: string | null; venue?: string | null;
-  status?: string | null; radius?: number | null; ticket_price_aif?: number | null;
+  status?: string | null; ticket_price?: number | null;
   poster_url?: string | null; background_url?: string | null; description?: string | null;
-  submitted_by?: string | null; payment_method?: string | null;
+  creator_id?: string | null; review_status?: string | null;
 }
 interface LbsFilmRow {
   id: string;
@@ -1237,11 +1237,11 @@ function ReviewLbsTab({ pushToast }: { t: T; pushToast: (s: string, ok?: boolean
 
                     {/* 5 · 策展人 */}
                     <td className="px-4 py-4 align-top min-w-[130px]">
-                      {node.submitted_by ? (
+                      {node.creator_id ? (
                         <div>
-                          <p className="text-sm text-neutral-900 leading-tight">{shortDid(node.submitted_by)}</p>
+                          <p className="text-sm text-neutral-900 leading-tight">{shortDid(node.creator_id)}</p>
                           <p className="text-[10px] font-mono text-neutral-500 break-all max-w-[128px] mt-0.5">
-                            {node.submitted_by}
+                            {node.creator_id}
                           </p>
                         </div>
                       ) : <span className="text-xs text-neutral-300">—</span>}
@@ -1333,11 +1333,9 @@ function ReviewLbsTab({ pushToast }: { t: T; pushToast: (s: string, ok?: boolean
               <pre className="text-[11px] font-mono text-neutral-700 bg-neutral-50 border border-neutral-200 rounded-xl p-4 whitespace-pre-wrap break-all leading-relaxed">
                 {JSON.stringify({
                   地圖座標:    { 緯度: dataPoolNode.lat,    經度: dataPoolNode.lng },
-                  解鎖半徑:    `${dataPoolNode.radius ?? "—"} m`,
                   智能合約策略: dataPoolNode.contract_req ?? "—",
-                  票價_AIF:   dataPoolNode.ticket_price_aif !== null && dataPoolNode.ticket_price_aif !== undefined
-                               ? `${dataPoolNode.ticket_price_aif} AIF` : "免費",
-                  支付方式:    dataPoolNode.payment_method ?? "—",
+                  票價_AIF:   dataPoolNode.ticket_price !== null && dataPoolNode.ticket_price !== undefined
+                               ? `${dataPoolNode.ticket_price} AIF` : "免費",
                   地址:        dataPoolNode.location ?? "—",
                   城市場地:    [dataPoolNode.country, dataPoolNode.city, dataPoolNode.venue].filter(Boolean).join(" · ") || "—",
                   描述:        dataPoolNode.description ?? "—",
@@ -1691,8 +1689,7 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
     if (form.country) payload.country = form.country;
     if (form.city) payload.city = form.city;
     if (form.venue) payload.venue = form.venue;
-    if (form.unlockRadius) payload.unlock_radius = Number(form.unlockRadius);
-    if (form.ticketAif) payload.ticket_price_aif = Number(form.ticketAif);
+    if (form.ticketAif) payload.ticket_price = Number(form.ticketAif);
     if (form.start_time) payload.start_time = form.start_time;
     if (form.end_time) payload.end_time = form.end_time;
     if (form.description) payload.description = form.description;
@@ -1947,7 +1944,7 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
                 🗓 {n.start_time ?? "-"} — {n.end_time ?? "-"}
               </p>
               <p className="text-xs text-neutral-500">
-                🎟 {(n.ticket_price_aif ?? 0) > 0 ? `付費 (AIF ${n.ticket_price_aif})` : "免費"} | 🎬 影片數量: {(n.film_ids ?? []).length} 部
+                🎟 {(n.ticket_price ?? 0) > 0 ? `付費 (AIF ${n.ticket_price})` : "免費"} | 🎬 影片數量: {(n.film_ids ?? []).length} 部
               </p>
             </div>
             <div className="flex flex-col gap-1.5 shrink-0">
@@ -2079,7 +2076,7 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
                   <label className="text-xs text-neutral-500 mb-1 block">解鎖半徑（米）</label>
                   <input
                     className="w-full rounded-lg border border-neutral-200 bg-neutral-100 px-3 py-2 text-sm text-neutral-400 cursor-not-allowed"
-                    value={editingLbsData.radius != null ? `${editingLbsData.radius} m` : "—"}
+                    value="—"
                     disabled
                   />
                 </div>

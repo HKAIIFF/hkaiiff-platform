@@ -13,7 +13,7 @@ interface LbsNode {
   is_online: boolean | null;
   rejection_reason: string | null;
   created_at: string;
-  submitted_by: string | null;
+  creator_id: string | null;
 }
 
 /* ─── 沙漏动画SVG ──────────────────────────────────────────────────────────── */
@@ -67,7 +67,7 @@ export default function ReviewPendingPage() {
     const fetchNode = async () => {
       const { data } = await supabase
         .from('lbs_nodes')
-        .select('id, title, review_status, is_online, rejection_reason, created_at, submitted_by')
+        .select('id, title, review_status, is_online, rejection_reason, created_at, creator_id')
         .eq('id', nodeId)
         .maybeSingle();
       setNode(data as LbsNode | null);

@@ -11,11 +11,10 @@ interface LbsNode {
   location: string | null;
   lat: number | null;
   lng: number | null;
-  radius: number | null;
   start_time: string | null;
   end_time: string | null;
   contract_req: string | null;
-  ticket_price_aif: number | null;
+  ticket_price: number | null;
   film_ids: string[] | null;
   poster_url: string | null;
   background_url: string | null;
@@ -26,8 +25,7 @@ interface LbsNode {
   country: string | null;
   city: string | null;
   venue: string | null;
-  submitted_by: string | null;
-  payment_method: string | null;
+  creator_id: string | null;
   created_at: string;
   screening_count?: number;
 }
@@ -197,7 +195,7 @@ function DetailDrawer({
     load();
   }, [node.id]);
 
-  const curatorName = userInfo?.display_name || userInfo?.name || shortDid(node.submitted_by);
+  const curatorName = userInfo?.display_name || userInfo?.name || shortDid(node.creator_id);
 
   return (
     <div
@@ -348,7 +346,7 @@ export default function LBSNodesPage() {
       setAllNodes(nodes);
 
       // 批量加载策展人信息
-      const creatorIds = [...new Set(nodes.map((n) => n.submitted_by).filter(Boolean))] as string[];
+      const creatorIds = [...new Set(nodes.map((n) => n.creator_id).filter(Boolean))] as string[];
       if (creatorIds.length > 0) {
         const { data: users } = await supabase
           .from("users")
@@ -393,11 +391,11 @@ export default function LBSNodesPage() {
     }
 
     // 发送站内信通知策展人
-    if (node?.submitted_by) {
+    if (node?.creator_id) {
       supabase
         .from("notifications")
         .insert({
-          user_id: node.submitted_by,
+          user_id: node.creator_id,
           type: "lbs_rejected",
           title: "您的 LBS 影展申请未通过审核",
           message: `您的 LBS 影展「${node.title ?? "影展"}」未通过审核。原因：${reason}`,
@@ -446,7 +444,7 @@ export default function LBSNodesPage() {
     // 搜索
     if (search.trim()) {
       const q = search.toLowerCase();
-      const userInfo = n.submitted_by ? userMap.get(n.submitted_by) : null;
+      const userInfo = n.creator_id ? userMap.get(n.creator_id) : null;
       const curatorName = userInfo?.display_name || userInfo?.name || "";
       return (
         (n.title ?? "").toLowerCase().includes(q) ||
@@ -557,8 +555,8 @@ export default function LBSNodesPage() {
                 const isPending = node.review_status === "pending";
                 const isApproved = node.review_status === "approved";
                 const isProcessing = processingId === node.id;
-                const userInfo = node.submitted_by ? userMap.get(node.submitted_by) ?? null : null;
-                const curatorName = userInfo?.display_name || userInfo?.name || shortDid(node.submitted_by);
+                const userInfo = node.creator_id ? userMap.get(node.creator_id) ?? null : null;
+                const curatorName = userInfo?.display_name || userInfo?.name || shortDid(node.creator_id);
 
                 return (
                   <tr
@@ -589,8 +587,8 @@ export default function LBSNodesPage() {
                     <td className="px-4 py-3 align-top min-w-[120px]">
                       <div>
                         <p className="text-xs text-neutral-800 font-medium">{curatorName}</p>
-                        {node.submitted_by && (
-                          <p className="text-[9px] font-mono text-neutral-400 mt-0.5">{shortDid(node.submitted_by)}</p>
+                        {node.creator_id && (
+                          <p className="text-[9px] font-mono text-neutral-400 mt-0.5">{shortDid(node.creator_id)}</p>
                         )}
                       </div>
                     </td>
@@ -703,7 +701,7 @@ export default function LBSNodesPage() {
       {detailNode && (
         <DetailDrawer
           node={detailNode}
-          userInfo={detailNode.submitted_by ? userMap.get(detailNode.submitted_by) ?? null : null}
+          userInfo={detailNode.creator_id ? userMap.get(detailNode.creator_id) ?? null : null}
           onClose={() => setDetailNode(null)}
         />
       )}

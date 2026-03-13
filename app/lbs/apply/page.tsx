@@ -419,22 +419,21 @@ export default function LbsApplyPage() {
 
     setIsSavingDraft(true);
 
+    // 只包含 lbs_nodes 表实际存在的列（以数据库 schema 为准）
     const dbPayload = {
       title: form.title.trim(),
       location: form.location.trim(),
       lat: parseFloat(form.lat),
       lng: parseFloat(form.lng),
-      unlock_radius: form.unlockRadius,
       start_time: form.startTime || null,
       end_time: form.endTime || null,
       description: form.description.trim() || null,
       contract_req: form.contractStrategy,
-      ticket_price_aif: form.ticketPriceAif > 0 ? form.ticketPriceAif : null,
+      ticket_price: form.ticketPriceAif > 0 ? form.ticketPriceAif : null,
       poster_url: form.posterUrl || null,
       background_url: form.backgroundUrl || null,
       status: 'draft',
-      state: 'locked_geo',
-      submitted_by: user.id,
+      creator_id: user.id,
     };
 
     try {

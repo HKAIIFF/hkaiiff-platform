@@ -147,7 +147,7 @@ async function handleLbsLicensePaid(userId: string, nodeId?: string | null): Pro
       .from('lbs_nodes')
       .select('id, title, status')
       .eq('id', nodeId)
-      .eq('submitted_by', userId)
+      .eq('creator_id', userId)
       .maybeSingle();
     node = data ?? null;
   }
@@ -157,7 +157,7 @@ async function handleLbsLicensePaid(userId: string, nodeId?: string | null): Pro
     const { data: nodes } = await adminSupabase
       .from('lbs_nodes')
       .select('id, title, status')
-      .eq('submitted_by', userId)
+      .eq('creator_id', userId)
       .in('status', ['draft', 'pending', 'pending_payment'])
       .order('created_at', { ascending: false })
       .limit(1);
@@ -168,9 +168,9 @@ async function handleLbsLicensePaid(userId: string, nodeId?: string | null): Pro
 
   await adminSupabase
     .from('lbs_nodes')
-    .update({ review_status: 'pending', status: 'under_review', payment_method: 'aif' })
+    .update({ review_status: 'pending', status: 'under_review' })
     .eq('id', node.id)
-    .eq('submitted_by', userId);
+    .eq('creator_id', userId);
 
   await sendMessage({
     userId,

@@ -34,17 +34,16 @@ function CompleteContent() {
     const processPayment = async () => {
       try {
         // ── 情况1：已有草稿节点（新流程）────────────────────────────────────
+        // 注：Stripe Webhook 已在服务端更新节点状态，这里只做客户端兜底
         if (paramNodeId) {
           const { error } = await supabase
             .from('lbs_nodes')
             .update({
               review_status: 'pending',
               status: 'under_review',
-              payment_method: 'stripe',
-              stripe_session_id: sessionId,
             })
             .eq('id', paramNodeId)
-            .eq('submitted_by', user.id);
+            .eq('creator_id', user.id);
 
           if (error) {
             setErrorMsg(error.message);
@@ -88,12 +87,9 @@ function CompleteContent() {
           .from('lbs_nodes')
           .insert({
             ...formData,
-            submitted_by: user.id,
-            stripe_session_id: sessionId,
+            creator_id: user.id,
             status: 'under_review',
             review_status: 'pending',
-            state: 'locked_geo',
-            payment_method: 'stripe',
           })
           .select('id')
           .single();

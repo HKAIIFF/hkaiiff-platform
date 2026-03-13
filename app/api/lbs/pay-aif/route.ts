@@ -51,13 +51,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Failed to deduct AIF: ${deductErr.message}` }, { status: 500 });
     }
 
-    // Insert LBS node record
+    // Insert LBS node record（只写 lbs_nodes 实际存在的列）
     const { error: insertErr } = await supabaseAdmin.from('lbs_nodes').insert({
       ...formData,
-      submitted_by: userId,
+      creator_id: userId,
       status: 'pending',
-      state: 'locked_geo',
-      payment_method: 'aif',
     });
 
     if (insertErr) {

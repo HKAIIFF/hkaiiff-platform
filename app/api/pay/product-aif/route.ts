@@ -100,7 +100,7 @@ async function handleFilmEntryPaid(userId: string, filmId: string): Promise<void
     .update({
       payment_status: 'paid',
       payment_method: 'aif',
-      status: 'pending_review',
+      status: 'pending',
     })
     .eq('id', filmId)
     .eq('user_id', userId);
@@ -124,8 +124,8 @@ async function handleLbsLicensePaid(userId: string): Promise<void> {
   const { data: nodes } = await adminSupabase
     .from('lbs_nodes')
     .select('id, title, status')
-    .eq('submitted_by', userId)
-    .in('status', ['pending', 'pending_payment'])
+    .eq('creator_id', userId)
+    .in('status', ['draft', 'pending', 'pending_payment'])
     .order('created_at', { ascending: false })
     .limit(1);
 
@@ -138,11 +138,11 @@ async function handleLbsLicensePaid(userId: string): Promise<void> {
   const { error } = await adminSupabase
     .from('lbs_nodes')
     .update({
+      review_status: 'pending',
       status: 'under_review',
-      payment_method: 'aif',
     })
     .eq('id', node.id)
-    .eq('submitted_by', userId);
+    .eq('creator_id', userId);
 
   if (error) {
     console.error('[pay/product-aif] LBS node update failed:', error.message);
