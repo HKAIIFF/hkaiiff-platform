@@ -869,24 +869,23 @@ export default function MePage() {
                       : 'border-[#444]'
                 }`}
             />
-            {/* 多重身份 V 徽章：X 風格勾號，絕對定位在頭像右下角 */}
+            {/* 多重身份認證徽章：X 平台花型，絕對定位在頭像右下角 */}
             {(dbProfile?.verified_identities ?? []).length > 0 && (
               <div className="absolute -bottom-1 -right-1 z-10 flex gap-0.5">
-                {(dbProfile?.verified_identities ?? []).includes('creator') && (
-                  <div className="w-5 h-5 rounded-full bg-[#FFD700] border-[2.5px] border-black flex items-center justify-center" title="認證創作人">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" className="w-2.5 h-2.5"><g fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></g></svg>
-                  </div>
-                )}
-                {(dbProfile?.verified_identities ?? []).includes('curator') && (
-                  <div className="w-5 h-5 rounded-full bg-[#1D9BF0] border-[2.5px] border-black flex items-center justify-center" title="認證策展人">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" className="w-2.5 h-2.5"><g fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></g></svg>
-                  </div>
-                )}
-                {(dbProfile?.verified_identities ?? []).includes('institution') && (
-                  <div className="w-5 h-5 rounded-full bg-[#829AAB] border-[2.5px] border-black flex items-center justify-center" title="認證機構">
-                    <svg viewBox="0 0 24 24" aria-hidden="true" className="w-2.5 h-2.5"><g fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></g></svg>
-                  </div>
-                )}
+                {(['creator', 'curator', 'institution'] as const).map((id) => {
+                  if (!(dbProfile?.verified_identities ?? []).includes(id)) return null;
+                  const color = id === 'creator' ? '#FFD700' : id === 'curator' ? '#1D9BF0' : '#829AAB';
+                  const title = id === 'creator' ? '認證創作人' : id === 'curator' ? '認證策展人' : '認證機構';
+                  return (
+                    <span key={id} title={title} className="relative inline-flex items-center justify-center w-5 h-5" style={{ filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.4))' }}>
+                      <svg viewBox="0 0 22 22" aria-hidden="true" className="w-5 h-5">
+                        <g>
+                          <path fill={color} d="M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816zM9.662 14.85l-3.429-3.428 1.293-1.302 2.135 2.14 4.735-4.64 1.28 1.313z"/>
+                        </g>
+                      </svg>
+                    </span>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -94,6 +94,62 @@ function DarkInput({
   );
 }
 
+/* ─── DateTime Picker Field ─────────────────────────────────────────────── */
+
+function DateTimePickerField({ label, value, onChange, required }: {
+  label: string; value: string; onChange: (v: string) => void; required?: boolean;
+}) {
+  const dateVal = value ? value.split('T')[0] : '';
+  const hourVal = value ? value.split('T')[1]?.slice(0, 2) || '' : '';
+  const minVal = value ? value.split('T')[1]?.slice(3, 5) || '' : '';
+
+  const update = (d: string, h: string, m: string) => {
+    if (d) onChange(`${d}T${h.padStart(2, '0')}:${m.padStart(2, '0')}`);
+  };
+
+  return (
+    <div className="space-y-2">
+      <label className="text-[10px] font-mono text-[#666] tracking-widest uppercase flex items-center gap-1">
+        {label}{required && <span className="text-[#FFC107]">*</span>}
+      </label>
+      <div className="flex gap-2 items-center">
+        <input
+          type="date"
+          value={dateVal}
+          onChange={(e) => update(e.target.value, hourVal, minVal)}
+          className="flex-1 bg-[#0a0a0a] border border-[#333] text-white text-sm px-3 py-2.5 rounded-lg outline-none focus:border-[#FFC107]/50 font-mono [color-scheme:dark]"
+        />
+        <div className="flex items-center gap-1 bg-[#0a0a0a] border border-[#333] rounded-lg px-3 py-2.5">
+          <input
+            type="number"
+            min={0}
+            max={23}
+            value={hourVal}
+            onChange={(e) => update(dateVal, e.target.value, minVal)}
+            placeholder="HH"
+            className="w-8 bg-transparent text-white text-sm outline-none font-mono text-center"
+          />
+          <span className="text-[#666] font-mono">:</span>
+          <input
+            type="number"
+            min={0}
+            max={59}
+            value={minVal}
+            onChange={(e) => update(dateVal, hourVal, e.target.value)}
+            placeholder="MM"
+            className="w-8 bg-transparent text-white text-sm outline-none font-mono text-center"
+          />
+        </div>
+      </div>
+      {value && (
+        <p className="text-[10px] text-[#FFC107] font-mono">
+          {new Date(value).toLocaleString('zh-HK', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /* ─── Upload Zone ────────────────────────────────────────────────────────── */
 
 function UploadZone({
@@ -189,7 +245,7 @@ function SuccessScreen({ lang, onBack }: { lang: string; onBack: () => void }) {
 export default function LbsApplyPage() {
   const { user, authenticated, ready, getAccessToken } = usePrivy();
   const router = useRouter();
-  const { lang, setLang } = useI18n();
+  const { lang } = useI18n();
   const { showToast } = useToast();
 
   const [step, setStep] = useState<1 | 2>(1);
@@ -468,26 +524,16 @@ export default function LbsApplyPage() {
   /* ─────────────────────────────────────────────────────────────────────── */
   return (
     <div className="min-h-screen bg-[#040404] px-4 pb-32" style={{ paddingTop: 'max(72px, calc(env(safe-area-inset-top) + 56px))' }}>
-      {/* ── 頂部導航列：返回 + 語言切換 ─────────────────────────────── */}
-      <div
-        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4"
-        style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}
+      {/* ── 返回按鈕（左上角固定） ───────────────────────────────────── */}
+      <button
+        onClick={() => router.back()}
+        className="fixed z-50 w-9 h-9 rounded-full backdrop-blur-md bg-white/10 border border-white/20 flex items-center justify-center text-white"
+        style={{ top: 'max(16px, env(safe-area-inset-top))', left: '16px' }}
       >
-        <button
-          onClick={() => router.back()}
-          className="w-9 h-9 rounded-full backdrop-blur-md bg-white/10 border border-white/20 flex items-center justify-center text-white"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M19 12H5M12 5l-7 7 7 7"/>
-          </svg>
-        </button>
-        <button
-          onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
-          className="w-9 h-9 rounded-full backdrop-blur-md bg-white/10 border border-white/20 flex items-center justify-center text-white text-xs font-mono"
-        >
-          {lang === 'zh' ? 'EN' : '中'}
-        </button>
-      </div>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          <path d="M19 12H5M12 5l-7 7 7 7"/>
+        </svg>
+      </button>
       <div className="max-w-2xl mx-auto">
 
         {/* ── Page Header ─────────────────────────────────────────────── */}
@@ -617,19 +663,17 @@ export default function LbsApplyPage() {
             <i className="fas fa-clock text-[#FFC107]/30" />
             {lang === 'zh' ? '時間範圍' : 'TIME RANGE'}
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <DarkInput
+          <div className="space-y-4">
+            <DateTimePickerField
               label={lang === 'zh' ? '開始時間' : 'Start Time'}
               value={form.startTime}
               onChange={setField('startTime')}
-              type="datetime-local"
               required
             />
-            <DarkInput
+            <DateTimePickerField
               label={lang === 'zh' ? '結束時間' : 'End Time'}
               value={form.endTime}
               onChange={setField('endTime')}
-              type="datetime-local"
               required
             />
           </div>
