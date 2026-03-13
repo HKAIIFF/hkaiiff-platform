@@ -14,7 +14,7 @@
  *  1. 將 creator_applications.status 設為 'approved'
  *  2. 設定 expires_at = NOW() + INTERVAL '1 year'
  *  3. 將 identity_type 加入 users.verified_identities 陣列
- *  4. 同步更新 users.verification_status / verification_type（兼容舊版欄位）
+ *  4. 同步更新 users.verification_status（兼容舊版欄位）
  *
  * 退回（reject）邏輯：
  *  1. 將 creator_applications.status 設為 'rejected'
@@ -129,7 +129,6 @@ export async function POST(req: NextRequest) {
         verified_identities: updatedIdentities,
         // 兼容舊版欄位
         verification_status: 'approved',
-        verification_type: identityType,
         username_locked: true,
         rejection_reason: null,
         // 強制將申請表裡的認證名稱覆寫為用戶顯示名稱（防止用戶自行篡改）

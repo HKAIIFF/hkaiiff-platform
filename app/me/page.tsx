@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { usePrivy, useCreateWallet } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/app/context/I18nContext";
@@ -71,6 +71,7 @@ export default function MePage() {
     verification_type: 'creator' | 'institution' | 'curator' | null;
     rejection_reason: string | null;
     verified_identities: string[];
+    username_locked: boolean;
   } | null>(null);
 
   /** 用戶所有的身份申請記錄（含多種身份） */
@@ -447,6 +448,7 @@ export default function MePage() {
         verification_type: null as 'creator' | 'institution' | 'curator' | null,
         rejection_reason: null as string | null,
         verified_identities: [] as string[],
+        username_locked: false,
       };
 
       try {
@@ -475,7 +477,7 @@ export default function MePage() {
       try {
         const { data: profileRow, error: profileError } = await supabase
           .from('users')
-          .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team, deposit_address, wallet_index, verification_status, verification_type, rejection_reason, verified_identities')
+          .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team, deposit_address, wallet_index, verification_status, verification_type, rejection_reason, verified_identities, username_locked')
           .eq('id', userId)
           .single();
 
@@ -483,7 +485,7 @@ export default function MePage() {
           console.error('❌ Failed to fetch profile:', profileError.message);
           setDbProfile((prev) => prev ?? { ...defaultProfile, verified_identities: [] });
         } else if (profileRow) {
-          setDbProfile({ ...profileRow, verified_identities: profileRow.verified_identities ?? [] });
+          setDbProfile({ ...profileRow, verified_identities: profileRow.verified_identities ?? [], username_locked: profileRow.username_locked ?? false });
 
           // Step 2b: 加載多重身份申請記錄
           const { data: apps } = await supabase
@@ -910,17 +912,36 @@ export default function MePage() {
               );
             })}
           </div>
-          <div className="text-[9px] text-gray-400 font-mono mb-2 tracking-wider uppercase pr-14">
+          <div className="flex flex-wrap items-center gap-1.5 mb-2 pr-14">
             {dbProfile ? (() => {
               const ids = dbProfile.verified_identities ?? [];
-              if (ids.length === 0) return '普通用戶';
-              const labelMap: Record<string, string> = {
-                creator: '認證創作人',
-                curator: '認證策展人',
-                institution: '認證機構',
+              if (ids.length === 0) {
+                return <span className="text-[9px] text-gray-400 font-mono tracking-wider uppercase">普通用戶</span>;
+              }
+              const cfg: Record<string, { label: string; badge: React.ReactElement }> = {
+                creator: {
+                  label: '認證創作人',
+                  badge: <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-br from-yellow-400 to-amber-500 shadow-lg border-2 border-white text-white text-[9px] font-black">V</span>,
+                },
+                curator: {
+                  label: '認證策展人',
+                  badge: <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 shadow-lg border-2 border-white text-white text-[9px] font-black">V</span>,
+                },
+                institution: {
+                  label: '認證機構',
+                  badge: <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gradient-to-br from-blue-600 to-cyan-400 shadow-lg border-2 border-white text-white text-[9px] font-black">V</span>,
+                },
               };
-              return ids.map((id) => labelMap[id] ?? id).join(' · ');
-            })() : '...'}
+              return ids.map((id) => {
+                const c = cfg[id];
+                if (!c) return null;
+                return (
+                  <span key={id} className="inline-flex items-center gap-1 text-[9px] text-gray-400 font-mono tracking-wider uppercase">
+                    {c.badge}{c.label}
+                  </span>
+                );
+              });
+            })() : <span className="text-[9px] text-gray-400 font-mono tracking-wider">...</span>}
           </div>
           {/* Wallet address + Verify button — full width, no padding constraint */}
           <div className="flex flex-wrap items-center gap-2 mt-1">
@@ -1733,13 +1754,16 @@ export default function MePage() {
 
                 {/* Nickname Input */}
                 {(() => {
+                  const isUsernameLocked = dbProfile?.username_locked === true;
                   const isNameLocked =
+                    isUsernameLocked ||
                     (dbProfile?.verified_identities?.length ?? 0) > 0 ||
                     identityApplications.some(
                       (a) => a.status === 'pending' || a.status === 'awaiting_payment'
                     );
-                  const lockReason =
-                    (dbProfile?.verified_identities?.length ?? 0) > 0
+                  const lockReason = isUsernameLocked
+                    ? '已認證，名稱已鎖定'
+                    : (dbProfile?.verified_identities?.length ?? 0) > 0
                       ? '已認證，名稱由認證系統管理'
                       : '認證審核中，暫不可修改';
                   return (
@@ -1762,7 +1786,7 @@ export default function MePage() {
                         disabled={isNameLocked}
                         className={`w-full font-mono text-sm px-3 py-2.5 rounded-lg outline-none transition-all
                           ${isNameLocked
-                            ? 'bg-[#111] border border-yellow-900/30 text-gray-500 cursor-not-allowed opacity-60 select-none'
+                            ? 'bg-gray-100 border border-yellow-900/30 text-gray-500 cursor-not-allowed opacity-60 select-none'
                             : 'bg-[#0d0d0d] border border-[#2a2a2a] text-white focus:border-signal focus:shadow-[0_0_12px_rgba(204,255,0,0.15)] placeholder:text-gray-600'
                           }`}
                       />
@@ -1909,7 +1933,9 @@ export default function MePage() {
                 CANCEL
               </button>
               {(() => {
+                const isUsernameLocked = dbProfile?.username_locked === true;
                 const isNameLocked =
+                  isUsernameLocked ||
                   (dbProfile?.verified_identities?.length ?? 0) > 0 ||
                   identityApplications.some(
                     (a) => a.status === 'pending' || a.status === 'awaiting_payment'
@@ -1924,7 +1950,7 @@ export default function MePage() {
                                  border border-yellow-900/40 cursor-not-allowed opacity-70 flex items-center justify-center gap-1.5"
                     >
                       <i className="fas fa-lock text-yellow-600 text-[10px]" />
-                      {isFullyVerified ? '🔒 身份已認證，資料已鎖定' : '🔒 審核中，資料已鎖定'}
+                      {isUsernameLocked ? '🔒 已認證，名稱已鎖定' : isFullyVerified ? '🔒 身份已認證，資料已鎖定' : '🔒 審核中，資料已鎖定'}
                     </button>
                   );
                 }
