@@ -48,8 +48,10 @@ const IDENTITY_CONFIG: Record<string, {
 };
 
 const CheckIcon = () => (
-  <svg viewBox="0 0 24 24" className="w-2 h-2 fill-white">
-    <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" />
+  <svg viewBox="0 0 24 24" aria-hidden="true" className="w-2.5 h-2.5">
+    <g fill="white">
+      <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+    </g>
   </svg>
 );
 
@@ -116,7 +118,7 @@ export default function IdentityBadges({
               key={identity}
               title={`${cfg.label}已認證`}
               style={{ backgroundColor: cfg.dotBg }}
-              className="w-4 h-4 rounded-full border-2 border-black flex items-center justify-center"
+              className="w-5 h-5 rounded-full border-[2.5px] border-black flex items-center justify-center"
             >
               <CheckIcon />
             </span>
@@ -138,7 +140,7 @@ export default function IdentityBadges({
               key={identity}
               title={`${cfg.label}已認證`}
               style={{ backgroundColor: cfg.dotBg }}
-              className="w-4 h-4 rounded-full border-2 border-black flex items-center justify-center"
+              className="w-5 h-5 rounded-full border-[2.5px] border-black flex items-center justify-center"
             >
               <CheckIcon />
             </span>

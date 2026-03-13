@@ -58,15 +58,38 @@ function DarkInput({
         {label}
         {required && <span className="text-[#FFC107]">*</span>}
       </label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        className="w-full bg-[#0a0a0a] border border-[#333] text-white text-sm px-3 py-2.5 rounded-lg
-                   outline-none focus:border-[#FFC107]/50 focus:shadow-[0_0_0_2px_rgba(255,193,7,0.08)]
-                   transition-all placeholder-[#444] font-mono"
-      />
+      {type === 'datetime-local' ? (
+        <div className="flex gap-2">
+          <input
+            type="date"
+            value={value ? String(value).split('T')[0] : ''}
+            onChange={(e) => {
+              const time = value ? String(value).split('T')[1] || '00:00' : '00:00';
+              onChange(`${e.target.value}T${time}`);
+            }}
+            className="flex-1 bg-[#0a0a0a] border border-[#333] text-white text-sm px-3 py-2.5 rounded-lg outline-none focus:border-[#FFC107]/50 transition-all font-mono [color-scheme:dark]"
+          />
+          <input
+            type="time"
+            value={value ? String(value).split('T')[1]?.slice(0, 5) || '' : ''}
+            onChange={(e) => {
+              const date = value ? String(value).split('T')[0] : new Date().toISOString().split('T')[0];
+              onChange(`${date}T${e.target.value}`);
+            }}
+            className="w-28 bg-[#0a0a0a] border border-[#333] text-white text-sm px-3 py-2.5 rounded-lg outline-none focus:border-[#FFC107]/50 transition-all font-mono [color-scheme:dark]"
+          />
+        </div>
+      ) : (
+        <input
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full bg-[#0a0a0a] border border-[#333] text-white text-sm px-3 py-2.5 rounded-lg
+                     outline-none focus:border-[#FFC107]/50 focus:shadow-[0_0_0_2px_rgba(255,193,7,0.08)]
+                     transition-all placeholder-[#444] font-mono"
+        />
+      )}
     </div>
   );
 }
@@ -166,7 +189,7 @@ function SuccessScreen({ lang, onBack }: { lang: string; onBack: () => void }) {
 export default function LbsApplyPage() {
   const { user, authenticated, ready, getAccessToken } = usePrivy();
   const router = useRouter();
-  const { lang } = useI18n();
+  const { lang, setLang } = useI18n();
   const { showToast } = useToast();
 
   const [step, setStep] = useState<1 | 2>(1);
@@ -412,16 +435,6 @@ export default function LbsApplyPage() {
           <div className="mt-5 mx-auto h-px w-24 bg-gradient-to-r from-transparent via-[#FFC107]/60 to-transparent" />
         </div>
 
-        {/* ── AIF 餘額提示 ─────────────────────────────────────────────── */}
-        {!isLoadingBalance && (
-          <div className="w-full max-w-sm flex items-center justify-between px-4 py-2.5 bg-[#080808] border border-[#1a1a1a] rounded-xl mb-4">
-            <span className="font-mono text-[10px] text-[#444] tracking-widest">AIF BALANCE</span>
-            <span className={`font-mono text-sm font-bold ${aifBalance > 0 ? 'text-[#CCFF00]' : 'text-red-500'}`}>
-              {aifBalance.toLocaleString()} AIF
-            </span>
-          </div>
-        )}
-
         {/* ── UniversalCheckout ─────────────────────────────────────────── */}
         <div className="w-full max-w-sm flex flex-col items-center gap-4">
           <UniversalCheckout
@@ -454,14 +467,27 @@ export default function LbsApplyPage() {
   /* STEP 1 — Application Form                                               */
   /* ─────────────────────────────────────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-[#040404] px-4 pt-8 pb-32">
-      {/* ── 毛玻璃返回按鈕 ──────────────────────────────────────────── */}
-      <button
-        onClick={() => router.push('/me')}
-        className="fixed top-4 left-4 z-50 backdrop-blur-md bg-white/20 border border-white/30 rounded-full w-10 h-10 flex items-center justify-center text-white shadow-lg"
+    <div className="min-h-screen bg-[#040404] px-4 pb-32" style={{ paddingTop: 'max(72px, calc(env(safe-area-inset-top) + 56px))' }}>
+      {/* ── 頂部導航列：返回 + 語言切換 ─────────────────────────────── */}
+      <div
+        className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4"
+        style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}
       >
-        ←
-      </button>
+        <button
+          onClick={() => router.back()}
+          className="w-9 h-9 rounded-full backdrop-blur-md bg-white/10 border border-white/20 flex items-center justify-center text-white"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M19 12H5M12 5l-7 7 7 7"/>
+          </svg>
+        </button>
+        <button
+          onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}
+          className="w-9 h-9 rounded-full backdrop-blur-md bg-white/10 border border-white/20 flex items-center justify-center text-white text-xs font-mono"
+        >
+          {lang === 'zh' ? 'EN' : '中'}
+        </button>
+      </div>
       <div className="max-w-2xl mx-auto">
 
         {/* ── Page Header ─────────────────────────────────────────────── */}

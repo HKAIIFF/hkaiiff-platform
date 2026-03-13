@@ -630,15 +630,15 @@ export default function MePage() {
     }
   }, [authenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Supabase Realtime：自動監聽當前用戶的 aif_balance 變化 ──────────────
+  // ── Supabase Realtime：監聽整個 users 表 UPDATE，同步所有相關狀態 ──────────
   useEffect(() => {
     if (!authenticated || !user?.id) return;
 
-    const channelName = `me-aif-balance-${user.id}`;
+    const channelName = `me-user-updates-${user.id}`;
 
     const channel = supabase
       .channel(channelName)
-      .on<{ aif_balance: number }>(
+      .on(
         'postgres_changes',
         {
           event: 'UPDATE',
@@ -647,12 +647,17 @@ export default function MePage() {
           filter: `id=eq.${user.id}`,
         },
         (payload) => {
-          const newBalance = payload.new?.aif_balance;
-          if (typeof newBalance === 'number') {
-            setDbProfile((prev) =>
-              prev ? { ...prev, aif_balance: newBalance } : prev
-            );
-            // 觸發短暫閃爍動畫，告知用戶數值已自動更新
+          const newData = payload.new as any;
+          if (!newData) return;
+          setDbProfile((prev) => prev ? {
+            ...prev,
+            aif_balance: newData.aif_balance ?? prev.aif_balance,
+            display_name: newData.display_name ?? prev.display_name,
+            verified_identities: newData.verified_identities ?? prev.verified_identities,
+            verification_status: newData.verification_status ?? prev.verification_status,
+            username_locked: newData.username_locked ?? prev.username_locked,
+          } : prev);
+          if (typeof newData.aif_balance === 'number') {
             setAifFlash(true);
             setTimeout(() => setAifFlash(false), 900);
           }
@@ -868,18 +873,18 @@ export default function MePage() {
             {(dbProfile?.verified_identities ?? []).length > 0 && (
               <div className="absolute -bottom-1 -right-1 z-10 flex gap-0.5">
                 {(dbProfile?.verified_identities ?? []).includes('creator') && (
-                  <div className="w-4 h-4 rounded-full bg-[#FFD700] border-2 border-black flex items-center justify-center" title="認證創作人">
-                    <svg viewBox="0 0 24 24" className="w-2 h-2 fill-white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                  <div className="w-5 h-5 rounded-full bg-[#FFD700] border-[2.5px] border-black flex items-center justify-center" title="認證創作人">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" className="w-2.5 h-2.5"><g fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></g></svg>
                   </div>
                 )}
                 {(dbProfile?.verified_identities ?? []).includes('curator') && (
-                  <div className="w-4 h-4 rounded-full bg-[#1D9BF0] border-2 border-black flex items-center justify-center" title="認證策展人">
-                    <svg viewBox="0 0 24 24" className="w-2 h-2 fill-white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                  <div className="w-5 h-5 rounded-full bg-[#1D9BF0] border-[2.5px] border-black flex items-center justify-center" title="認證策展人">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" className="w-2.5 h-2.5"><g fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></g></svg>
                   </div>
                 )}
                 {(dbProfile?.verified_identities ?? []).includes('institution') && (
-                  <div className="w-4 h-4 rounded-full bg-[#829AAB] border-2 border-black flex items-center justify-center" title="認證機構">
-                    <svg viewBox="0 0 24 24" className="w-2 h-2 fill-white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+                  <div className="w-5 h-5 rounded-full bg-[#829AAB] border-[2.5px] border-black flex items-center justify-center" title="認證機構">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" className="w-2.5 h-2.5"><g fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></g></svg>
                   </div>
                 )}
               </div>
