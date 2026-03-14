@@ -161,8 +161,8 @@ function ScreeningSlot({
 }) {
   if (!film) {
     return (
-      <div className="w-9 h-9 rounded-full bg-[#111] border border-[#222] flex items-center justify-center shrink-0">
-        <div className="w-1.5 h-1.5 rounded-full bg-[#333]" />
+      <div className="w-9 h-9 rounded-full bg-[#1c1c1c] border border-[#383838] flex items-center justify-center shrink-0">
+        <div className="w-1.5 h-1.5 rounded-full bg-[#555]" />
       </div>
     );
   }
@@ -343,7 +343,7 @@ export default function ScreeningsPage() {
 
   /* ─── Render ─────────────────────────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-[#040404] pb-28">
+    <div className="min-h-screen bg-[#040404] pb-32">
 
       {/* ── 固定顶栏 ────────────────────────────────────────────────────── */}
       <div
@@ -485,37 +485,45 @@ export default function ScreeningsPage() {
         )}
       </div>
 
-      {/* ── 固定底部栏 ──────────────────────────────────────────────────── */}
+      {/* ── 固定底部栏：圆形已选影片栏 ──────────────────────────────────── */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-40 bg-[#040404]/95 backdrop-blur-md border-t border-[#111]"
-        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 16px)' }}
+        className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#2a2a2a]"
+        style={{
+          background: '#0a0a0a',
+          paddingBottom: 'max(env(safe-area-inset-bottom), 16px)',
+        }}
       >
-        <div className="max-w-2xl mx-auto px-4 pt-3">
+        <div className="max-w-2xl mx-auto px-4 pt-3 pb-1">
 
-          {/* 18个圆形占位，横向滚动 */}
-          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 mb-3">
-            {Array.from({ length: MAX_SCREENINGS }).map((_, i) => {
-              const film = selectedFilms[i] ?? null;
-              return (
-                <ScreeningSlot
-                  key={i}
-                  film={film}
-                  onRemove={film ? () => handleToggle(film.id) : undefined}
-                  isLocked={isReadonly}
-                />
-              );
-            })}
+          {/* 18个圆形占位：外层负责横向滚动，内层 flex 保证不换行 */}
+          <div
+            className="w-full overflow-x-auto"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+          >
+            <div className="flex items-center gap-2" style={{ minWidth: 'max-content' }}>
+              {Array.from({ length: MAX_SCREENINGS }).map((_, i) => {
+                const film = selectedFilms[i] ?? null;
+                return (
+                  <ScreeningSlot
+                    key={i}
+                    film={film}
+                    onRemove={film ? () => handleToggle(film.id) : undefined}
+                    isLocked={isReadonly}
+                  />
+                );
+              })}
+            </div>
           </div>
 
           {/* 只读状态说明 */}
           {isReadonly && (
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[#444] font-mono text-[11px]">
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-[#555] font-mono text-[11px]">
                 共 {selectedIds.size} 部排片 · 已锁定
               </span>
               <button
                 onClick={() => router.push(`/lbs/${nodeId}/review-pending`)}
-                className="px-4 py-2 rounded-lg border border-[#FFC107]/30 text-[#FFC107] font-mono text-[11px] hover:bg-[#FFC107]/10 transition-colors"
+                className="px-3 py-1.5 rounded-lg border border-[#FFC107]/30 text-[#FFC107] font-mono text-[11px] hover:bg-[#FFC107]/10 transition-colors"
               >
                 查看审核状态 →
               </button>
