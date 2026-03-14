@@ -311,16 +311,18 @@ export default function UniversalCheckout({
       {/* ── Checkout Modal ── */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-[1000] flex items-center justify-center p-4"
-          style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(12px)' }}
+          className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4"
+          style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(12px)' }}
           onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
         >
           <div
-            className="relative w-full max-w-[440px] rounded-2xl overflow-hidden"
+            className="relative w-full sm:max-w-[440px] rounded-t-2xl sm:rounded-2xl overflow-y-auto"
             style={{
               background: 'linear-gradient(160deg, #141414 0%, #0d0d0d 100%)',
               border: '1px solid rgba(255,255,255,0.08)',
-              boxShadow: '0 0 0 1px rgba(204,255,0,0.06), 0 32px 64px rgba(0,0,0,0.8), 0 0 80px rgba(204,255,0,0.04)',
+              boxShadow: '0 0 0 1px rgba(204,255,0,0.06), 0 -8px 40px rgba(0,0,0,0.8), 0 0 80px rgba(204,255,0,0.04)',
+              maxHeight: 'calc(100dvh - 32px)',
+              paddingBottom: 'max(env(safe-area-inset-bottom), 16px)',
             }}
           >
             {/* ── 頂部金線 ── */}

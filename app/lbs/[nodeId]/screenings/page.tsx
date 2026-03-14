@@ -343,7 +343,10 @@ export default function ScreeningsPage() {
 
   /* ─── Render ─────────────────────────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-[#040404] pb-32">
+    <div
+      className="bg-[#040404] flex flex-col"
+      style={{ height: '100dvh' }}
+    >
 
       {/* ── 固定顶栏 ────────────────────────────────────────────────────── */}
       <div
@@ -448,10 +451,10 @@ export default function ScreeningsPage() {
         </div>
       </div>
 
-      {/* ── 主内容 ──────────────────────────────────────────────────────── */}
+      {/* ── 主内容（flex-1 可滚动，padding-top 为顶栏高度） ────────────────── */}
       <div
-        className="max-w-2xl mx-auto px-4"
-        style={{ paddingTop: `calc(max(12px, env(safe-area-inset-top)) + ${node?.review_status ? '170px' : '100px'})` }}
+        className="flex-1 overflow-y-auto max-w-2xl w-full mx-auto px-4"
+        style={{ paddingTop: `calc(max(12px, env(safe-area-inset-top)) + ${node?.review_status ? '170px' : '100px'})`, paddingBottom: '16px' }}
       >
         {loadingFilms ? (
           <div className="flex items-center justify-center py-20 gap-3 text-[#444]">
@@ -485,9 +488,9 @@ export default function ScreeningsPage() {
         )}
       </div>
 
-      {/* ── 固定底部栏：圆形已选影片栏 ──────────────────────────────────── */}
+      {/* ── 底部圆形选片栏（flex shrink-0，永远在容器底部，无 fixed 定位问题） */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-50 border-t border-[#2a2a2a]"
+        className="shrink-0 w-full border-t border-[#2a2a2a] z-50"
         style={{
           background: '#0a0a0a',
           paddingBottom: 'max(env(safe-area-inset-bottom), 16px)',
@@ -531,19 +534,20 @@ export default function ScreeningsPage() {
           )}
         </div>
 
-        {/* UniversalCheckout 支付弹窗（受控模式，渲染全屏遮罩） */}
-        {showPayment && (
-          <UniversalCheckout
-            productCode="lbs_license"
-            open={showPayment}
-            onClose={() => setShowPayment(false)}
-            successUrl={successUrl}
-            cancelUrl={typeof window !== 'undefined' ? window.location.href : ''}
-            extraMetadata={{ nodeId }}
-            onSuccess={handleAifPaymentSuccess}
-          />
-        )}
       </div>
+
+      {/* ── 支付弹窗：渲染在页面顶层，不受任何 fixed 父元素 stacking context 约束 */}
+      {showPayment && (
+        <UniversalCheckout
+          productCode="lbs_license"
+          open={showPayment}
+          onClose={() => setShowPayment(false)}
+          successUrl={successUrl}
+          cancelUrl={typeof window !== 'undefined' ? window.location.href : ''}
+          extraMetadata={{ nodeId }}
+          onSuccess={handleAifPaymentSuccess}
+        />
+      )}
 
     </div>
   );
