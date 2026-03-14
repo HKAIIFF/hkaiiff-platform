@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { usePrivy, useCreateWallet } from "@privy-io/react-auth";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useI18n } from "@/app/context/I18nContext";
 import { useToast } from "@/app/context/ToastContext";
 import CyberLoading from "@/app/components/CyberLoading";
@@ -41,6 +41,7 @@ export default function MePage() {
   const { login, ready, authenticated, user, logout, getAccessToken } = usePrivy();
   const { createWallet } = useCreateWallet();
   const router = useRouter();
+  const pathname = usePathname();
   const { t, lang } = useI18n();
   const { showToast } = useToast();
 
@@ -56,6 +57,12 @@ export default function MePage() {
 
   // ── 已上线 LBS 影展 ────────────────────────────────────────────────────────
   const [onlineLbsNodes, setOnlineLbsNodes] = useState<Array<{
+    id: string;
+    title: string;
+    poster_url: string | null;
+  }>>([]);
+  // ── 审核通过但未上线的 LBS 影展 ──────────────────────────────────────────
+  const [approvedLbsNodes, setApprovedLbsNodes] = useState<Array<{
     id: string;
     title: string;
     poster_url: string | null;
@@ -89,6 +96,7 @@ export default function MePage() {
     expires_at: string | null;
     rejection_reason: string | null;
     submitted_at: string;
+    verification_name: string | null;
   }>>([]);
 
   /** 認證按鈕鎖定：有任何 pending 或 approved 未過期的記錄即鎖定 */
@@ -494,10 +502,10 @@ export default function MePage() {
         } else if (profileRow) {
           setDbProfile({ ...profileRow, verified_identities: profileRow.verified_identities ?? [], username_locked: profileRow.username_locked ?? false });
 
-          // Step 2b: 加載多重身份申請記錄
+          // Step 2b: 加載多重身份申請記錄（含認證名稱）
           const { data: apps } = await supabase
             .from('creator_applications')
-            .select('id, identity_type, status, expires_at, rejection_reason, submitted_at')
+            .select('id, identity_type, status, expires_at, rejection_reason, submitted_at, verification_name')
             .eq('user_id', userId)
             .in('status', ['pending', 'approved', 'rejected', 'awaiting_payment'])
             .order('submitted_at', { ascending: false });
@@ -630,10 +638,103 @@ export default function MePage() {
       } catch (err) {
         console.error('Failed to fetch online LBS nodes', err);
       }
+
+      // 加载审核通过（但未必上线）的 LBS 影展节点
+      try {
+        const { data: approvedData } = await supabase
+          .from('lbs_nodes')
+          .select('id, title, poster_url')
+          .eq('creator_id', userId)
+          .eq('review_status', 'approved')
+          .eq('is_online', false)
+          .order('created_at', { ascending: false });
+        setApprovedLbsNodes(approvedData ?? []);
+      } catch (err) {
+        console.error('Failed to fetch approved LBS nodes', err);
+      }
     };
 
     syncData();
   }, [authenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── pathname 变化时重新拉取用户 profile + 身份 + LBS 数据（不含钱包分配）──
+  useEffect(() => {
+    if (!authenticated || !user?.id) return;
+    const userId = user.id;
+
+    const refreshUserData = async () => {
+      try {
+        const { data: profileRow } = await supabase
+          .from('users')
+          .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team, deposit_address, wallet_index, verification_status, verification_type, rejection_reason, verified_identities, username_locked')
+          .eq('id', userId)
+          .single();
+        if (profileRow) {
+          setDbProfile((prev) => ({
+            ...(prev ?? {
+              agent_id: '', name: 'New Agent', display_name: null, role: 'human',
+              aif_balance: 0, avatar_seed: userId, bio: null, tech_stack: null,
+              core_team: null, deposit_address: null, wallet_index: null,
+              verification_status: 'unverified' as const, verification_type: null,
+              rejection_reason: null, verified_identities: [], username_locked: false,
+            }),
+            ...profileRow,
+            verified_identities: profileRow.verified_identities ?? [],
+            username_locked: profileRow.username_locked ?? false,
+          }));
+        }
+      } catch (err) {
+        console.error('[me] refreshUserData profile error:', err);
+      }
+
+      try {
+        const { data: apps } = await supabase
+          .from('creator_applications')
+          .select('id, identity_type, status, expires_at, rejection_reason, submitted_at, verification_name')
+          .eq('user_id', userId)
+          .in('status', ['pending', 'approved', 'rejected', 'awaiting_payment'])
+          .order('submitted_at', { ascending: false });
+        setIdentityApplications(apps ?? []);
+        const nowTs = new Date().toISOString();
+        const locked = (apps ?? []).some(
+          (a) =>
+            a.status === 'pending' ||
+            a.status === 'awaiting_payment' ||
+            (a.status === 'approved' && (!a.expires_at || a.expires_at > nowTs))
+        );
+        setIsVerifyLocked(locked);
+      } catch (err) {
+        console.error('[me] refreshUserData apps error:', err);
+      }
+
+      try {
+        const { data: lbsOnline } = await supabase
+          .from('lbs_nodes')
+          .select('id, title, poster_url')
+          .eq('creator_id', userId)
+          .eq('is_online', true)
+          .order('created_at', { ascending: false });
+        setOnlineLbsNodes(lbsOnline ?? []);
+      } catch (err) {
+        console.error('[me] refreshUserData lbs online error:', err);
+      }
+
+      try {
+        const { data: lbsApproved } = await supabase
+          .from('lbs_nodes')
+          .select('id, title, poster_url')
+          .eq('creator_id', userId)
+          .eq('review_status', 'approved')
+          .eq('is_online', false)
+          .order('created_at', { ascending: false });
+        setApprovedLbsNodes(lbsApproved ?? []);
+      } catch (err) {
+        console.error('[me] refreshUserData lbs approved error:', err);
+      }
+    };
+
+    refreshUserData();
+  }, [pathname, authenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!authenticated || !user?.id) return;
@@ -915,7 +1016,17 @@ export default function MePage() {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-0.5 pr-16">
             <h2 className="font-heavy text-2xl text-white tracking-wide truncate">
-              {dbProfile?.display_name || (user?.id ? `Agent_${user.id.replace('did:privy:', '').substring(0, 6)}` : 'Agent_SYNCING')}
+              {(() => {
+                const approvedApp = identityApplications.find(
+                  (a) => a.status === 'approved' && a.verification_name
+                );
+                return (
+                  approvedApp?.verification_name ||
+                  dbProfile?.display_name ||
+                  dbProfile?.name ||
+                  (user?.id ? `Agent_${user.id.replace('did:privy:', '').substring(0, 6)}` : 'Agent_SYNCING')
+                );
+              })()}
             </h2>
             {/* 多重身份認證徽章 */}
             {(dbProfile?.verified_identities ?? []).map((identity) => {
@@ -1044,6 +1155,44 @@ export default function MePage() {
                     <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/20 transition-colors" />
                     <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-green-400 shadow-[0_0_4px_rgba(74,222,128,0.8)] animate-pulse" />
                     <p className="text-[9px] text-[#FFC107]/60 font-mono mt-1 w-16 truncate text-center leading-tight">
+                      {node.title}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 审核通过影展横向滚动列表 */}
+          {approvedLbsNodes.length > 0 && (
+            <div className="mb-3">
+              <div className="text-[9px] font-mono text-green-400/60 tracking-widest uppercase mb-2 px-0.5 flex items-center gap-1.5">
+                <i className="fas fa-check-circle text-green-400/60" />
+                {lang === 'zh' ? '已通过影展' : 'APPROVED FESTIVALS'}
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                {approvedLbsNodes.map((node) => (
+                  <button
+                    key={node.id}
+                    onClick={() => router.push(`/lbs/${node.id}`)}
+                    className="flex-shrink-0 group relative"
+                    title={node.title}
+                  >
+                    <div
+                      className="w-16 rounded-xl overflow-hidden border-2 border-green-500/50 group-hover:border-green-400 transition-all shadow-[0_0_8px_rgba(74,222,128,0.15)] group-hover:shadow-[0_0_16px_rgba(74,222,128,0.35)]"
+                      style={{ aspectRatio: '2/3' }}
+                    >
+                      {node.poster_url ? (
+                        <img src={node.poster_url} alt={node.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-[#111] flex items-center justify-center">
+                          <i className="fas fa-film text-green-400/30 text-lg" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/20 transition-colors" />
+                    <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-green-400 shadow-[0_0_4px_rgba(74,222,128,0.8)]" />
+                    <p className="text-[9px] text-green-400/60 font-mono mt-1 w-16 truncate text-center leading-tight">
                       {node.title}
                     </p>
                   </button>
