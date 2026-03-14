@@ -22,16 +22,24 @@
 function getEnv(key: string): string {
   const value = process.env[key];
   if (!value) {
-    throw new Error(`[BunnyStream] 缺少必要环境变量: ${key}，请检查 .env.local`);
+    throw new Error(
+      `[BunnyStream] 缺少必要环境变量: ${key}，请检查 .env.local 或 Vercel Dashboard → Settings → Environment Variables`,
+    );
   }
   return value;
 }
 
 // ─── 公共请求头构建 ────────────────────────────────────────────────────────────
+//
+// 注意：BUNNY_API_KEY 必须是 Bunny Stream 媒体库的 API Key（Library API Key），
+// 而非账号级别的 Account API Key。可在 Bunny Dashboard → Stream → 选择媒体库
+// → API → Library API Key 中找到正确的密钥。
 
 function buildHeaders(extra?: Record<string, string>): Record<string, string> {
+  const apiKey = getEnv('BUNNY_API_KEY');
+  console.log(`[BunnyStream] buildHeaders: key prefix=${apiKey.slice(0, 6)}… length=${apiKey.length}`);
   return {
-    AccessKey: getEnv('BUNNY_API_KEY'),
+    AccessKey: apiKey,
     'Content-Type': 'application/json',
     ...extra,
   };
@@ -96,10 +104,12 @@ export async function uploadToBunny(
   const url = `https://video.bunnycdn.com/library/${libraryId}/videos/${guid}`;
 
   try {
+    const apiKey = getEnv('BUNNY_API_KEY');
+    console.log(`[BunnyStream] uploadToBunny: key prefix=${apiKey.slice(0, 6)}… length=${apiKey.length}`);
     const res = await fetch(url, {
       method: 'PUT',
       headers: {
-        AccessKey: getEnv('BUNNY_API_KEY'),
+        AccessKey: apiKey,
         'Content-Type': 'application/octet-stream',
       },
       // fetch 的 body 支持 Buffer（Node.js 18+）和 Blob

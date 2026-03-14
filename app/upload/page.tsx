@@ -35,6 +35,25 @@ const TERMINAL_LINES = [
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+type FileUploadStatus = 'idle' | 'uploading' | 'success' | 'error';
+
+/** 获取视频文件时长字符串，如 "2:34" */
+function getVideoDurationLabel(file: File): Promise<string> {
+  return new Promise((resolve) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.onloadedmetadata = () => {
+      const d = Math.floor(video.duration);
+      const m = Math.floor(d / 60);
+      const s = d % 60;
+      URL.revokeObjectURL(video.src);
+      resolve(`${m}:${s.toString().padStart(2, '0')}`);
+    };
+    video.onerror = () => resolve('');
+    video.src = URL.createObjectURL(file);
+  });
+}
+
 function UploadContent() {
   const { user, authenticated, ready, getAccessToken } = usePrivy();
   const router = useRouter();
@@ -82,6 +101,17 @@ function UploadContent() {
   const [createdFilmId, setCreatedFilmId] = useState<string | null>(null);
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const terminalRef = useRef<HTMLDivElement>(null);
+
+  // ── 文件预览 & 上传状态（每个文件独立） ────────────────────────────────────
+  const [posterPreviewUrl,    setPosterPreviewUrl]    = useState('');
+  const [trailerDuration,     setTrailerDuration]     = useState('');
+  const [filmDuration,        setFilmDuration]        = useState('');
+  const [posterUploadStatus,  setPosterUploadStatus]  = useState<FileUploadStatus>('idle');
+  const [trailerUploadStatus, setTrailerUploadStatus] = useState<FileUploadStatus>('idle');
+  const [filmUploadStatus,    setFilmUploadStatus]    = useState<FileUploadStatus>('idle');
+  const [posterUploadError,   setPosterUploadError]   = useState('');
+  const [trailerUploadError,  setTrailerUploadError]  = useState('');
+  const [filmUploadError,     setFilmUploadError]     = useState('');
 
   const { product: filmEntryProduct } = useProduct('film_entry');
   const isSignal = formData.aiRatio >= 51;
@@ -156,9 +186,15 @@ function UploadContent() {
       return;
     }
     setPosterFile(file);
+    setPosterUploadStatus('idle');
+    setPosterUploadError('');
+    // 生成本地缩略图预览
+    const reader = new FileReader();
+    reader.onload = (ev) => setPosterPreviewUrl((ev.target?.result as string) ?? '');
+    reader.readAsDataURL(file);
   };
 
-  const handleTrailerChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTrailerChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     if (!file) return;
     if (file.size > 50 * 1024 * 1024) {
@@ -167,9 +203,13 @@ function UploadContent() {
       return;
     }
     setTrailerFile(file);
+    setTrailerUploadStatus('idle');
+    setTrailerUploadError('');
+    const dur = await getVideoDurationLabel(file);
+    setTrailerDuration(dur);
   };
 
-  const handleFilmChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFilmChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     if (!file) return;
     if (file.size > 1024 * 1024 * 1024) {
@@ -178,6 +218,10 @@ function UploadContent() {
       return;
     }
     setFilmFile(file);
+    setFilmUploadStatus('idle');
+    setFilmUploadError('');
+    const dur = await getVideoDurationLabel(file);
+    setFilmDuration(dur);
   };
 
   // ── Step navigation ───────────────────────────────────────────────────────
@@ -231,16 +275,47 @@ function UploadContent() {
 
   // ── 核心上传流程（图片 → R2，视频 → Bunny Stream HLS）────────────────────
   const doUploadAndCreateRecord = async (paymentMethod: 'USD' | 'AIF' | 'pending'): Promise<string> => {
-    // ── 图片走 R2（免流公共 CDN）─────────────────────────────────────────────
+    // ── 海报 → Cloudflare R2 ──────────────────────────────────────────────
+    setPosterUploadStatus('uploading');
     setUploadStatus('UPLOADING POSTER TO CLOUDFLARE R2...');
-    const posterUrl = await uploadFile(posterFile!);
+    let posterUrl: string;
+    try {
+      posterUrl = await uploadFile(posterFile!);
+      setPosterUploadStatus('success');
+    } catch (err) {
+      setPosterUploadStatus('error');
+      const msg = (err instanceof Error ? err.message : String(err)) || '海报上传失败';
+      setPosterUploadError(msg);
+      throw err;
+    }
 
-    // ── 视频直接上传 Bunny Stream，生成 HLS ──────────────────────────────────
+    // ── 预告片 → Bunny Stream HLS ─────────────────────────────────────────
+    setTrailerUploadStatus('uploading');
     setUploadStatus('UPLOADING TRAILER TO BUNNY STREAM (HLS ENCODING)...');
-    const trailerUrl = await uploadFile(trailerFile!, `${formData.title} - Trailer`);
+    let trailerUrl: string;
+    try {
+      trailerUrl = await uploadFile(trailerFile!, `${formData.title} - Trailer`);
+      setTrailerUploadStatus('success');
+    } catch (err) {
+      setTrailerUploadStatus('error');
+      const msg = (err instanceof Error ? err.message : String(err)) || '预告片上传失败';
+      setTrailerUploadError(msg);
+      throw err;
+    }
 
+    // ── 正片 → Bunny Stream HLS ──────────────────────────────────────────
+    setFilmUploadStatus('uploading');
     setUploadStatus('UPLOADING FULL FILM TO BUNNY STREAM (THIS MAY TAKE A WHILE)...');
-    const fullFilmUrl = await uploadFile(filmFile!, `${formData.title} - Full Film`);
+    let fullFilmUrl: string;
+    try {
+      fullFilmUrl = await uploadFile(filmFile!, `${formData.title} - Full Film`);
+      setFilmUploadStatus('success');
+    } catch (err) {
+      setFilmUploadStatus('error');
+      const msg = (err instanceof Error ? err.message : String(err)) || '正片上传失败';
+      setFilmUploadError(msg);
+      throw err;
+    }
 
     setUploadStatus('MEDIA SECURED. MINTING DATA TO DATABASE...');
     const dbRes = await fetch('/api/upload-film', {
@@ -277,6 +352,12 @@ function UploadContent() {
       return;
     }
     setIsSubmitting(true);
+    setPosterUploadStatus('idle');
+    setTrailerUploadStatus('idle');
+    setFilmUploadStatus('idle');
+    setPosterUploadError('');
+    setTrailerUploadError('');
+    setFilmUploadError('');
     setUploadStatus('INITIALIZING SECURE UPLOAD CHANNEL...');
     try {
       const filmId = await doUploadAndCreateRecord('pending');
@@ -555,12 +636,12 @@ function UploadContent() {
                 </div>
                 <div className="grid grid-cols-3 gap-3">
 
-                  {/* POSTER */}
+                  {/* POSTER — 选中后显示缩略图预览 */}
                   <div className="flex flex-col">
-                    <label className={`border border-dashed p-4 text-center rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors h-28 ${
+                    <label className={`relative border border-dashed rounded-lg cursor-pointer transition-colors h-28 overflow-hidden flex flex-col items-center justify-center ${
                       posterFile
-                        ? 'border-signal bg-signal/5 text-signal'
-                        : 'border-[#444] bg-[#0a0a0a] hover:border-signal hover:text-signal text-gray-500'
+                        ? 'border-signal bg-signal/5'
+                        : 'border-[#444] bg-[#0a0a0a] hover:border-signal text-gray-500'
                     }`}>
                       <input
                         type="file"
@@ -568,16 +649,23 @@ function UploadContent() {
                         accept="image/jpeg,image/png,image/webp"
                         onChange={handlePosterChange}
                       />
-                      {posterFile ? (
+                      {posterPreviewUrl ? (
                         <>
+                          <img src={posterPreviewUrl} alt="poster" className="absolute inset-0 w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span className="text-white text-[9px] font-mono tracking-widest">CHANGE</span>
+                          </div>
+                        </>
+                      ) : posterFile ? (
+                        <div className="flex flex-col items-center p-2 text-signal">
                           <i className="fas fa-check-circle mb-1.5 text-2xl" />
                           <span className="text-[8px] font-mono leading-tight break-all line-clamp-2 text-center">{posterFile.name}</span>
-                        </>
+                        </div>
                       ) : (
-                        <>
+                        <div className="flex flex-col items-center p-4">
                           <i className="fas fa-image mb-2 text-2xl" />
                           <span className="text-[9px] font-mono leading-tight">{t('up_poster_label')}</span>
-                        </>
+                        </div>
                       )}
                     </label>
                     <div className="text-[8px] font-mono text-gray-600 mt-1.5 text-center leading-tight px-1">
@@ -585,7 +673,7 @@ function UploadContent() {
                     </div>
                   </div>
 
-                  {/* TRAILER */}
+                  {/* TRAILER — 选中后显示文件名 + 时长 */}
                   <div className="flex flex-col">
                     <label className={`border border-dashed p-4 text-center rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors h-28 ${
                       trailerFile
@@ -600,8 +688,13 @@ function UploadContent() {
                       />
                       {trailerFile ? (
                         <>
-                          <i className="fas fa-check-circle mb-1.5 text-2xl" />
-                          <span className="text-[8px] font-mono leading-tight break-all line-clamp-2 text-center">{trailerFile.name}</span>
+                          <i className="fas fa-check-circle mb-1 text-xl" />
+                          <span className="text-[8px] font-mono leading-tight break-all line-clamp-2 text-center mt-0.5">{trailerFile.name}</span>
+                          {trailerDuration && (
+                            <span className="text-[7px] font-mono text-signal/60 mt-0.5">
+                              <i className="fas fa-clock mr-0.5" />{trailerDuration}
+                            </span>
+                          )}
                         </>
                       ) : (
                         <>
@@ -615,7 +708,7 @@ function UploadContent() {
                     </div>
                   </div>
 
-                  {/* FULL FILM */}
+                  {/* FULL FILM — 选中后显示文件名 + 时长 */}
                   <div className="flex flex-col">
                     <label className={`border border-dashed p-4 text-center rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors h-28 ${
                       filmFile
@@ -630,8 +723,13 @@ function UploadContent() {
                       />
                       {filmFile ? (
                         <>
-                          <i className="fas fa-check-circle mb-1.5 text-2xl" />
-                          <span className="text-[8px] font-mono leading-tight break-all line-clamp-2 text-center">{filmFile.name}</span>
+                          <i className="fas fa-check-circle mb-1 text-xl" />
+                          <span className="text-[8px] font-mono leading-tight break-all line-clamp-2 text-center mt-0.5">{filmFile.name}</span>
+                          {filmDuration && (
+                            <span className="text-[7px] font-mono text-signal/60 mt-0.5">
+                              <i className="fas fa-clock mr-0.5" />{filmDuration}
+                            </span>
+                          )}
                         </>
                       ) : (
                         <>
@@ -674,7 +772,11 @@ function UploadContent() {
 
             {/* Back */}
             <button
-              onClick={() => { setUploadStatus(''); setErrorMsg(''); setStep(1); }}
+              onClick={() => {
+                setUploadStatus(''); setErrorMsg(''); setStep(1);
+                setPosterUploadStatus('idle'); setTrailerUploadStatus('idle'); setFilmUploadStatus('idle');
+                setPosterUploadError(''); setTrailerUploadError(''); setFilmUploadError('');
+              }}
               className="text-gray-600 hover:text-white mb-6 font-mono text-xs flex items-center gap-2 active:scale-90 transition-all"
             >
               <i className="fas fa-arrow-left" /> {t('btn_back')}
@@ -761,14 +863,78 @@ function UploadContent() {
               </div>
             )}
 
-            {/* Upload progress */}
+            {/* Upload progress — 每个文件独立状态卡片 */}
             {isSubmitting && (
-              <div className="flex flex-col items-center gap-3 py-6 mb-4">
-                <div className="w-12 h-12 border-2 border-signal/20 border-t-signal rounded-full animate-spin" />
-                <div className="text-[10px] font-mono text-signal tracking-widest animate-pulse text-center">
-                  {uploadStatus || 'PROCESSING...'}
+              <div className="mb-4">
+                <div className="text-[8px] font-mono text-[#333] tracking-[0.3em] mb-2 uppercase">Upload Progress</div>
+                <div className="space-y-2">
+                  {([
+                    { label: 'POSTER',    file: posterFile,  status: posterUploadStatus,  error: posterUploadError,  isVideo: false, duration: '' },
+                    { label: 'TRAILER',   file: trailerFile, status: trailerUploadStatus, error: trailerUploadError, isVideo: true,  duration: trailerDuration },
+                    { label: 'FULL FILM', file: filmFile,    status: filmUploadStatus,    error: filmUploadError,    isVideo: true,  duration: filmDuration },
+                  ] as const).map(({ label, file, status, error, isVideo, duration }) => (
+                    <div
+                      key={label}
+                      className={`bg-[#0a0a0a] border rounded-xl px-3 py-2.5 flex items-center gap-3 transition-colors ${
+                        status === 'success'  ? 'border-signal/20' :
+                        status === 'error'    ? 'border-red-500/20' :
+                        status === 'uploading'? 'border-signal/30'  :
+                        'border-[#1a1a1a]'
+                      }`}
+                    >
+                      {/* 状态图标 */}
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
+                        status === 'uploading' ? 'bg-signal/5 border border-signal/30' :
+                        status === 'success'   ? 'bg-green-500/15 border border-green-500/30' :
+                        status === 'error'     ? 'bg-red-500/15 border border-red-500/30' :
+                        'bg-[#111] border border-[#222]'
+                      }`}>
+                        {status === 'uploading' && (
+                          <div className="w-3.5 h-3.5 border border-signal/30 border-t-signal rounded-full animate-spin" />
+                        )}
+                        {status === 'success' && (
+                          <svg className="w-3.5 h-3.5 text-green-400" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                            <path d="M20 6L9 17l-5-5" strokeLinecap="round" />
+                          </svg>
+                        )}
+                        {status === 'error' && (
+                          <svg className="w-3.5 h-3.5 text-red-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" />
+                          </svg>
+                        )}
+                        {status === 'idle' && (
+                          <i className={`fas ${isVideo ? 'fa-film' : 'fa-image'} text-[#444] text-[9px]`} />
+                        )}
+                      </div>
+                      {/* 文件信息 */}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[8px] font-mono text-[#444] tracking-widest">{label}</div>
+                        <div className="text-[9px] font-mono text-white truncate">{file?.name ?? '—'}</div>
+                        {isVideo && duration && (
+                          <div className="text-[8px] font-mono text-signal/40">
+                            <i className="fas fa-clock mr-0.5" />{duration}
+                          </div>
+                        )}
+                        {error && (
+                          <div className="text-[8px] font-mono text-red-400 mt-0.5 leading-tight line-clamp-2">{error}</div>
+                        )}
+                      </div>
+                      {/* 状态标签 */}
+                      <div className={`text-[8px] font-mono shrink-0 tracking-wider ${
+                        status === 'uploading' ? 'text-signal animate-pulse' :
+                        status === 'success'   ? 'text-green-400' :
+                        status === 'error'     ? 'text-red-400' :
+                        'text-[#2a2a2a]'
+                      }`}>
+                        {status === 'uploading' ? 'UPLOADING…' :
+                         status === 'success'   ? 'DONE ✓' :
+                         status === 'error'     ? 'FAILED ✗' :
+                         'QUEUED'}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="text-[9px] font-mono text-[#222] tracking-wider">
+                <div className="text-[9px] font-mono text-[#1a1a1a] tracking-wider text-center mt-3">
                   DO NOT CLOSE THIS PAGE
                 </div>
               </div>
