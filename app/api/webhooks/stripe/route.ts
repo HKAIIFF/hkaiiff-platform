@@ -287,6 +287,7 @@ async function handleLbsApplicationPaid(
     return;
   }
 
+  console.log('[stripe/webhook] handleLbsApplicationPaid: Updating review_status=pending for node:', node.id, 'title:', node.title);
   const { error } = await db
     .from('lbs_nodes')
     .update({
@@ -300,6 +301,7 @@ async function handleLbsApplicationPaid(
     console.error('[stripe/webhook] LBS node update failed:', error.message);
     throw new Error(error.message);
   }
+  console.log('[stripe/webhook] ✓ review_status set to pending for node:', node.id);
 
   // 記錄財務流水
   const { error: lbsTxErr } = await db.from('transactions').insert({

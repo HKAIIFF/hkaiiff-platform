@@ -86,7 +86,7 @@ export default function ReviewPendingPage() {
           <div className="text-[#333] text-4xl mb-4">◈</div>
           <p className="text-[#444] font-mono text-sm">找不到影展记录</p>
           <button
-            onClick={() => router.push('/')}
+            onClick={() => router.replace('/')}
             className="mt-6 text-[#FFC107]/60 hover:text-[#FFC107] font-mono text-[10px] tracking-widest transition-colors"
           >
             ← 返回首页
@@ -171,9 +171,9 @@ export default function ReviewPendingPage() {
   return (
     <div className="min-h-screen bg-[#040404] px-4 py-14 flex flex-col items-center justify-center text-center">
 
-      {/* 返回按钮 */}
+      {/* 返回首页按钮（使用 replace 清空历史栈，防止返回到支付流程） */}
       <button
-        onClick={() => router.back()}
+        onClick={() => router.replace('/')}
         className="fixed z-50 w-9 h-9 rounded-full backdrop-blur-md bg-white/10 border border-white/20 flex items-center justify-center text-white"
         style={{ top: 'max(16px, env(safe-area-inset-top))', left: '16px' }}
       >
@@ -248,9 +248,9 @@ export default function ReviewPendingPage() {
           </button>
         )}
 
-        {/* 返回首页 */}
+        {/* 返回首页（replace 清空历史栈） */}
         <button
-          onClick={() => router.push('/')}
+          onClick={() => router.replace('/')}
           className="font-mono text-[10px] tracking-[0.4em] text-[#FFC107]/50 hover:text-[#FFC107] transition-colors flex items-center gap-2"
         >
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">

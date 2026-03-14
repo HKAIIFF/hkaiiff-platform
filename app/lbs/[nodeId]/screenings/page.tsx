@@ -233,7 +233,18 @@ export default function ScreeningsPage() {
         .eq('id', nodeId)
         .maybeSingle();
       if (error) console.error('[screenings] lbs_nodes fetch error:', error.message);
-      setNode(data as LbsNode | null);
+
+      const fetchedNode = data as LbsNode | null;
+
+      // 已提交审核或已通过的节点，禁止返回排片池，直接跳转审核中页面
+      // 使用 router.replace 确保不留历史，按返回会回到首页而不是排片池
+      if (fetchedNode && (fetchedNode.review_status === 'pending' || fetchedNode.review_status === 'approved')) {
+        console.log('[screenings] Node already submitted, redirecting to review-pending. status:', fetchedNode.review_status);
+        router.replace(`/lbs/${nodeId}/review-pending`);
+        return;
+      }
+
+      setNode(fetchedNode);
       setLoadingNode(false);
     };
     load();
@@ -316,11 +327,11 @@ export default function ScreeningsPage() {
   }, [isReadonly, selectedIds, nodeId, user?.id, showToast]);
 
   // ── AIF 支付成功回调（节点状态由 internal-checkout 的 handleLbsLicensePaid 负责更新）──
-  // 使用 window.location.href 立即跳转，避免 UniversalCheckout 的 success 弹窗出现
+  // 使用 window.location.replace 替换历史栈，避免 success 弹窗且禁止返回到排片池
   const handleAifPaymentSuccess = useCallback(async () => {
     sessionStorage.removeItem('lbs_draft_node_id');
     sessionStorage.removeItem('lbs_apply_form');
-    window.location.href = `/lbs/${nodeId}/review-pending`;
+    window.location.replace(`/lbs/${nodeId}/review-pending`);
   }, [nodeId]);
 
   // ── 过滤影片 ──────────────────────────────────────────────────────────────

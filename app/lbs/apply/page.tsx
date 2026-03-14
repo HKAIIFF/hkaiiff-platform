@@ -308,6 +308,7 @@ export default function LbsApplyPage() {
   }, [ready, authenticated, router]);
 
   // 恢复 sessionStorage 中的草稿数据（用于从排片页面返回）
+  // 同时检查：如果草稿节点已提交审核，直接跳转审核中页面，防止重复支付
   useEffect(() => {
     const saved = sessionStorage.getItem('lbs_apply_form');
     const savedNodeId = sessionStorage.getItem('lbs_draft_node_id');
@@ -317,8 +318,24 @@ export default function LbsApplyPage() {
         setForm(parsed);
       } catch { /* ignore */ }
     }
-    if (savedNodeId) setExistingNodeId(savedNodeId);
-  }, []);
+    if (savedNodeId) {
+      setExistingNodeId(savedNodeId);
+      // 异步检查节点状态，已提交的节点直接跳转审核中页面
+      import('@/lib/supabase').then(({ supabase }) => {
+        supabase
+          .from('lbs_nodes')
+          .select('id, review_status')
+          .eq('id', savedNodeId)
+          .maybeSingle()
+          .then(({ data }) => {
+            if (data && (data.review_status === 'pending' || data.review_status === 'approved')) {
+              console.log('[apply] Node already submitted, redirecting. status:', data.review_status);
+              router.replace(`/lbs/${savedNodeId}/review-pending`);
+            }
+          });
+      });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setField = (key: keyof LbsFormData) => (val: string) =>
     setForm((prev) => ({ ...prev, [key]: val }));

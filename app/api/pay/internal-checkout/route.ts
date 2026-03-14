@@ -164,13 +164,23 @@ async function handleLbsLicensePaid(userId: string, nodeId?: string | null): Pro
     node = nodes?.[0] ?? null;
   }
 
-  if (!node) return;
+  if (!node) {
+    console.error('[handleLbsLicensePaid] No lbs_node found for userId:', userId, 'nodeId:', nodeId);
+    return;
+  }
 
-  await adminSupabase
+  console.log('[handleLbsLicensePaid] Updating review_status=pending for node:', node.id, 'title:', node.title);
+  const { error: updateErr } = await adminSupabase
     .from('lbs_nodes')
     .update({ review_status: 'pending', status: 'under_review' })
     .eq('id', node.id)
     .eq('creator_id', userId);
+
+  if (updateErr) {
+    console.error('[handleLbsLicensePaid] DB update failed:', updateErr.message);
+  } else {
+    console.log('[handleLbsLicensePaid] ✓ review_status set to pending for node:', node.id);
+  }
 
   await sendMessage({
     userId,
