@@ -326,13 +326,12 @@ export default function ScreeningsPage() {
     }
   }, [isReadonly, selectedIds, nodeId, user?.id, showToast]);
 
-  // ── AIF 支付成功回调（节点状态由 internal-checkout 的 handleLbsLicensePaid 负责更新）──
-  // 使用 window.location.replace 替换历史栈，避免 success 弹窗且禁止返回到排片池
+  // ── AIF 支付成功回调：仅清除 sessionStorage，导航交给 UniversalCheckout 的 successUrl
+  // successUrl 指向 complete 页面，complete 页面负责显示 Toast 并 router.replace 到审核中页面
   const handleAifPaymentSuccess = useCallback(async () => {
     sessionStorage.removeItem('lbs_draft_node_id');
     sessionStorage.removeItem('lbs_apply_form');
-    window.location.replace(`/lbs/${nodeId}/review-pending`);
-  }, [nodeId]);
+  }, []);
 
   // ── 过滤影片 ──────────────────────────────────────────────────────────────
   const filteredFilms = search.trim()
@@ -388,7 +387,7 @@ export default function ScreeningsPage() {
               }`}>
                 已选 {selectedIds.size} / {MAX_SCREENINGS} 部
               </span>
-              {!isReadonly && (
+              {!isReadonly ? (
                 <button
                   onClick={() => setShowPayment(true)}
                   disabled={selectedIds.size === 0}
@@ -402,6 +401,16 @@ export default function ScreeningsPage() {
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   </svg>
                   下一步
+                </button>
+              ) : (
+                <button
+                  onClick={() => router.replace(`/lbs/${nodeId}/review-pending`)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-heavy tracking-[0.1em] bg-[#FFC107]/10 border border-[#FFC107]/30 text-[#FFC107] hover:bg-[#FFC107]/20 transition-all"
+                >
+                  <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path d="M9 12l2 2 4-4M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  查看审核状态
                 </button>
               )}
             </div>
