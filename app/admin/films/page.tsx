@@ -38,6 +38,23 @@ function getSequence(id: string) {
   return id.slice(0, 8).toUpperCase();
 }
 
+const BUNNY_LIBRARY_ID = "616236";
+function toBunnyEmbed(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.includes("iframe.mediadelivery.net")) return url;
+  if (url.includes("b-cdn.net")) {
+    try {
+      const pathname = new URL(url.startsWith("http") ? url : `https://${url}`).pathname;
+      const videoId = pathname.split("/").filter(Boolean)[0];
+      if (videoId) return `https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${videoId}`;
+    } catch { /* fall through */ }
+  }
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(url.trim())) {
+    return `https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${url.trim()}`;
+  }
+  return url;
+}
+
 function formatDate(iso: string) {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -110,11 +127,12 @@ function Toggle({
 }
 
 // ─── Asset Link ───────────────────────────────────────────────────────────────
-function AssetLink({ label, url, accent = false }: { label: string; url: string | null | undefined; accent?: boolean }) {
+function AssetLink({ label, url, accent = false, isVideo = false }: { label: string; url: string | null | undefined; accent?: boolean; isVideo?: boolean }) {
   if (url) {
+    const resolved = isVideo ? (toBunnyEmbed(url) ?? url) : url;
     return (
       <a
-        href={url}
+        href={resolved}
         target="_blank"
         rel="noopener noreferrer"
         className={`text-[10px] font-medium hover:underline whitespace-nowrap ${accent ? "text-violet-600" : "text-[#1a73e8]"}`}
@@ -378,9 +396,9 @@ export default function FilmsReviewPage() {
 
                 {/* ⑤ 資料池 */}
                 <div className="px-3 py-3 flex flex-col justify-center gap-1">
-                  <AssetLink label="預告片" url={film.video_url} />
+                  <AssetLink label="預告片" url={film.video_url} isVideo />
                   {film.main_video_url
-                    ? <AssetLink label="正　片" url={film.main_video_url} accent />
+                    ? <AssetLink label="正　片" url={film.main_video_url} accent isVideo />
                     : <span className="text-[10px] text-gray-300 whitespace-nowrap">— 無正片</span>
                   }
                   <AssetLink label="海　報" url={film.poster_url} />

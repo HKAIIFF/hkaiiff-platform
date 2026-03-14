@@ -510,6 +510,26 @@ function AdminOssUploader({
 }
 
 // ────────────────────────────────────────────────────────────────────────────
+// Bunny Stream 輔助：將 b-cdn.net 直鏈或裸 videoId 轉為 iframe embed URL
+// ────────────────────────────────────────────────────────────────────────────
+const BUNNY_LIBRARY_ID = "616236";
+function toBunnyEmbed(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.includes("iframe.mediadelivery.net")) return url;
+  if (url.includes("b-cdn.net")) {
+    try {
+      const pathname = new URL(url.startsWith("http") ? url : `https://${url}`).pathname;
+      const videoId = pathname.split("/").filter(Boolean)[0];
+      if (videoId) return `https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${videoId}`;
+    } catch { /* fall through */ }
+  }
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(url.trim())) {
+    return `https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${url.trim()}`;
+  }
+  return url;
+}
+
+// ────────────────────────────────────────────────────────────────────────────
 // 模塊二：審核與風控
 // ────────────────────────────────────────────────────────────────────────────
 function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
@@ -682,7 +702,9 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
 
   function LinkChip({ href, label, accent }: { href: string | null | undefined; label: string; accent?: boolean }) {
     if (!href) return <span className="text-[10px] text-neutral-300 italic">無{label.replace(" ↗", "")}</span>;
-    const url = href.startsWith("http") ? href : `https://${href}`;
+    const isVideo = label.includes("預告") || label.includes("正片") || label.includes("Trailer") || label.includes("Feature");
+    const resolved = isVideo ? (toBunnyEmbed(href) ?? href) : href;
+    const url = resolved.startsWith("http") ? resolved : `https://${resolved}`;
     return (
       <a
         href={url}
@@ -868,7 +890,10 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                         <CopyBtn text={film.order_number} label="流水號" />
                       </div>
                     ) : (
-                      <span className="text-[10px] text-neutral-300 italic">未設定</span>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[10px] text-neutral-300 italic">未設定</span>
+                        <span className="font-mono text-[9px] text-neutral-400">#{film.id.slice(0, 8).toUpperCase()}</span>
+                      </div>
                     )}
                   </td>
 
