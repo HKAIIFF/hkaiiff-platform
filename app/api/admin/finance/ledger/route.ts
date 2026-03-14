@@ -29,7 +29,10 @@ export async function GET(req: Request) {
     if (currency) query = query.eq('currency', currency);
 
     const { data: txRows, error: txError } = await query;
-    if (txError) return NextResponse.json({ error: txError.message, data: [], summary: { total_usd: 0, total_aif: 0, total_tx: 0 } });
+    if (txError) {
+      console.error('[finance/ledger] transactions 查詢失敗:', txError.message, txError.code);
+    }
+    console.log('[finance/ledger] transactions rows:', txRows?.length ?? 0);
 
     // 批量查詢用戶 email
     const userIds = [...new Set((txRows ?? []).map(r => r.user_id).filter(Boolean))] as string[];
@@ -63,8 +66,9 @@ export async function GET(req: Request) {
 
     const { data: caData, error: caError } = await caQuery;
     if (caError) {
-      console.warn('creator_applications 查詢失敗:', caError.message);
+      console.warn('[finance/ledger] creator_applications 查詢失敗:', caError.message);
     }
+    console.log('[finance/ledger] creator_applications rows:', caData?.length ?? 0);
 
     const caRows = caData ?? [];
 
@@ -120,8 +124,12 @@ export async function GET(req: Request) {
       total_tx: allData.length,
     };
 
-    return NextResponse.json({ data: allData, summary });
+    const resp: Record<string, unknown> = { data: allData, summary };
+    if (txError) resp.txError = txError.message;
+
+    return NextResponse.json(resp);
   } catch (err: any) {
+    console.error('[finance/ledger] 未知錯誤:', err.message);
     return NextResponse.json({ error: err.message, data: [], summary: { total_usd: 0, total_aif: 0, total_tx: 0 } });
   }
 }

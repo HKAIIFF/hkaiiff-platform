@@ -5,7 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 
 const ADMIN_EMAILS = ["j@aif.bot", "j@aif.ad"];
-const ADMIN_WALLETS = ["fiebkzndstggewkrqdsmypb1wit6smud3wcujxrosrij"];
+const ADMIN_WALLETS = [
+  (process.env.NEXT_PUBLIC_TREASURY_WALLET ?? "fiebkzndstggewkrqdsmypb1wit6smud3wcujxrosrij").toLowerCase(),
+];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { ready, authenticated, user, login, logout } = usePrivy();

@@ -3734,9 +3734,15 @@ function FinLedgerTab() {
     try {
       const res = await fetch(buildUrl());
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json() as { summary: FinLedgerSummary; data: FinLedgerRow[] };
+      const json = await res.json() as { summary: FinLedgerSummary; data: FinLedgerRow[]; error?: string; txError?: string };
+      console.log('[FinLedger] API 返回:', { rows: json.data?.length ?? 0, summary: json.summary, error: json.error, txError: json.txError });
+      if (json.error) {
+        setError(`數據加載錯誤: ${json.error}`);
+      } else if (json.txError) {
+        setError(`交易記錄查詢異常: ${json.txError}（仍顯示身份認證費用數據）`);
+      }
       setSummary(json.summary);
-      setRows(json.data);
+      setRows(json.data ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "加載失敗");
     } finally {
