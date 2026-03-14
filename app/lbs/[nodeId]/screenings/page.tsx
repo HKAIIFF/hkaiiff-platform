@@ -343,7 +343,7 @@ export default function ScreeningsPage() {
 
   /* ─── Render ─────────────────────────────────────────────────────────── */
   return (
-    <div className="min-h-screen bg-[#040404] pb-48">
+    <div className="min-h-screen bg-[#040404] pb-28">
 
       {/* ── 固定顶栏 ────────────────────────────────────────────────────── */}
       <div
@@ -366,7 +366,7 @@ export default function ScreeningsPage() {
                 {node?.title || 'LBS 影展'}
               </h1>
             </div>
-            <div className="shrink-0">
+            <div className="shrink-0 flex items-center gap-2">
               <span className={`font-mono text-[11px] font-semibold px-2.5 py-1 rounded-full border ${
                 selectedIds.size >= MAX_SCREENINGS
                   ? 'bg-[#FFC107]/20 border-[#FFC107]/40 text-[#FFC107]'
@@ -374,6 +374,22 @@ export default function ScreeningsPage() {
               }`}>
                 已选 {selectedIds.size} / {MAX_SCREENINGS} 部
               </span>
+              {!isReadonly && (
+                <button
+                  onClick={() => setShowPayment(true)}
+                  disabled={selectedIds.size === 0}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-heavy tracking-[0.1em] transition-all
+                    ${selectedIds.size > 0
+                      ? 'bg-[#FFC107] text-black shadow-[0_0_16px_rgba(255,193,7,0.3)] hover:shadow-[0_0_24px_rgba(255,193,7,0.45)] active:scale-[0.97]'
+                      : 'bg-[#1a1a1a] border border-[#2a2a2a] text-[#444] cursor-not-allowed'
+                    }`}
+                >
+                  <svg className="w-3 h-3 shrink-0" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                  </svg>
+                  下一步
+                </button>
+              )}
             </div>
           </div>
 
@@ -476,7 +492,7 @@ export default function ScreeningsPage() {
       >
         <div className="max-w-2xl mx-auto px-4 pt-3">
 
-          {/* 第一行：18个圆形占位，横向滚动 */}
+          {/* 18个圆形占位，横向滚动 */}
           <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none pb-1 mb-3">
             {Array.from({ length: MAX_SCREENINGS }).map((_, i) => {
               const film = selectedFilms[i] ?? null;
@@ -491,24 +507,8 @@ export default function ScreeningsPage() {
             })}
           </div>
 
-          {/* 第二行：全宽操作按钮 */}
-          {!isReadonly ? (
-            <button
-              onClick={() => setShowPayment(true)}
-              disabled={selectedIds.size === 0}
-              className={`w-full py-3.5 rounded-xl text-sm font-heavy tracking-[0.15em] uppercase
-                         flex items-center justify-center gap-2 transition-all mb-2
-                         ${selectedIds.size > 0
-                           ? 'bg-[#FFC107] text-black shadow-[0_0_24px_rgba(255,193,7,0.25)] hover:shadow-[0_0_36px_rgba(255,193,7,0.4)] active:scale-[0.98]'
-                           : 'bg-[#111] border border-[#222] text-[#444] cursor-not-allowed'
-                         }`}
-            >
-              <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-              {selectedIds.size > 0 ? '下一步：支付' : '请至少选择 1 部影片'}
-            </button>
-          ) : (
+          {/* 只读状态说明 */}
+          {isReadonly && (
             <div className="flex items-center justify-between mb-2">
               <span className="text-[#444] font-mono text-[11px]">
                 共 {selectedIds.size} 部排片 · 已锁定
