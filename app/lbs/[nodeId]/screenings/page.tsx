@@ -492,11 +492,14 @@ export default function ScreeningsPage() {
       <div
         style={{
           position: 'fixed',
-          bottom: '85px',
+          bottom: 0,
           left: 0,
           right: 0,
           backgroundColor: '#111',
-          padding: '8px 16px',
+          paddingTop: '8px',
+          paddingLeft: '16px',
+          paddingRight: '16px',
+          paddingBottom: '90px',
           zIndex: 9999,
           display: 'flex',
           flexDirection: 'row',
