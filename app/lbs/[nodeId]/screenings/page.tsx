@@ -454,7 +454,7 @@ export default function ScreeningsPage() {
       {/* ── 主内容 ──────────────────────────────────────────────────────── */}
       <div
         className="flex-1 overflow-y-auto max-w-2xl w-full mx-auto px-4"
-        style={{ paddingTop: `calc(max(12px, env(safe-area-inset-top)) + ${node?.review_status ? '170px' : '100px'})`, paddingBottom: '140px' }}
+        style={{ paddingTop: `calc(max(12px, env(safe-area-inset-top)) + ${node?.review_status ? '170px' : '100px'})`, paddingBottom: '200px' }}
       >
         {loadingFilms ? (
           <div className="flex items-center justify-center py-20 gap-3 text-[#444]">
@@ -492,14 +492,11 @@ export default function ScreeningsPage() {
       <div
         style={{
           position: 'fixed',
-          bottom: 0,
-          paddingBottom: 'calc(env(safe-area-inset-bottom) + 60px)',
+          bottom: '130px',
           left: 0,
           right: 0,
           backgroundColor: '#111',
-          paddingTop: '8px',
-          paddingLeft: '16px',
-          paddingRight: '16px',
+          padding: '8px 16px',
           zIndex: 50,
           display: 'flex',
           flexDirection: 'row',
