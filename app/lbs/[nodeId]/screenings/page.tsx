@@ -474,74 +474,75 @@ export default function ScreeningsPage() {
         className="fixed bottom-0 left-0 right-0 z-40 bg-[#040404]/95 backdrop-blur-md border-t border-[#111]"
         style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
       >
-        <div className="max-w-2xl mx-auto px-4 pt-3">
-          {/* 18个圆形占位 */}
-          <div className="flex items-center gap-1.5 mb-3 overflow-x-auto pb-1 scrollbar-none">
-            {Array.from({ length: MAX_SCREENINGS }).map((_, i) => {
-              const film = selectedFilms[i] ?? null;
-              return (
-                <ScreeningSlot
-                  key={i}
-                  film={film}
-                  onRemove={film ? () => handleToggle(film.id) : undefined}
-                  isLocked={isReadonly}
-                />
-              );
-            })}
-          </div>
+        <div className="max-w-2xl mx-auto px-4 pt-3 pb-1">
+          <div className="flex items-center gap-3">
 
-          {/* 底部按钮区 */}
-          {!isReadonly ? (
-            <div className="flex items-center gap-3">
-              {/* 下一步：支付 */}
-              {selectedIds.size > 0 && !showPayment ? (
+            {/* 左侧：18个圆形占位（横向滚动） */}
+            <div className="flex-1 min-w-0 overflow-x-auto scrollbar-none">
+              <div className="flex items-center gap-1.5 pb-0.5">
+                {Array.from({ length: MAX_SCREENINGS }).map((_, i) => {
+                  const film = selectedFilms[i] ?? null;
+                  return (
+                    <ScreeningSlot
+                      key={i}
+                      film={film}
+                      onRemove={film ? () => handleToggle(film.id) : undefined}
+                      isLocked={isReadonly}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 右侧：操作按钮（始终可见） */}
+            {!isReadonly ? (
+              selectedIds.size > 0 ? (
                 <button
                   onClick={() => setShowPayment(true)}
-                  className="flex-1 py-3.5 rounded-xl bg-[#FFC107] text-black font-heavy tracking-[0.15em] uppercase text-sm
+                  className="shrink-0 px-4 py-3 rounded-xl bg-[#FFC107] text-black font-heavy tracking-[0.1em] text-sm
                              shadow-[0_0_24px_rgba(255,193,7,0.25)] hover:shadow-[0_0_36px_rgba(255,193,7,0.4)]
-                             active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                             active:scale-[0.98] transition-all flex items-center gap-1.5 whitespace-nowrap"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   </svg>
                   下一步：支付
                 </button>
-              ) : selectedIds.size === 0 ? (
-                <div className="flex-1 py-3.5 rounded-xl bg-[#111] border border-[#222] text-[#444] font-mono text-sm text-center tracking-wider">
-                  请至少选择 1 部影片
+              ) : (
+                <div className="shrink-0 px-3 py-2.5 rounded-xl bg-[#111] border border-[#222] text-[#444] font-mono text-xs whitespace-nowrap">
+                  请选择影片
                 </div>
-              ) : null}
-
-              {/* 展示 UniversalCheckout（支付弹窗）*/}
-              {showPayment && selectedIds.size > 0 && (
-                <div className="flex-1">
-                  <UniversalCheckout
-                    productCode="lbs_license"
-                    open={true}
-                    onClose={() => setShowPayment(false)}
-                    successUrl={successUrl}
-                    cancelUrl={typeof window !== 'undefined' ? window.location.href : ''}
-                    extraMetadata={{ nodeId }}
-                    onSuccess={handleAifPaymentSuccess}
-                  />
-                </div>
-              )}
-            </div>
-          ) : (
-            /* 只读模式底部 */
-            <div className="flex items-center justify-between">
-              <span className="text-[#444] font-mono text-[11px]">
-                共 {selectedIds.size} 部排片 · 已锁定
-              </span>
+              )
+            ) : (
               <button
                 onClick={() => router.push(`/lbs/${nodeId}/review-pending`)}
-                className="px-4 py-2 rounded-lg border border-[#FFC107]/30 text-[#FFC107] font-mono text-[11px] hover:bg-[#FFC107]/10 transition-colors"
+                className="shrink-0 px-3 py-2.5 rounded-lg border border-[#FFC107]/30 text-[#FFC107] font-mono text-[11px] hover:bg-[#FFC107]/10 transition-colors whitespace-nowrap"
               >
                 查看审核状态 →
               </button>
-            </div>
+            )}
+          </div>
+
+          {/* 只读时显示锁定说明 */}
+          {isReadonly && (
+            <p className="mt-1 text-[#444] font-mono text-[10px] text-center tracking-wider">
+              共 {selectedIds.size} 部排片 · 已锁定
+            </p>
           )}
         </div>
+
+        {/* UniversalCheckout 支付弹窗（受控模式，渲染全屏遮罩） */}
+        {showPayment && (
+          <UniversalCheckout
+            productCode="lbs_license"
+            open={showPayment}
+            onClose={() => setShowPayment(false)}
+            successUrl={successUrl}
+            cancelUrl={typeof window !== 'undefined' ? window.location.href : ''}
+            extraMetadata={{ nodeId }}
+            onSuccess={handleAifPaymentSuccess}
+          />
+        )}
       </div>
 
     </div>
