@@ -3720,7 +3720,7 @@ function FinLedgerTab() {
 
   const buildUrl = useCallback(() => {
     const params = new URLSearchParams();
-    if (txType) params.set("tx_type", txType);
+    if (txType) params.set("txType", txType);
     if (paymentMethod) params.set("payment_method", paymentMethod);
     if (startDate) params.set("startDate", startDate);
     if (endDate) params.set("endDate", endDate);
@@ -5188,7 +5188,7 @@ function OpsRbacTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
   const [newRole, setNewRole] = useState<{ name: string; permissions: RbacPermission[] }>({ name: "", permissions: [] });
   const [humanMembers, setHumanMembers] = useState<HumanMember[]>([
     { id: 1, account: "reviewer@hkaiiff.ai",  roleId: 1, status: "active",   createdAt: "2026-01-10" },
-    { id: 2, account: "wallet:FieBkz…xRoS",   roleId: 2, status: "active",   createdAt: "2026-01-15" },
+    { id: 2, account: `wallet:${(process.env.NEXT_PUBLIC_TREASURY_WALLET ?? "").slice(0, 6)}…${(process.env.NEXT_PUBLIC_TREASURY_WALLET ?? "").slice(-4)}`, roleId: 2, status: "active", createdAt: "2026-01-15" },
     { id: 3, account: "curator@web3.io",       roleId: 3, status: "disabled", createdAt: "2026-02-01" },
   ]);
   const [botMembers, setBotMembers] = useState<BotMember[]>([

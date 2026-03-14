@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 const adminSupabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -11,8 +13,11 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
-    const txType = searchParams.get('txType');
-    const currency = searchParams.get('currency');
+    // 兼容 txType（camelCase）和 tx_type（snake_case）两种参数名
+    const txType = searchParams.get('txType') ?? searchParams.get('tx_type');
+    // 兼容 currency 和 payment_method 两种参数名，并将 payment_method 映射为 currency 值
+    const currencyRaw = searchParams.get('currency') ?? searchParams.get('payment_method');
+    const currency = currencyRaw === 'stripe' ? 'USD' : currencyRaw === 'solana' ? 'AIF' : currencyRaw;
 
     let query = adminSupabase
       .from('transactions')
@@ -33,22 +38,6 @@ export async function GET(req: Request) {
       console.error('[finance/ledger] transactions 查詢失敗:', txError.message, txError.code);
     }
     console.log('[finance/ledger] transactions rows:', txRows?.length ?? 0);
-
-    // 批量查詢用戶 email
-    const userIds = [...new Set((txRows ?? []).map(r => r.user_id).filter(Boolean))] as string[];
-    const userMap: Record<string, string> = {};
-    if (userIds.length > 0) {
-      const { data: users } = await adminSupabase.from('users').select('id, email').in('id', userIds);
-      for (const u of users ?? []) userMap[u.id] = u.email;
-    }
-
-    // 批量查詢影片標題
-    const filmIds = [...new Set((txRows ?? []).map(r => r.related_film_id).filter(Boolean))] as string[];
-    const filmMap: Record<string, string> = {};
-    if (filmIds.length > 0) {
-      const { data: films } = await adminSupabase.from('films').select('id, title').in('id', filmIds);
-      for (const f of films ?? []) filmMap[f.id] = f.title;
-    }
 
     // ── Source 2: creator_applications（身份認證費）─────────────────────────
     let caQuery = adminSupabase
@@ -71,6 +60,24 @@ export async function GET(req: Request) {
     console.log('[finance/ledger] creator_applications rows:', caData?.length ?? 0);
 
     const caRows = caData ?? [];
+
+    // 批量查詢用戶 email（合并 transactions + creator_applications 中的所有 user_id）
+    const txUserIds = (txRows ?? []).map(r => r.user_id).filter(Boolean) as string[];
+    const caUserIds = caRows.map((r: { user_id: string }) => r.user_id).filter(Boolean) as string[];
+    const allUserIds = [...new Set([...txUserIds, ...caUserIds])];
+    const userMap: Record<string, string> = {};
+    if (allUserIds.length > 0) {
+      const { data: users } = await adminSupabase.from('users').select('id, email').in('id', allUserIds);
+      for (const u of users ?? []) userMap[u.id] = u.email;
+    }
+
+    // 批量查詢影片標題
+    const filmIds = [...new Set((txRows ?? []).map(r => r.related_film_id).filter(Boolean))] as string[];
+    const filmMap: Record<string, string> = {};
+    if (filmIds.length > 0) {
+      const { data: films } = await adminSupabase.from('films').select('id, title').in('id', filmIds);
+      for (const f of films ?? []) filmMap[f.id] = f.title;
+    }
 
     // 組裝 transactions 數據
     const txData = (txRows ?? []).map(r => ({

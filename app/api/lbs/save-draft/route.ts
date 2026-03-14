@@ -64,6 +64,7 @@ export async function POST(req: NextRequest) {
     const nodeId = rawNodeId && UUID_RE.test(rawNodeId) ? rawNodeId : undefined;
 
     // 只传数据库中实际存在的列，creator_id 由服务端从 token 中获取（不信任客户端传入值）
+    // status 强制为 'draft'，绝不允许客户端将草稿直接设为 'approved'/'pending' 等已审核状态
     const safePayload = {
       title: payload.title,
       location: payload.location,
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest) {
       ticket_price: payload.ticket_price,
       poster_url: payload.poster_url,
       background_url: payload.background_url,
-      status: payload.status,
+      status: 'draft',
       creator_id: creatorId,
     };
 
