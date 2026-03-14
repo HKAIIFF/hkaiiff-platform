@@ -26,7 +26,10 @@ function CompleteContent() {
     const sessionId = searchParams.get('session_id');
     const paramNodeId = searchParams.get('nodeId');
 
-    if (!sessionId) {
+    // 只有当 sessionId 和 nodeId 都缺失时才重定向回 apply
+    // Stripe success_url 可能不包含 session_id（当 product-checkout 未附加时），
+    // 但只要有 nodeId 就可以继续处理
+    if (!sessionId && !paramNodeId) {
       router.replace('/lbs/apply');
       return;
     }

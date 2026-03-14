@@ -94,6 +94,12 @@ export async function POST(req: Request) {
       || (product.metadata as Record<string, string> | null)?.description_zh
       || undefined;
 
+    // 将 {CHECKOUT_SESSION_ID} 附加到 success_url，供客户端页面验证支付状态
+    const baseSuccessUrl = successUrl || `${siteUrl}/me?payment=success&product=${productCode}`;
+    const finalSuccessUrl = baseSuccessUrl.includes('session_id')
+      ? baseSuccessUrl
+      : `${baseSuccessUrl}${baseSuccessUrl.includes('?') ? '&' : '?'}session_id={CHECKOUT_SESSION_ID}`;
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
@@ -110,7 +116,7 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
-      success_url: successUrl || `${siteUrl}/me?payment=success&product=${productCode}`,
+      success_url: finalSuccessUrl,
       cancel_url: cancelUrl || `${siteUrl}/me?payment=cancelled`,
       metadata: {
         userId: verifiedUserId,
