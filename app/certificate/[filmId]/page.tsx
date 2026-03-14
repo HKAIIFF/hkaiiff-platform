@@ -136,6 +136,8 @@ function BlockchainBadge() {
   );
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /* ─── Page ───────────────────────────────────────────────────────────────────── */
 export default function CertificatePage() {
   const params = useParams();
@@ -145,13 +147,27 @@ export default function CertificatePage() {
   const [notFound, setNotFound] = useState(false);
 
   useEffect(() => {
+    console.log('[certificate] film_id from params:', filmId);
+
     if (!filmId) return;
+
+    if (!UUID_REGEX.test(filmId)) {
+      console.warn('[certificate] filmId 不是合法 UUID，跳过查询:', filmId);
+      setNotFound(true);
+      setLoading(false);
+      return;
+    }
+
     async function fetchFilm() {
+      console.log('[certificate] 查询 Supabase films, filmId =', filmId);
       const { data, error } = await supabase
         .from("films")
         .select("id, title, studio, ai_ratio, tech_stack, created_at, status, poster_url, solana_tx")
         .eq("id", filmId)
         .single();
+      if (error) {
+        console.error('[certificate] Supabase 查询错误:', error.message);
+      }
       if (error || !data || data.status !== "approved") {
         setNotFound(true);
       } else {

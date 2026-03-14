@@ -18,6 +18,8 @@ interface FilmForPlay {
   poster_url: string | null;
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export default function PlayPage() {
   const params = useParams();
   const id = params?.id as string;
@@ -26,6 +28,9 @@ export default function PlayPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const { user, getAccessToken } = usePrivy();
+
+  console.log('[play] film_id from params:', id);
+  console.log('[play] user_id:', user?.id);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -40,8 +45,18 @@ export default function PlayPage() {
 
   /* ── Fetch film metadata (not binary) ───────────────────────────────── */
   useEffect(() => {
+    console.log('[play] useEffect: id =', id);
     if (!id) return;
+
+    if (!UUID_REGEX.test(id)) {
+      console.warn('[play] id 不是合法 UUID，跳过 Supabase 查询:', id);
+      showToast('⚠️ 影片 ID 格式无效', 'error');
+      setLoading(false);
+      return;
+    }
+
     async function fetchFilm() {
+      console.log('[play] 查询 Supabase films, id =', id);
       try {
         const { data, error } = await supabase
           .from('films')

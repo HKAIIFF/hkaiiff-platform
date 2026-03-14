@@ -41,17 +41,27 @@ export async function POST(req: Request) {
       const videoTitle = title?.trim() || file.name || 'Untitled';
       console.log(`[/api/upload] 视频分流 → Bunny Stream，title="${videoTitle}"，size=${buffer.byteLength}`);
 
-      // Bunny 上传超时 540s（Vercel maxDuration=300，所以不会超过限制）
-      const bunnyTimeout = setTimeout(() => {
-        throw new Error('Bunny Stream 上传超时，请重试');
-      }, 540_000);
+      // 使用 AbortController 实现 120 秒超时（setTimeout+throw 在异步上下文中无效）
+      const BUNNY_TIMEOUT_MS = 120_000;
+      const controller = new AbortController();
+      const bunnyTimer = setTimeout(() => {
+        console.warn('[/api/upload] Bunny 上传超时，正在中止请求...');
+        controller.abort();
+      }, BUNNY_TIMEOUT_MS);
 
       let guid: string;
       try {
-        guid = await createBunnyVideo(videoTitle);
-        await uploadToBunny(guid, buffer);
+        guid = await createBunnyVideo(videoTitle, controller.signal);
+        await uploadToBunny(guid, buffer, controller.signal);
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        console.error('[/api/upload] Bunny 上传失败：', errMsg);
+        return NextResponse.json(
+          { error: `视频上传失败：${errMsg}` },
+          { status: 500 },
+        );
       } finally {
-        clearTimeout(bunnyTimeout);
+        clearTimeout(bunnyTimer);
       }
       const hlsUrl = getBunnyHlsUrl(guid);
 

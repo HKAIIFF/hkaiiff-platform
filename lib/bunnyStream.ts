@@ -56,7 +56,7 @@ function buildHeaders(extra?: Record<string, string>): Record<string, string> {
  * @example
  *   const guid = await createBunnyVideo('我的电影标题');
  */
-export async function createBunnyVideo(title: string): Promise<string> {
+export async function createBunnyVideo(title: string, signal?: AbortSignal): Promise<string> {
   const libraryId = getEnv('BUNNY_LIBRARY_ID');
   const url = `https://video.bunnycdn.com/library/${libraryId}/videos`;
 
@@ -65,6 +65,7 @@ export async function createBunnyVideo(title: string): Promise<string> {
       method: 'POST',
       headers: buildHeaders(),
       body: JSON.stringify({ title }),
+      signal,
     });
 
     if (!res.ok) {
@@ -81,6 +82,10 @@ export async function createBunnyVideo(title: string): Promise<string> {
     console.log(`[BunnyStream] 视频占位符创建成功，guid=${data.guid}，title="${title}"`);
     return data.guid;
   } catch (err) {
+    if ((err as { name?: string })?.name === 'AbortError') {
+      console.error('[BunnyStream] createBunnyVideo 超时中止');
+      throw new Error('Bunny Stream 请求超时（createVideo），请检查网络后重试');
+    }
     console.error('[BunnyStream] createBunnyVideo 失败：', err);
     throw err;
   }
@@ -99,6 +104,7 @@ export async function createBunnyVideo(title: string): Promise<string> {
 export async function uploadToBunny(
   guid: string,
   fileBuffer: Buffer | Blob,
+  signal?: AbortSignal,
 ): Promise<void> {
   const libraryId = getEnv('BUNNY_LIBRARY_ID');
   const url = `https://video.bunnycdn.com/library/${libraryId}/videos/${guid}`;
@@ -112,8 +118,8 @@ export async function uploadToBunny(
         AccessKey: apiKey,
         'Content-Type': 'application/octet-stream',
       },
-      // fetch 的 body 支持 Buffer（Node.js 18+）和 Blob
       body: fileBuffer,
+      signal,
     });
 
     if (!res.ok) {
@@ -123,6 +129,10 @@ export async function uploadToBunny(
 
     console.log(`[BunnyStream] 视频二进制流上传成功，guid=${guid}`);
   } catch (err) {
+    if ((err as { name?: string })?.name === 'AbortError') {
+      console.error(`[BunnyStream] uploadToBunny 超时中止（guid=${guid}）`);
+      throw new Error(`Bunny Stream 上传超时（uploadVideo），文件较大请耐心等待或检查网络后重试`);
+    }
     console.error(`[BunnyStream] uploadToBunny 失败（guid=${guid}）：`, err);
     throw err;
   }

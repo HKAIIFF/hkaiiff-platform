@@ -61,6 +61,10 @@ function UploadContent() {
   const { showToast } = useToast();
   const { t } = useI18n();
 
+  const filmIdParam = searchParams.get('film_id');
+  console.log('[upload] film_id from params:', filmIdParam);
+  console.log('[upload] user_id:', user?.id);
+
   // ── 頁面級鑒權硬鎖 ────────────────────────────────────────────────────────
   useEffect(() => {
     if (ready && !authenticated) {
@@ -71,8 +75,10 @@ function UploadContent() {
   // ── URL 参数中的 film_id 格式校验 ─────────────────────────────────────────
   // 若有 film_id 参数但不是合法 UUID，立即清除并提示
   useEffect(() => {
-    const filmIdParam = searchParams.get('film_id');
-    if (filmIdParam && !UUID_REGEX.test(filmIdParam)) {
+    const filmId = searchParams.get('film_id');
+    console.log('[upload] film_id 校验 =>', filmId, '| isUUID =>', filmId ? UUID_REGEX.test(filmId) : 'n/a');
+    if (filmId && !UUID_REGEX.test(filmId)) {
+      console.warn('[upload] film_id 不是合法 UUID，已重置:', filmId);
       showToast('film_id 参数格式错误，已重置', 'error');
       router.replace('/upload');
     }
