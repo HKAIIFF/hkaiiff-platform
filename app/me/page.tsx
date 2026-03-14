@@ -640,13 +640,14 @@ export default function MePage() {
       }
 
       // 加载审核通过（但未必上线）的 LBS 影展节点
+      // 使用 neq('is_online', true) 而非 eq('is_online', false)，确保 null 值也被包含
       try {
         const { data: approvedData } = await supabase
           .from('lbs_nodes')
           .select('id, title, poster_url')
           .eq('creator_id', userId)
           .eq('review_status', 'approved')
-          .eq('is_online', false)
+          .neq('is_online', true)
           .order('created_at', { ascending: false });
         setApprovedLbsNodes(approvedData ?? []);
       } catch (err) {
@@ -725,7 +726,7 @@ export default function MePage() {
           .select('id, title, poster_url')
           .eq('creator_id', userId)
           .eq('review_status', 'approved')
-          .eq('is_online', false)
+          .neq('is_online', true)
           .order('created_at', { ascending: false });
         setApprovedLbsNodes(lbsApproved ?? []);
       } catch (err) {
@@ -1174,7 +1175,7 @@ export default function MePage() {
                 {approvedLbsNodes.map((node) => (
                   <button
                     key={node.id}
-                    onClick={() => router.push(`/lbs/${node.id}`)}
+                    onClick={() => router.push(`/lbs/${node.id}/screenings`)}
                     className="flex-shrink-0 group relative"
                     title={node.title}
                   >
