@@ -18,7 +18,6 @@
 import { Fragment, useState, useEffect } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useProduct } from '@/lib/hooks/useProduct';
-import { supabase } from '@/lib/supabase';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -106,6 +105,8 @@ function SolanaIcon({ className }: { className?: string }) {
 
 // ─── 主組件 ───────────────────────────────────────────────────────────────────
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export default function UniversalCheckout({
   productCode,
   onSuccess,
@@ -143,23 +144,38 @@ export default function UniversalCheckout({
   const isProcessing = modalState === 'processing';
 
   // ── AIF 餘額：Modal 開啟且已登入時載入 ────────────────────────────────────
+  // 改用 /api/user-balance API 路由而非直接查询 Supabase，
+  // 避免 Privy DID 格式的 user.id 传入 UUID 类型列时触发
+  // "The string did not match the expected pattern" 错误
   useEffect(() => {
     if (!isOpen || !authenticated || !user?.id) return;
+
+    console.log('[UniversalCheckout] 加载 AIF 余额, user_id:', user.id, '| isUUID:', UUID_REGEX.test(user.id));
+
     let cancelled = false;
     setBalanceLoading(true);
 
     const loadBalance = async () => {
       try {
-        const { data } = await supabase
-          .from('users')
-          .select('aif_balance')
-          .eq('id', user.id)
-          .single();
-        if (!cancelled) {
-          setAifBalance(data?.aif_balance ?? 0);
+        const token = await getAccessToken();
+        if (!token) {
+          if (!cancelled) setAifBalance(0);
+          return;
         }
-      } catch {
-        // 靜默忽略餘額載入錯誤
+        const res = await fetch('/api/user-balance', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const json = await res.json() as { aif_balance?: number };
+          console.log('[UniversalCheckout] AIF 余额加载成功:', json.aif_balance);
+          if (!cancelled) setAifBalance(json.aif_balance ?? 0);
+        } else {
+          console.warn('[UniversalCheckout] /api/user-balance 返回非 200:', res.status);
+          if (!cancelled) setAifBalance(0);
+        }
+      } catch (err) {
+        console.warn('[UniversalCheckout] AIF 余额加载失败:', err);
+        if (!cancelled) setAifBalance(0);
       } finally {
         if (!cancelled) setBalanceLoading(false);
       }
@@ -167,7 +183,7 @@ export default function UniversalCheckout({
 
     loadBalance();
     return () => { cancelled = true; };
-  }, [isOpen, authenticated, user?.id]);
+  }, [isOpen, authenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── 按鈕樣式 ──────────────────────────────────────────────────────────────
   const variantCls = {
