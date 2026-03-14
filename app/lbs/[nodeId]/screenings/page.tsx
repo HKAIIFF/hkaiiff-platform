@@ -451,10 +451,10 @@ export default function ScreeningsPage() {
         </div>
       </div>
 
-      {/* ── 主内容（flex-1 可滚动，padding-top 为顶栏高度） ────────────────── */}
+      {/* ── 主内容 ──────────────────────────────────────────────────────── */}
       <div
         className="flex-1 overflow-y-auto max-w-2xl w-full mx-auto px-4"
-        style={{ paddingTop: `calc(max(12px, env(safe-area-inset-top)) + ${node?.review_status ? '170px' : '100px'})`, paddingBottom: '16px' }}
+        style={{ paddingTop: `calc(max(12px, env(safe-area-inset-top)) + ${node?.review_status ? '170px' : '100px'})`, paddingBottom: '120px' }}
       >
         {loadingFilms ? (
           <div className="flex items-center justify-center py-20 gap-3 text-[#444]">
@@ -488,52 +488,44 @@ export default function ScreeningsPage() {
         )}
       </div>
 
-      {/* ── 底部圆形选片栏（flex shrink-0，永远在容器底部，无 fixed 定位问题） */}
+      {/* ── 底部圆形选片栏 ──────────────────────────────────────────────── */}
       <div
-        className="shrink-0 w-full border-t border-[#2a2a2a] z-50"
         style={{
-          background: '#0a0a0a',
-          paddingBottom: 'max(env(safe-area-inset-bottom), 16px)',
+          position: 'fixed',
+          bottom: '60px',
+          left: 0,
+          right: 0,
+          backgroundColor: '#111',
+          padding: '8px 16px',
+          zIndex: 50,
+          display: 'flex',
+          flexDirection: 'row',
+          overflowX: 'auto',
+          gap: '8px',
+          borderTop: '1px solid #333',
         }}
       >
-        <div className="max-w-2xl mx-auto px-4 pt-3 pb-1">
-
-          {/* 18个圆形占位：外层负责横向滚动，内层 flex 保证不换行 */}
-          <div
-            className="w-full overflow-x-auto"
-            style={{ WebkitOverflowScrolling: 'touch' }}
-          >
-            <div className="flex items-center gap-2" style={{ minWidth: 'max-content' }}>
-              {Array.from({ length: MAX_SCREENINGS }).map((_, i) => {
-                const film = selectedFilms[i] ?? null;
-                return (
-                  <ScreeningSlot
-                    key={i}
-                    film={film}
-                    onRemove={film ? () => handleToggle(film.id) : undefined}
-                    isLocked={isReadonly}
-                  />
-                );
-              })}
-            </div>
-          </div>
-
-          {/* 只读状态说明 */}
-          {isReadonly && (
-            <div className="flex items-center justify-between mt-2">
-              <span className="text-[#555] font-mono text-[11px]">
-                共 {selectedIds.size} 部排片 · 已锁定
-              </span>
-              <button
-                onClick={() => router.push(`/lbs/${nodeId}/review-pending`)}
-                className="px-3 py-1.5 rounded-lg border border-[#FFC107]/30 text-[#FFC107] font-mono text-[11px] hover:bg-[#FFC107]/10 transition-colors"
-              >
-                查看审核状态 →
-              </button>
-            </div>
-          )}
-        </div>
-
+        {Array.from({ length: 18 }).map((_, i) => {
+          const film = selectedFilms[i];
+          return (
+            <div
+              key={i}
+              onClick={() => film && !isReadonly && handleToggle(film.id)}
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                flexShrink: 0,
+                backgroundColor: film ? 'transparent' : '#333',
+                backgroundImage: film?.poster_url ? `url(${film.poster_url})` : 'none',
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                border: film ? '2px solid #FFD700' : '2px solid #444',
+                cursor: film && !isReadonly ? 'pointer' : 'default',
+              }}
+            />
+          );
+        })}
       </div>
 
       {/* ── 支付弹窗：渲染在页面顶层，不受任何 fixed 父元素 stacking context 约束 */}
