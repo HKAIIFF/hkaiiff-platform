@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState, useCallback, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useModal } from "@/app/context/ModalContext";
 import { useI18n } from "@/app/context/I18nContext";
 import { useToast } from "@/app/context/ToastContext";
@@ -393,6 +393,7 @@ const ASPECT_RATIOS = [
 
 function DesktopGridCard({ film }: { film: SupabaseFilm }) {
   const { setActiveModal, setSelectedFilm } = useModal();
+  const router = useRouter();
   const posterSrc = buildOssUrl(film.poster_url) || undefined;
   const avatarSeed = film.user_avatar_seed ?? film.studio ?? film.id;
   const avatarUrl = `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(avatarSeed)}`;
@@ -409,7 +410,7 @@ function DesktopGridCard({ film }: { film: SupabaseFilm }) {
       className={`relative overflow-hidden rounded-xl bg-[#0d0d0d] cursor-pointer group w-full ${aspectClass}
                   border border-[#1a1a1a] hover:border-[#CCFF00]/25
                   transition-all duration-300 ease-out`}
-      onClick={() => { setSelectedFilm(toModalFilm(film)); setActiveModal("info"); }}
+      onClick={() => router.push(`/film/${film.id}`)}
     >
       {/* Poster — fills card via object-cover */}
       {posterSrc ? (
@@ -483,8 +484,7 @@ function DesktopGridCard({ film }: { film: SupabaseFilm }) {
             className="flex items-center gap-1.5 bg-signal text-black text-[9px] font-bold font-mono px-3 py-1.5 rounded-full hover:bg-white transition-colors shrink-0"
             onClick={(e) => {
               e.stopPropagation();
-              setSelectedFilm(toModalFilm(film));
-              setActiveModal("info");
+              router.push(`/film/${film.id}`);
             }}
           >
             <i className="fas fa-play text-[8px]" /> PLAY

@@ -922,9 +922,10 @@ export default function MePage() {
         <div className="md:w-72 lg:w-80 md:flex-shrink-0 md:border-r md:border-[#1a1a1a] md:overflow-y-auto md:h-full px-4 md:px-5 md:py-6 py-4">
 
       {/* ── Profile Card ───────────────────────────────────────────────── */}
-      <div className="relative flex items-center gap-5 mb-6 bg-[#111] p-5 rounded-xl border border-[#333] shadow-[0_0_20px_rgba(0,0,0,0.5)] mt-0 md:mt-0">
+      {/* 移動端: flex-col（頭像在上，信息在下）；PC 端: flex-row（左右並排） */}
+      <div className="relative flex flex-col md:flex-row md:items-center gap-4 md:gap-5 mb-6 bg-[#111] p-5 rounded-xl border border-[#333] shadow-[0_0_20px_rgba(0,0,0,0.5)]">
 
-        {/* Edit / Logout controls (top-right) */}
+        {/* Edit / Logout controls — 絕對定位在右上角 */}
         <div className="absolute top-4 right-4 flex items-center space-x-2 z-10">
           {/* 編輯按鈕 → 已認證或審核中時鎖定 */}
           {(() => {
@@ -974,8 +975,8 @@ export default function MePage() {
           </button>
         </div>
 
-        {/* Avatar */}
-        <div className="flex flex-col items-center gap-2 shrink-0">
+        {/* Avatar — 移動端水平居中，PC 端靠左 */}
+        <div className="flex flex-col items-center md:items-start gap-2 shrink-0 self-center md:self-auto">
           <div className="relative">
             {/* 頭像：邊框顏色根據最高優先身份決定 */}
             <img
@@ -1013,10 +1014,10 @@ export default function MePage() {
           </div>
         </div>
 
-        {/* Info */}
+        {/* Info — flex-1 min-w-0 保证名字不被挤压 */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-0.5 pr-16">
-            <h2 className="font-heavy text-2xl text-white tracking-wide truncate">
+          <div className="flex items-center gap-2 flex-wrap mb-0.5 pr-20 md:pr-20">
+            <h2 className="font-heavy text-2xl text-white tracking-wide min-w-0">
               {(() => {
                 const approvedApp = identityApplications.find(
                   (a) => a.status === 'approved' && a.verification_name

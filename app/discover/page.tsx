@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/app/context/ToastContext';
 import { supabase } from '@/lib/supabase';
 import { buildOssUrl } from '@/lib/utils/oss';
+import FeedVideo from '@/components/FeedVideo';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -150,6 +151,8 @@ function MobileDiscover({
   sortOrder, setSortOrder, allCities, selectedNode, detailFilms,
   filmsLoading, onOpenDetail, onCloseDetail, onPlayFilm,
 }: MobileProps) {
+  const [selectedFilmForDetail, setSelectedFilmForDetail] = useState<LbsFilmEntry | null>(null);
+
   return (
     /* 原版单列滚动页面: pt-28 清出 MobileTopBar, pb-32 清出 BottomNav */
     <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pt-28 pb-32 relative">
@@ -272,55 +275,61 @@ function MobileDiscover({
           selectedNode ? 'translate-y-0' : 'translate-y-full'
         }`}
       >
-        {/* Top nav bar */}
-        <div className="absolute top-0 left-0 w-full z-20 flex justify-between items-center p-4 pt-12 bg-gradient-to-b from-black to-transparent">
-          <button onClick={onCloseDetail}
-            className="w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform">
+        {/* Top nav bar — 懸浮在 Hero 圖上方 */}
+        <div className="absolute top-0 left-0 w-full z-30 flex justify-between items-center p-4 pt-12 bg-gradient-to-b from-black/80 to-transparent pointer-events-none">
+          <button
+            onClick={() => {
+              if (selectedFilmForDetail) { setSelectedFilmForDetail(null); }
+              else { onCloseDetail(); }
+            }}
+            className="w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform pointer-events-auto"
+          >
             <i className="fas fa-arrow-left" />
           </button>
           <div className="font-mono text-[10px] text-signal tracking-widest bg-black/50 px-3 py-1.5 rounded-full backdrop-blur border border-[#333]">
-            EVENT DETAILS
+            {selectedFilmForDetail ? 'FILM DETAILS' : 'EVENT DETAILS'}
           </div>
           <div className="w-10" />
         </div>
 
         {selectedNode && (
           <div className="overflow-y-auto flex-1 pb-32">
-            {/* Hero — 海報置頂，移除背景圖 */}
-            <div className="relative w-full bg-black pt-16 pb-4 flex justify-center items-end overflow-hidden">
-              <div className="absolute inset-0 bg-[#050505]" />
+
+            {/* ── Hero Section：全幅背景圖 + 漸變遮罩，標題/場地/時間嵌入底部 ── */}
+            <div className="relative w-full h-[40vh] md:h-[50vh] overflow-hidden shrink-0">
               <img
-                src={selectedNode.poster_url ?? selectedNode.img}
+                src={selectedNode.background_url ?? selectedNode.img}
                 alt={selectedNode.title}
-                className="relative z-10 w-44 object-contain rounded-xl shadow-2xl"
+                className="absolute inset-0 w-full h-full object-cover"
                 onError={(e) => { const t = e.currentTarget; if (t.src !== selectedNode.img) t.src = selectedNode.img; }}
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-transparent z-20 pointer-events-none" />
-            </div>
-
-            <div className="px-6 -mt-12 relative z-10 space-y-6">
-              {/* Title */}
-              <div>
+              {/* 關鍵渐变遮罩：確保底部文字絕對清晰 */}
+              <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-transparent" />
+              {/* 底部文字 overlay */}
+              <div className="absolute bottom-0 left-0 right-0 px-6 pb-5 z-10">
                 <div className={`inline-block text-[9px] font-mono px-2 py-1 rounded mb-2 border backdrop-blur ${selectedNode.borderColor} ${selectedNode.textColor} bg-black/80`}>
                   <i className={`fas ${selectedNode.icon} mr-1`} />{selectedNode.stateLabel}
                 </div>
                 <h2 className="font-heavy text-4xl text-white leading-none drop-shadow-md mb-2">{selectedNode.title}</h2>
+                <div className="flex items-center gap-1.5 text-xs text-gray-300 mb-1">
+                  <i className="fas fa-map-marker-alt text-[#CCFF00] text-[10px]" />
+                  <span>{[selectedNode.country, selectedNode.city, selectedNode.venue].filter(Boolean).join(' · ') || selectedNode.location}</span>
+                </div>
+                {selectedNode.dateRange && (
+                  <div className="text-xs font-mono text-signal">{selectedNode.dateRange}</div>
+                )}
               </div>
+            </div>
 
-              {/* Curator — 策展人簡潔展示 */}
-              <div className="text-sm font-mono text-gray-400">
-                策展人：<span className="text-white font-bold">{selectedNode.curator.name}</span>
-                {selectedNode.curator.isCertified && <i className="fas fa-certificate text-[#CCFF00] text-xs ml-1" />}
-              </div>
+            {/* ── Content Body ── */}
+            <div className="px-6 mt-6 relative z-10 space-y-6">
 
-              {/* Venue + Schedule */}
-              <div className="grid grid-cols-2 gap-4">
-                {[{ label: 'VENUE', val: selectedNode.location }, { label: 'SCHEDULE', val: selectedNode.date }].map((s) => (
-                  <div key={s.label} className="bg-[#111] p-4 rounded-xl border border-[#222]">
-                    <div className="text-[9px] text-gray-500 font-mono mb-1">{s.label}</div>
-                    <div className="text-sm text-white font-bold">{s.val}</div>
-                  </div>
-                ))}
+              {/* Curator */}
+              <div className="flex items-center gap-2 text-sm font-mono text-gray-400">
+                <img src={selectedNode.curator.avatar} alt={selectedNode.curator.name} className="w-6 h-6 rounded-full border border-[#444] object-cover" />
+                <span>策展人：</span>
+                <span className="text-white font-bold">{selectedNode.curator.name}</span>
+                {selectedNode.curator.isCertified && <i className="fas fa-certificate text-[#CCFF00] text-xs" />}
               </div>
 
               {/* Event Description */}
@@ -331,18 +340,22 @@ function MobileDiscover({
                 </section>
               )}
 
-              {/* Official Selection */}
+              {/* ── Official Selection：單列圖文卡片（移動端），PC 端兩列 ── */}
               <section>
                 <h3 className="font-heavy text-lg text-white mb-3 flex items-center gap-2">
                   <i className="fas fa-film text-[#CCFF00]" /> OFFICIAL SELECTION
                 </h3>
                 {filmsLoading ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    {[...Array(4)].map((_, i) => (
-                      <div key={i} className="animate-pulse">
-                        <div className="aspect-[2/3] rounded-xl bg-[#1a1a1a] mb-2" />
-                        <div className="h-3 bg-[#1a1a1a] rounded w-3/4 mb-1.5" />
-                        <div className="h-2.5 bg-[#1a1a1a] rounded w-1/2" />
+                  <div className="space-y-3">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="animate-pulse flex gap-4">
+                        <div className="w-24 shrink-0 aspect-[2/3] rounded-xl bg-[#1a1a1a]" />
+                        <div className="flex-1 space-y-2 py-2">
+                          <div className="h-4 bg-[#1a1a1a] rounded w-3/4" />
+                          <div className="h-3 bg-[#1a1a1a] rounded w-1/2" />
+                          <div className="h-3 bg-[#1a1a1a] rounded w-full" />
+                          <div className="h-3 bg-[#1a1a1a] rounded w-2/3" />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -352,33 +365,39 @@ function MobileDiscover({
                     <span className="font-mono text-[10px] text-[#444] tracking-widest">NO FILMS ASSIGNED TO THIS NODE</span>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-3">
                     {detailFilms.map((film) => (
                       <div
                         key={film.id}
-                        className="group bg-[#111] rounded-xl border border-white/10 overflow-hidden shadow-xl cursor-pointer"
-                        onClick={() => onPlayFilm(film)}
+                        className="group bg-[#111] rounded-xl border border-white/10 overflow-hidden shadow-xl cursor-pointer flex active:scale-[0.98] transition-transform duration-150"
+                        onClick={() => setSelectedFilmForDetail(film)}
                       >
-                        <div className="relative aspect-[2/3] w-full overflow-hidden">
-                          <img src={film.coverUrl} alt={film.title}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1608889175123-8ee362201f81?q=80&w=300'; }} />
-                          <div className="absolute inset-0 bg-gradient-to-t from-[#111]/80 via-transparent to-transparent" />
+                        {/* 海報縮圖 */}
+                        <div className="relative w-24 shrink-0 overflow-hidden" style={{ aspectRatio: '2/3' }}>
+                          <img
+                            src={film.coverUrl} alt={film.title}
+                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                            onError={(e) => { (e.currentTarget as HTMLImageElement).src = 'https://images.unsplash.com/photo-1608889175123-8ee362201f81?q=80&w=300'; }}
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#111]/30" />
                           {film.filmUrl && (
-                            <div className="absolute top-1.5 right-1.5 bg-[#CCFF00] text-black text-[8px] font-bold px-1.5 py-0.5 rounded-sm leading-none">正片</div>
+                            <div className="absolute bottom-1.5 left-1.5 bg-[#CCFF00] text-black text-[7px] font-bold px-1.5 py-0.5 rounded-sm leading-none">正片</div>
                           )}
-                          {/* 毛玻璃播放按鈕覆蓋層 */}
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                            <div className="bg-white/20 backdrop-blur-md rounded-lg text-white px-4 py-2 flex items-center gap-2 border border-white/30 shadow-lg">
-                              <i className="fas fa-play text-xs" />
-                              <span className="text-xs font-bold">播放</span>
-                            </div>
-                          </div>
                         </div>
-                        <div className="p-3 flex flex-col gap-1">
-                          <h4 className="text-base font-black text-white uppercase truncate leading-tight">{film.title}</h4>
-                          <p className="text-xs text-emerald-400 truncate">{film.studio}</p>
-                          {film.synopsis && <p className="text-[11px] text-gray-400 line-clamp-2 leading-snug">{film.synopsis}</p>}
+                        {/* 文字資訊 */}
+                        <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
+                          <div>
+                            <h4 className="text-base font-black text-white leading-tight mb-1 line-clamp-2">{film.title}</h4>
+                            <p className="text-xs text-emerald-400 truncate mb-2">{film.studio}</p>
+                            {film.synopsis && (
+                              <p className="text-[11px] text-gray-400 line-clamp-3 leading-snug">{film.synopsis}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="text-[10px] text-white/40 font-mono flex items-center gap-1">
+                              <i className="fas fa-play text-[8px]" /> 查看詳情
+                            </span>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -386,7 +405,7 @@ function MobileDiscover({
                 )}
               </section>
 
-              {/* 放映時間 — 替換 Smart Contract Req */}
+              {/* 放映時間 */}
               {selectedNode.dateRange && (
                 <section className="bg-gradient-to-br from-[#111] to-[#0a0a0a] border border-[#333] p-4 rounded-xl relative overflow-hidden">
                   <div className={`absolute left-0 top-0 w-1 h-full ${selectedNode.borderColor.replace('border-', 'bg-')}`} />
@@ -397,6 +416,77 @@ function MobileDiscover({
             </div>
           </div>
         )}
+
+        {/* ── 影片詳情子視圖：覆蓋在 LBS 詳情頁之上 ── */}
+        <div
+          className={`absolute inset-0 z-20 bg-[#050505] flex flex-col transition-transform duration-300 ${
+            selectedFilmForDetail ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        >
+          {selectedFilmForDetail && (
+            <div className="flex-1 overflow-y-auto pb-32">
+              {/* 預告片視頻區域 */}
+              {selectedFilmForDetail.trailerUrl ? (
+                <div className="w-full aspect-video bg-black relative pt-14">
+                  <FeedVideo
+                    src={buildOssUrl(selectedFilmForDetail.trailerUrl) || undefined}
+                    poster={selectedFilmForDetail.coverUrl}
+                    className="w-full h-full object-contain"
+                    muted={false}
+                    visibilityThreshold={0.3}
+                  />
+                </div>
+              ) : (
+                <div className="relative w-full aspect-video overflow-hidden bg-[#0a0a0a] pt-14">
+                  <img
+                    src={selectedFilmForDetail.coverUrl}
+                    alt={selectedFilmForDetail.title}
+                    className="absolute inset-0 w-full h-full object-cover opacity-60"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-black/40 to-transparent" />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <i className="fas fa-film text-4xl text-[#333]" />
+                  </div>
+                </div>
+              )}
+
+              {/* 影片資訊 */}
+              <div className="px-6 py-5 space-y-4">
+                {selectedFilmForDetail.filmUrl && (
+                  <span className="inline-block bg-[#CCFF00] text-black text-[9px] font-bold px-2.5 py-1 rounded-sm tracking-wider">正片可用</span>
+                )}
+                <h2 className="font-heavy text-3xl text-white leading-tight">{selectedFilmForDetail.title}</h2>
+                <p className="text-emerald-400 text-sm font-mono">{selectedFilmForDetail.studio}</p>
+
+                {selectedFilmForDetail.synopsis && (
+                  <p className="text-sm text-gray-300 leading-relaxed border-l-2 border-[#333] pl-3">{selectedFilmForDetail.synopsis}</p>
+                )}
+
+                {/* ▶ 播放正片 按鈕 */}
+                {selectedFilmForDetail.filmUrl && (
+                  <button
+                    onClick={() => onPlayFilm(selectedFilmForDetail)}
+                    className="w-full bg-[#CCFF00] text-black font-heavy text-lg py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white transition-colors active:scale-95 shadow-[0_0_24px_rgba(204,255,0,0.25)]"
+                  >
+                    <i className="fas fa-play" />
+                    ▶ 播放正片
+                  </button>
+                )}
+
+                {/* 播放預告片 按鈕（無正片時顯示） */}
+                {!selectedFilmForDetail.filmUrl && selectedFilmForDetail.trailerUrl && (
+                  <button
+                    onClick={() => onPlayFilm(selectedFilmForDetail)}
+                    className="w-full bg-[#111] border border-white/20 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-3 active:scale-95 transition-transform"
+                  >
+                    <i className="fas fa-play text-[#CCFF00]" />
+                    播放預告片
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
