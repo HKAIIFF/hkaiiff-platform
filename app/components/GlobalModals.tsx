@@ -318,7 +318,7 @@ export default function GlobalModals() {
 
       {/* ─── Lang Modal ──────────────────────────────────────────────────────── */}
       <div
-        className={`fixed inset-0 z-[300] bg-black/80 backdrop-blur-sm flex items-end transition-opacity duration-300 ${
+        className={`fixed inset-0 z-[1000] bg-black/80 backdrop-blur-sm flex items-end transition-opacity duration-300 ${
           isLang ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`}
         onClick={close}
@@ -329,17 +329,22 @@ export default function GlobalModals() {
           }`}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="p-6 pb-2 border-b border-[#222] flex justify-between items-center">
-            <h3 className="font-heavy text-2xl text-white">{t("sel_lang")}</h3>
+          {/* 拖拽把手 */}
+          <div className="flex justify-center pt-3 pb-1">
+            <div className="w-10 h-1 rounded-full bg-[#444]" />
+          </div>
+          <div className="px-6 pb-2 pt-2 border-b border-[#222] flex justify-between items-center">
+            <h3 className="font-heavy text-xl text-white">{t("sel_lang")}</h3>
             <button
               className="text-gray-500 hover:text-white active:scale-90 transition-transform"
               onClick={close}
             >
-              <i className="fas fa-times text-xl" />
+              <i className="fas fa-times text-lg" />
             </button>
           </div>
 
-          <div className="p-4 grid grid-cols-2 gap-3 max-h-[60vh] overflow-y-auto">
+          {/* 语言列表：pb-[60px] 确保内容不被 BottomNav(50px) 遮住 */}
+          <div className="p-4 grid grid-cols-2 gap-3 max-h-[55vh] overflow-y-auto pb-[60px]">
             {langs.map((l) => (
               <button
                 key={l.code}

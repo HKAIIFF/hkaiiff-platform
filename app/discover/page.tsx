@@ -154,8 +154,8 @@ function MobileDiscover({
   const [selectedFilmForDetail, setSelectedFilmForDetail] = useState<LbsFilmEntry | null>(null);
 
   return (
-    /* Logo 已移除（仅 /me 显示），顶部间距缩小至 pt-16；BottomNav 压缩至 60px，pb-20 已足够 */
-    <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pt-16 pb-20 relative">
+    /* Logo 已移除（仅 /me 显示），顶部间距 pt-16；BottomNav=50px，pb-16 足够 */
+    <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pt-16 pb-16 relative">
 
       {/* Header */}
       <div className="flex justify-between items-end mb-2">

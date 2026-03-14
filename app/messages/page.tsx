@@ -229,8 +229,8 @@ function MobileMessagesView({
   onSelectMsg, onMarkAllRead, onRead, onDelete, onMobileBack, lang,
 }: MobileViewProps) {
   return (
-    /* Logo 已移除（仅 /me 显示），顶部间距缩小至 pt-16；BottomNav 压缩至 60px，pb-20 已足够 */
-    <div className="min-h-screen w-full bg-[#050505] pt-16 pb-20">
+    /* Logo 已移除（仅 /me 显示），顶部 pt-16；BottomNav=50px，pb-16 足够 */
+    <div className="min-h-screen w-full bg-[#050505] pt-16 pb-16">
 
       {/* Panel header */}
       <div className="px-4 pb-3 border-b border-[#1a1a1a]">
