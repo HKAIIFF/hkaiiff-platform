@@ -316,12 +316,12 @@ export default function ScreeningsPage() {
   }, [isReadonly, selectedIds, nodeId, user?.id, showToast]);
 
   // ── AIF 支付成功回调（节点状态由 internal-checkout 的 handleLbsLicensePaid 负责更新）──
+  // 使用 window.location.href 立即跳转，避免 UniversalCheckout 的 success 弹窗出现
   const handleAifPaymentSuccess = useCallback(async () => {
     sessionStorage.removeItem('lbs_draft_node_id');
     sessionStorage.removeItem('lbs_apply_form');
-    showToast('支付成功！您的申请已提交，等待审核。', 'success');
-    setTimeout(() => router.push(`/lbs/${nodeId}/review-pending`), 800);
-  }, [nodeId, router, showToast]);
+    window.location.href = `/lbs/${nodeId}/review-pending`;
+  }, [nodeId]);
 
   // ── 过滤影片 ──────────────────────────────────────────────────────────────
   const filteredFilms = search.trim()

@@ -14,10 +14,15 @@ interface LbsNode {
   start_time: string | null;
   end_time: string | null;
   contract_req: string | null;
+  contract_type: string | null;
   ticket_price: number | null;
+  currency: string | null;
+  lbs_royalty: number | null;
   film_ids: string[] | null;
   poster_url: string | null;
+  bg_url: string | null;
   background_url: string | null;
+  payment_method: string | null;
   status: string | null;
   review_status: string | null;
   is_online: boolean | null;
@@ -28,6 +33,13 @@ interface LbsNode {
   creator_id: string | null;
   created_at: string;
   screening_count?: number;
+}
+
+interface ScreeningFilmItem {
+  id: string;
+  title: string;
+  poster_url: string | null;
+  trailer_url: string | null;
 }
 
 interface UserInfo {
@@ -112,6 +124,198 @@ function ToastContainer({ toasts }: { toasts: Toast[] }) {
         </div>
       ))}
       <style>{`@keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}`}</style>
+    </div>
+  );
+}
+
+// ─── 查阅片单 Modal ───────────────────────────────────────────────────────────
+function ScreeningsModal({ node, onClose }: { node: LbsNode; onClose: () => void }) {
+  const [films, setFilms] = useState<ScreeningFilmItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const load = async () => {
+      const { data, error } = await supabase
+        .from("lbs_screenings")
+        .select("films!inner(id, title, poster_url, trailer_url)")
+        .eq("lbs_node_id", node.id);
+      if (error) console.error("[ScreeningsModal] fetch error:", error.message);
+      const items = ((data ?? []) as unknown as { films: ScreeningFilmItem }[]).map((r) => r.films);
+      setFilms(items);
+      setLoading(false);
+    };
+    load();
+  }, [node.id]);
+
+  return (
+    <div
+      className="fixed inset-0 z-[500] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-2xl bg-white rounded-2xl overflow-hidden shadow-2xl max-h-[80vh] flex flex-col">
+        <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between flex-shrink-0">
+          <div>
+            <p className="text-sm font-semibold text-neutral-900">📽️ 查阅片单</p>
+            <p className="text-[11px] text-neutral-400 mt-0.5 truncate max-w-[400px]">{node.title}</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-neutral-500 font-mono">{loading ? "..." : `${films.length} 部`}</span>
+            <button onClick={onClose} className="w-7 h-7 rounded-full border border-neutral-200 text-neutral-400 hover:text-neutral-700 flex items-center justify-center text-xs transition-colors">✕</button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4">
+          {loading ? (
+            <div className="text-center text-neutral-400 text-sm py-10 animate-pulse">加载中...</div>
+          ) : films.length === 0 ? (
+            <div className="text-center text-neutral-300 text-sm py-10">暂无排片记录</div>
+          ) : (
+            <div className="grid grid-cols-4 gap-3">
+              {films.map((film) => (
+                <div key={film.id} className="space-y-1.5">
+                  <div className="relative rounded-xl overflow-hidden border border-neutral-100" style={{ aspectRatio: "2/3" }}>
+                    {film.poster_url ? (
+                      <img src={film.poster_url} alt={film.title} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-neutral-50 flex items-center justify-center">
+                        <span className="text-neutral-200 text-2xl">🎬</span>
+                      </div>
+                    )}
+                    {film.trailer_url && (
+                      <a
+                        href={film.trailer_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="absolute bottom-1.5 right-1.5 w-6 h-6 rounded-full bg-black/70 flex items-center justify-center hover:bg-black/90 transition-colors"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <svg className="w-3 h-3 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M8 5v14l11-7z" />
+                        </svg>
+                      </a>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-neutral-600 leading-tight line-clamp-2 font-medium">{film.title}</p>
+                  <p className="text-[9px] font-mono text-neutral-300 truncate">{film.id.slice(0, 8)}...</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── 表单信息 Modal ────────────────────────────────────────────────────────────
+function FormModal({ node, onClose }: { node: LbsNode; onClose: () => void }) {
+  const formatDateFull = (iso: string | null) => {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return d.toLocaleString("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
+  };
+
+  const Row = ({ label, value, children }: { label: string; value?: string | number | null; children?: React.ReactNode }) => (
+    <div className="flex items-start gap-3 py-2.5 border-b border-neutral-50 last:border-0">
+      <span className="text-[11px] font-semibold text-neutral-400 w-28 shrink-0 mt-0.5">{label}</span>
+      {children ?? <span className="text-[12px] text-neutral-800 flex-1 leading-relaxed break-all">{value ?? "—"}</span>}
+    </div>
+  );
+
+  const posterUrl = node.poster_url;
+  const bgUrl = node.bg_url || node.background_url;
+
+  return (
+    <div
+      className="fixed inset-0 z-[500] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="w-full max-w-xl bg-white rounded-2xl overflow-hidden shadow-2xl max-h-[90vh] flex flex-col">
+        <div className="px-5 py-4 border-b border-neutral-100 flex items-center justify-between flex-shrink-0">
+          <div>
+            <p className="text-sm font-semibold text-neutral-900">📋 表单信息</p>
+            <p className="text-[11px] text-neutral-400 mt-0.5 truncate max-w-[360px]">{node.title}</p>
+          </div>
+          <button onClick={onClose} className="w-7 h-7 rounded-full border border-neutral-200 text-neutral-400 hover:text-neutral-700 flex items-center justify-center text-xs transition-colors">✕</button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-5 py-4">
+          {/* 基本信息 */}
+          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">基本信息</p>
+          <div className="bg-neutral-50/50 rounded-xl px-3 mb-4">
+            <Row label="影展名称" value={node.title} />
+            <Row label="描述" value={node.description} />
+          </div>
+
+          {/* 地点 */}
+          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">地点</p>
+          <div className="bg-neutral-50/50 rounded-xl px-3 mb-4">
+            <Row label="国家" value={node.country} />
+            <Row label="城市" value={node.city} />
+            <Row label="场馆" value={node.venue} />
+            <Row label="地址" value={node.location} />
+            <Row label="GPS" value={node.lat && node.lng ? `${node.lat.toFixed(5)}, ${node.lng.toFixed(5)}` : null} />
+          </div>
+
+          {/* 时间 */}
+          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">时间</p>
+          <div className="bg-neutral-50/50 rounded-xl px-3 mb-4">
+            <Row label="开始时间" value={formatDateFull(node.start_time)} />
+            <Row label="结束时间" value={formatDateFull(node.end_time)} />
+          </div>
+
+          {/* 票价 */}
+          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">票价</p>
+          <div className="bg-neutral-50/50 rounded-xl px-3 mb-4">
+            <Row label="票价" value={node.ticket_price != null ? String(node.ticket_price) : null} />
+            <Row label="货币" value={node.currency} />
+          </div>
+
+          {/* 智能合约策略 */}
+          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">智能合约策略</p>
+          <div className="bg-neutral-50/50 rounded-xl px-3 mb-4">
+            <Row label="合约类型" value={node.contract_type} />
+            <Row label="合约要求" value={node.contract_req} />
+          </div>
+
+          {/* LBS版税 */}
+          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">LBS版税</p>
+          <div className="bg-neutral-50/50 rounded-xl px-3 mb-4">
+            <Row label="版税比例" value={node.lbs_royalty != null ? `${node.lbs_royalty}%` : null} />
+            <Row label="支付方式" value={node.payment_method} />
+          </div>
+
+          {/* 视觉素材 */}
+          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">视觉素材</p>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="space-y-1.5">
+              <p className="text-[10px] text-neutral-400 font-medium">海报图 (2:3)</p>
+              {posterUrl ? (
+                <a href={posterUrl} target="_blank" rel="noopener noreferrer">
+                  <img src={posterUrl} alt="海报" className="w-full rounded-xl border border-neutral-200 object-cover hover:opacity-90 transition-opacity" style={{ aspectRatio: "2/3" }} />
+                </a>
+              ) : (
+                <div className="w-full rounded-xl bg-neutral-100 flex items-center justify-center text-neutral-300 text-xs" style={{ aspectRatio: "2/3" }}>无图</div>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-[10px] text-neutral-400 font-medium">背景图 (16:9)</p>
+              {bgUrl ? (
+                <a href={bgUrl} target="_blank" rel="noopener noreferrer">
+                  <img src={bgUrl} alt="背景" className="w-full rounded-xl border border-neutral-200 object-cover hover:opacity-90 transition-opacity" style={{ aspectRatio: "16/9" }} />
+                </a>
+              ) : (
+                <div className="w-full rounded-xl bg-neutral-100 flex items-center justify-center text-neutral-300 text-xs" style={{ aspectRatio: "16/9" }}>无图</div>
+              )}
+            </div>
+          </div>
+
+          {/* 提交时间 */}
+          <p className="text-[10px] font-bold text-neutral-400 uppercase tracking-wider mb-2">提交信息</p>
+          <div className="bg-neutral-50/50 rounded-xl px-3">
+            <Row label="提交时间" value={formatDateFull(node.created_at)} />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -316,6 +520,8 @@ export default function LBSNodesPage() {
   const [userMap, setUserMap] = useState<Map<string, UserInfo>>(new Map());
   const [loading, setLoading] = useState(true);
   const [detailNode, setDetailNode] = useState<LbsNode | null>(null);
+  const [screeningsNode, setScreeningsNode] = useState<LbsNode | null>(null);
+  const [formNode, setFormNode] = useState<LbsNode | null>(null);
   const [rejectModalNode, setRejectModalNode] = useState<LbsNode | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [search, setSearch] = useState("");
@@ -636,6 +842,22 @@ export default function LBSNodesPage() {
                           📄 查看详情
                         </button>
 
+                        {/* 查阅片单 */}
+                        <button
+                          onClick={() => setScreeningsNode(node)}
+                          className="text-[10px] font-medium border border-purple-200 text-purple-600 rounded-full px-3 py-0.5 hover:bg-purple-50 transition-colors whitespace-nowrap w-fit"
+                        >
+                          🎬 查阅片单
+                        </button>
+
+                        {/* 表单信息 */}
+                        <button
+                          onClick={() => setFormNode(node)}
+                          className="text-[10px] font-medium border border-blue-200 text-blue-600 rounded-full px-3 py-0.5 hover:bg-blue-50 transition-colors whitespace-nowrap w-fit"
+                        >
+                          📋 表单
+                        </button>
+
                         {/* 通过审核（仅待审核时显示）*/}
                         {isPending && (
                           <button
@@ -703,6 +925,18 @@ export default function LBSNodesPage() {
           node={detailNode}
           userInfo={detailNode.creator_id ? userMap.get(detailNode.creator_id) ?? null : null}
           onClose={() => setDetailNode(null)}
+        />
+      )}
+      {screeningsNode && (
+        <ScreeningsModal
+          node={screeningsNode}
+          onClose={() => setScreeningsNode(null)}
+        />
+      )}
+      {formNode && (
+        <FormModal
+          node={formNode}
+          onClose={() => setFormNode(null)}
         />
       )}
       {rejectModalNode && (

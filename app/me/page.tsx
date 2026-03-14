@@ -53,6 +53,13 @@ export default function MePage() {
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [mySubmissions, setMySubmissions] = useState<any[]>([]);
   const [selectedFilm, setSelectedFilm] = useState<any | null>(null);
+
+  // ── 已上线 LBS 影展 ────────────────────────────────────────────────────────
+  const [onlineLbsNodes, setOnlineLbsNodes] = useState<Array<{
+    id: string;
+    title: string;
+    poster_url: string | null;
+  }>>([]);
   const [interactionHistory, setInteractionHistory] = useState<any[]>([]);
 
   const [dbProfile, setDbProfile] = useState<{
@@ -610,6 +617,19 @@ export default function MePage() {
       } catch (err) {
         console.error('Failed to fetch interaction history', err);
       }
+
+      // 加载已上线的 LBS 影展节点
+      try {
+        const { data: lbsData } = await supabase
+          .from('lbs_nodes')
+          .select('id, title, poster_url')
+          .eq('creator_id', userId)
+          .eq('is_online', true)
+          .order('created_at', { ascending: false });
+        setOnlineLbsNodes(lbsData ?? []);
+      } catch (err) {
+        console.error('Failed to fetch online LBS nodes', err);
+      }
     };
 
     syncData();
@@ -994,35 +1014,75 @@ export default function MePage() {
 
       {/* ── LBS Curator Entry Banner ───────────────────────────────────── */}
       {(dbProfile?.verified_identities ?? []).includes('curator') && (
-        <div
-          onClick={() => router.push('/lbs/apply')}
-          className="bg-gradient-to-r from-[#111] to-black border border-[#FFC107] hover:border-[#FFC107]/80 transition-all rounded-xl p-5 mb-6 cursor-pointer group relative overflow-hidden"
-        >
-          {/* Hover glow */}
-          <div
-            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-            style={{ background: 'radial-gradient(ellipse 80% 60% at 20% 50%, rgba(255,193,7,0.08) 0%, transparent 70%)' }}
-          />
-          <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-[#FFC107]/60 via-[#FFC107]/20 to-transparent pointer-events-none" />
-
-          <div className="flex items-center justify-between relative z-10">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#FFC107]/10 border border-[#FFC107]/20 flex items-center justify-center flex-shrink-0 group-hover:bg-[#FFC107]/20 transition-colors">
-                <i className="fas fa-map-marker-alt text-[#FFC107] text-sm" />
+        <div className="mb-6">
+          {/* 已上线影展横向滚动列表 */}
+          {onlineLbsNodes.length > 0 && (
+            <div className="mb-3">
+              <div className="text-[9px] font-mono text-[#FFC107]/50 tracking-widest uppercase mb-2 px-0.5">
+                {lang === 'zh' ? '已上线影展' : 'LIVE FESTIVALS'}
               </div>
-              <div>
-                <div className="text-[9px] font-mono text-[#FFC107]/50 tracking-widest mb-0.5 uppercase">
-                  {lang === 'zh' ? '策展人 · 專屬通道' : 'CURATOR · EXCLUSIVE'}
-                </div>
-                <div className="font-heavy text-white text-sm tracking-wider">
-                  {lang === 'zh' ? 'LBS 影展/影院' : 'LBS FESTIVAL / CINEMA'}
-                </div>
-                <div className="text-[10px] text-gray-500 font-mono mt-0.5">
-                  {lang === 'zh' ? '申請開設 LBS 地理位置展映節點' : 'Apply for LBS Geolocation Screening Node'}
-                </div>
+              <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                {onlineLbsNodes.map((node) => (
+                  <button
+                    key={node.id}
+                    onClick={() => router.push(`/lbs/${node.id}/screenings`)}
+                    className="flex-shrink-0 group relative"
+                    title={node.title}
+                  >
+                    <div
+                      className="w-16 rounded-xl overflow-hidden border-2 border-[#FFC107]/50 group-hover:border-[#FFC107] transition-all shadow-[0_0_8px_rgba(255,193,7,0.15)] group-hover:shadow-[0_0_16px_rgba(255,193,7,0.35)]"
+                      style={{ aspectRatio: '2/3' }}
+                    >
+                      {node.poster_url ? (
+                        <img src={node.poster_url} alt={node.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-[#111] flex items-center justify-center">
+                          <i className="fas fa-map-marker-alt text-[#FFC107]/30 text-lg" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/20 transition-colors" />
+                    <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-green-400 shadow-[0_0_4px_rgba(74,222,128,0.8)] animate-pulse" />
+                    <p className="text-[9px] text-[#FFC107]/60 font-mono mt-1 w-16 truncate text-center leading-tight">
+                      {node.title}
+                    </p>
+                  </button>
+                ))}
               </div>
             </div>
-            <i className="fas fa-chevron-right text-[#FFC107] text-sm group-hover:translate-x-1 transition-transform" />
+          )}
+
+          {/* 新建/提交 Banner */}
+          <div
+            onClick={() => router.push('/lbs/apply')}
+            className="bg-gradient-to-r from-[#111] to-black border border-[#FFC107] hover:border-[#FFC107]/80 transition-all rounded-xl p-5 cursor-pointer group relative overflow-hidden"
+          >
+            {/* Hover glow */}
+            <div
+              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+              style={{ background: 'radial-gradient(ellipse 80% 60% at 20% 50%, rgba(255,193,7,0.08) 0%, transparent 70%)' }}
+            />
+            <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-[#FFC107]/60 via-[#FFC107]/20 to-transparent pointer-events-none" />
+
+            <div className="flex items-center justify-between relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#FFC107]/10 border border-[#FFC107]/20 flex items-center justify-center flex-shrink-0 group-hover:bg-[#FFC107]/20 transition-colors">
+                  <i className="fas fa-map-marker-alt text-[#FFC107] text-sm" />
+                </div>
+                <div>
+                  <div className="text-[9px] font-mono text-[#FFC107]/50 tracking-widest mb-0.5 uppercase">
+                    {lang === 'zh' ? '策展人 · 專屬通道' : 'CURATOR · EXCLUSIVE'}
+                  </div>
+                  <div className="font-heavy text-white text-sm tracking-wider">
+                    {lang === 'zh' ? 'LBS 影展/影院' : 'LBS FESTIVAL / CINEMA'}
+                  </div>
+                  <div className="text-[10px] text-gray-500 font-mono mt-0.5">
+                    {lang === 'zh' ? '新建/提交 LBS 地理位置展映節點申請' : 'New LBS Geolocation Screening Node'}
+                  </div>
+                </div>
+              </div>
+              <i className="fas fa-chevron-right text-[#FFC107] text-sm group-hover:translate-x-1 transition-transform" />
+            </div>
           </div>
         </div>
       )}
