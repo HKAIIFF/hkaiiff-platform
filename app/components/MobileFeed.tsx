@@ -20,7 +20,7 @@ function FeedItem({ film, timeLeft }: { film: Film; timeLeft: number }) {
   const [isInteractOpen, setIsInteractOpen] = useState(false);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
-  const { setActiveModal, setSelectedFilm, setInteractTab, setSelectedCreator } = useModal();
+  const { setActiveModal, setSelectedFilm, setInteractTab } = useModal();
 
   // ── Swipe gesture: left → show parallel universe, right → hide ───────────
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -121,10 +121,9 @@ function FeedItem({ film, timeLeft }: { film: Film; timeLeft: number }) {
               className="flex flex-col items-center pointer-events-auto relative"
               style={{ width: "60px", gap: "24px", zIndex: 20 }}
             >
-              {/* Button 1 ── Creator avatar + follow */}
+              {/* Button 1 ── Creator avatar */}
               <div
-                className="relative cursor-pointer mb-2 active:scale-95 transition-transform flex flex-col items-center"
-                onClick={() => { setSelectedCreator(film.creator); setActiveModal("creator"); }}
+                className="relative mb-2 flex flex-col items-center"
               >
                 <img
                   src={avatarUrl}

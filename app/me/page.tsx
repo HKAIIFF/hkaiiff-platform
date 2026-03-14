@@ -1017,7 +1017,7 @@ export default function MePage() {
         {/* Info — flex-1 min-w-0 保证名字不被挤压 */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-0.5 pr-20 md:pr-20">
-            <h2 className="font-heavy text-2xl text-white tracking-wide min-w-0">
+            <h2 className="font-heavy text-2xl text-white tracking-wide min-w-0 text-center md:text-left">
               {(() => {
                 const approvedApp = identityApplications.find(
                   (a) => a.status === 'approved' && a.verification_name

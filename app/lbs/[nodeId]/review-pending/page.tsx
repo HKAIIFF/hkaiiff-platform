@@ -248,16 +248,6 @@ export default function ReviewPendingPage() {
           </button>
         )}
 
-        {/* 返回首页（replace 清空历史栈） */}
-        <button
-          onClick={() => router.replace('/')}
-          className="font-mono text-[10px] tracking-[0.4em] text-[#FFC107]/50 hover:text-[#FFC107] transition-colors flex items-center gap-2"
-        >
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M19 12H5M12 5l-7 7 7 7" />
-          </svg>
-          返回首页
-        </button>
       </div>
 
     </div>
