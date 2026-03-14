@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useToast } from '@/app/context/ToastContext';
@@ -35,7 +35,7 @@ const TERMINAL_LINES = [
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export default function UploadPage() {
+function UploadContent() {
   const { user, authenticated, ready, getAccessToken } = usePrivy();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -302,7 +302,6 @@ export default function UploadPage() {
 
   return (
     <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen pt-28 md:pt-0 pb-32 md:pb-8">
-
       {/* ── Desktop Page Header ── */}
       <div className="hidden md:flex z-10 bg-[#030303]/95 backdrop-blur border-b border-[#1a1a1a] px-6 py-4 items-center justify-between flex-shrink-0">
         <div>
@@ -849,5 +848,13 @@ export default function UploadPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function UploadPage() {
+  return (
+    <Suspense fallback={<div className="flex-1 flex items-center justify-center min-h-screen bg-void" />}>
+      <UploadContent />
+    </Suspense>
   );
 }
