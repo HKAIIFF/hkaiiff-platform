@@ -103,7 +103,6 @@ async function handleFilmEntryPaid(
       payment_status: 'paid',
       payment_method: 'stripe',
       status: 'pending_review',
-      stripe_session_id: sessionId,
     })
     .eq('id', filmId)
     .eq('user_id', userId);
@@ -121,7 +120,6 @@ async function handleFilmEntryPaid(
     currency: 'USD',
     tx_type: 'submission_fee',
     status: 'success',
-    stripe_session_id: sessionId,
   });
 
   // 发送站内信通知
@@ -234,9 +232,7 @@ async function handleVerificationPaid(
     amount: amountUsd,
     currency: 'USD',
     tx_type: 'creator_cert',
-    payment_method: 'stripe',
     status: 'success',
-    stripe_session_id: sessionId,
   });
   if (txErr) console.warn('[stripe/webhook] verification transaction insert failed:', txErr.message);
 
@@ -306,13 +302,10 @@ async function handleLbsApplicationPaid(
   // 記錄財務流水
   const { error: lbsTxErr } = await db.from('transactions').insert({
     user_id: userId,
-    related_lbs_id: node.id,
     amount: amountUsd,
     currency: 'USD',
     tx_type: 'lbs_license',
-    payment_method: 'stripe',
     status: 'success',
-    stripe_session_id: sessionId,
   });
   if (lbsTxErr) console.warn('[stripe/webhook] lbs transaction insert failed:', lbsTxErr.message);
 
@@ -432,8 +425,6 @@ export async function POST(req: Request) {
             currency: 'USD',
             tx_type: 'product_purchase',
             status: 'success',
-            stripe_session_id: session.id,
-            metadata: { productCode },
           });
           if (txErr) console.warn('[stripe/webhook] transaction insert failed:', txErr.message);
         }
