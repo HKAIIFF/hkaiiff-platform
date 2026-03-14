@@ -439,41 +439,63 @@ function DesktopGridCard({ film }: { film: SupabaseFilm }) {
         translate-y-2 group-hover:translate-y-0
         transition-all duration-300 ease-out
       ">
-        {/* Creator row */}
-        <div className="flex items-center gap-2 mb-1.5">
-          <div className="relative shrink-0">
-            <img
-              src={avatarUrl}
-              alt={film.studio ?? ""}
-              className={`w-6 h-6 rounded-full border bg-black
-                ${(film.user_verified_identities ?? []).includes('institution') ? 'border-[#9D00FF]'
-                  : (film.user_verified_identities ?? []).includes('creator') ? 'border-signal'
-                  : (film.user_verified_identities ?? []).includes('curator') ? 'border-[#FFC107]'
-                  : 'border-white/20'}`}
-            />
+        {/* Creator row — 点击跳转创作者主页 */}
+        {film.user_id ? (
+          <Link
+            href={`/creator/${film.user_id}`}
+            className="flex items-center gap-2 mb-1.5 hover:opacity-80 transition-opacity"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="relative shrink-0">
+              <img
+                src={avatarUrl}
+                alt={film.studio ?? ""}
+                className={`w-6 h-6 rounded-full border bg-black
+                  ${(film.user_verified_identities ?? []).includes('institution') ? 'border-[#9D00FF]'
+                    : (film.user_verified_identities ?? []).includes('creator') ? 'border-signal'
+                    : (film.user_verified_identities ?? []).includes('curator') ? 'border-[#FFC107]'
+                    : 'border-white/20'}`}
+              />
+              {(film.user_verified_identities ?? []).length > 0 && (
+                <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border border-black flex items-center justify-center text-[6px] font-bold
+                  ${(film.user_verified_identities ?? []).includes('institution') ? 'bg-[#9D00FF] text-white'
+                    : (film.user_verified_identities ?? []).includes('creator') ? 'bg-signal text-black'
+                    : 'bg-[#FFC107] text-black'}`}>
+                  V
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] font-mono text-gray-300 truncate flex-1">{film.user_display_name ?? film.studio ?? "ANONYMOUS"}</span>
             {(film.user_verified_identities ?? []).length > 0 && (
-              <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border border-black flex items-center justify-center text-[6px] font-bold
-                ${(film.user_verified_identities ?? []).includes('institution') ? 'bg-[#9D00FF] text-white'
-                  : (film.user_verified_identities ?? []).includes('creator') ? 'bg-signal text-black'
-                  : 'bg-[#FFC107] text-black'}`}>
-                V
+              <IdentityBadges
+                verifiedIdentities={film.user_verified_identities ?? []}
+                variant="pill"
+                className="shrink-0"
+              />
+            )}
+            {aiRatioPct && (
+              <span className="text-[7px] font-mono bg-signal/15 border border-signal/40 text-signal px-1.5 py-0.5 rounded shrink-0 tracking-wider">
+                AIF {aiRatioPct}
+              </span>
+            )}
+          </Link>
+        ) : (
+          <div className="flex items-center gap-2 mb-1.5">
+            <div className="relative shrink-0">
+              <img
+                src={avatarUrl}
+                alt={film.studio ?? ""}
+                className="w-6 h-6 rounded-full border bg-black border-white/20"
+              />
+            </div>
+            <span className="text-[10px] font-mono text-gray-300 truncate flex-1">{film.studio ?? "ANONYMOUS"}</span>
+            {aiRatioPct && (
+              <span className="text-[7px] font-mono bg-signal/15 border border-signal/40 text-signal px-1.5 py-0.5 rounded shrink-0 tracking-wider">
+                AIF {aiRatioPct}
               </span>
             )}
           </div>
-          <span className="text-[10px] font-mono text-gray-300 truncate flex-1">{film.user_display_name ?? film.studio ?? "ANONYMOUS"}</span>
-          {(film.user_verified_identities ?? []).length > 0 && (
-            <IdentityBadges
-              verifiedIdentities={film.user_verified_identities ?? []}
-              variant="pill"
-              className="shrink-0"
-            />
-          )}
-          {aiRatioPct && (
-            <span className="text-[7px] font-mono bg-signal/15 border border-signal/40 text-signal px-1.5 py-0.5 rounded shrink-0 tracking-wider">
-              AIF {aiRatioPct}
-            </span>
-          )}
-        </div>
+        )}
 
         {/* Title */}
         <h3 className="font-heavy text-sm text-white leading-tight mb-2.5 line-clamp-2">{film.title}</h3>

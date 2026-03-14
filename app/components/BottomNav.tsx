@@ -33,7 +33,7 @@ export default function BottomNav() {
   };
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 w-full z-[999] bg-black/97 backdrop-blur-xl border-t border-[#222] pt-2 px-2 flex justify-between items-center h-[80px]">
+    <div className="md:hidden fixed bottom-0 left-0 w-full z-[999] bg-black/97 backdrop-blur-xl border-t border-[#222] pt-1 px-2 flex justify-between items-center h-[60px]">
       {NAV_ITEMS.map((item, i) => {
         const isProtected = PROTECTED_HREFS.has(item.href);
 
@@ -43,7 +43,7 @@ export default function BottomNav() {
             <button
               key={item.href}
               onClick={() => handleProtectedNav(item.href)}
-              className="flex flex-col items-center gap-1 w-1/5 relative -top-6 group cursor-pointer bg-transparent border-0 p-0 outline-none focus:outline-none [-webkit-tap-highlight-color:transparent]"
+              className="flex flex-col items-center gap-1 w-1/5 relative -top-4 group cursor-pointer bg-transparent border-0 p-0 outline-none focus:outline-none [-webkit-tap-highlight-color:transparent]"
             >
               <div
                 className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl rotate-45 group-active:scale-95 transition-all border-2 shadow-[0_0_20px_rgba(204,255,0,0.3)] ${

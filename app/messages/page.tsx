@@ -229,9 +229,8 @@ function MobileMessagesView({
   onSelectMsg, onMarkAllRead, onRead, onDelete, onMobileBack, lang,
 }: MobileViewProps) {
   return (
-    /* 原版单列页面滚动布局: pt-28 清出 MobileTopBar, pb-32 清出 BottomNav
-       不使用 h-full overflow-hidden — 让 main 的 overflow-y-auto 统一处理页面滚动 */
-    <div className="min-h-screen w-full bg-[#050505] pt-28 pb-32">
+    /* Logo 已移除（仅 /me 显示），顶部间距缩小至 pt-16；BottomNav 压缩至 60px，pb-20 已足够 */
+    <div className="min-h-screen w-full bg-[#050505] pt-16 pb-20">
 
       {/* Panel header */}
       <div className="px-4 pb-3 border-b border-[#1a1a1a]">

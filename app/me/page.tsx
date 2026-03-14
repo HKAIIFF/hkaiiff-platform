@@ -892,7 +892,7 @@ export default function MePage() {
 
   /* ─── AUTHENTICATED VIEW ──────────────────────────────────────────────────── */
   return (
-    <div className="flex-1 h-full w-full bg-void flex flex-col relative overflow-y-auto md:overflow-hidden pt-28 md:pt-0 pb-32 md:pb-0 min-h-screen md:min-h-0">
+    <div className="flex-1 h-full w-full bg-void flex flex-col relative overflow-y-auto md:overflow-hidden pt-28 md:pt-0 pb-20 md:pb-0 min-h-screen md:min-h-0">
       {isHistoryLoading && <CyberLoading text="LOADING PARALLEL UNIVERSE..." />}
 
       {/* ── Desktop Page Header (full-width banner) ──────────────────── */}
@@ -918,8 +918,8 @@ export default function MePage() {
       {/* ═══════ Dashboard Layout: flex-col mobile, flex-row desktop ═══════ */}
       <div className="flex flex-col md:flex-row flex-1 md:overflow-hidden md:min-h-0">
 
-        {/* ─── LEFT PANEL: Profile + Wallet (desktop: sticky sidebar) ─── */}
-        <div className="md:w-72 lg:w-80 md:flex-shrink-0 md:border-r md:border-[#1a1a1a] md:overflow-y-auto md:h-full px-4 md:px-5 md:py-6 py-4">
+        {/* ─── LEFT PANEL: Profile + Wallet (desktop: equal-width half) ─── */}
+        <div className="md:flex-1 md:border-r md:border-[#1a1a1a] md:overflow-y-auto md:h-full px-4 md:px-5 md:py-6 py-4">
 
       {/* ── Profile Card ───────────────────────────────────────────────── */}
       {/* 移動端: flex-col（頭像在上，信息在下）；PC 端: flex-row（左右並排） */}
