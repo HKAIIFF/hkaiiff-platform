@@ -5,11 +5,20 @@ import Providers from "@/components/Providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "HKAIIFF | AI Native Film Festival",
-  description:
-    "Hong Kong AI International Film Festival — The world's first festival exclusively dedicated to AI-Native cinema. Something has to change.",
+  title: 'HKAIIFF | 香港AI國際電影節',
+  description: 'Something has to change. 香港政府批復註冊的全球首個AI原生國際電影節',
   manifest: '/manifest.json',
   themeColor: '#000000',
+  openGraph: {
+    title: 'HKAIIFF | 香港AI國際電影節',
+    description: 'Something has to change. 香港政府批復註冊的全球首個AI原生國際電影節',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'HKAIIFF | 香港AI國際電影節',
+    description: 'Something has to change. 香港政府批復註冊的全球首個AI原生國際電影節',
+  },
 };
 
 export default function RootLayout({
