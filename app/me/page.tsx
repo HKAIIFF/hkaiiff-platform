@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { usePrivy, useCreateWallet } from "@privy-io/react-auth";
-import { useRouter, usePathname } from "next/navigation";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useI18n } from "@/app/context/I18nContext";
 import { useToast } from "@/app/context/ToastContext";
 import CyberLoading from "@/app/components/CyberLoading";
@@ -316,6 +316,7 @@ export default function MePage() {
 
 
   // ── Profile Edit Modal State ──────────────────────────────────────────────
+  const searchParams = useSearchParams();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editName, setEditName] = useState('');
@@ -343,6 +344,20 @@ export default function MePage() {
   function closeProfileModal() {
     setIsProfileModalOpen(false);
   }
+
+  // 当 URL 带有 ?editProfile=1 时，数据加载完毕后自动弹出编辑弹窗
+  const autoOpenCalledRef = useRef(false);
+  useEffect(() => {
+    if (
+      !autoOpenCalledRef.current &&
+      searchParams?.get('editProfile') === '1' &&
+      dbProfile !== null
+    ) {
+      autoOpenCalledRef.current = true;
+      openProfileModal();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dbProfile, searchParams]);
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1829,9 +1844,10 @@ export default function MePage() {
       {isProfileModalOpen && (
         <div
           className="fixed inset-0 z-[300] bg-black/85 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+          style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
           onClick={(e) => { if (e.target === e.currentTarget) closeProfileModal(); }}
         >
-          <div className="relative w-full sm:max-w-lg bg-[#080808] border border-[#2a2a2a] sm:rounded-2xl rounded-t-2xl overflow-hidden shadow-[0_0_80px_rgba(204,255,0,0.12)] max-h-[92vh] flex flex-col">
+          <div className="relative w-full sm:max-w-lg bg-[#080808] border border-[#2a2a2a] sm:rounded-2xl rounded-t-2xl overflow-hidden shadow-[0_0_80px_rgba(204,255,0,0.12)] flex flex-col" style={{ maxHeight: 'min(92vh, calc(100dvh - env(safe-area-inset-bottom) - env(safe-area-inset-top)))' }}>
 
             {/* Top accent line */}
             <div className="absolute top-0 left-0 w-full h-0.5 bg-gradient-to-r from-signal via-signal/60 to-transparent" />
@@ -1857,7 +1873,7 @@ export default function MePage() {
             </div>
 
             {/* Scrollable Body */}
-            <div className="overflow-y-auto flex-1 px-5 py-5 space-y-6">
+            <div className="overflow-y-auto flex-1 px-5 py-5 space-y-6 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
 
               {/* ── 死锁横幅：已認證或審核中時顯示 ─────────────────────── */}
               {(() => {

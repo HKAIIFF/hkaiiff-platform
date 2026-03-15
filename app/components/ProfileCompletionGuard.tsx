@@ -142,7 +142,7 @@ export default function ProfileCompletionGuard({ children }: { children: React.R
                 <button
                   onClick={() => {
                     setDismissed(true);
-                    router.push("/me");
+                    router.push("/me?editProfile=1");
                   }}
                   className="w-full flex items-center justify-center gap-2 py-3 bg-signal text-black font-bold text-sm tracking-widest rounded-xl hover:bg-signal/90 active:scale-95 transition-all"
                 >
