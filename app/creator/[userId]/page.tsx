@@ -122,14 +122,33 @@ export default function CreatorPage() {
           .order("created_at", { ascending: false }),
       ]);
 
-      if (profileRes.error || !profileRes.data) {
+      const allFilms = (filmsRes.data ?? []) as ApprovedFilm[];
+
+      if (!profileRes.data) {
+        // 资料未完善但有作品：显示最小化占位页
+        if (allFilms.length > 0) {
+          setProfile({
+            id: userId,
+            display_name: null,
+            name: null,
+            avatar_seed: userId,
+            bio: null,
+            tech_stack: null,
+            core_team: null,
+            verified_identities: [],
+            portfolio: null,
+          });
+          setFilms(allFilms);
+          setLoading(false);
+          return;
+        }
         setNotFound(true);
         setLoading(false);
         return;
       }
 
       setProfile(profileRes.data as CreatorProfile);
-      setFilms((filmsRes.data ?? []) as ApprovedFilm[]);
+      setFilms(allFilms);
       setLoading(false);
     }
     fetchData();

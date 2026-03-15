@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { usePrivy } from "@privy-io/react-auth";
+import { usePathname, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 
@@ -11,8 +12,13 @@ interface ProfileStatus {
   displayName: string | null;
 }
 
+// 在这些路径上不弹出提醒，让用户可以自由编辑
+const EXEMPT_PATHS = ["/me", "/settings", "/verification", "/submit"];
+
 export default function ProfileCompletionGuard({ children }: { children: React.ReactNode }) {
   const { authenticated, user } = usePrivy();
+  const pathname = usePathname();
+  const router = useRouter();
   const [status, setStatus] = useState<ProfileStatus | null>(null);
   const [dismissed, setDismissed] = useState(false);
 
@@ -62,8 +68,11 @@ export default function ProfileCompletionGuard({ children }: { children: React.R
     setStatus(null);
   }, [user?.id]);
 
+  const isExemptPath = EXEMPT_PATHS.some((p) => pathname?.startsWith(p));
+
   const shouldBlock =
     !dismissed &&
+    !isExemptPath &&
     status !== null &&
     status.hasApprovedFilm &&
     !status.isProfileComplete;
@@ -107,7 +116,7 @@ export default function ProfileCompletionGuard({ children }: { children: React.R
                   {status?.displayName ? (
                     <>恭喜 <span className="text-signal font-bold">{status.displayName}</span>！</>
                   ) : "恭喜！"}
-                  您的作品已正式入围 HKAIIFF。
+                  您的作品已成功提交 HKAIIFF。
                 </p>
               </div>
 
@@ -130,13 +139,16 @@ export default function ProfileCompletionGuard({ children }: { children: React.R
 
               {/* 操作按钮 */}
               <div className="w-full space-y-3">
-                <Link
-                  href="/me"
+                <button
+                  onClick={() => {
+                    setDismissed(true);
+                    router.push("/me");
+                  }}
                   className="w-full flex items-center justify-center gap-2 py-3 bg-signal text-black font-bold text-sm tracking-widest rounded-xl hover:bg-signal/90 active:scale-95 transition-all"
                 >
                   <i className="fas fa-user-edit" />
                   立即完善资料
-                </Link>
+                </button>
                 <button
                   onClick={() => setDismissed(true)}
                   className="w-full flex items-center justify-center gap-1 py-2 text-[11px] font-mono text-gray-600 hover:text-gray-400 transition-colors"

@@ -107,14 +107,33 @@ export default function UserPage() {
           .order("created_at", { ascending: false }),
       ]);
 
-      if (profileRes.error || !profileRes.data) {
+      const approvedFilms = (filmsRes.data ?? []) as PublicFilm[];
+
+      if (!profileRes.data) {
+        // 用户资料未完善或 users 表暂无记录，但仍有作品：显示基础占位页
+        if (approvedFilms.length > 0) {
+          setProfile({
+            id: userId,
+            display_name: null,
+            name: null,
+            avatar_seed: userId,
+            bio: null,
+            tech_stack: null,
+            verified_identities: [],
+            portfolio: null,
+          });
+          setFilms(approvedFilms);
+          setLoading(false);
+          return;
+        }
+        // 真正找不到
         setNotFound(true);
         setLoading(false);
         return;
       }
 
       setProfile(profileRes.data as UserProfile);
-      setFilms((filmsRes.data ?? []) as PublicFilm[]);
+      setFilms(approvedFilms);
       setLoading(false);
     }
     fetchData();
