@@ -42,6 +42,8 @@ export interface Film {
   region?: string;
   /** LBS royalty percentage from Supabase */
   lbs_royalty?: number;
+  /** Supabase user_id of the creator — enables /user/[id] navigation */
+  creator_id?: string;
   info: FilmInfo;
 }
 

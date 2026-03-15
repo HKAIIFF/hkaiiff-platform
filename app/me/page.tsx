@@ -325,19 +325,6 @@ export default function MePage() {
   const [editCoreTeam, setEditCoreTeam] = useState<TeamMember[]>([]);
 
   function openProfileModal() {
-    // 防呆：已認證或審核中時拒絕打開
-    const isVerified = (dbProfile?.verified_identities?.length ?? 0) > 0;
-    const isPending = identityApplications.some(
-      (a) => a.status === 'pending' || a.status === 'awaiting_payment'
-    );
-    if (isVerified) {
-      showToast('已認證，如需修改資料請重新提交身份認證', 'error');
-      return;
-    }
-    if (isPending) {
-      showToast('認證審核中，暫不可修改資料', 'error');
-      return;
-    }
     // display_name 优先，其次 name（非默认值），再用 agent_id 兜底
     const nameValue = dbProfile?.display_name
       || (dbProfile?.name && dbProfile.name !== 'New Agent' ? dbProfile.name : '')
@@ -927,44 +914,14 @@ export default function MePage() {
 
         {/* Edit / Logout controls — 絕對定位在右上角 */}
         <div className="absolute top-4 right-4 flex items-center space-x-2 z-10">
-          {/* 編輯按鈕 → 已認證或審核中時鎖定 */}
-          {(() => {
-            const isVerified = (dbProfile?.verified_identities?.length ?? 0) > 0;
-            const isPending = identityApplications.some(
-              (a) => a.status === 'pending' || a.status === 'awaiting_payment'
-            );
-            if (isVerified) {
-              return (
-                <button
-                  disabled
-                  className="w-8 h-8 rounded-full bg-[#111] border border-[#2a2a2a] flex items-center justify-center text-gray-600 cursor-not-allowed opacity-60"
-                  title="已認證，如需修改資料請重新提交身份認證"
-                >
-                  <i className="fas fa-lock text-xs" />
-                </button>
-              );
-            }
-            if (isPending) {
-              return (
-                <button
-                  disabled
-                  className="w-8 h-8 rounded-full bg-[#111] border border-[#2a2a2a] flex items-center justify-center text-gray-600 cursor-not-allowed opacity-60"
-                  title="認證審核中，暫不可修改資料"
-                >
-                  <i className="fas fa-lock text-xs" />
-                </button>
-              );
-            }
-            return (
-              <button
-                onClick={openProfileModal}
-                className="w-8 h-8 rounded-full bg-[#111] border border-[#333] flex items-center justify-center text-gray-400 hover:text-signal hover:border-signal transition-colors"
-                title="Edit Profile"
-              >
-                <i className="fas fa-edit text-xs" />
-              </button>
-            );
-          })()}
+          {/* 編輯按鈕 → 無論是否鎖定均可點擊，進入 Modal 後看鎖定提示 */}
+          <button
+            onClick={openProfileModal}
+            className="w-8 h-8 rounded-full bg-[#111] border border-[#333] flex items-center justify-center text-gray-400 hover:text-signal hover:border-signal transition-colors"
+            title="Edit Profile"
+          >
+            <i className="fas fa-edit text-xs" />
+          </button>
           {/* 登出按鈕 */}
           <button
             onClick={() => logout()}
@@ -1902,6 +1859,28 @@ export default function MePage() {
             {/* Scrollable Body */}
             <div className="overflow-y-auto flex-1 px-5 py-5 space-y-6">
 
+              {/* ── 死锁横幅：已認證或審核中時顯示 ─────────────────────── */}
+              {(() => {
+                const isVerified = (dbProfile?.verified_identities?.length ?? 0) > 0;
+                const isPending = identityApplications.some(
+                  (a) => a.status === 'pending' || a.status === 'awaiting_payment'
+                );
+                if (!isVerified && !isPending) return null;
+                return (
+                  <div className="flex items-start gap-3 bg-yellow-500/10 border border-yellow-500/40 rounded-xl px-4 py-3.5">
+                    <i className="fas fa-lock text-yellow-400 text-base mt-0.5 flex-shrink-0" />
+                    <div>
+                      <div className="text-yellow-300 font-bold text-xs tracking-wide mb-1">
+                        🔒 核心资料已锁定，不可修改
+                      </div>
+                      <p className="text-yellow-400/80 text-[11px] font-mono leading-relaxed">
+                        您的身份已{isVerified ? '认证' : '提交审核'}，用户名与头像等核心资料已锁定。如需变更，请重新提交身份认证。
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* ── Section: Basic Settings ─────────────────────────────── */}
               <div>
                 <div className="flex items-center gap-2 mb-4">
@@ -1910,33 +1889,48 @@ export default function MePage() {
                 </div>
 
                 {/* Avatar Preview + Randomize */}
-                <div className="flex items-center gap-5 mb-5">
-                  <div className="relative shrink-0">
-                    <img
-                      src={`https://api.dicebear.com/7.x/bottts/svg?seed=${editAvatarSeed}`}
-                      alt="preview avatar"
-                      className="w-16 h-16 bg-black rounded-full border-2 border-signal/50 p-1"
-                    />
-                    <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-signal rounded-full border-2 border-black flex items-center justify-center">
-                      <i className="fas fa-check text-[8px] text-black" />
-                    </div>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <div className="text-[10px] font-mono text-gray-500">AVATAR SEED</div>
-                    <div className="flex items-center gap-2">
-                      <div className="font-mono text-xs text-signal bg-signal/10 border border-signal/20 px-2 py-1 rounded tracking-widest">
-                        {editAvatarSeed.substring(0, 10)}
+                {(() => {
+                  const isAvatarLocked =
+                    dbProfile?.username_locked === true ||
+                    (dbProfile?.verified_identities?.length ?? 0) > 0 ||
+                    identityApplications.some(
+                      (a) => a.status === 'pending' || a.status === 'awaiting_payment'
+                    );
+                  return (
+                    <div className="flex items-center gap-5 mb-5">
+                      <div className="relative shrink-0">
+                        <img
+                          src={`https://api.dicebear.com/7.x/bottts/svg?seed=${editAvatarSeed}`}
+                          alt="preview avatar"
+                          className={`w-16 h-16 bg-black rounded-full border-2 p-1 ${isAvatarLocked ? 'border-yellow-900/40 opacity-60' : 'border-signal/50'}`}
+                        />
+                        <div className={`absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full border-2 border-black flex items-center justify-center ${isAvatarLocked ? 'bg-yellow-600' : 'bg-signal'}`}>
+                          <i className={`fas ${isAvatarLocked ? 'fa-lock' : 'fa-check'} text-[8px] text-black`} />
+                        </div>
                       </div>
-                      <button
-                        onClick={() => setEditAvatarSeed(randomSeed())}
-                        className="text-[9px] font-mono text-signal border border-signal/40 bg-signal/10 px-2 py-1
-                                   rounded tracking-widest hover:bg-signal/20 active:scale-95 transition-all"
-                      >
-                        <i className="fas fa-random mr-1" />RANDOMIZE
-                      </button>
+                      <div className="flex flex-col gap-2">
+                        <div className="text-[10px] font-mono text-gray-500">AVATAR SEED</div>
+                        <div className="flex items-center gap-2">
+                          <div className={`font-mono text-xs px-2 py-1 rounded tracking-widest ${isAvatarLocked ? 'text-gray-500 bg-gray-800/40 border border-gray-700/30' : 'text-signal bg-signal/10 border border-signal/20'}`}>
+                            {editAvatarSeed.substring(0, 10)}
+                          </div>
+                          <button
+                            onClick={() => !isAvatarLocked && setEditAvatarSeed(randomSeed())}
+                            disabled={isAvatarLocked}
+                            className={`text-[9px] font-mono px-2 py-1 rounded tracking-widest transition-all border
+                              ${isAvatarLocked
+                                ? 'text-gray-600 border-gray-700/30 bg-gray-800/30 cursor-not-allowed opacity-50'
+                                : 'text-signal border-signal/40 bg-signal/10 hover:bg-signal/20 active:scale-95'
+                              }`}
+                          >
+                            <i className={`fas ${isAvatarLocked ? 'fa-lock' : 'fa-random'} mr-1`} />
+                            {isAvatarLocked ? 'LOCKED' : 'RANDOMIZE'}
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* Nickname Input */}
                 {(() => {

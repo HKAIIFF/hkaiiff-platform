@@ -1,5 +1,6 @@
 import { FILMS } from "@/lib/data";
 import type { Film } from "@/lib/data";
+import Link from "next/link";
 
 const HEIGHTS = ["h-48", "h-64", "h-72", "h-56", "h-80", "h-96", "h-52"];
 
@@ -51,9 +52,18 @@ export default function DesktopFeed() {
             <img src={film.video} alt={film.title} className="masonry-img" loading="lazy" />
             <Badge film={film} />
             <div className="masonry-overlay">
-              <div className="bg-white text-black text-[10px] font-bold px-2 py-0.5 inline-block mb-2 rounded-sm w-max hover:bg-signal transition-colors shadow-lg cursor-pointer">
-                {film.creator}
-              </div>
+              {film.creator_id ? (
+                <Link
+                  href={`/user/${film.creator_id}`}
+                  className="bg-white text-black text-[10px] font-bold px-2 py-0.5 inline-block mb-2 rounded-sm w-max hover:bg-signal transition-colors shadow-lg cursor-pointer"
+                >
+                  {film.creator}
+                </Link>
+              ) : (
+                <div className="bg-white text-black text-[10px] font-bold px-2 py-0.5 inline-block mb-2 rounded-sm w-max hover:bg-signal transition-colors shadow-lg cursor-pointer">
+                  {film.creator}
+                </div>
+              )}
               <h2 className="font-heavy text-2xl text-white leading-tight mb-1 drop-shadow-md">
                 {film.title}
               </h2>

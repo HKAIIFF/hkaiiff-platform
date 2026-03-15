@@ -4,6 +4,7 @@ import { FILMS } from "@/lib/data";
 import type { Film } from "@/lib/data";
 import { useModal } from "@/app/context/ModalContext";
 import FeedVideo from "@/components/FeedVideo";
+import Link from "next/link";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -105,9 +106,18 @@ function FeedItem({ film, timeLeft }: { film: Film; timeLeft: number }) {
               className="flex-1 pointer-events-auto pb-2"
               style={{ paddingRight: "40px" }}
             >
-              <div className="bg-white text-black text-[10px] font-bold px-2 py-1 inline-block mb-2 rounded-sm tracking-wide">
-                {film.creator}
-              </div>
+              {film.creator_id ? (
+                <Link
+                  href={`/user/${film.creator_id}`}
+                  className="bg-white text-black text-[10px] font-bold px-2 py-1 inline-block mb-2 rounded-sm tracking-wide cursor-pointer hover:bg-signal transition-colors"
+                >
+                  {film.creator}
+                </Link>
+              ) : (
+                <div className="bg-white text-black text-[10px] font-bold px-2 py-1 inline-block mb-2 rounded-sm tracking-wide">
+                  {film.creator}
+                </div>
+              )}
               <h2 className="font-heavy text-4xl text-white drop-shadow-lg mb-2 leading-none">
                 {film.title}
               </h2>
@@ -122,18 +132,32 @@ function FeedItem({ film, timeLeft }: { film: Film; timeLeft: number }) {
               style={{ width: "60px", gap: "24px", zIndex: 20 }}
             >
               {/* Button 1 ── Creator avatar */}
-              <div
-                className="relative mb-2 flex flex-col items-center"
-              >
-                <img
-                  src={avatarUrl}
-                  alt={film.creator}
-                  className="w-12 h-12 border-2 border-white rounded-full bg-black shadow-lg"
-                />
-                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-white text-black text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold shadow">
-                  +
+              {film.creator_id ? (
+                <Link
+                  href={`/user/${film.creator_id}`}
+                  className="relative mb-2 flex flex-col items-center cursor-pointer"
+                >
+                  <img
+                    src={avatarUrl}
+                    alt={film.creator}
+                    className="w-12 h-12 border-2 border-white rounded-full bg-black shadow-lg hover:border-signal transition-colors"
+                  />
+                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-white text-black text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold shadow">
+                    +
+                  </div>
+                </Link>
+              ) : (
+                <div className="relative mb-2 flex flex-col items-center">
+                  <img
+                    src={avatarUrl}
+                    alt={film.creator}
+                    className="w-12 h-12 border-2 border-white rounded-full bg-black shadow-lg"
+                  />
+                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-white text-black text-[10px] w-5 h-5 flex items-center justify-center rounded-full font-bold shadow">
+                    +
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Button 2 ── Interact fingerprint (conditional on hasInteract) */}
               {film.hasInteract && (
