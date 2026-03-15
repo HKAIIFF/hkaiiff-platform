@@ -288,7 +288,7 @@ function MobileFeedItem({
                 </button>
                 {film.user_id ? (
                   <Link
-                    href={`/creator/${film.user_id}`}
+                    href={`/creator/${encodeURIComponent(film.user_id)}`}
                     className="relative mb-2 active:scale-95 transition-transform flex flex-col items-center outline-none [-webkit-tap-highlight-color:transparent]"
                     onClick={(e) => e.stopPropagation()}
                   >
@@ -442,7 +442,7 @@ function DesktopGridCard({ film }: { film: SupabaseFilm }) {
         {/* Creator row — 点击跳转创作者主页 */}
         {film.user_id ? (
           <Link
-            href={`/creator/${film.user_id}`}
+            href={`/creator/${encodeURIComponent(film.user_id)}`}
             className="flex items-center gap-2 mb-1.5 hover:opacity-80 transition-opacity"
             onClick={(e) => e.stopPropagation()}
           >

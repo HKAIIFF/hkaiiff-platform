@@ -83,7 +83,9 @@ function FilmCard({ film }: { film: PublicFilm }) {
 export default function UserPage() {
   const params = useParams();
   const router = useRouter();
-  const userId = params?.id as string;
+  // 支持 URL-encoded 的 Privy DID 格式（did:privy:xxx）
+  const rawUserId = params?.id as string;
+  const userId = rawUserId ? decodeURIComponent(rawUserId) : rawUserId;
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [films, setFilms] = useState<PublicFilm[]>([]);
@@ -107,9 +109,20 @@ export default function UserPage() {
           .order("created_at", { ascending: false }),
       ]);
 
+      // id 字段未命中时，尝试以 privy_id 字段作回退（兼容双格式场景）
+      let finalProfileData = profileRes.data;
+      if (!finalProfileData) {
+        const fallback = await supabase
+          .from("users")
+          .select("id, display_name, name, avatar_seed, bio, tech_stack, verified_identities, portfolio")
+          .eq("privy_id", userId)
+          .maybeSingle();
+        if (fallback.data) finalProfileData = fallback.data;
+      }
+
       const approvedFilms = (filmsRes.data ?? []) as PublicFilm[];
 
-      if (!profileRes.data) {
+      if (!finalProfileData) {
         // 用户资料未完善或 users 表暂无记录，但仍有作品：显示基础占位页
         if (approvedFilms.length > 0) {
           setProfile({
@@ -132,7 +145,7 @@ export default function UserPage() {
         return;
       }
 
-      setProfile(profileRes.data as UserProfile);
+      setProfile(finalProfileData as UserProfile);
       setFilms(approvedFilms);
       setLoading(false);
     }

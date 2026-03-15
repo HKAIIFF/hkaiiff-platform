@@ -346,18 +346,19 @@ export default function MePage() {
   }
 
   // 当 URL 带有 ?editProfile=1 时，数据加载完毕后自动弹出编辑弹窗
+  // 使用 !isProfileLoading 而非 dbProfile !== null，确保新用户（profile 尚未建立）也能正常弹出
   const autoOpenCalledRef = useRef(false);
   useEffect(() => {
     if (
       !autoOpenCalledRef.current &&
       searchParams?.get('editProfile') === '1' &&
-      dbProfile !== null
+      !isProfileLoading
     ) {
       autoOpenCalledRef.current = true;
       openProfileModal();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dbProfile, searchParams]);
+  }, [isProfileLoading, searchParams]);
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1843,7 +1844,7 @@ export default function MePage() {
       ═══════════════════════════════════════════════════════════════════ */}
       {isProfileModalOpen && (
         <div
-          className="fixed inset-0 z-[300] bg-black/85 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+          className="fixed inset-0 z-[1001] bg-black/85 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
           onClick={(e) => { if (e.target === e.currentTarget) closeProfileModal(); }}
         >
@@ -2118,7 +2119,10 @@ export default function MePage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="flex items-center gap-3 px-5 py-4 border-t border-[#1a1a1a] flex-shrink-0 bg-[#080808]">
+            <div
+              className="flex items-center gap-3 px-5 pt-4 pb-4 border-t border-[#1a1a1a] flex-shrink-0 bg-[#080808]"
+              style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
+            >
               <button
                 onClick={closeProfileModal}
                 disabled={isSaving}

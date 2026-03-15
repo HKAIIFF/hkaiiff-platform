@@ -99,7 +99,9 @@ function FilmCard({ film }: { film: ApprovedFilm }) {
 export default function CreatorPage() {
   const params = useParams();
   const router = useRouter();
-  const userId = params?.userId as string;
+  // URL 参数已经被 Next.js 自动 decode，支持 did:privy:xxx 格式
+  const rawUserId = params?.userId as string;
+  const userId = rawUserId ? decodeURIComponent(rawUserId) : rawUserId;
 
   const [profile, setProfile] = useState<CreatorProfile | null>(null);
   const [films, setFilms] = useState<ApprovedFilm[]>([]);
@@ -109,6 +111,7 @@ export default function CreatorPage() {
   useEffect(() => {
     if (!userId) return;
     async function fetchData() {
+      // 先尝试用 id 字段查询（users.id 可能是 UUID 或 Privy DID）
       const [profileRes, filmsRes] = await Promise.all([
         supabase
           .from("users")
@@ -122,9 +125,20 @@ export default function CreatorPage() {
           .order("created_at", { ascending: false }),
       ]);
 
+      // 如果 id 字段没匹配到，尝试用 privy_id 字段再查一次（兼容双字段场景）
+      let finalProfileData = profileRes.data;
+      if (!finalProfileData) {
+        const fallback = await supabase
+          .from("users")
+          .select("id, display_name, name, avatar_seed, bio, tech_stack, core_team, verified_identities, portfolio")
+          .eq("privy_id", userId)
+          .maybeSingle();
+        if (fallback.data) finalProfileData = fallback.data;
+      }
+
       const allFilms = (filmsRes.data ?? []) as ApprovedFilm[];
 
-      if (!profileRes.data) {
+      if (!finalProfileData) {
         // 资料未完善但有作品：显示最小化占位页
         if (allFilms.length > 0) {
           setProfile({
@@ -147,7 +161,7 @@ export default function CreatorPage() {
         return;
       }
 
-      setProfile(profileRes.data as CreatorProfile);
+      setProfile(finalProfileData as CreatorProfile);
       setFilms(allFilms);
       setLoading(false);
     }
