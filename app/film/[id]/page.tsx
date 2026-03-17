@@ -18,7 +18,6 @@ interface FilmDetail {
   ai_ratio: number | null;
   poster_url: string | null;
   trailer_url: string | null;
-  feature_url: string | null;
   synopsis: string | null;
   user_id: string | null;
 }
@@ -137,7 +136,7 @@ function FilmDetailInner() {
       try {
         const { data, error } = await supabase
           .from('films')
-          .select('id, title, studio, tech_stack, ai_ratio, poster_url, trailer_url, feature_url, synopsis, user_id')
+          .select('id, title, studio, tech_stack, ai_ratio, poster_url, trailer_url, synopsis, user_id')
           .eq('id', id)
           .single();
 
@@ -267,17 +266,6 @@ function FilmDetailInner() {
               {film.synopsis || film.tech_stack}
             </p>
           </section>
-        )}
-
-        {/* ▶ 播放正片 按鈕 */}
-        {film.feature_url && (
-          <button
-            onClick={() => router.push(`/play/${film.id}`)}
-            className="w-full md:w-auto md:px-10 bg-[#CCFF00] text-black font-heavy text-lg py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white transition-colors active:scale-95 shadow-[0_0_24px_rgba(204,255,0,0.25)]"
-          >
-            <i className="fas fa-play" />
-            ▶ 播放正片
-          </button>
         )}
 
         {/* 分隔線 */}
