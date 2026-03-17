@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { usePrivy } from "@privy-io/react-auth";
 import { useModal } from "@/app/context/ModalContext";
+import { useI18n } from "@/app/context/I18nContext";
 import { supabase } from "@/lib/supabase";
 import { AvatarWithBadges } from "@/app/components/IdentityBadges";
 import PrivyLoginWithConsent from "@/components/PrivyLoginWithConsent";
@@ -18,6 +19,7 @@ export default function DesktopNavbar({ onSearchChange, searchValue }: DesktopNa
   const router = useRouter();
   const { authenticated, user } = usePrivy();
   const { setActiveModal } = useModal();
+  const { t } = useI18n();
 
   const [localQuery, setLocalQuery] = useState(searchValue ?? "");
   const [avatarSeed, setAvatarSeed] = useState<string>(user?.id ?? "default");
@@ -105,6 +107,31 @@ export default function DesktopNavbar({ onSearchChange, searchValue }: DesktopNa
         >
           <i className="fas fa-landmark text-[9px]" />
           ABOUT
+        </Link>
+
+        {/* Unicorn Awards link */}
+        <Link
+          href="/awards"
+          className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-mono tracking-wider transition-all border"
+          style={{
+            background: "rgba(255,200,0,0.06)",
+            borderColor: "rgba(255,200,0,0.25)",
+            color: "rgba(255,210,0,0.8)",
+            boxShadow: "0 0 10px rgba(255,200,0,0.08)",
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.color = "#FFD700";
+            (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,200,0,0.5)";
+            (e.currentTarget as HTMLElement).style.boxShadow = "0 0 16px rgba(255,200,0,0.2)";
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.color = "rgba(255,210,0,0.8)";
+            (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,200,0,0.25)";
+            (e.currentTarget as HTMLElement).style.boxShadow = "0 0 10px rgba(255,200,0,0.08)";
+          }}
+        >
+          <i className="fas fa-crown text-[9px]" style={{ filter: "drop-shadow(0 0 3px rgba(255,200,0,0.6))" }} />
+          {t("entry.webMenuAwards")}
         </Link>
 
         {/* Upload shortcut */}
