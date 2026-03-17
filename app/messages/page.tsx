@@ -229,6 +229,7 @@ function MobileMessagesView({
   readGlobalMsgs, isFestivalOpen, setIsFestivalOpen, mobileDetailOpen,
   onSelectMsg, onMarkAllRead, onRead, onDelete, onMobileBack, lang,
 }: MobileViewProps) {
+  const { t } = useI18n();
   return (
     /* Logo 已移除（仅 /me 显示），顶部 pt-16；BottomNav=50px，pb-16 足够 */
     <div className="min-h-screen w-full bg-[#050505] pt-16 pb-16">
