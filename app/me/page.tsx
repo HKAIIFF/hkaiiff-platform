@@ -2181,7 +2181,7 @@ function MePageContent() {
 
 export default function MePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading profile...</div>}>
+    <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center text-signal">Loading...</div>}>
       <MePageContent />
     </Suspense>
   );
