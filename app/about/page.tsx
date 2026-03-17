@@ -1,155 +1,164 @@
 'use client';
 
 import Link from 'next/link';
+import DynamicLogoWall from '@/components/DynamicLogoWall';
 import { useI18n } from '@/app/context/I18nContext';
 
-/* ─── Static Data ─────────────────────────────────────────────────────── */
-const STATS = [
-  { value: '7', label: 'Days', sublabel: 'JULY 15–21, 2026' },
-  { value: '51%', label: 'AI Threshold', sublabel: 'MINIMUM AI RATIO' },
-  { value: '$500', label: 'Prize Pool', sublabel: 'ENTRY FEE: $99 USD' },
-  { value: '9', label: 'Languages', sublabel: 'GLOBAL AUDIENCE' },
-];
-
-const SECTIONS = [
-  {
-    tag: 'VISION',
-    icon: 'fa-eye',
-    title: 'The World\'s First AI-Native Film Festival',
-    body: 'HKAIIFF is not just a film festival — it is the inauguration of a new cinematic universe. Every frame submitted must carry at least 51% AI-generated content, verified on-chain by the AIF.BOT protocol. We define cinema\'s next epoch.',
-    image: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?q=80&w=1200',
-    imageAlt: 'Cinematic vision',
-  },
-  {
-    tag: 'TECHNOLOGY',
-    icon: 'fa-microchip',
-    title: 'On-Chain Purity Verification & LBS Screening',
-    body: 'Every film is assigned an AIF Purity Score™ upon submission. Smart contracts lock exclusive screenings to physical venues in Hong Kong. Attendees must be within GPS range to unlock the full experience — merging the physical and digital.',
-    image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?q=80&w=1200',
-    imageAlt: 'Technology infrastructure',
-  },
-  {
-    tag: 'HERITAGE',
-    icon: 'fa-map-marker-alt',
-    title: 'Hong Kong: Gateway Between Two Worlds',
-    body: 'Hong Kong\'s unique position as Asia\'s financial and cultural nexus makes it the perfect stage. With a vibrant tech ecosystem, world-class venues, and an audience spanning East and West, HKAIIFF bridges the future of AI creativity with cinematic tradition.',
-    image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?q=80&w=1200',
-    imageAlt: 'Hong Kong skyline',
-  },
-];
-
-const TIMELINE = [
-  { date: 'MAY 1, 2026',  event: 'Submissions Open',        desc: 'Upload your AI-native film with AIF ratio ≥ 51%' },
-  { date: 'JUL 1, 2026',  event: 'Submissions Close',       desc: 'Final deadline for all entries' },
-  { date: 'JUL 5, 2026',  event: 'Official Selection',      desc: 'AIF.BOT announces selected films on-chain' },
-  { date: 'JUL 15, 2026', event: 'Festival Opens',          desc: 'LBS nodes activate across Hong Kong venues' },
-  { date: 'JUL 21, 2026', event: 'Awards Ceremony',         desc: 'On-chain trophy NFTs minted to winners' },
-];
-
-/* ─── Hero ────────────────────────────────────────────────────────────── */
+/* ─── Hero (全屏巨幕) ──────────────────────────────────────────────────── */
 function Hero() {
+  const { t } = useI18n();
   return (
-    <section className="relative overflow-hidden min-h-[60vh] md:min-h-[75vh] flex items-end">
+    <section className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden px-6">
       {/* Background */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `url('https://images.unsplash.com/photo-1478720568477-152d9b164e26?q=80&w=1600')`,
-        }}
+        style={{ backgroundImage: `url('https://images.unsplash.com/photo-1478720568477-152d9b164e26?q=80&w=2000')` }}
       />
-      <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-black/60 to-black/20" />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/40 to-transparent" />
-
-      {/* Decorative scanline overlay */}
-      <div className="absolute inset-0 opacity-[0.04] pointer-events-none"
-        style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 3px)', backgroundSize: '100% 3px' }} />
+      <div className="absolute inset-0 bg-gradient-to-b from-[#050505]/80 via-black/70 to-[#050505]" />
+      <div className="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent" />
+      {/* Scanline overlay */}
+      <div
+        className="absolute inset-0 opacity-[0.03] pointer-events-none"
+        style={{ backgroundImage: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.5) 2px, rgba(255,255,255,0.5) 3px)' }}
+      />
 
       {/* Content */}
-      <div className="relative z-10 px-6 md:px-12 pb-12 md:pb-16 max-w-4xl">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="w-1 h-6 bg-signal" />
-          <span className="font-mono text-[10px] text-signal tracking-[0.3em] uppercase">Hong Kong · July 2026</span>
+      <div className="relative z-10 text-center max-w-7xl mx-auto w-full">
+        <div className="font-mono text-[10px] text-[#CCFF00] tracking-[0.5em] uppercase mb-8">
+          HKAIIFF &middot; EST. 2026 &middot; HONG KONG
         </div>
-        <h1 className="font-heavy text-5xl md:text-7xl lg:text-8xl text-white leading-none mb-4">
-          HK<span className="text-signal">AI</span>IFF
+        <h1 className="font-black text-6xl md:text-7xl lg:text-9xl text-white leading-none tracking-tighter mb-6">
+          {t('webAbout.heroSlogan')}
         </h1>
-        <p className="font-mono text-sm md:text-base text-gray-300 mb-2 tracking-wider uppercase leading-relaxed max-w-xl">
-          Hong Kong Artificial Intelligence International Film Festival
+        <p className="font-mono text-sm md:text-base text-gray-300 tracking-widest uppercase mb-2">
+          {t('webAbout.heroSub')}
         </p>
-        <p className="font-mono text-[10px] text-gray-500 tracking-widest">
-          THE WORLD&apos;S FIRST AI-NATIVE CINEMA FESTIVAL · EST. 2026
-        </p>
-      </div>
-    </section>
-  );
-}
-
-/* ─── Stats Bar ───────────────────────────────────────────────────────── */
-function StatsBar() {
-  return (
-    <section className="bg-[#050505] border-y border-[#111] px-6 md:px-12 py-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-[#111] rounded-xl overflow-hidden">
-        {STATS.map((s) => (
-          <div key={s.label} className="bg-[#050505] px-6 py-5 text-center">
-            <div className="font-heavy text-4xl md:text-5xl text-signal mb-1">{s.value}</div>
-            <div className="font-heavy text-white text-xs md:text-sm tracking-widest uppercase mb-0.5">{s.label}</div>
-            <div className="font-mono text-[8px] md:text-[9px] text-gray-600 tracking-widest">{s.sublabel}</div>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-/* ─── Content Section (alternating image+text) ─────────────────────────── */
-function ContentSection({ section, reverse }: { section: typeof SECTIONS[number]; reverse?: boolean }) {
-  return (
-    <section className={`flex flex-col ${reverse ? 'md:flex-row-reverse' : 'md:flex-row'} gap-0 overflow-hidden`}>
-      {/* Image */}
-      <div className="w-full md:w-1/2 aspect-video md:aspect-auto overflow-hidden">
-        <img
-          src={section.image}
-          alt={section.imageAlt}
-          className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
-        />
-      </div>
-      {/* Text */}
-      <div className="w-full md:w-1/2 flex flex-col justify-center px-6 md:px-10 lg:px-16 py-10 md:py-16 bg-[#050505]">
-        <div className="flex items-center gap-2 mb-4">
-          <i className={`fas ${section.icon} text-signal text-sm`} />
-          <span className="font-mono text-[9px] text-signal tracking-[0.3em] uppercase">{section.tag}</span>
+        {/* Dates capsule */}
+        <div className="inline-block px-6 py-2 rounded-full border border-[#CCFF00] text-[#CCFF00] font-bold tracking-widest text-[10px] md:text-xs my-8">
+          {t('webAbout.heroDates')}
         </div>
-        <h2 className="font-heavy text-2xl md:text-3xl lg:text-4xl text-white leading-tight mb-5">{section.title}</h2>
-        <p className="font-mono text-xs md:text-sm text-gray-400 leading-relaxed">{section.body}</p>
+        <p className="font-mono text-xs md:text-sm text-gray-400 leading-relaxed max-w-2xl mx-auto">
+          {t('webAbout.heroDesc')}
+        </p>
+      </div>
+
+      {/* Scroll indicator */}
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 opacity-40">
+        <div className="w-px h-12 bg-gradient-to-b from-[#CCFF00] to-transparent" />
+        <span className="font-mono text-[8px] text-[#CCFF00] tracking-[0.3em]">SCROLL</span>
       </div>
     </section>
   );
 }
 
-/* ─── Timeline ────────────────────────────────────────────────────────── */
-function Timeline() {
+/* ─── Era Section ───────────────────────────────────────────────────────── */
+function EraSection() {
+  const { t } = useI18n();
   return (
-    <section className="bg-[#030303] px-6 md:px-12 py-16 md:py-20 border-t border-[#0e0e0e]">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center gap-3 mb-10">
-          <div className="w-8 h-0.5 bg-signal" />
-          <span className="font-mono text-[10px] text-signal tracking-[0.3em] uppercase">Festival Timeline</span>
+    <section className="bg-[#050505] border-t border-[#0d0d0d] px-6 py-24 md:py-32">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+        <div>
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-8 h-0.5 bg-[#CCFF00]" />
+            <span className="font-mono text-[10px] text-[#CCFF00] tracking-[0.4em] uppercase">ERA</span>
+          </div>
+          <h2 className="font-black text-4xl md:text-5xl lg:text-6xl text-white leading-tight tracking-tight">
+            {t('webAbout.eraTitle')}
+          </h2>
+        </div>
+        <div>
+          <p className="font-mono text-sm md:text-base text-gray-400 leading-relaxed">
+            {t('webAbout.eraDesc')}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── HK Strategic Nexus (Sticky 左側 + 右側 2×2 玻璃態便當盒) ─────────── */
+function HKNexusSection() {
+  const { t } = useI18n();
+  const pillars = [
+    { nameKey: 'webAbout.hkPillar1Name', descKey: 'webAbout.hkPillar1Desc', num: '01' },
+    { nameKey: 'webAbout.hkPillar2Name', descKey: 'webAbout.hkPillar2Desc', num: '02' },
+    { nameKey: 'webAbout.hkPillar3Name', descKey: 'webAbout.hkPillar3Desc', num: '03' },
+    { nameKey: 'webAbout.hkPillar4Name', descKey: 'webAbout.hkPillar4Desc', num: '04' },
+  ];
+
+  return (
+    <section className="bg-[#030303] border-t border-[#0d0d0d] px-6 py-24 md:py-32">
+      <div className="max-w-7xl mx-auto">
+        <div className="font-mono text-[10px] text-[#CCFF00] tracking-[0.5em] uppercase mb-16 text-center">
+          {t('webAbout.hkSection')}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+          {/* Left — sticky */}
+          <div className="lg:col-span-5 lg:sticky lg:top-32 lg:h-fit">
+            <h2 className="font-black text-3xl md:text-4xl lg:text-5xl text-white leading-tight tracking-tight mb-6">
+              {t('webAbout.hkTitle')}
+            </h2>
+            <p className="font-mono text-sm text-gray-400 leading-relaxed">
+              {t('webAbout.hkDesc')}
+            </p>
+          </div>
+          {/* Right — 2×2 grid */}
+          <div className="lg:col-span-7 grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {pillars.map((p) => (
+              <div
+                key={p.num}
+                className="backdrop-blur-md bg-white/[0.02] border border-white/10 p-8 rounded-2xl hover:border-[#CCFF00]/25 transition-colors duration-300"
+              >
+                <div className="font-mono text-[9px] text-[#CCFF00] tracking-[0.3em] uppercase mb-3">
+                  {p.num}
+                </div>
+                <h3 className="font-black text-white text-sm md:text-base tracking-widest mb-3">
+                  {t(p.nameKey)}
+                </h3>
+                <p className="font-mono text-[11px] text-gray-500 leading-relaxed">
+                  {t(p.descKey)}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ─── Eco Cards (橫向三聯 + Hover 螢光特效) ─────────────────────────────── */
+function EcoSection() {
+  const { t } = useI18n();
+  const cards = [
+    { titleKey: 'webAbout.ecoCard1Title', descKey: 'webAbout.ecoCard1Desc', symbol: '⬡' },
+    { titleKey: 'webAbout.ecoCard2Title', descKey: 'webAbout.ecoCard2Desc', symbol: '◈' },
+    { titleKey: 'webAbout.ecoCard3Title', descKey: 'webAbout.ecoCard3Desc', symbol: '⊕' },
+  ];
+
+  return (
+    <section className="bg-[#050505] border-t border-[#0d0d0d] px-6 py-24 md:py-32">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center gap-3 mb-16">
+          <div className="w-8 h-0.5 bg-[#CCFF00]" />
+          <h2 className="font-mono text-[10px] text-[#CCFF00] tracking-[0.4em] uppercase">
+            {t('webAbout.ecoTitle')}
+          </h2>
           <div className="flex-1 h-px bg-[#111]" />
         </div>
-        <div className="space-y-0">
-          {TIMELINE.map((item, i) => (
-            <div key={item.date} className={`flex gap-6 md:gap-10 group ${i < TIMELINE.length - 1 ? 'pb-8' : ''}`}>
-              {/* Date + line */}
-              <div className="flex flex-col items-center shrink-0 w-28 md:w-36">
-                <div className="w-2.5 h-2.5 rounded-full border-2 border-signal mt-1 shrink-0 group-hover:bg-signal transition-colors" />
-                {i < TIMELINE.length - 1 && <div className="w-px flex-1 bg-[#1a1a1a] mt-1" />}
-              </div>
-              {/* Content */}
-              <div className="pb-1">
-                <div className="font-mono text-[9px] text-signal tracking-widest mb-1">{item.date}</div>
-                <div className="font-heavy text-white text-sm md:text-base tracking-wide mb-1">{item.event}</div>
-                <div className="font-mono text-[10px] text-gray-500 leading-relaxed">{item.desc}</div>
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {cards.map((c, i) => (
+            <div
+              key={i}
+              className="bg-[#080808] border border-[#1a1a1a] rounded-2xl p-10 hover:-translate-y-2 hover:shadow-[0_0_30px_rgba(204,255,0,0.1)] hover:border-[#CCFF00]/20 transition-all duration-300"
+            >
+              <div className="text-3xl text-[#CCFF00] mb-6 opacity-50 select-none">{c.symbol}</div>
+              <h3 className="font-black text-white text-lg md:text-xl mb-4 leading-tight">
+                {t(c.titleKey)}
+              </h3>
+              <p className="font-mono text-xs text-gray-500 leading-relaxed">
+                {t(c.descKey)}
+              </p>
             </div>
           ))}
         </div>
@@ -158,116 +167,89 @@ function Timeline() {
   );
 }
 
-/* ─── CTA ─────────────────────────────────────────────────────────────── */
-function CTA() {
+/* ─── Advantages (交錯佈局 + 巨型背景數字裝飾) ──────────────────────────── */
+function AdvantagesSection() {
+  const { t } = useI18n();
+  const advantages = [
+    { num: '01', titleKey: 'webAbout.adv1Title', descKey: 'webAbout.adv1Desc' },
+    { num: '02', titleKey: 'webAbout.adv2Title', descKey: 'webAbout.adv2Desc' },
+    { num: '03', titleKey: 'webAbout.adv3Title', descKey: 'webAbout.adv3Desc' },
+  ];
+
   return (
-    <section className="relative overflow-hidden bg-[#050505] border-t border-[#111] px-6 md:px-12 py-16 md:py-24 text-center">
-      {/* Glow */}
-      <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse 60% 50% at 50% 100%, rgba(204,255,0,0.05) 0%, transparent 70%)' }} />
-      <div className="relative z-10 max-w-2xl mx-auto">
-        <div className="font-mono text-[9px] text-signal tracking-[0.4em] uppercase mb-4">SUBMISSIONS OPEN</div>
-        <h2 className="font-heavy text-3xl md:text-5xl text-white leading-tight mb-5">
-          Ready to Submit Your<br /><span className="text-signal">AI-Native Film?</span>
-        </h2>
-        <p className="font-mono text-xs md:text-sm text-gray-400 mb-8 leading-relaxed">
-          Your film must carry ≥ 51% AI-generated content. Upload poster, trailer, and full film.
-          Entry fee: $99 USD or 500 AIF tokens.
-        </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Link
-            href="/upload"
-            className="flex items-center gap-2 bg-signal text-black font-heavy text-sm tracking-widest px-8 py-3 rounded-xl hover:bg-white transition-colors shadow-[0_0_20px_rgba(204,255,0,0.3)]"
-          >
-            <i className="fas fa-cloud-upload-alt" /> SUBMIT FILM
-          </Link>
-          <Link
-            href="/discover"
-            className="flex items-center gap-2 border border-[#333] text-white font-heavy text-sm tracking-widest px-8 py-3 rounded-xl hover:border-signal/30 hover:text-signal transition-colors"
-          >
-            <i className="fas fa-map-marked-alt" /> EXPLORE VENUES
-          </Link>
+    <section className="bg-[#030303] border-t border-[#0d0d0d] py-24 md:py-32">
+      <div className="max-w-7xl mx-auto px-6 mb-16">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-0.5 bg-[#CCFF00]" />
+          <h2 className="font-mono text-[10px] text-[#CCFF00] tracking-[0.4em] uppercase">
+            {t('webAbout.advTitle')}
+          </h2>
+          <div className="flex-1 h-px bg-[#111]" />
         </div>
+      </div>
+      <div className="space-y-0">
+        {advantages.map((adv, i) => (
+          <div
+            key={adv.num}
+            className={`relative flex flex-col ${i % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'} overflow-hidden border-b border-[#0e0e0e] last:border-b-0`}
+          >
+            {/* Decorative giant number */}
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden -z-10">
+              <span className="font-black leading-none text-white/[0.03]" style={{ fontSize: '15rem' }}>
+                {adv.num}
+              </span>
+            </div>
+            {/* Visual side */}
+            <div className="relative w-full md:w-1/2 aspect-video md:aspect-[4/3] bg-[#0a0a0a] overflow-hidden flex items-center justify-center">
+              <div className="absolute inset-0 bg-gradient-to-br from-[#CCFF00]/[0.04] to-transparent" />
+              <span className="font-black leading-none text-white/[0.05] select-none" style={{ fontSize: '10rem' }}>
+                {adv.num}
+              </span>
+            </div>
+            {/* Text side */}
+            <div className="w-full md:w-1/2 flex flex-col justify-center px-8 md:px-12 lg:px-20 py-14 md:py-20">
+              <div className="font-mono text-[9px] text-[#CCFF00] tracking-[0.4em] uppercase mb-4">
+                {adv.num}
+              </div>
+              <h3 className="font-black text-2xl md:text-3xl lg:text-4xl text-white leading-tight mb-5">
+                {t(adv.titleKey)}
+              </h3>
+              <p className="font-mono text-xs md:text-sm text-gray-400 leading-relaxed max-w-md">
+                {t(adv.descKey)}
+              </p>
+            </div>
+          </div>
+        ))}
       </div>
     </section>
   );
 }
 
-/* ─── Logo Wall (Marquee) ─────────────────────────────────────────────── */
-function LogoWall() {
+/* ─── Future CTA ──────────────────────────────────────────────────────────── */
+function FutureCTA() {
   const { t } = useI18n();
   return (
-    <section className="bg-[#030303] border-t border-[#0e0e0e] py-12 overflow-hidden">
-      <div className="text-center mb-8">
-        <div className="flex items-center gap-3 max-w-4xl mx-auto px-6">
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#1a1a1a] to-transparent" />
-          <span className="font-mono text-[10px] text-gray-500 tracking-[0.3em] uppercase whitespace-nowrap">
-            {t('about_partners_title')}
-          </span>
-          <div className="flex-1 h-px bg-gradient-to-r from-transparent via-[#1a1a1a] to-transparent" />
+    <section className="relative bg-[#050505] border-t border-[#111] px-6 py-24 md:py-36 text-center overflow-hidden">
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ background: 'radial-gradient(ellipse 70% 60% at 50% 100%, rgba(204,255,0,0.06) 0%, transparent 70%)' }}
+      />
+      <div className="relative z-10 max-w-3xl mx-auto">
+        <div className="font-mono text-[10px] text-[#CCFF00] tracking-[0.5em] uppercase mb-6">
+          HKAIIFF · THE REVOLUTION
         </div>
-      </div>
-
-      {/* Row 1 — LTR */}
-      <div className="overflow-hidden mb-4">
-        <div className="flex gap-x-10 whitespace-nowrap animate-marquee-ltr opacity-30 hover:opacity-60 transition-opacity duration-500">
-          {[
-            'NVIDIA','OpenAI','Midjourney','Runway','Luma AI','Pika Labs',
-            'Stability AI','Anthropic','Google DeepMind','Meta','Apple','AWS',
-            'Alibaba Cloud','Tencent AI','SenseTime',
-            'NVIDIA','OpenAI','Midjourney','Runway','Luma AI','Pika Labs',
-            'Stability AI','Anthropic','Google DeepMind','Meta','Apple','AWS',
-            'Alibaba Cloud','Tencent AI','SenseTime',
-          ].map((name, i) => (
-            <span key={`r1-${i}`}
-              className="font-heavy text-base md:text-lg text-gray-400 hover:text-white transition-colors cursor-default shrink-0">
-              {name}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Row 2 — RTL */}
-      <div className="overflow-hidden mb-4">
-        <div className="flex gap-x-10 whitespace-nowrap animate-marquee-rtl opacity-30 hover:opacity-60 transition-opacity duration-500">
-          {[
-            'Solana','Arweave','Filecoin','Polygon','Chainlink',
-            'IMAX','Dolby','Netflix','A24','Sony Pictures',
-            'HKADC','HKUST','HKU','MIT Media Lab','Hugging Face','xAI','Epic Games',
-            'Solana','Arweave','Filecoin','Polygon','Chainlink',
-            'IMAX','Dolby','Netflix','A24','Sony Pictures',
-            'HKADC','HKUST','HKU','MIT Media Lab','Hugging Face','xAI','Epic Games',
-          ].map((name, i) => (
-            <span key={`r2-${i}`}
-              className="font-heavy text-base md:text-lg text-gray-400 hover:text-white transition-colors cursor-default shrink-0">
-              {name}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Row 3 — LTR slower */}
-      <div className="overflow-hidden">
-        <div className="flex gap-x-10 whitespace-nowrap animate-marquee-ltr2 opacity-30 hover:opacity-60 transition-opacity duration-500">
-          {[
-            'Anthropic','xAI','Epic Games','IMAX','Dolby',
-            'NVIDIA','Runway','Luma AI','Hugging Face','Midjourney',
-            'Filecoin','Solana','Polygon','A24','Netflix','Sony Pictures',
-            'Anthropic','xAI','Epic Games','IMAX','Dolby',
-            'NVIDIA','Runway','Luma AI','Hugging Face','Midjourney',
-            'Filecoin','Solana','Polygon','A24','Netflix','Sony Pictures',
-          ].map((name, i) => (
-            <span key={`r3-${i}`}
-              className="font-heavy text-base md:text-lg text-gray-400 hover:text-white transition-colors cursor-default shrink-0">
-              {name}
-            </span>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-8 flex items-center gap-3 max-w-4xl mx-auto px-6">
-        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
-        <span className="font-mono text-[8px] text-gray-700 tracking-widest uppercase">32 Global Partners</span>
-        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/5 to-transparent" />
+        <h2 className="font-black text-4xl md:text-5xl lg:text-6xl text-white leading-tight tracking-tight mb-6">
+          {t('webAbout.futureTitle')}
+        </h2>
+        <p className="font-mono text-sm md:text-base text-gray-400 leading-relaxed mb-12 max-w-2xl mx-auto">
+          {t('webAbout.futureDesc')}
+        </p>
+        <Link
+          href="/upload"
+          className="inline-flex items-center gap-3 bg-[#CCFF00] text-black font-black text-sm tracking-widest px-10 py-4 rounded-xl hover:bg-white transition-colors shadow-[0_0_30px_rgba(204,255,0,0.25)]"
+        >
+          {t('webAbout.joinBtn')}
+        </Link>
       </div>
     </section>
   );
@@ -291,42 +273,14 @@ function CopyrightFooter() {
 /* ─── Page Component ──────────────────────────────────────────────────── */
 export default function AboutPage() {
   return (
-    <div className="bg-void text-white min-h-screen w-full overflow-y-auto flex flex-col pt-28 md:pt-0 pb-32 md:pb-0">
+    <div className="bg-[#050505] text-white min-h-screen w-full overflow-y-auto flex flex-col">
       <Hero />
-      <StatsBar />
-      {SECTIONS.map((section, i) => (
-        <ContentSection key={section.tag} section={section} reverse={i % 2 !== 0} />
-      ))}
-      <Timeline />
-
-      {/* Festival Mission — Desktop two-column */}
-      <section className="border-t border-[#0e0e0e] px-6 md:px-12 py-16 md:py-20 bg-[#050505]">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center gap-3 mb-10">
-            <div className="w-8 h-0.5 bg-signal" />
-            <span className="font-mono text-[10px] text-signal tracking-[0.3em] uppercase">Our Mission</span>
-            <div className="flex-1 h-px bg-[#111]" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              { icon: 'fa-shield-alt', title: 'On-Chain Integrity',   body: 'Every film\'s AI contribution ratio is immutably recorded on the Solana blockchain via AIF.BOT smart contracts. Fake entries are cryptographically impossible.' },
-              { icon: 'fa-globe-asia', title: 'Global Accessibility', body: 'While rooted in Hong Kong, HKAIIFF is designed for the global AI creative community. Submissions accepted from any country in 9 languages.' },
-              { icon: 'fa-map-pin',    title: 'Location-Based Cinema',body: 'Exclusive screenings are geo-locked to physical venues. Experience cinema that can only be watched in-person — where the digital meets the physical world.' },
-            ].map((card) => (
-              <div key={card.title} className="bg-[#080808] border border-[#1a1a1a] rounded-xl p-6 hover:border-signal/20 transition-colors">
-                <div className="w-10 h-10 rounded-xl bg-signal/10 border border-signal/20 flex items-center justify-center mb-4">
-                  <i className={`fas ${card.icon} text-signal text-sm`} />
-                </div>
-                <h3 className="font-heavy text-white text-base mb-3 tracking-wide">{card.title}</h3>
-                <p className="font-mono text-[10px] text-gray-500 leading-relaxed">{card.body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <CTA />
-      <LogoWall />
+      <EraSection />
+      <HKNexusSection />
+      <EcoSection />
+      <AdvantagesSection />
+      <FutureCTA />
+      <DynamicLogoWall />
       <CopyrightFooter />
     </div>
   );
