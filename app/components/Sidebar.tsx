@@ -7,6 +7,7 @@ import { useI18n } from "@/app/context/I18nContext";
 import { usePrivy } from "@privy-io/react-auth";
 import { supabase } from "@/lib/supabase";
 import { AvatarWithBadges } from "@/app/components/IdentityBadges";
+import PrivyLoginWithConsent from "@/components/PrivyLoginWithConsent";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -16,6 +17,7 @@ export default function Sidebar() {
   const [avatarSeed, setAvatarSeed] = useState<string>(user?.id ?? "Janus");
   const [verifiedIdentities, setVerifiedIdentities] = useState<string[]>([]);
   const [displayName, setDisplayName] = useState<string | null>(null);
+  const [showConsent, setShowConsent] = useState(false);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -104,41 +106,61 @@ export default function Sidebar() {
           </Link>
         ))}
 
-        {/* User profile */}
-        <Link
-          href="/me"
-          className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#141414] cursor-pointer transition-colors border border-transparent hover:border-[#222] mt-1.5"
-        >
-          {verifiedIdentities.length > 0 ? (
-            <AvatarWithBadges
-              avatarSeed={avatarSeed}
-              verifiedIdentities={verifiedIdentities}
-              size="xs"
-            />
-          ) : (
-            <div className="relative shrink-0">
-              <img
-                src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(avatarSeed)}`}
-                alt="User Avatar"
-                className="w-7 h-7 bg-black rounded-full border border-[#333]"
+        {/* User profile — authenticated: link to /me; unauthenticated: open consent modal */}
+        {authenticated ? (
+          <Link
+            href="/me"
+            className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#141414] cursor-pointer transition-colors border border-transparent hover:border-[#222] mt-1.5"
+          >
+            {verifiedIdentities.length > 0 ? (
+              <AvatarWithBadges
+                avatarSeed={avatarSeed}
+                verifiedIdentities={verifiedIdentities}
+                size="xs"
               />
-              {authenticated && (
+            ) : (
+              <div className="relative shrink-0">
+                <img
+                  src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(avatarSeed)}`}
+                  alt="User Avatar"
+                  className="w-7 h-7 bg-black rounded-full border border-[#333]"
+                />
                 <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-signal rounded-full border-2 border-[#080808]" />
-              )}
+              </div>
+            )}
+            <div className="flex flex-col overflow-hidden min-w-0">
+              <span className="text-xs font-bold text-white truncate">
+                {displayName || "My Profile"}
+              </span>
+              <span className="text-[9px] font-mono text-[#555] truncate">View account</span>
             </div>
-          )}
-          <div className="flex flex-col overflow-hidden min-w-0">
-            <span className="text-xs font-bold text-white truncate">
-              {authenticated
-                ? (displayName || "My Profile")
-                : "Sign In"}
-            </span>
-            <span className="text-[9px] font-mono text-[#555] truncate">
-              {authenticated ? "View account" : "Connect wallet"}
-            </span>
-          </div>
-          <i className="fas fa-cog text-[#3a3a3a] ml-auto text-[10px] shrink-0" />
-        </Link>
+            <i className="fas fa-cog text-[#3a3a3a] ml-auto text-[10px] shrink-0" />
+          </Link>
+        ) : (
+          <>
+            <PrivyLoginWithConsent
+              open={showConsent}
+              onClose={() => setShowConsent(false)}
+            />
+            <button
+              onClick={() => setShowConsent(true)}
+              className="flex items-center gap-3 p-2 w-full rounded-lg hover:bg-[#141414] cursor-pointer transition-colors border border-transparent hover:border-[#222] mt-1.5 text-left"
+            >
+              <div className="relative shrink-0">
+                <img
+                  src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(avatarSeed)}`}
+                  alt="User Avatar"
+                  className="w-7 h-7 bg-black rounded-full border border-[#333]"
+                />
+              </div>
+              <div className="flex flex-col overflow-hidden min-w-0">
+                <span className="text-xs font-bold text-white truncate">Sign In</span>
+                <span className="text-[9px] font-mono text-[#555] truncate">Connect wallet</span>
+              </div>
+              <i className="fas fa-sign-in-alt text-[#3a3a3a] ml-auto text-[10px] shrink-0" />
+            </button>
+          </>
+        )}
       </div>
     </aside>
   );

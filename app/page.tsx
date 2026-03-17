@@ -12,6 +12,7 @@ import { buildOssUrl } from "@/lib/utils/oss";
 import Link from "next/link";
 import IdentityBadges from "@/app/components/IdentityBadges";
 import FeedVideo from "@/components/FeedVideo";
+import PrivyLoginWithConsent from "@/components/PrivyLoginWithConsent";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -192,13 +193,14 @@ function MobileFeedItem({
   const [showUser, setShowUser] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [showConsent, setShowConsent] = useState(false);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
 
   const { setActiveModal, setSelectedFilm, setSelectedCreator, setSelectedCreatorUserId } = useModal();
   const { lang } = useI18n();
   const { showToast } = useToast();
-  const { authenticated, login } = usePrivy();
+  const { authenticated } = usePrivy();
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -226,13 +228,13 @@ function MobileFeedItem({
 
   const handleParallelClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!authenticated) { showToast(lang === "en" ? "Please connect wallet." : "請先登錄。", "error"); login(); return; }
+    if (!authenticated) { showToast(lang === "en" ? "Please connect wallet." : "請先登錄。", "error"); setShowConsent(true); return; }
     setDrawerOpen(true);
   };
 
   const handleMintToChain = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!authenticated) { showToast(lang === "en" ? "Please connect wallet." : "請先連接錢包。", "error"); login(); return; }
+    if (!authenticated) { showToast(lang === "en" ? "Please connect wallet." : "請先連接錢包。", "error"); setShowConsent(true); return; }
     showToast(lang === "en" ? "Minting coming soon..." : "鏈上鑄造即將上線。", "info");
   };
 
@@ -254,6 +256,10 @@ function MobileFeedItem({
 
   return (
     <>
+      <PrivyLoginWithConsent
+        open={showConsent}
+        onClose={() => setShowConsent(false)}
+      />
       <div
         className={`feed-item${showUser ? " show-user" : ""}`}
         onTouchStart={handleTouchStart}
@@ -580,8 +586,8 @@ function FeedInner() {
   const [films, setFilms] = useState<SupabaseFilm[]>([]);
   const [loading, setLoading] = useState(true);
   const [isMuted, setIsMuted] = useState(true);
+  const [showConsent, setShowConsent] = useState(false);
 
-  const { login } = usePrivy();
   const { showToast } = useToast();
   const { lang } = useI18n();
 
@@ -590,7 +596,7 @@ function FeedInner() {
     const params = new URLSearchParams(window.location.search);
     if (params.get("authRequired") === "1") {
       showToast(lang === "en" ? "Please connect wallet / login first." : "請先登錄或連接錢包。", "error");
-      login();
+      setShowConsent(true);
       window.history.replaceState({}, "", window.location.pathname);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -648,6 +654,11 @@ function FeedInner() {
 
   return (
     <>
+      <PrivyLoginWithConsent
+        open={showConsent}
+        onClose={() => setShowConsent(false)}
+      />
+
       {/* ── Desktop: Masonry Grid (md:+) ── */}
       <div className="hidden md:block w-full min-h-full">
         <DesktopGrid films={films} searchQuery={searchQuery} />
