@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { revalidateFeed } from "@/app/actions/revalidate";
 // ─── 類型定義 ───────────────────────────────────────────────────────────────
 type Lang = "zh" | "en";
 type ToastItem = { id: number; text: string; ok: boolean };
@@ -604,6 +605,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
     }
     setFilms((prev) => prev.map((f) => f.id === film.id ? { ...f, status: "approved" } : f));
     pushToast(t.nftHint);
+    revalidateFeed().catch(() => null);
   }
 
   async function toggleParallelUniverse(film: Film) {
@@ -633,6 +635,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
     if (error) { pushToast(error.message, false); return; }
     setFilms((prev) => prev.map((f) => f.id === film.id ? { ...f, feed_enabled: next } : f));
     pushToast(next ? "✅ Feed 已上架" : "Feed 已下架");
+    revalidateFeed().catch(() => null);
   }
 
   async function toggleFeature(film: Film) {
@@ -641,6 +644,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
     if (error) { pushToast(error.message, false); return; }
     setFilms((prev) => prev.map((f) => f.id === film.id ? { ...f, feature_enabled: next } : f));
     pushToast(next ? "✅ 正片已上架" : "正片已下架");
+    revalidateFeed().catch(() => null);
   }
 
   async function submitReject() {
@@ -653,6 +657,7 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
     setFilms((prev) => prev.map((f) => f.id === rejectTarget.id ? { ...f, status: "rejected" } : f));
     setRejectTarget(null);
     pushToast("已發送駁回信 ✉");
+    revalidateFeed().catch(() => null);
   }
 
   function copyToClipboard(text: string, label: string) {

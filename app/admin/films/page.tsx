@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { revalidateFeed } from "@/app/actions/revalidate";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface FilmUser {
@@ -211,7 +212,9 @@ export default function FilmsReviewPage() {
   // ── Update status ─────────────────────────────────────────────────────────
   async function updateStatus(id: string, status: "approved" | "rejected") {
     setProcessing(id);
-    const { error } = await supabase.from("films").update({ status }).eq("id", id);
+    // 审核通过时同步开启 Feed 上架；拒绝时同步下架，确保 Feed 过滤生效
+    const is_feed_published = status === "approved";
+    const { error } = await supabase.from("films").update({ status, is_feed_published }).eq("id", id);
     if (error) {
       showToast("狀態更新失敗", "error");
       setProcessing(null);
@@ -219,7 +222,8 @@ export default function FilmsReviewPage() {
     }
 
     showToast(`FILM ${status.toUpperCase()} ✓`, "success");
-    setFilms((p) => p.map((f) => (f.id === id ? { ...f, status } : f)));
+    setFilms((p) => p.map((f) => (f.id === id ? { ...f, status, is_feed_published } : f)));
+    revalidateFeed().catch(() => null);
 
     // 查找影片所有者 user_id 以发送站内信
     const targetFilm = films.find((f) => f.id === id);
@@ -269,6 +273,7 @@ export default function FilmsReviewPage() {
       };
       showToast(`${labels[field]} ${value ? "已上架" : "已下架"} ✓`, "success");
       setFilms((p) => p.map((f) => (f.id === id ? { ...f, [field]: value } : f)));
+      revalidateFeed().catch(() => null);
     }
     setProcessing(null);
   }

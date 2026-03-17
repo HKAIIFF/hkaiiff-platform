@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = 'force-dynamic';
+
 import { useRef, useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useModal } from "@/app/context/ModalContext";
@@ -604,6 +606,7 @@ function FeedInner() {
         .from("films")
         .select("id,title,studio,tech_stack,ai_ratio,poster_url,trailer_url,feature_url,video_url,user_id,created_at,is_parallel_universe,parallel_start_time")
         .eq("status", "approved")
+        .eq("is_feed_published", true)
         .order("created_at", { ascending: false });
 
       if (data) {
