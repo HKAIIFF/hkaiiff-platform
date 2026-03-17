@@ -511,12 +511,71 @@ function MobileMessagesView({
 
           </div>
 
-          {/* ⑧ DynamicLogoWall — 3軌跨界戰略夥伴 Logo 牆 */}
+          {/* ⑧ Unicorn Awards 入口 Banner */}
+          <div className="px-4 mt-6">
+            <Link
+              href="/awards"
+              className="group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-yellow-400/25 p-5 active:scale-[0.98] transition-transform duration-150"
+              style={{
+                background: 'linear-gradient(135deg, rgba(255,200,0,0.08) 0%, rgba(5,5,5,0.95) 55%, rgba(204,255,0,0.05) 100%)',
+                boxShadow: '0 0 30px rgba(255,200,0,0.1), 0 0 60px rgba(255,200,0,0.05), inset 0 1px 0 rgba(255,215,0,0.12)',
+              }}
+            >
+              {/* corner glow */}
+              <div className="pointer-events-none absolute -top-6 -left-6 w-32 h-32 rounded-full bg-[radial-gradient(circle,rgba(255,200,0,0.18),transparent_70%)]" />
+              <div className="pointer-events-none absolute -bottom-4 -right-4 w-24 h-24 rounded-full bg-[radial-gradient(circle,rgba(204,255,0,0.1),transparent_70%)]" />
+
+              {/* top label row */}
+              <div className="relative z-10 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="h-px w-6 bg-[#CCFF00]/60" />
+                  <p
+                    className="font-mono text-[9px] tracking-[0.35em] uppercase"
+                    style={{ color: '#CCFF00', textShadow: '0 0 10px rgba(204,255,0,0.5)' }}
+                  >
+                    {t('entry.mobileBannerTitle')}
+                  </p>
+                </div>
+                <span
+                  className="font-mono text-[8px] px-2 py-0.5 rounded border border-yellow-400/30 text-yellow-300/70"
+                  style={{ background: 'rgba(255,200,0,0.06)' }}
+                >
+                  NEW
+                </span>
+              </div>
+
+              {/* main content */}
+              <div className="relative z-10 flex items-end justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <h3
+                    className="font-black text-xl text-white leading-snug tracking-tight mb-1"
+                    style={{ textShadow: '0 0 20px rgba(255,200,0,0.15)' }}
+                  >
+                    {t('entry.mobileBannerDates')}
+                  </h3>
+                </div>
+                {/* CTA button */}
+                <span
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-[10px] font-bold tracking-widest transition-all duration-200 group-hover:scale-105"
+                  style={{
+                    background: '#CCFF00',
+                    color: '#050505',
+                    boxShadow: '0 0 12px rgba(204,255,0,0.35)',
+                  }}
+                >
+                  {t('entry.mobileBannerClick')}
+                  <i className="fas fa-arrow-right text-[8px]" />
+                </span>
+              </div>
+            </Link>
+          </div>
+
+          {/* ⑨ DynamicLogoWall — 3軌跨界戰略夥伴 Logo 牆 */}
           <div className="mt-6">
             <DynamicLogoWall />
           </div>
 
-          {/* ⑨ 中英雙語版權 Footer */}
+          {/* ⑩ 中英雙語版權 Footer */}
           <footer className="w-full flex flex-col items-center justify-center py-10 px-4 mt-2 border-t border-white/[0.04] gap-1.5">
             <p className="text-[10px] text-gray-500 tracking-widest uppercase">© 2026 All Rights Reserved.</p>
             <p className="text-[11px] text-gray-400 font-medium tracking-widest mt-1">香港人工智能國際電影節協會</p>
