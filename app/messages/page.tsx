@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { useToast } from '@/app/context/ToastContext';
 import { useI18n } from '@/app/context/I18nContext';
 import Link from 'next/link';
+import DynamicLogoWall from '@/components/DynamicLogoWall';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -318,12 +319,13 @@ function MobileMessagesView({
           isFestivalOpen ? 'translate-y-0' : 'translate-y-full pointer-events-none'
         }`}
         style={{ WebkitOverflowScrolling: 'touch' }}
+        dir={lang === 'ar' ? 'rtl' : 'ltr'}
       >
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-[#050505]/95 backdrop-blur border-b border-[#222] flex items-center justify-between px-4 py-4">
+        {/* Sticky header */}
+        <div className="sticky top-0 z-10 bg-[#050505]/95 backdrop-blur-md border-b border-[#1a1a1a] flex items-center justify-between px-4 py-4">
           <div>
             <div className="font-heavy text-xl text-white tracking-wider">HKAIIFF 2026</div>
-            <div className="text-[9px] font-mono text-signal tracking-widest">FESTIVAL GUIDE</div>
+            <div className="text-[9px] font-mono text-[#CCFF00] tracking-widest">FESTIVAL GUIDE</div>
           </div>
           <button
             onClick={() => setIsFestivalOpen(false)}
@@ -332,221 +334,189 @@ function MobileMessagesView({
             <i className="fas fa-times" />
           </button>
         </div>
-        {/* Hero */}
-        <div className="relative h-52 overflow-hidden">
-          <img src="https://images.unsplash.com/photo-1478720568477-152d9b164e26?q=80&w=800" alt="festival" className="w-full h-full object-cover opacity-50" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-black/50 to-transparent" />
-          <div className="absolute bottom-0 left-0 p-5">
-            {lang === 'zh' ? (
-              <><div className="font-heavy text-3xl text-white leading-none mb-1">香港人工智能</div><div className="font-heavy text-3xl text-signal leading-none">國際電影節</div></>
-            ) : (
-              <><div className="font-heavy text-3xl text-white leading-none mb-1">HONG KONG AI</div><div className="font-heavy text-3xl text-signal leading-none">INTERNATIONAL FILM FESTIVAL</div></>
-            )}
-            <div className="font-mono text-[10px] text-gray-400 mt-2 tracking-widest">
-              {lang === 'zh' ? '2026年7月15-21日 · 中國香港' : 'JULY 15–21, 2026 · HONG KONG'}
+
+        {/* ── Full content ── */}
+        <div className="pb-32 w-full">
+
+          {/* ① Hero 首屏 */}
+          <div className="relative overflow-hidden min-h-[260px] flex flex-col justify-end">
+            <img
+              src="https://images.unsplash.com/photo-1478720568477-152d9b164e26?q=80&w=800"
+              alt="HKAIIFF"
+              className="absolute inset-0 w-full h-full object-cover opacity-30"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent" />
+            <div className="relative z-10 px-5 pb-8 pt-16">
+              <p className="font-mono text-[9px] text-[#CCFF00] tracking-[0.35em] mb-2 uppercase">
+                {t('mobileAbout.heroSub')}
+              </p>
+              <h1 className="font-heavy text-4xl text-white leading-none tracking-tight mb-3">
+                {t('mobileAbout.heroSlogan')}
+              </h1>
+              <p className="font-mono text-[11px] text-gray-400 leading-relaxed max-w-sm">
+                {t('mobileAbout.heroDesc')}
+              </p>
             </div>
           </div>
-        </div>
-        {/* ── Festival full content: w-full min-h-screen overflow-y-auto pb-32 ── */}
-        <div className="px-4 pt-2 pb-32 space-y-6 w-full min-h-screen">
 
           {/* Key Stats */}
-          <div className="grid grid-cols-3 gap-3">
-            {[
-              { val: '7',    label: lang === 'zh' ? '天' : 'DAYS',          color: 'text-signal' },
-              { val: '51%',  label: lang === 'zh' ? 'AI 門檻' : 'AI THRESHOLD', color: 'text-white' },
-              { val: '$500', label: lang === 'zh' ? '報名費' : 'ENTRY FEE',  color: 'text-white' },
-            ].map((s) => (
-              <div key={s.label} className="bg-[#111] border border-[#333] rounded-xl p-4 text-center">
-                <div className={`font-heavy text-2xl ${s.color}`}>{s.val}</div>
-                <div className="text-[9px] font-mono text-gray-500 mt-1">{s.label}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* 1. 完整介紹文案 — Historical Heritage */}
-          <div className="bg-[#111] border border-[#333] rounded-xl overflow-hidden relative">
-            <div className="absolute top-0 left-0 w-1 h-full bg-signal" />
-            <div className="p-5 pl-6">
-              <h2 className="font-heavy text-lg text-white mb-3 flex items-center gap-2">
-                <i className="fas fa-landmark text-signal" />
-                {lang === 'zh' ? '歷史傳承與突破' : 'Historical Heritage & Breakthrough'}
-              </h2>
-              <p className="font-mono text-[11px] text-gray-400 leading-relaxed mb-3">
-                {lang === 'zh'
-                  ? '自1909年首部電影誕生以來，香港電影一直是全球文化的基石。擁有一個多世紀的電影製作傳統，該地區的故事講述遺產代表了東西方、傳統與創新的獨特融合。'
-                  : "Since the birth of its first film in 1909, Hong Kong cinema has stood as a cornerstone of global culture. With over a century of filmmaking tradition, the region's storytelling heritage represents a unique fusion of East and West, tradition and innovation."}
-              </p>
-              <p className="font-mono text-[11px] text-gray-400 leading-relaxed">
-                {lang === 'zh'
-                  ? '香港AI國際電影節（HKAIIFF）是2024年經香港政府批復註冊的AI原生電影的國際電影節，也是全球第一個通過政府註冊的真正致力於AI原生電影的國際級平台。'
-                  : "Registered with the Hong Kong government in 2024, the Hong Kong AI International Film Festival (HKAIIFF) is the world's first international platform officially dedicated to AI-Native cinema."}
-              </p>
-            </div>
-          </div>
-
-          {/* Hong Kong Advantages */}
-          <div className="bg-[#111] border border-[#333] rounded-xl overflow-hidden relative">
-            <div className="absolute top-0 left-0 w-1 h-full bg-[#00F0FF]" />
-            <div className="p-5 pl-6">
-              <h2 className="font-heavy text-lg text-white mb-3 flex items-center gap-2">
-                <i className="fas fa-city text-[#00F0FF]" />
-                {lang === 'zh' ? '香港優勢' : 'Hong Kong Advantages'}
-              </h2>
-              <p className="font-mono text-[11px] text-gray-400 leading-relaxed">
-                {lang === 'zh'
-                  ? '作為國際金融中心和全球貿易的十字路口，香港為去中心化電影提供了獨特的跳板。其健全的法律基礎設施、毗鄰中國大陸創意人才的優勢，以及作為對Web3友好的司法管轄區的地位，使其成為區塊鏈驅動的AI電影文化的理想發源地。'
-                  : "As an international financial hub and a region at the crossroads of global trade, Hong Kong provides a unique launchpad for decentralized cinema. Its robust legal infrastructure, proximity to mainland China's creative talent, and status as a Web3-friendly jurisdiction make it the ideal birthplace for blockchain-powered AI film culture."}
-              </p>
-            </div>
-          </div>
-
-          {/* Core Mission & Standard */}
-          <div className="bg-[#111] border border-[#333] rounded-xl overflow-hidden relative">
-            <div className="absolute top-0 left-0 w-1 h-full bg-[#9D00FF]" />
-            <div className="p-5 pl-6">
-              <h2 className="font-heavy text-lg text-white mb-3 flex items-center gap-2">
-                <i className="fas fa-balance-scale text-[#9D00FF]" />
-                {lang === 'zh' ? '核心使命與標準' : 'Core Mission & Standard'}
-              </h2>
-              <p className="font-mono text-[11px] text-gray-400 leading-relaxed mb-3">
-                {lang === 'zh'
-                  ? '作為全球首個專注於AI原生電影的頂級電影節，我們倡導AI是一種革命性媒介的理念。符合條件的參賽作品必須超過51%的AI貢獻閾值。'
-                  : "As the world's premier film festival dedicated exclusively to AI-Native cinema, we champion the philosophy that AI is a revolutionary medium. Qualifying submissions must exceed a 51% AI contribution threshold."}
-              </p>
-              <div className="bg-black border border-[#222] rounded-lg p-3 mb-3">
-                <div className="text-[10px] font-mono text-[#9D00FF] text-center leading-relaxed">
-                  {lang === 'zh'
-                    ? 'AI貢獻率 = (AI生成 × 0.4) + (AI輔助 × 0.3) + (創新 × 0.3)'
-                    : 'AI Contribution Ratio = (AI Generation × 0.4) + (AI Assistance × 0.3) + (Innovation × 0.3)'}
-                </div>
-              </div>
-              <p className="font-mono text-[11px] text-gray-400 leading-relaxed">
-                {lang === 'zh'
-                  ? '評估維度：藝術性 35% · 技術創新 35% · 商業潛力 20% · 社會影響力 10%。'
-                  : 'Evaluation Dimensions: Artistry 35% · Tech Innovation 35% · Commercial Potential 20% · Social Impact 10%.'}
-              </p>
-            </div>
-          </div>
-
-          {/* 2. 官方聯絡信箱 — PARTNERSHIP & CONTACT */}
-          <div>
-            <h2 className="font-heavy text-lg text-white mb-4 flex items-center gap-2">
-              <i className="fas fa-envelope text-gray-400" /> PARTNERSHIP &amp; CONTACT
-            </h2>
-            <div className="space-y-3">
+          <div className="px-4 mt-4">
+            <div className="grid grid-cols-3 gap-3">
               {[
-                { icon: 'fa-briefcase', color: 'text-signal',      hoverBorder: 'hover:border-signal',      title: 'Business',         email: 'partnership@hkaiiff.org' },
-                { icon: 'fa-globe',     color: 'text-[#00F0FF]',   hoverBorder: 'hover:border-[#00F0FF]',   title: 'Official Website', email: 'www.hkaiiff.org'         },
-                { icon: 'fa-code',      color: 'text-[#9D00FF]',   hoverBorder: 'hover:border-[#9D00FF]',   title: 'Technology',       email: 'support@hkaiiff.org'     },
-                { icon: 'fa-bullhorn',  color: 'text-yellow-400',  hoverBorder: 'hover:border-yellow-400',  title: 'Media / PR',       email: 'media@hkaiiff.org'       },
-              ].map((c) => (
-                <div
-                  key={c.email}
-                  className={`bg-[#111] border border-[#222] p-4 rounded-xl flex items-center gap-4 transition-colors active:scale-[0.98] cursor-pointer ${c.hoverBorder}`}
-                  onClick={() => navigator.clipboard.writeText(c.email)}
-                >
-                  <i className={`fas ${c.icon} ${c.color} text-xl w-8 text-center`} />
-                  <div className="flex-1">
-                    <div className="text-sm font-bold text-white mb-0.5">{c.title}</div>
-                    <div className="text-[10px] font-mono text-gray-500">{c.email}</div>
-                  </div>
-                  <i className="fas fa-copy text-gray-600" />
+                { val: '7',    label: lang === 'zh' ? '天' : 'DAYS',          color: 'text-[#CCFF00]' },
+                { val: '51%',  label: lang === 'zh' ? 'AI 門檻' : 'AI THRESHOLD', color: 'text-white' },
+                { val: '$500', label: lang === 'zh' ? '報名費' : 'ENTRY FEE',  color: 'text-white' },
+              ].map((s) => (
+                <div key={s.label} className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-4 text-center backdrop-blur-sm">
+                  <div className={`font-heavy text-2xl ${s.color}`}>{s.val}</div>
+                  <div className="text-[9px] font-mono text-gray-500 mt-1">{s.label}</div>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Submit CTA */}
-          <div className="bg-signal rounded-xl p-5 text-center">
-            <h3 className="font-heavy text-xl text-black mb-1">
-              {lang === 'zh' ? '準備好提交了嗎？' : 'READY TO SUBMIT?'}
-            </h3>
-            <p className="text-xs text-black/70 font-mono mb-4">
-              {lang === 'zh'
-                ? '加入AI原生革命。電影節將於2026年7月15日至21日舉行。'
-                : 'Join the AI-Native revolution. Festival runs July 15–21, 2026.'}
-            </p>
+          <div className="px-4 mt-6 space-y-5">
+
+            {/* ② 時代背景 */}
+            <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl overflow-hidden backdrop-blur-sm">
+              <div className="h-0.5 w-full bg-gradient-to-r from-[#CCFF00]/60 via-[#CCFF00]/20 to-transparent" />
+              <div className="p-5">
+                <h2 className="font-heavy text-lg text-white mb-3 tracking-wide">
+                  {t('mobileAbout.eraTitle')}
+                </h2>
+                <p className="font-mono text-[11px] text-gray-400 leading-relaxed">
+                  {t('mobileAbout.eraDesc')}
+                </p>
+              </div>
+            </div>
+
+            {/* ③ 香港戰略樞紐 */}
+            <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl overflow-hidden backdrop-blur-sm">
+              <div className="h-0.5 w-full bg-gradient-to-r from-[#00F0FF]/60 via-[#00F0FF]/20 to-transparent" />
+              <div className="p-5">
+                <p className="font-mono text-[8px] text-[#00F0FF] tracking-[0.3em] mb-2 uppercase">
+                  {t('mobileAbout.hkSection')}
+                </p>
+                <h2 className="font-heavy text-lg text-white mb-3 tracking-wide">
+                  {t('mobileAbout.hkTitle')}
+                </h2>
+                <p className="font-mono text-[11px] text-gray-400 leading-relaxed mb-5">
+                  {t('mobileAbout.hkDesc')}
+                </p>
+                {/* 4 pillars grid */}
+                <div className="grid grid-cols-2 gap-2.5">
+                  {[
+                    { name: t('mobileAbout.hkPillar1Name'), desc: t('mobileAbout.hkPillar1Desc'), color: '#CCFF00' },
+                    { name: t('mobileAbout.hkPillar2Name'), desc: t('mobileAbout.hkPillar2Desc'), color: '#00F0FF' },
+                    { name: t('mobileAbout.hkPillar3Name'), desc: t('mobileAbout.hkPillar3Desc'), color: '#9D00FF' },
+                    { name: t('mobileAbout.hkPillar4Name'), desc: t('mobileAbout.hkPillar4Desc'), color: '#FFC107' },
+                  ].map((p) => (
+                    <div
+                      key={p.name}
+                      className="bg-white/[0.02] border border-white/[0.05] hover:border-[#CCFF00]/50 rounded-xl p-3 transition-colors duration-200"
+                    >
+                      <div
+                        className="font-mono text-[9px] font-bold mb-1.5 tracking-wider"
+                        style={{ color: p.color }}
+                      >
+                        {p.name}
+                      </div>
+                      <p className="font-mono text-[9px] text-gray-500 leading-relaxed">
+                        {p.desc}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ④ 生態價值 — 3 張垂直卡片 */}
+            <div>
+              <h2 className="font-heavy text-lg text-white mb-3 tracking-wide">
+                {t('mobileAbout.ecoTitle')}
+              </h2>
+              <div className="space-y-2.5">
+                {[
+                  { title: t('mobileAbout.ecoCard1Title'), desc: t('mobileAbout.ecoCard1Desc'), icon: 'fa-shield-alt',  accent: '#CCFF00' },
+                  { title: t('mobileAbout.ecoCard2Title'), desc: t('mobileAbout.ecoCard2Desc'), icon: 'fa-globe',       accent: '#00F0FF' },
+                  { title: t('mobileAbout.ecoCard3Title'), desc: t('mobileAbout.ecoCard3Desc'), icon: 'fa-map-marker-alt', accent: '#9D00FF' },
+                ].map((card) => (
+                  <div
+                    key={card.title}
+                    className="bg-white/[0.02] border border-white/[0.05] hover:border-[#CCFF00]/50 rounded-2xl p-4 flex gap-4 transition-colors duration-200 backdrop-blur-sm"
+                  >
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: `${card.accent}15`, border: `1px solid ${card.accent}30` }}
+                    >
+                      <i className={`fas ${card.icon} text-sm`} style={{ color: card.accent }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-heavy text-sm text-white mb-1">{card.title}</h3>
+                      <p className="font-mono text-[10px] text-gray-500 leading-relaxed">{card.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ⑤ 核心優勢 — 列表 */}
+            <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl overflow-hidden backdrop-blur-sm">
+              <div className="h-0.5 w-full bg-gradient-to-r from-[#9D00FF]/60 via-[#9D00FF]/20 to-transparent" />
+              <div className="p-5">
+                <h2 className="font-heavy text-lg text-white mb-4 tracking-wide">
+                  {t('mobileAbout.advTitle')}
+                </h2>
+                <div className="space-y-4">
+                  {[
+                    { title: t('mobileAbout.adv1Title'), desc: t('mobileAbout.adv1Desc'), num: '01' },
+                    { title: t('mobileAbout.adv2Title'), desc: t('mobileAbout.adv2Desc'), num: '02' },
+                    { title: t('mobileAbout.adv3Title'), desc: t('mobileAbout.adv3Desc'), num: '03' },
+                  ].map((adv) => (
+                    <div key={adv.num} className="flex gap-4">
+                      <div className="font-heavy text-2xl text-[#CCFF00]/20 leading-none w-8 flex-shrink-0 pt-0.5">
+                        {adv.num}
+                      </div>
+                      <div className="flex-1 border-b border-white/[0.04] pb-4 last:border-0 last:pb-0">
+                        <h3 className="font-heavy text-sm text-white mb-1">{adv.title}</h3>
+                        <p className="font-mono text-[10px] text-gray-500 leading-relaxed">{adv.desc}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* ⑥ 未來願景 */}
+            <div className="relative overflow-hidden rounded-2xl border border-[#CCFF00]/10 bg-[#CCFF00]/[0.02] p-5"
+              style={{ boxShadow: '0 0 40px rgba(204,255,0,0.04)' }}
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-[#CCFF00]/[0.03] blur-3xl" />
+              <h2 className="font-heavy text-lg text-white mb-3 tracking-wide relative z-10">
+                {t('mobileAbout.futureTitle')}
+              </h2>
+              <p className="font-mono text-[11px] text-gray-400 leading-relaxed relative z-10">
+                {t('mobileAbout.futureDesc')}
+              </p>
+            </div>
+
+            {/* ⑦ 底部 CTA */}
             <button
               onClick={() => setIsFestivalOpen(false)}
-              className="bg-black text-signal font-heavy text-sm px-6 py-3 rounded-lg tracking-wide active:scale-95 transition-transform"
+              className="w-full bg-[#CCFF00] text-black font-heavy text-base py-4 rounded-xl tracking-[0.15em] active:scale-95 transition-transform hover:bg-white"
             >
-              {lang === 'zh' ? '提交您的影片 →' : 'SUBMIT YOUR FILM →'}
+              {t('mobileAbout.joinBtn')}
             </button>
+
           </div>
 
-          {/* 3. 動態 Logo 牆 — Global Ecosystem & Resources Marquee */}
-          <div className="pt-8 pb-4">
-            <p className="text-center font-mono text-[10px] text-gray-500 tracking-widest mb-6 uppercase">
-              Global Ecosystem &amp; Backing
-            </p>
-
-            {/* Row 1 — LTR */}
-            <div className="overflow-hidden mb-4">
-              <div className="flex gap-x-8 whitespace-nowrap animate-marquee-ltr opacity-40 hover:opacity-70 transition-opacity">
-                {[
-                  'NVIDIA','OpenAI','Midjourney','Runway','Luma AI','Pika Labs',
-                  'Stability AI','Anthropic','Google DeepMind','Meta','Apple','AWS',
-                  'Alibaba Cloud','Tencent AI','SenseTime',
-                  'NVIDIA','OpenAI','Midjourney','Runway','Luma AI','Pika Labs',
-                  'Stability AI','Anthropic','Google DeepMind','Meta','Apple','AWS',
-                  'Alibaba Cloud','Tencent AI','SenseTime',
-                ].map((name, i) => (
-                  <span key={`r1-${i}`}
-                    className="font-heavy text-lg text-gray-400 hover:text-white transition-colors cursor-default grayscale hover:grayscale-0 shrink-0">
-                    {name}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Row 2 — RTL */}
-            <div className="overflow-hidden mb-4">
-              <div className="flex gap-x-8 whitespace-nowrap animate-marquee-rtl opacity-40 hover:opacity-70 transition-opacity">
-                {[
-                  'Solana','Arweave','Filecoin','Polygon','Chainlink',
-                  'IMAX','Dolby','Netflix','A24','Sony Pictures',
-                  'HKADC','HKUST','HKU','MIT Media Lab','Hugging Face','xAI','Epic Games',
-                  'Solana','Arweave','Filecoin','Polygon','Chainlink',
-                  'IMAX','Dolby','Netflix','A24','Sony Pictures',
-                  'HKADC','HKUST','HKU','MIT Media Lab','Hugging Face','xAI','Epic Games',
-                ].map((name, i) => (
-                  <span key={`r2-${i}`}
-                    className="font-heavy text-lg text-gray-400 hover:text-white transition-colors cursor-default grayscale hover:grayscale-0 shrink-0">
-                    {name}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Row 3 — LTR slower */}
-            <div className="overflow-hidden">
-              <div className="flex gap-x-8 whitespace-nowrap animate-marquee-ltr2 opacity-40 hover:opacity-70 transition-opacity">
-                {[
-                  'Anthropic','xAI','Epic Games','IMAX','Dolby',
-                  'NVIDIA','Runway','Luma AI','Hugging Face','Midjourney',
-                  'Filecoin','Solana','Polygon','A24','Netflix','Sony Pictures',
-                  'Anthropic','xAI','Epic Games','IMAX','Dolby',
-                  'NVIDIA','Runway','Luma AI','Hugging Face','Midjourney',
-                  'Filecoin','Solana','Polygon','A24','Netflix','Sony Pictures',
-                ].map((name, i) => (
-                  <span key={`r3-${i}`}
-                    className="font-heavy text-lg text-gray-400 hover:text-white transition-colors cursor-default grayscale hover:grayscale-0 shrink-0">
-                    {name}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            <div className="mt-6 flex items-center gap-3">
-              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-              <span className="font-mono text-[8px] text-gray-700 tracking-widest uppercase">32 Global Partners</span>
-              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-            </div>
+          {/* ⑧ DynamicLogoWall — 3軌跨界戰略夥伴 Logo 牆 */}
+          <div className="mt-6">
+            <DynamicLogoWall />
           </div>
 
-          {/* 4. 中英雙語版權 Footer */}
-          <footer className="w-full flex flex-col items-center justify-center py-10 mt-4 border-t border-white/5 gap-1.5">
+          {/* ⑨ 中英雙語版權 Footer */}
+          <footer className="w-full flex flex-col items-center justify-center py-10 px-4 mt-2 border-t border-white/[0.04] gap-1.5">
             <p className="text-[10px] text-gray-500 tracking-widest uppercase">© 2026 All Rights Reserved.</p>
             <p className="text-[11px] text-gray-400 font-medium tracking-widest mt-1">香港人工智能國際電影節協會</p>
             <p className="text-[9px] text-gray-600 tracking-widest uppercase">Hong Kong AI International Film Festival Association</p>

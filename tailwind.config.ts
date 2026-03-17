@@ -8,6 +8,15 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      keyframes: {
+        'marquee-left':  { '0%': { transform: 'translateX(0%)' },    '100%': { transform: 'translateX(-50%)' } },
+        'marquee-right': { '0%': { transform: 'translateX(-50%)' },  '100%': { transform: 'translateX(0%)' }   },
+      },
+      animation: {
+        'marquee-left-fast':    'marquee-left 40s linear infinite',
+        'marquee-left-slow':    'marquee-left 60s linear infinite',
+        'marquee-right-medium': 'marquee-right 50s linear infinite',
+      },
       colors: {
         void: "#050505",
         panel: "#111111",
