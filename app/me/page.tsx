@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import { usePrivy, useCreateWallet } from "@privy-io/react-auth";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useI18n } from "@/app/context/I18nContext";
@@ -37,7 +37,7 @@ const getStatusUI = (status: string) => {
 
 type TeamMember = { name: string; role: string };
 
-export default function MePage() {
+function MePageContent() {
   const { login, ready, authenticated, user, logout, getAccessToken } = usePrivy();
   const { createWallet } = useCreateWallet();
   const router = useRouter();
@@ -2176,5 +2176,13 @@ export default function MePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function MePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading profile...</div>}>
+      <MePageContent />
+    </Suspense>
   );
 }
