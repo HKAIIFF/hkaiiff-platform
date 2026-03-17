@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useI18n } from "@/app/context/I18nContext";
 import { usePrivy } from "@privy-io/react-auth";
+import PrivyLoginWithConsent from "@/components/PrivyLoginWithConsent";
 
 const PROTECTED_HREFS = new Set(["/upload", "/messages", "/me"]);
 
@@ -11,7 +13,8 @@ export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { t } = useI18n();
-  const { ready, authenticated, login } = usePrivy();
+  const { ready, authenticated } = usePrivy();
+  const [showConsent, setShowConsent] = useState(false);
 
   const NAV_ITEMS = [
     { href: "/", icon: "fa-home", label: t("nav_feed") },
@@ -26,14 +29,21 @@ export default function BottomNav() {
 
   const handleProtectedNav = (href: string) => {
     if (!ready || !authenticated) {
-      login();
+      setShowConsent(true);
       return;
     }
     router.push(href);
   };
 
   return (
-    /* 高度压缩至 50px，图标 text-lg，标签 text-[8px] */
+    <>
+    {/* 同意弹窗（受控模式） */}
+    <PrivyLoginWithConsent
+      open={showConsent}
+      onClose={() => setShowConsent(false)}
+    />
+
+    {/* 高度压缩至 50px，图标 text-lg，标签 text-[8px] */}
     <div className="md:hidden fixed bottom-0 left-0 w-full z-[999] bg-black/98 backdrop-blur-xl border-t border-[#1e1e1e] px-1 flex justify-between items-center h-[50px]">
       {NAV_ITEMS.map((item, i) => {
         const isProtected = PROTECTED_HREFS.has(item.href);
@@ -93,5 +103,6 @@ export default function BottomNav() {
         );
       })}
     </div>
+    </>
   );
 }

@@ -7,6 +7,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useModal } from "@/app/context/ModalContext";
 import { supabase } from "@/lib/supabase";
 import { AvatarWithBadges } from "@/app/components/IdentityBadges";
+import PrivyLoginWithConsent from "@/components/PrivyLoginWithConsent";
 
 interface DesktopNavbarProps {
   onSearchChange?: (q: string) => void;
@@ -15,7 +16,7 @@ interface DesktopNavbarProps {
 
 export default function DesktopNavbar({ onSearchChange, searchValue }: DesktopNavbarProps) {
   const router = useRouter();
-  const { authenticated, user, login } = usePrivy();
+  const { authenticated, user } = usePrivy();
   const { setActiveModal } = useModal();
 
   const [localQuery, setLocalQuery] = useState(searchValue ?? "");
@@ -139,12 +140,7 @@ export default function DesktopNavbar({ onSearchChange, searchValue }: DesktopNa
             </span>
           </button>
         ) : (
-          <button
-            onClick={() => login()}
-            className="bg-signal text-black text-[10px] font-bold font-mono px-4 py-1.5 rounded-full hover:bg-white transition-colors tracking-wider"
-          >
-            CONNECT
-          </button>
+          <PrivyLoginWithConsent />
         )}
       </div>
     </div>
