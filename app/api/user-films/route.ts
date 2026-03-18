@@ -13,10 +13,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
     }
 
-    // 使用 user_id 欄位查詢（與 upload-film 寫入時的欄位名一致）
+    // 🔒 隐私保护：明确排除 contact_email，该字段仅限 Admin 权限接口返回
     const { data: films, error } = await supabase
       .from('films')
-      .select('*')
+      .select('id, title, studio, tech_stack, ai_ratio, description, core_cast, region, lbs_royalty, poster_url, trailer_url, feature_url, copyright_url, order_number, status, payment_status, user_id, created_at, is_feed_published, is_main_published, is_parallel_universe')
       .eq('user_id', userId.trim())
       .order('created_at', { ascending: false });
 

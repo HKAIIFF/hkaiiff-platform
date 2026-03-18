@@ -10,6 +10,9 @@ const adminSupabase = createClient(
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+// 邮箱格式正则（RFC-compliant 简版）
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -17,6 +20,7 @@ export async function POST(req: Request) {
       creator_id, title, studio_name, tech_stack, ai_ratio, 
       synopsis, core_cast, region, lbs_royalty,
       poster_url, trailer_url, full_film_url,
+      contact_email,
     } = body;
 
     // 後端二次強制校驗：creator_id 必須是非空字串，防止孤兒影片寫入
@@ -28,6 +32,10 @@ export async function POST(req: Request) {
     }
     if (parseInt(ai_ratio) < 51) {
       return NextResponse.json({ error: 'AI ratio must be at least 51%' }, { status: 400 });
+    }
+    // 🔒 官方联系邮箱：必填且格式合法
+    if (!contact_email || typeof contact_email !== 'string' || !EMAIL_REGEX.test(contact_email.trim())) {
+      return NextResponse.json({ error: '請填寫合法的官方聯繫郵箱 (contact_email)' }, { status: 400 });
     }
 
     // 插入影片記錄：user_id 強制綁定 creator_id，初始狀態為待支付
@@ -47,6 +55,7 @@ export async function POST(req: Request) {
         trailer_url,
         feature_url:    full_film_url,
         copyright_url:  null,
+        contact_email:  contact_email.trim().toLowerCase(),
         status:         'pending',
         payment_status: 'unpaid',
       }])

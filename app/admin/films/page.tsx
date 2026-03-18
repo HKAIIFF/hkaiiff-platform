@@ -28,6 +28,7 @@ interface Film {
   is_feed_published: boolean;
   is_main_published: boolean;
   is_parallel_universe: boolean;
+  contact_email: string | null;        // 🔒 官方聯繫郵箱（極密，僅 Admin 可見）
   users: FilmUser | FilmUser[] | null;
 }
 
@@ -169,11 +170,11 @@ function ToastContainer({ toasts }: { toasts: Toast[] }) {
 }
 
 // ─── Column layout ────────────────────────────────────────────────────────────
-// [訂單/序列 88] [影片名稱 170] [用戶 118] [報名時間 96] [資料池 110]
+// [訂單/序列 88] [影片名稱 160] [用戶 110] [聯繫郵箱 170] [報名時間 96] [資料池 110]
 // [平行宇宙 68] [狀態 80] [審核操作 114] [Feed 72] [正片 72]
-const GRID = "88px 170px 118px 96px 110px 68px 80px 114px 72px 72px";
+const GRID = "88px 160px 110px 170px 96px 110px 68px 80px 114px 72px 72px";
 const HEADERS = [
-  "訂單 / 序列", "影片名稱", "用戶", "報名時間",
+  "訂單 / 序列", "影片名稱", "用戶", "聯繫郵箱 🔒", "報名時間",
   "資料池", "平行宇宙", "狀態", "審核操作", "FEED 管理", "正片管理",
 ];
 
@@ -184,6 +185,14 @@ export default function FilmsReviewPage() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyEmail = (filmId: string, email: string) => {
+    navigator.clipboard.writeText(email).then(() => {
+      setCopiedId(filmId);
+      setTimeout(() => setCopiedId(null), 2000);
+    }).catch(() => null);
+  };
 
   const showToast = useCallback((message: string, type: ToastType) => {
     const id = Date.now();
@@ -196,7 +205,7 @@ export default function FilmsReviewPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("films")
-      .select("*, users(email, wallet_address)")
+      .select("*, contact_email, users(email, wallet_address)")
       .order("title", { ascending: true });
 
     if (error) {
@@ -382,7 +391,7 @@ export default function FilmsReviewPage() {
 
                 {/* ③ 用戶 */}
                 <div className="px-3 py-3 flex flex-col justify-center gap-0.5">
-                  <span className="text-xs text-gray-600 truncate leading-tight max-w-[110px]">
+                  <span className="text-xs text-gray-600 truncate leading-tight max-w-[100px]">
                     {getUserDisplay(film)}
                   </span>
                   {film.ai_ratio != null && (
@@ -392,7 +401,40 @@ export default function FilmsReviewPage() {
                   )}
                 </div>
 
-                {/* ④ 報名時間 */}
+                {/* ④ 聯繫郵箱 🔒 Admin Only */}
+                <div className="px-3 py-3 flex items-center gap-1.5">
+                  {film.contact_email ? (
+                    <>
+                      <span className="text-[10px] text-gray-700 truncate max-w-[130px]" title={film.contact_email}>
+                        {film.contact_email}
+                      </span>
+                      <button
+                        onClick={() => copyEmail(film.id, film.contact_email!)}
+                        title="複製郵箱"
+                        className={`shrink-0 w-5 h-5 rounded flex items-center justify-center transition-colors ${
+                          copiedId === film.id
+                            ? "bg-green-100 text-green-600"
+                            : "bg-gray-100 text-gray-400 hover:bg-blue-50 hover:text-blue-500"
+                        }`}
+                      >
+                        {copiedId === film.id ? (
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24">
+                            <path d="M20 6L9 17l-5-5" strokeLinecap="round" />
+                          </svg>
+                        ) : (
+                          <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                            <rect x="9" y="9" width="13" height="13" rx="2" />
+                            <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+                          </svg>
+                        )}
+                      </button>
+                    </>
+                  ) : (
+                    <span className="text-[10px] text-gray-300">— 未填寫</span>
+                  )}
+                </div>
+
+                {/* ⑤ 報名時間 */}
                 <div className="px-3 py-3 flex items-center">
                   <span className="text-[10px] text-gray-500 whitespace-nowrap">
                     {formatDate(film.created_at)}

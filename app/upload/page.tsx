@@ -95,6 +95,7 @@ function UploadContent() {
     coreCast: '',
     region: '',
     lbsRoyalty: 5,
+    contactEmail: '',
   });
   const [posterFile,    setPosterFile]    = useState<File | null>(null);
   const [trailerFile,   setTrailerFile]   = useState<File | null>(null);
@@ -233,6 +234,8 @@ function UploadContent() {
 
   // ── Step navigation ───────────────────────────────────────────────────────
 
+  const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   const goToPayment = () => {
     if (formData.aiRatio < 51) {
       setErrorMsg(t('err_ai_ratio_min'));
@@ -240,6 +243,10 @@ function UploadContent() {
     }
     if (!posterFile || !trailerFile || !filmFile) {
       setErrorMsg(t('err_media_all'));
+      return;
+    }
+    if (!formData.contactEmail.trim() || !EMAIL_RE.test(formData.contactEmail.trim())) {
+      setErrorMsg('請填寫合法的官方聯繫郵箱，格式如 director@studio.com');
       return;
     }
     setErrorMsg('');
@@ -341,6 +348,7 @@ function UploadContent() {
         poster_url:     posterUrl,   // R2 公共 CDN URL
         trailer_url:    trailerUrl,  // Bunny HLS URL (.m3u8)
         full_film_url:  fullFilmUrl, // Bunny HLS URL (.m3u8)
+        contact_email:  formData.contactEmail.trim().toLowerCase(),
         payment_method: paymentMethod,
       }),
     });
@@ -633,6 +641,41 @@ function UploadContent() {
                   <i className="fas fa-info-circle text-signal" />
                   {t('up_lbs_hint')}
                 </div>
+              </div>
+
+              {/* ── Official Contact Email ── */}
+              <div>
+                {/* Security Alert Box */}
+                <div className="rounded-xl border border-amber-400/50 bg-amber-400/5 p-4 mb-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <i className="fas fa-shield-alt text-amber-400 text-sm" />
+                    <span className="font-mono text-[11px] font-bold text-amber-300 tracking-wide">
+                      官方聯絡與隱私保護聲明
+                    </span>
+                  </div>
+                  <p className="font-mono text-[10px] text-amber-200/80 leading-relaxed mb-2.5">
+                    請務必填寫您最常用的電子郵箱。此郵箱將作為 HKAIIFF 官方發送「入圍通知、百萬獎金結算、版權授權協議」的唯一指定聯絡方式。
+                  </p>
+                  <div className="flex items-start gap-1.5">
+                    <span className="text-[11px] leading-none mt-px">🔒</span>
+                    <p className="font-mono text-[9px] text-gray-400 leading-relaxed">
+                      極密保護：您的郵箱僅供組委會內部審核使用，絕對不會公開顯示在任何前端頁面或作品展廳中。
+                    </p>
+                  </div>
+                </div>
+                {/* Label */}
+                <div className="font-mono text-[10px] text-gray-500 mb-2 flex justify-between">
+                  <span>官方聯繫郵箱</span>
+                  <span className="text-danger">*</span>
+                </div>
+                <input
+                  type="email"
+                  required
+                  value={formData.contactEmail}
+                  onChange={e => setFormData(f => ({ ...f, contactEmail: e.target.value }))}
+                  className="w-full bg-[#0a0a0a] border border-amber-400/30 p-4 rounded-lg text-sm text-white focus:border-amber-400 outline-none transition-colors placeholder-gray-600"
+                  placeholder="請輸入您的官方聯繫郵箱 (e.g., director@studio.com)"
+                />
               </div>
 
               {/* Assets Upload */}
