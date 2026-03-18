@@ -24,6 +24,7 @@ interface Film {
   users?: { email: string | null; wallet_address: string | null } | null;
   order_number?: string | null;
   payment_method?: string | null;
+  contact_email?: string | null;
 }
 interface UserRow {
   id: string;
@@ -937,6 +938,15 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                       </p>
                       {film.users?.wallet_address && <CopyBtn text={film.users.wallet_address} label="錢包" />}
                     </div>
+                    {film.contact_email && (
+                      <div className="mt-1 flex items-center gap-1">
+                        <span className="text-[9px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded px-1 py-0.5 shrink-0">官方郵箱🔒</span>
+                        <p className="max-w-[160px] truncate text-[10px] text-neutral-600" title={film.contact_email}>
+                          {film.contact_email}
+                        </p>
+                        <CopyBtn text={film.contact_email} label="官方郵箱" />
+                      </div>
+                    )}
                   </td>
 
                   {/* ── 審核資料池 ── */}

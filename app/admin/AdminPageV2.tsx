@@ -23,6 +23,7 @@ interface Film {
   copyright_url?: string | null;
   status: "pending" | "approved" | "rejected";
   created_at: string;
+  contact_email?: string | null;
 }
 
 interface UserRow {
@@ -596,7 +597,7 @@ function ReviewModule({ t, pushToast }: SharedProps) {
     setLoading(true);
     const { data, error } = await supabase
       .from("films")
-      .select("id,user_id,title,studio,ai_ratio,poster_url,status,created_at,trailer_url,feature_url,copyright_url")
+      .select("id,user_id,title,studio,ai_ratio,poster_url,status,created_at,trailer_url,feature_url,copyright_url,contact_email")
       .order("created_at", { ascending: false });
     setLoading(false);
     if (error) {
@@ -691,6 +692,21 @@ function ReviewModule({ t, pushToast }: SharedProps) {
                       <div className="p-3">
                         <p className="font-semibold text-gray-900">{film.title ?? "-"}</p>
                         <p className="text-xs text-gray-500">{film.studio ?? "-"}</p>
+                        {film.contact_email && (
+                          <div className="mt-1 flex items-center gap-1">
+                            <span className="text-[9px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded px-1 py-0.5 shrink-0">官方郵箱🔒</span>
+                            <span className="text-[10px] text-gray-600 truncate max-w-[140px]" title={film.contact_email}>{film.contact_email}</span>
+                            <button
+                              onClick={() => navigator.clipboard.writeText(film.contact_email!).then(() => pushToast("已複製官方郵箱", true)).catch(() => pushToast("複製失敗", false))}
+                              title="複製官方郵箱"
+                              className="shrink-0 inline-flex items-center justify-center w-4 h-4 rounded text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <div className="p-3">
                         <p className={`font-bold ${(film.ai_ratio ?? 0) >= 51 ? "text-green-600" : "text-red-600"}`}>
