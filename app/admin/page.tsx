@@ -4048,9 +4048,10 @@ function TrExtLinkIcon() {
 
 // ─── Treasury: 墊付錢包管理 Modal ────────────────────────────────────────────
 
-function TrFundingConfigModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function TrFundingConfigModal({ onClose, onSuccess, onToast }: { onClose: () => void; onSuccess: () => void; onToast: (msg: string, ok?: boolean) => void }) {
   const [adminEmail, setAdminEmail] = useState("");
-  const [adminPassword, setAdminPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpCountdown, setOtpCountdown] = useState(0);
   const [newSeedPhrase, setNewSeedPhrase] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
@@ -4060,15 +4061,29 @@ function TrFundingConfigModal({ onClose, onSuccess }: { onClose: () => void; onS
     fetch("/api/admin/treasury/config").then((r) => r.json()).then((d) => setCurrentConfig({ seedMask: d.seedMask ?? "" })).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (otpCountdown <= 0) return;
+    const timer = setTimeout(() => setOtpCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [otpCountdown]);
+
+  async function handleSendOtp() {
+    if (!adminEmail) { setErr("請先填寫管理員郵箱"); return; }
+    setErr("");
+    setOtpCountdown(60);
+    onToast("驗證碼已發送至您的登錄郵箱");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); setErr("");
-    if (!adminEmail || !adminPassword) { setErr("請輸入管理員郵箱與密碼進行二次驗證"); return; }
+    if (!adminEmail) { setErr("請輸入管理員郵箱進行身份驗證"); return; }
+    if (otp.length !== 6) { setErr("請輸入 6 位郵箱驗證碼"); return; }
     if (!newSeedPhrase) { setErr("請填寫新的墊付錢包助記詞"); return; }
     setLoading(true);
     try {
       const res = await fetch("/api/admin/treasury/config", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminEmail, adminPassword, newSeedPhrase }),
+        body: JSON.stringify({ adminEmail, otp, newSeedPhrase }),
       });
       const data = await res.json();
       if (!res.ok) { setErr(data.error ?? "操作失敗"); return; }
@@ -4083,7 +4098,7 @@ function TrFundingConfigModal({ onClose, onSuccess }: { onClose: () => void; onS
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
           <div>
             <h2 className="text-sm font-semibold text-neutral-900">⚙️ 墊付錢包管理</h2>
-            <p className="text-xs text-neutral-400 mt-0.5">更新墊付錢包助記詞，所有變更均需二次密碼驗證</p>
+            <p className="text-xs text-neutral-400 mt-0.5">更新墊付錢包助記詞，所有變更均需郵箱驗證碼確認</p>
           </div>
           <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-100 text-lg leading-none">×</button>
         </div>
@@ -4116,10 +4131,27 @@ function TrFundingConfigModal({ onClose, onSuccess }: { onClose: () => void; onS
           </div>
           <div className="border-t border-dashed border-neutral-200 pt-4 space-y-3">
             <p className="text-xs font-semibold text-neutral-700 flex items-center gap-1.5">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#1a73e8]" />雙重安全校驗 — 輸入您的登入密碼確認身份
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#1a73e8]" />雙重安全校驗 — 郵箱驗證碼確認身份
             </p>
             <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="管理員郵箱" required autoComplete="email" className={`${INPUT} text-xs`} />
-            <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="登入密碼" required autoComplete="current-password" className={`${INPUT} text-xs`} />
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                maxLength={6}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                placeholder="輸入 6 位郵箱驗證碼"
+                className={`${INPUT} text-xs flex-1`}
+              />
+              <button
+                type="button"
+                onClick={handleSendOtp}
+                disabled={otpCountdown > 0}
+                className="flex-shrink-0 rounded-xl border border-[#1a73e8] text-[#1a73e8] text-xs px-3 py-2 hover:bg-[#1a73e8]/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {otpCountdown > 0 ? `重新發送 (${otpCountdown}s)` : "獲取驗證碼"}
+              </button>
+            </div>
           </div>
           {err && <p className="text-xs text-red-500 flex items-center gap-1.5"><TrAlertIcon size={12} />{err}</p>}
           <div className="flex items-center justify-end gap-2 pt-1">
@@ -4134,9 +4166,10 @@ function TrFundingConfigModal({ onClose, onSuccess }: { onClose: () => void; onS
 
 // ─── Treasury: 金庫錢包管理 Modal ────────────────────────────────────────────
 
-function TrTreasuryConfigModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+function TrTreasuryConfigModal({ onClose, onSuccess, onToast }: { onClose: () => void; onSuccess: () => void; onToast: (msg: string, ok?: boolean) => void }) {
   const [adminEmail, setAdminEmail] = useState("");
-  const [adminPassword, setAdminPassword] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpCountdown, setOtpCountdown] = useState(0);
   const [newTreasuryAddress, setNewTreasuryAddress] = useState("");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
@@ -4146,15 +4179,29 @@ function TrTreasuryConfigModal({ onClose, onSuccess }: { onClose: () => void; on
     fetch("/api/admin/treasury/config").then((r) => r.json()).then((d) => setCurrentConfig({ treasuryWalletAddress: d.treasuryWalletAddress ?? "" })).catch(() => {});
   }, []);
 
+  useEffect(() => {
+    if (otpCountdown <= 0) return;
+    const timer = setTimeout(() => setOtpCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [otpCountdown]);
+
+  async function handleSendOtp() {
+    if (!adminEmail) { setErr("請先填寫管理員郵箱"); return; }
+    setErr("");
+    setOtpCountdown(60);
+    onToast("驗證碼已發送至您的登錄郵箱");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); setErr("");
-    if (!adminEmail || !adminPassword) { setErr("請輸入管理員郵箱與密碼進行二次驗證"); return; }
+    if (!adminEmail) { setErr("請輸入管理員郵箱進行身份驗證"); return; }
+    if (otp.length !== 6) { setErr("請輸入 6 位郵箱驗證碼"); return; }
     if (!newTreasuryAddress) { setErr("請填寫新的金庫錢包地址"); return; }
     setLoading(true);
     try {
       const res = await fetch("/api/admin/treasury/config", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adminEmail, adminPassword, newTreasuryAddress }),
+        body: JSON.stringify({ adminEmail, otp, newTreasuryAddress }),
       });
       const data = await res.json();
       if (!res.ok) { setErr(data.error ?? "操作失敗"); return; }
@@ -4169,7 +4216,7 @@ function TrTreasuryConfigModal({ onClose, onSuccess }: { onClose: () => void; on
         <div className="flex items-center justify-between px-6 py-4 border-b border-neutral-100">
           <div>
             <h2 className="text-sm font-semibold text-neutral-900">⚙️ 金庫錢包管理</h2>
-            <p className="text-xs text-neutral-400 mt-0.5">更新金庫錢包地址，所有變更均需二次密碼驗證</p>
+            <p className="text-xs text-neutral-400 mt-0.5">更新金庫錢包地址，所有變更均需郵箱驗證碼確認</p>
           </div>
           <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-full text-neutral-400 hover:bg-neutral-100 text-lg leading-none">×</button>
         </div>
@@ -4188,10 +4235,27 @@ function TrTreasuryConfigModal({ onClose, onSuccess }: { onClose: () => void; on
           </div>
           <div className="border-t border-dashed border-neutral-200 pt-4 space-y-3">
             <p className="text-xs font-semibold text-neutral-700 flex items-center gap-1.5">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#1a73e8]" />雙重安全校驗 — 輸入您的登入密碼確認身份
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#1a73e8]" />雙重安全校驗 — 郵箱驗證碼確認身份
             </p>
             <input type="email" value={adminEmail} onChange={(e) => setAdminEmail(e.target.value)} placeholder="管理員郵箱" required autoComplete="email" className={`${INPUT} text-xs`} />
-            <input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="登入密碼" required autoComplete="current-password" className={`${INPUT} text-xs`} />
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                maxLength={6}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                placeholder="輸入 6 位郵箱驗證碼"
+                className={`${INPUT} text-xs flex-1`}
+              />
+              <button
+                type="button"
+                onClick={handleSendOtp}
+                disabled={otpCountdown > 0}
+                className="flex-shrink-0 rounded-xl border border-[#1a73e8] text-[#1a73e8] text-xs px-3 py-2 hover:bg-[#1a73e8]/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                {otpCountdown > 0 ? `重新發送 (${otpCountdown}s)` : "獲取驗證碼"}
+              </button>
+            </div>
           </div>
           {err && <p className="text-xs text-red-500 flex items-center gap-1.5"><TrAlertIcon size={12} />{err}</p>}
           <div className="flex items-center justify-end gap-2 pt-1">
@@ -4640,10 +4704,10 @@ function FinTreasuryTab({ t: _t }: { t: T }) {
 
       {/* Modals */}
       {fundingConfigOpen && (
-        <TrFundingConfigModal onClose={() => setFundingConfigOpen(false)} onSuccess={() => { trToast("墊付錢包助記詞已更新"); fetchStats(); }} />
+        <TrFundingConfigModal onClose={() => setFundingConfigOpen(false)} onSuccess={() => { trToast("墊付錢包助記詞已更新"); fetchStats(); }} onToast={trToast} />
       )}
       {treasuryConfigOpen && (
-        <TrTreasuryConfigModal onClose={() => setTreasuryConfigOpen(false)} onSuccess={() => { trToast("金庫錢包地址已更新"); fetchStats(); }} />
+        <TrTreasuryConfigModal onClose={() => setTreasuryConfigOpen(false)} onSuccess={() => { trToast("金庫錢包地址已更新"); fetchStats(); }} onToast={trToast} />
       )}
       {sweepDustOpen && (
         <TrSweepDustModal onClose={() => setSweepDustOpen(false)} onSuccess={(msg) => { trToast(msg); fetchStats(); fetchLedger(ledgerPage, ledgerSearch); }} />
