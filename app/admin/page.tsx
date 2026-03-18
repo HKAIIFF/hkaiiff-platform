@@ -5,6 +5,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { revalidateFeed } from "@/app/actions/revalidate";
+import { BatchReleaseTab } from "./BatchReleaseTab";
 // ─── 類型定義 ───────────────────────────────────────────────────────────────
 type Lang = "zh" | "en";
 type ToastItem = { id: number; text: string; ok: boolean };
@@ -5652,10 +5653,6 @@ export default function AdminPage() {
   }
 
   function handleSubMenuClick(subId: SubMenuId) {
-    if (subId === "dist:batch") {
-      router.push("/admin/batch-release");
-      return;
-    }
     setActiveSubMenu(subId);
     setMobileSidebarOpen(false);
   }
@@ -5671,6 +5668,7 @@ export default function AdminPage() {
       case "dist:lbs": return <DistLbsTab t={t} pushToast={pushToast} />;
       case "dist:online": return <DistOnlineTab t={t} />;
       case "dist:official": return <DistOfficialTab pushToast={pushToast} />;
+      case "dist:batch": return <BatchReleaseTab />;
       case "eco:human": return <EcoHumanTab t={t} pushToast={pushToast} askConfirm={askConfirm} />;
       case "eco:bot": return <EcoBotTab t={t} pushToast={pushToast} askConfirm={askConfirm} />;
       case "ai:models": return <AiModelsTab t={t} pushToast={pushToast} />;
