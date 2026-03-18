@@ -51,21 +51,42 @@ export async function POST(req: Request) {
       }
     }
 
-    // 正常路徑：以主鍵 id 做 upsert（首次登入 insert；再次登入 update session）
-    const { data, error } = await supabase
+    // 正常路徑：以主鍵 id 做 upsert（首次登入 insert；再次登入只更新 session 相關欄位）
+    // ignoreDuplicates:false 時，onConflict 會觸發 UPDATE，但需確保不覆蓋用戶已設置的 name/display_name
+    // 因此先嘗試 insert，若已存在則只更新 session 欄位，保留用戶自訂的 name
+    const { data: existingUser } = await supabase
       .from('users')
-      .upsert(
-        [{
+      .select('id')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    let data, error;
+    if (existingUser) {
+      // 用戶已存在：只更新 session 相關欄位，不覆蓋 name/display_name
+      ({ data, error } = await supabase
+        .from('users')
+        .update({
+          email,
+          wallet_address: user.wallet?.address || null,
+          last_sign_in_at: now,
+        })
+        .eq('id', user.id)
+        .select()
+        .single());
+    } else {
+      // 首次登入：插入新用戶行
+      ({ data, error } = await supabase
+        .from('users')
+        .insert([{
           id: user.id,
           email,
           wallet_address: user.wallet?.address || null,
           name: 'New Agent',
           last_sign_in_at: now,
-        }],
-        { onConflict: 'id' }
-      )
-      .select()
-      .single();
+        }])
+        .select()
+        .single());
+    }
 
     if (error) {
       // 競態條件：email unique constraint 被另一個並發請求搶先觸發
