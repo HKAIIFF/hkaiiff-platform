@@ -354,10 +354,12 @@ function MobileMessagesView({
               <h1 className="font-heavy text-4xl text-white leading-none tracking-tight mb-3">
                 {t('mobileAbout.heroSlogan')}
               </h1>
-              <div className="inline-block px-4 py-1.5 mt-6 rounded-full border border-[#CCFF00] text-[#CCFF00] text-sm font-bold tracking-widest">
-                {t('mobileAbout.heroDates')}
+              <div className="inline-flex flex-col items-center justify-center gap-2 mt-6 px-6 py-4 rounded-2xl border border-[#CCFF00]/60 bg-[#CCFF00]/5 text-[#CCFF00] text-sm md:text-base font-bold tracking-widest text-center shadow-[0_0_15px_rgba(204,255,0,0.1)]">
+                {t('mobileAbout.heroDates').split(/｜|\|/).map((part, index) => (
+                  <span key={index}>{part.trim()}</span>
+                ))}
               </div>
-              <p className="font-mono text-[11px] text-gray-400 leading-relaxed max-w-sm">
+              <p className="mt-8 font-mono text-[11px] text-gray-400 leading-relaxed max-w-sm">
                 {t('mobileAbout.heroDesc')}
               </p>
             </div>
