@@ -4070,8 +4070,16 @@ function TrFundingConfigModal({ onClose, onSuccess, onToast }: { onClose: () => 
   async function handleSendOtp() {
     if (!adminEmail) { setErr("請先填寫管理員郵箱"); return; }
     setErr("");
-    setOtpCountdown(60);
-    onToast("驗證碼已發送至您的登錄郵箱");
+    try {
+      const res = await fetch("/api/admin/send-otp", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error ?? "驗證碼發送失敗"); return; }
+      setOtpCountdown(60);
+      onToast("驗證碼已發送至您的登錄郵箱");
+    } catch { setErr("網絡錯誤，請稍後重試"); }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -4188,8 +4196,16 @@ function TrTreasuryConfigModal({ onClose, onSuccess, onToast }: { onClose: () =>
   async function handleSendOtp() {
     if (!adminEmail) { setErr("請先填寫管理員郵箱"); return; }
     setErr("");
-    setOtpCountdown(60);
-    onToast("驗證碼已發送至您的登錄郵箱");
+    try {
+      const res = await fetch("/api/admin/send-otp", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminEmail }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setErr(data.error ?? "驗證碼發送失敗"); return; }
+      setOtpCountdown(60);
+      onToast("驗證碼已發送至您的登錄郵箱");
+    } catch { setErr("網絡錯誤，請稍後重試"); }
   }
 
   async function handleSubmit(e: React.FormEvent) {

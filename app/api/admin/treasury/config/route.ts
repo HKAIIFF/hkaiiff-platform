@@ -69,17 +69,17 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json() as {
-      adminPassword: string;
+      otp: string;
       adminEmail: string;
       newTreasuryAddress?: string;
       newSeedPhrase?: string;
     };
 
-    const { adminPassword, adminEmail, newTreasuryAddress, newSeedPhrase } = body;
+    const { otp, adminEmail, newTreasuryAddress, newSeedPhrase } = body;
 
-    if (!adminPassword || !adminEmail) {
+    if (!otp || !adminEmail) {
       return NextResponse.json(
-        { error: '需要提供管理員郵箱與密碼進行二次驗證' },
+        { error: '需要提供管理員郵箱與郵箱驗證碼進行二次驗證' },
         { status: 400 }
       );
     }
@@ -91,21 +91,22 @@ export async function POST(req: Request) {
       );
     }
 
-    // ── 雙重安全校驗：通過 Supabase Auth 驗證管理員密碼 ──────────────────────
+    // ── 雙重安全校驗：通過 Supabase Auth 驗證郵箱 OTP ────────────────────────
     const supabaseUserClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { auth: { persistSession: false } }
     );
 
-    const { data: authData, error: authError } = await supabaseUserClient.auth.signInWithPassword({
+    const { data: authData, error: authError } = await supabaseUserClient.auth.verifyOtp({
       email: adminEmail,
-      password: adminPassword,
+      token: otp,
+      type: 'email',
     });
 
     if (authError || !authData.user) {
       return NextResponse.json(
-        { error: '密碼驗證失敗，請確認您的登入密碼是否正確' },
+        { error: '驗證碼錯誤或已過期，請重新獲取驗證碼' },
         { status: 401 }
       );
     }
