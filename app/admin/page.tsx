@@ -62,7 +62,7 @@ interface LbsFilmRow {
 type SubMenuId =
   | "dashboard"
   | "review:films" | "review:lbs" | "review:kyc"
-  | "dist:lbs" | "dist:online" | "dist:official"
+  | "dist:lbs" | "dist:online" | "dist:official" | "dist:batch"
   | "eco:human" | "eco:bot"
   | "ai:models" | "ai:prompts" | "ai:assembly"
   | "fin:ledger" | "fin:treasury" | "fin:settlement" | "fin:products"
@@ -92,6 +92,7 @@ const MENU: MenuItem[] = [
       { id: "dist:lbs", zh: "官方LBS院線部署", en: "Official LBS Cinemas" },
       { id: "dist:online", zh: "線上首映流管理", en: "Online Premiere Streams" },
       { id: "dist:official", zh: "官方發行", en: "Official Release" },
+      { id: "dist:batch", zh: "📦 批片發行", en: "Batch Release" },
     ],
   },
   {
@@ -5651,6 +5652,10 @@ export default function AdminPage() {
   }
 
   function handleSubMenuClick(subId: SubMenuId) {
+    if (subId === "dist:batch") {
+      router.push("/admin/batch-release");
+      return;
+    }
     setActiveSubMenu(subId);
     setMobileSidebarOpen(false);
   }
