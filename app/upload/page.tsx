@@ -7,6 +7,7 @@ import { useToast } from '@/app/context/ToastContext';
 import { useI18n } from '@/app/context/I18nContext';
 import CyberLoading from '@/app/components/CyberLoading';
 import UniversalCheckout from '@/app/components/UniversalCheckout';
+import BackButton from '@/components/BackButton';
 import { useProduct } from '@/lib/hooks/useProduct';
 
 type Step = 1 | 2 | 'processing';
@@ -218,7 +219,7 @@ function UploadContent() {
   const handleFilmChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     if (!file) return;
-    if (file.size > 1024 * 1024 * 1024) {
+    if (file.size > 5 * 1024 * 1024 * 1024) {
       showToast(t('err_film_size'), 'error');
       e.target.value = '';
       return;
@@ -446,7 +447,7 @@ function UploadContent() {
                   { icon: 'fa-microchip', text: '≥ 51% AI-generated content (verified by AIF.BOT)' },
                   { icon: 'fa-image', text: 'Poster: JPG/PNG/WEBP, max 5 MB' },
                   { icon: 'fa-video', text: 'Trailer: MP4/MOV, max 50 MB' },
-                  { icon: 'fa-film', text: 'Full Film: MP4/MOV, max 1 GB' },
+                  { icon: 'fa-film', text: 'Full Film: MP4/MOV, max 5 GB' },
                   { icon: 'fa-dollar-sign', text: filmEntryProduct ? `Entry fee: $${Number(filmEntryProduct.price_usd).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD or ${Number(filmEntryProduct.price_aif).toLocaleString()} AIF` : 'Entry fee: loading…' },
                 ].map((req) => (
                   <div key={req.text} className="flex items-start gap-2.5 mb-2.5">
@@ -777,16 +778,9 @@ function UploadContent() {
           <div className="animate-fade-in max-w-sm mx-auto px-4 py-6">
 
             {/* Back */}
-            <button
-              onClick={() => {
-                setUploadStatus(''); setErrorMsg(''); setStep(1);
-                setPosterUploadStatus('idle'); setTrailerUploadStatus('idle'); setFilmUploadStatus('idle');
-                setPosterUploadError(''); setTrailerUploadError(''); setFilmUploadError('');
-              }}
-              className="text-gray-600 hover:text-white mb-6 font-mono text-xs flex items-center gap-2 active:scale-90 transition-all"
-            >
-              <i className="fas fa-arrow-left" /> {t('btn_back')}
-            </button>
+            <div className="mb-6">
+              <BackButton />
+            </div>
 
             {/* Film Summary Badge */}
             <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-2xl p-4 mb-4">
@@ -859,13 +853,6 @@ function UploadContent() {
             {notLoggedIn && (
               <div className="bg-[#111] border border-danger/50 rounded-xl p-3 mb-4 text-center font-mono text-xs text-danger flex items-center justify-center gap-2">
                 <i className="fas fa-lock" /> PLEASE LOGIN FIRST
-              </div>
-            )}
-
-            {/* Error message */}
-            {errorMsg && (
-              <div className="text-red-400 text-xs font-mono text-center mb-4 px-3 py-2 bg-red-500/8 border border-red-500/20 rounded-xl">
-                {errorMsg}
               </div>
             )}
 
