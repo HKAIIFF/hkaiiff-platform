@@ -1,7 +1,6 @@
 "use client";
 
 import BackButton from "@/components/BackButton";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useI18n } from "@/app/context/I18nContext";
 import { motion, useScroll, useTransform } from "framer-motion";
 import Image from "next/image";
@@ -33,14 +32,9 @@ export default function AwardsPage() {
 
   return (
     <main className="min-h-screen bg-[#050505] text-white overflow-x-hidden">
-      {/* ── TOP BAR: Back + Language Switcher ───────────────────── */}
-      <div className="fixed top-6 left-0 w-full px-6 flex justify-between items-center z-50 pointer-events-none">
-        <div className="pointer-events-auto">
-          <BackButton />
-        </div>
-        <div className="pointer-events-auto">
-          <LanguageSwitcher />
-        </div>
+      {/* ── BACK BUTTON ─────────────────────────────────────────── */}
+      <div className="fixed top-4 left-4 sm:top-6 sm:left-6 z-50">
+        <BackButton />
       </div>
       {/* ── HERO ────────────────────────────────────────────────── */}
       <section
