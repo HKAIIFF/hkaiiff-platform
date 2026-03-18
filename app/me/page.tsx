@@ -399,35 +399,44 @@ function MePageContent() {
           (a) => a.status === 'pending' || a.status === 'awaiting_payment'
         );
 
-      const { error } = await supabase
-        .from('users')
-        .update({
+      // 使用服務端 API（Service Role Key）確保寫入真正落庫，繞過 RLS 限制
+      const token = await getAccessToken();
+      const res = await fetch('/api/update-profile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
           ...(isNameLocked ? {} : { display_name: editName }),
           avatar_seed: editAvatarSeed,
           bio: editAboutStudio,
           tech_stack: editTechStack,
           core_team: filteredCoreTeam,
-        })
-        .eq('id', user.id);
+        }),
+      });
 
-      if (error) {
-        console.error('❌ Profile save error (full):', error);
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        console.error('❌ Profile save error:', errData);
         showToast("Profile update failed, please try again", "error");
       } else {
+        const updatedRow = await res.json();
+        // 用資料庫返回的真實數據更新本地狀態，避免樂觀更新與實際數據不一致
         setDbProfile((prev) =>
           prev
             ? {
                 ...prev,
-                ...(isNameLocked ? {} : { display_name: editName }),
-                avatar_seed: editAvatarSeed,
-                bio: editAboutStudio,
-                tech_stack: editTechStack,
-                core_team: filteredCoreTeam,
+                ...updatedRow,
+                verified_identities: updatedRow.verified_identities ?? prev.verified_identities,
+                username_locked: updatedRow.username_locked ?? prev.username_locked,
               }
             : prev
         );
         showToast("Profile updated successfully", "success");
         closeProfileModal();
+        // 強制清除 Next.js App Router 緩存，確保 F5 刷新後讀取最新資料庫數據
+        router.refresh();
       }
     } catch (err: any) {
       console.error('❌ handleSaveProfile exception:', err);
