@@ -325,8 +325,9 @@ function MobileMessagesView({
         {/* Sticky header */}
         <div className="sticky top-0 z-10 bg-[#050505]/95 backdrop-blur-md border-b border-[#1a1a1a] flex items-center justify-between px-4 py-4">
           <div>
-            <div className="font-heavy text-xl text-white tracking-wider">HKAIIFF 2026</div>
-            <div className="text-[9px] font-mono text-[#CCFF00] tracking-widest">FESTIVAL GUIDE</div>
+            <div className="text-lg md:text-xl font-bold text-white leading-tight">香港AI國際電影節</div>
+            <div className="font-heavy text-base text-white/70 tracking-wider leading-none mt-0.5">HKAIIFF 2026</div>
+            <div className="text-[9px] font-mono text-[#CCFF00] tracking-widest mt-0.5">FESTIVAL GUIDE</div>
           </div>
           <button
             onClick={() => setIsFestivalOpen(false)}
@@ -354,27 +355,27 @@ function MobileMessagesView({
               <h1 className="font-heavy text-4xl text-white leading-none tracking-tight mb-3">
                 {t('mobileAbout.heroSlogan')}
               </h1>
-              <div className="inline-flex flex-col items-center justify-center gap-2 mt-6 px-6 py-4 rounded-2xl border border-[#CCFF00]/60 bg-[#CCFF00]/5 text-[#CCFF00] text-sm md:text-base font-bold tracking-widest text-center shadow-[0_0_15px_rgba(204,255,0,0.1)]">
+              <div className="inline-flex flex-col items-center justify-center gap-2 mt-3 px-6 py-4 rounded-2xl border border-[#CCFF00]/60 bg-[#CCFF00]/5 text-[#CCFF00] text-base font-bold tracking-widest text-center shadow-[0_0_15px_rgba(204,255,0,0.1)]">
                 {t('mobileAbout.heroDates').split(/｜|\|/).map((part, index) => (
                   <span key={index}>{part.trim()}</span>
                 ))}
               </div>
-              <p className="mt-8 font-mono text-[11px] text-gray-400 leading-relaxed max-w-sm">
+              <p className="mt-6 font-mono text-base text-gray-300 leading-relaxed max-w-sm">
                 {t('mobileAbout.heroDesc')}
               </p>
             </div>
           </div>
 
-          <div className="px-4 mt-6 space-y-5">
+          <div className="px-4 mt-6 space-y-7">
 
             {/* ② 時代背景 */}
             <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl overflow-hidden backdrop-blur-sm">
               <div className="h-0.5 w-full bg-gradient-to-r from-[#CCFF00]/60 via-[#CCFF00]/20 to-transparent" />
-              <div className="p-5">
-                <h2 className="font-heavy text-lg text-white mb-3 tracking-wide">
+              <div className="p-6">
+                <h2 className="font-heavy text-2xl text-white mb-4 tracking-wide">
                   {t('mobileAbout.eraTitle')}
                 </h2>
-                <p className="font-mono text-[11px] text-gray-400 leading-relaxed">
+                <p className="font-mono text-base text-gray-300 leading-relaxed">
                   {t('mobileAbout.eraDesc')}
                 </p>
               </div>
@@ -383,18 +384,18 @@ function MobileMessagesView({
             {/* ③ 香港戰略樞紐 */}
             <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl overflow-hidden backdrop-blur-sm">
               <div className="h-0.5 w-full bg-gradient-to-r from-[#00F0FF]/60 via-[#00F0FF]/20 to-transparent" />
-              <div className="p-5">
-                <p className="font-mono text-[8px] text-[#00F0FF] tracking-[0.3em] mb-2 uppercase">
+              <div className="p-6">
+                <p className="font-mono text-[9px] text-[#00F0FF] tracking-[0.3em] mb-2 uppercase">
                   {t('mobileAbout.hkSection')}
                 </p>
-                <h2 className="font-heavy text-lg text-white mb-3 tracking-wide">
+                <h2 className="font-heavy text-2xl text-white mb-4 tracking-wide">
                   {t('mobileAbout.hkTitle')}
                 </h2>
-                <p className="font-mono text-[11px] text-gray-400 leading-relaxed mb-5">
+                <p className="font-mono text-base text-gray-300 leading-relaxed mb-5">
                   {t('mobileAbout.hkDesc')}
                 </p>
                 {/* 4 pillars grid */}
-                <div className="grid grid-cols-2 gap-2.5">
+                <div className="flex flex-col gap-3">
                   {[
                     { name: t('mobileAbout.hkPillar1Name'), desc: t('mobileAbout.hkPillar1Desc'), color: '#CCFF00' },
                     { name: t('mobileAbout.hkPillar2Name'), desc: t('mobileAbout.hkPillar2Desc'), color: '#00F0FF' },
@@ -403,15 +404,15 @@ function MobileMessagesView({
                   ].map((p) => (
                     <div
                       key={p.name}
-                      className="bg-white/[0.02] border border-white/[0.05] hover:border-[#CCFF00]/50 rounded-xl p-3 transition-colors duration-200"
+                      className="bg-white/[0.02] border border-white/[0.05] hover:border-[#CCFF00]/50 rounded-xl p-4 transition-colors duration-200"
                     >
                       <div
-                        className="font-mono text-[9px] font-bold mb-1.5 tracking-wider"
+                        className="font-mono text-sm font-bold mb-2 tracking-wider"
                         style={{ color: p.color }}
                       >
                         {p.name}
                       </div>
-                      <p className="font-mono text-[9px] text-gray-500 leading-relaxed">
+                      <p className="font-mono text-base text-gray-300 leading-relaxed">
                         {p.desc}
                       </p>
                     </div>
@@ -422,10 +423,10 @@ function MobileMessagesView({
 
             {/* ④ 生態價值 — 3 張垂直卡片 */}
             <div>
-              <h2 className="font-heavy text-lg text-white mb-3 tracking-wide">
+              <h2 className="font-heavy text-2xl text-white mb-4 tracking-wide">
                 {t('mobileAbout.ecoTitle')}
               </h2>
-              <div className="space-y-2.5">
+              <div className="space-y-4">
                 {[
                   { title: t('mobileAbout.ecoCard1Title'), desc: t('mobileAbout.ecoCard1Desc'), icon: 'fa-shield-alt',  accent: '#CCFF00' },
                   { title: t('mobileAbout.ecoCard2Title'), desc: t('mobileAbout.ecoCard2Desc'), icon: 'fa-globe',       accent: '#00F0FF' },
@@ -433,7 +434,7 @@ function MobileMessagesView({
                 ].map((card) => (
                   <div
                     key={card.title}
-                    className="bg-white/[0.02] border border-white/[0.05] hover:border-[#CCFF00]/50 rounded-2xl p-4 flex gap-4 transition-colors duration-200 backdrop-blur-sm"
+                    className="bg-white/[0.02] border border-white/[0.05] hover:border-[#CCFF00]/50 rounded-2xl p-6 flex gap-4 transition-colors duration-200 backdrop-blur-sm"
                   >
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -442,8 +443,8 @@ function MobileMessagesView({
                       <i className={`fas ${card.icon} text-sm`} style={{ color: card.accent }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-heavy text-sm text-white mb-1">{card.title}</h3>
-                      <p className="font-mono text-[10px] text-gray-500 leading-relaxed">{card.desc}</p>
+                      <h3 className="font-heavy text-lg text-white mb-2">{card.title}</h3>
+                      <p className="font-mono text-base text-gray-300 leading-relaxed">{card.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -453,11 +454,11 @@ function MobileMessagesView({
             {/* ⑤ 核心優勢 — 列表 */}
             <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl overflow-hidden backdrop-blur-sm">
               <div className="h-0.5 w-full bg-gradient-to-r from-[#9D00FF]/60 via-[#9D00FF]/20 to-transparent" />
-              <div className="p-5">
-                <h2 className="font-heavy text-lg text-white mb-4 tracking-wide">
+              <div className="p-6">
+                <h2 className="font-heavy text-2xl text-white mb-5 tracking-wide">
                   {t('mobileAbout.advTitle')}
                 </h2>
-                <div className="space-y-4">
+                <div className="space-y-5">
                   {[
                     { title: t('mobileAbout.adv1Title'), desc: t('mobileAbout.adv1Desc'), num: '01' },
                     { title: t('mobileAbout.adv2Title'), desc: t('mobileAbout.adv2Desc'), num: '02' },
@@ -467,9 +468,9 @@ function MobileMessagesView({
                       <div className="font-heavy text-2xl text-[#CCFF00]/20 leading-none w-8 flex-shrink-0 pt-0.5">
                         {adv.num}
                       </div>
-                      <div className="flex-1 border-b border-white/[0.04] pb-4 last:border-0 last:pb-0">
-                        <h3 className="font-heavy text-sm text-white mb-1">{adv.title}</h3>
-                        <p className="font-mono text-[10px] text-gray-500 leading-relaxed">{adv.desc}</p>
+                      <div className="flex-1 border-b border-white/[0.04] pb-5 last:border-0 last:pb-0">
+                        <h3 className="font-heavy text-lg text-white mb-2">{adv.title}</h3>
+                        <p className="font-mono text-base text-gray-300 leading-relaxed">{adv.desc}</p>
                       </div>
                     </div>
                   ))}
@@ -478,14 +479,14 @@ function MobileMessagesView({
             </div>
 
             {/* ⑥ 未來願景 */}
-            <div className="relative overflow-hidden rounded-2xl border border-[#CCFF00]/10 bg-[#CCFF00]/[0.02] p-5"
+            <div className="relative overflow-hidden rounded-2xl border border-[#CCFF00]/10 bg-[#CCFF00]/[0.02] p-6"
               style={{ boxShadow: '0 0 40px rgba(204,255,0,0.04)' }}
             >
               <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-[#CCFF00]/[0.03] blur-3xl" />
-              <h2 className="font-heavy text-lg text-white mb-3 tracking-wide relative z-10">
+              <h2 className="font-heavy text-2xl text-white mb-4 tracking-wide relative z-10">
                 {t('mobileAbout.futureTitle')}
               </h2>
-              <p className="font-mono text-[11px] text-gray-400 leading-relaxed relative z-10">
+              <p className="font-mono text-base text-gray-300 leading-relaxed relative z-10">
                 {t('mobileAbout.futureDesc')}
               </p>
             </div>
