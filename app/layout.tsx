@@ -1,13 +1,10 @@
 import type { Metadata } from "next";
-import dynamic from "next/dynamic";
 import ClientProviders from "./components/ClientProviders";
 import ConditionalNav from "./components/ConditionalNav";
 import Providers from "@/components/Providers";
 import "./globals.css";
 
-const PwaInstallPrompt = dynamic(() => import("@/components/PwaInstallPrompt"), {
-  ssr: false,
-});
+import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 
 export const metadata: Metadata = {
   title: 'HKAIIFF | 香港AI國際電影節',
