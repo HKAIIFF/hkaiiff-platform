@@ -4085,7 +4085,7 @@ function TrFundingConfigModal({ onClose, onSuccess, onToast }: { onClose: () => 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); setErr("");
     if (!adminEmail) { setErr("請輸入管理員郵箱進行身份驗證"); return; }
-    if (otp.length !== 6) { setErr("請輸入 6 位郵箱驗證碼"); return; }
+    if (otp.length !== 8) { setErr("請輸入 8 位郵箱驗證碼"); return; }
     if (!newSeedPhrase) { setErr("請填寫新的墊付錢包助記詞"); return; }
     setLoading(true);
     try {
@@ -4145,10 +4145,10 @@ function TrFundingConfigModal({ onClose, onSuccess, onToast }: { onClose: () => 
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                maxLength={6}
+                maxLength={8}
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                placeholder="輸入 6 位郵箱驗證碼"
+                placeholder="輸入 8 位郵箱驗證碼"
                 className={`${INPUT} text-xs flex-1`}
               />
               <button
@@ -4211,7 +4211,7 @@ function TrTreasuryConfigModal({ onClose, onSuccess, onToast }: { onClose: () =>
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault(); setErr("");
     if (!adminEmail) { setErr("請輸入管理員郵箱進行身份驗證"); return; }
-    if (otp.length !== 6) { setErr("請輸入 6 位郵箱驗證碼"); return; }
+    if (otp.length !== 8) { setErr("請輸入 8 位郵箱驗證碼"); return; }
     if (!newTreasuryAddress) { setErr("請填寫新的金庫錢包地址"); return; }
     setLoading(true);
     try {
@@ -4257,10 +4257,10 @@ function TrTreasuryConfigModal({ onClose, onSuccess, onToast }: { onClose: () =>
             <div className="flex items-center gap-2">
               <input
                 type="text"
-                maxLength={6}
+                maxLength={8}
                 value={otp}
                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-                placeholder="輸入 6 位郵箱驗證碼"
+                placeholder="輸入 8 位郵箱驗證碼"
                 className={`${INPUT} text-xs flex-1`}
               />
               <button
