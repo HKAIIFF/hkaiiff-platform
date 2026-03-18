@@ -30,9 +30,9 @@ const adminSupabase = createClient(
 
 const privyClient = new PrivyClient(PRIVY_APP_ID!, PRIVY_APP_SECRET!);
 
-// 最終 SELECT 欄位列表（與 me/page.tsx 保持一致）
+// 只返回本次 update 實際可修改的欄位，避免 SELECT 到不存在的列導致整個語句失敗
 const RETURN_COLS =
-  'agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team, deposit_address, wallet_index, verification_status, verification_type, rejection_reason, verified_identities, username_locked';
+  'display_name, avatar_seed, bio, tech_stack, core_team';
 
 export async function POST(req: Request) {
   // 若關鍵 env var 缺失，提前返回明確錯誤

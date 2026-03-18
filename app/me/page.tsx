@@ -401,19 +401,25 @@ function MePageContent() {
 
       // 使用服務端 API（Service Role Key）確保寫入真正落庫，繞過 RLS 限制
       const token = await getAccessToken();
+
+      // 嚴格構建 payload：只包含本次 UI 實際可修改的字段，不使用展開運算符
+      const profilePayload: Record<string, unknown> = {
+        avatar_seed: editAvatarSeed,
+        bio: editAboutStudio,
+        tech_stack: editTechStack,
+        core_team: filteredCoreTeam,
+      };
+      if (!isNameLocked) {
+        profilePayload.display_name = editName;
+      }
+
       const res = await fetch('/api/update-profile', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          ...(isNameLocked ? {} : { display_name: editName }),
-          avatar_seed: editAvatarSeed,
-          bio: editAboutStudio,
-          tech_stack: editTechStack,
-          core_team: filteredCoreTeam,
-        }),
+        body: JSON.stringify(profilePayload),
       });
 
       if (!res.ok) {
