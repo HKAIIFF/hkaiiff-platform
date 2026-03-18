@@ -418,8 +418,9 @@ function MePageContent() {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        console.error('❌ Profile save error:', errData);
-        showToast("Profile update failed, please try again", "error");
+        const errMsg = errData?.error || `HTTP ${res.status}`;
+        console.error('❌ Profile save error:', errMsg, errData);
+        showToast(`Profile update failed: ${errMsg}`, "error");
       } else {
         const updatedRow = await res.json();
         // 用資料庫返回的真實數據更新本地狀態，避免樂觀更新與實際數據不一致
