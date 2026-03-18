@@ -509,8 +509,7 @@ function UploadContent() {
             {/* ────── RIGHT PANEL: Form ────── */}
             <div className="md:px-8 md:py-8 px-4 py-6">
               {/* Mobile notice banner */}
-              <div className="md:hidden bg-[#111] border border-[#333] p-4 rounded-xl mb-6 relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-1 h-full bg-signal" />
+              <div className="md:hidden bg-[#111] border-l-4 border-[#CCFF00] p-4 rounded-xl mb-6">
                 <h3 className="font-heavy text-lg text-white mb-1 tracking-wide">HKAIIFF 2026</h3>
                 <p className="text-[10px] font-mono text-gray-400 leading-relaxed">{t('up_notice')}</p>
               </div>
