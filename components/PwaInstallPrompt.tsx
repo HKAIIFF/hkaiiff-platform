@@ -21,7 +21,7 @@ export default function PwaInstallPrompt() {
     // 已以 standalone 模式運行（已安裝），不顯示
     if (window.matchMedia('(display-mode: standalone)').matches) return;
     // iOS Safari standalone check
-    if ((navigator as Navigator & { standalone?: boolean }).standalone === true) return;
+    if ((navigator as any).standalone === true) return;
 
     // 冷卻期檢查
     const dismissedAt = localStorage.getItem(DISMISS_KEY);
@@ -57,6 +57,7 @@ export default function PwaInstallPrompt() {
       window.removeEventListener('beforeinstallprompt', handler);
       clearTimeout(timer);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const dismiss = () => {
@@ -106,7 +107,7 @@ export default function PwaInstallPrompt() {
 
           {/* 安裝按鈕 */}
           <button
-            onClick={handleInstall}
+            onClick={(e) => { e.preventDefault(); void handleInstall(); }}
             className="flex-shrink-0 bg-[#CCFF00] text-black text-[12px] font-bold px-3 py-1.5 rounded-lg whitespace-nowrap active:scale-95 transition-transform"
           >
             {platform === 'ios' ? '查看如何安裝' : '立即安裝'}

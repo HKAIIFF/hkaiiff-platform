@@ -9,10 +9,6 @@ const PwaInstallPrompt = dynamic(() => import("@/components/PwaInstallPrompt"), 
   ssr: false,
 });
 
-export const viewport = {
-  themeColor: '#CCFF00',
-};
-
 export const metadata: Metadata = {
   title: 'HKAIIFF | 香港AI國際電影節',
   description: 'Something has to change. 香港政府批復註冊的全球首個AI原生國際電影節',

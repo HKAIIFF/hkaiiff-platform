@@ -246,7 +246,7 @@ function UploadContent() {
       return;
     }
     if (!formData.contactEmail.trim() || !EMAIL_RE.test(formData.contactEmail.trim())) {
-      setErrorMsg('請填寫合法的官方聯繫郵箱，格式如 director@studio.com');
+      setErrorMsg(t('err_contact_email'));
       return;
     }
     setErrorMsg('');
@@ -649,22 +649,22 @@ function UploadContent() {
                   <div className="flex items-center gap-2 mb-2">
                     <i className="fas fa-shield-alt text-amber-400 text-sm" />
                     <span className="font-mono text-[11px] font-bold text-amber-300 tracking-wide">
-                      官方聯絡與隱私保護聲明
+                      {t('contactEmail.statementTitle')}
                     </span>
                   </div>
                   <p className="font-mono text-[10px] text-amber-200/80 leading-relaxed mb-2.5">
-                    請務必填寫您最常用的電子郵箱。此郵箱將作為 HKAIIFF 官方發送「入圍通知、百萬獎金結算、版權授權協議」的唯一指定聯絡方式。
+                    {t('contactEmail.statementDesc')}
                   </p>
                   <div className="flex items-start gap-1.5">
                     <span className="text-[11px] leading-none mt-px">🔒</span>
                     <p className="font-mono text-[9px] text-gray-400 leading-relaxed">
-                      極密保護：您的郵箱僅供組委會內部審核使用，絕對不會公開顯示在任何前端頁面或作品展廳中。
+                      {t('contactEmail.privacyNote')}
                     </p>
                   </div>
                 </div>
                 {/* Label */}
                 <div className="font-mono text-[10px] text-gray-500 mb-2 flex justify-between">
-                  <span>官方聯繫郵箱</span>
+                  <span>{t('contactEmail.label')}</span>
                   <span className="text-danger">*</span>
                 </div>
                 <input
@@ -673,7 +673,7 @@ function UploadContent() {
                   value={formData.contactEmail}
                   onChange={e => setFormData(f => ({ ...f, contactEmail: e.target.value }))}
                   className="w-full bg-[#0a0a0a] border border-amber-400/30 p-4 rounded-lg text-sm text-white focus:border-amber-400 outline-none transition-colors placeholder-gray-600"
-                  placeholder="請輸入您的官方聯繫郵箱 (e.g., director@studio.com)"
+                  placeholder={t('contactEmail.placeholder')}
                 />
               </div>
 
