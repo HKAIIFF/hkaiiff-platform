@@ -406,7 +406,7 @@ function UploadContent() {
             {t('submit_film')}
           </h1>
           <div className="text-[9px] font-mono text-signal tracking-widest mt-1">
-            HKAIIFF 2026 · JULY 15–21 · AI-NATIVE SUBMISSION
+            HKAIIFF 2026 · MAY 1 LAUNCH · JULY 11–15 CEREMONY · AI-NATIVE
           </div>
         </div>
         <div className="font-mono text-[9px] text-gray-500 bg-[#111] px-3 py-1.5 rounded border border-[#333]">
@@ -441,7 +441,7 @@ function UploadContent() {
                 <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
                 <div className="absolute bottom-4 left-4">
                   <div className="font-heavy text-2xl text-white leading-none mb-0.5">HKAIIFF 2026</div>
-                  <div className="font-mono text-[9px] text-signal tracking-widest">AI-NATIVE CINEMA · JULY 15–21</div>
+                  <div className="font-mono text-[9px] text-signal tracking-widest">AI-NATIVE CINEMA · JULY 11–15</div>
                 </div>
               </div>
 
