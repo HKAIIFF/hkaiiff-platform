@@ -442,8 +442,14 @@ function MePageContent() {
         );
         showToast("Profile updated successfully", "success");
         closeProfileModal();
-        // 強制清除 Next.js App Router 緩存，確保 F5 刷新後讀取最新資料庫數據
+        // 強制清除 Next.js App Router 路由緩存
         router.refresh();
+        // 由於 me 頁面是純 Client Component，router.refresh() 不會觸發重新拉取數據。
+        // 使用 window.location.reload() 徹底清除瀏覽器內存中的舊狀態，確保刷新後顯示最新數據。
+        // 500ms 延遲讓 success toast 先呈現，提升 UX 流暢感。
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
       }
     } catch (err: any) {
       console.error('❌ handleSaveProfile exception:', err);
@@ -793,7 +799,8 @@ function MePageContent() {
           setDbProfile((prev) => prev ? {
             ...prev,
             aif_balance: newData.aif_balance ?? prev.aif_balance,
-            display_name: newData.display_name ?? prev.display_name,
+            // 使用 !== undefined 而非 ??，確保 display_name 被清空為 null 時也能正確同步
+            display_name: newData.display_name !== undefined ? newData.display_name : prev.display_name,
             verified_identities: newData.verified_identities ?? prev.verified_identities,
             verification_status: newData.verification_status ?? prev.verification_status,
             username_locked: newData.username_locked ?? prev.username_locked,
