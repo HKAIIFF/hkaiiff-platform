@@ -7,18 +7,31 @@ import "./globals.css";
 import PwaInstallPrompt from "@/components/PwaInstallPrompt";
 
 export const metadata: Metadata = {
+  metadataBase: new URL('https://hkaiiff.com'),
   title: 'HKAIIFF | 香港AI國際電影節',
   description: 'Something has to change. 香港政府批復註冊的全球首個AI原生國際電影節',
   manifest: '/manifest.json',
   openGraph: {
     title: 'HKAIIFF | 香港AI國際電影節',
     description: 'Something has to change. 香港政府批復註冊的全球首個AI原生國際電影節',
+    url: '/',
+    siteName: 'HKAIIFF',
+    images: [
+      {
+        url: '/icon-512x512.png',
+        width: 512,
+        height: 512,
+        alt: 'HKAIIFF Official Logo',
+      },
+    ],
+    locale: 'zh_TW',
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'HKAIIFF | 香港AI國際電影節',
     description: 'Something has to change. 香港政府批復註冊的全球首個AI原生國際電影節',
+    images: ['/icon-512x512.png'],
   },
 };
 
