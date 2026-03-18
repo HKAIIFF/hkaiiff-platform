@@ -17,11 +17,18 @@ export async function POST(req: Request) {
     }
 
     // ── 白名單校驗：只有管理員郵箱才能請求 OTP ──────────────────────────────
-    const allowedEmails = (process.env.ADMIN_EMAILS ?? '')
-      .split(',')
-      .map((e) => e.trim().toLowerCase());
+    // 同時讀取服務端與客戶端兩個變量，兼容不同部署環境
+    const rawList =
+      process.env.ADMIN_EMAILS ||
+      process.env.NEXT_PUBLIC_ADMIN_EMAILS ||
+      '';
 
-    if (!allowedEmails.includes(email.toLowerCase())) {
+    const allowedEmails = rawList
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+
+    if (allowedEmails.length > 0 && !allowedEmails.includes(email.toLowerCase())) {
       return NextResponse.json({ error: '該郵箱沒有管理員權限' }, { status: 403 });
     }
 
