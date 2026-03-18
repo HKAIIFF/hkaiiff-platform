@@ -442,14 +442,6 @@ function MePageContent() {
         );
         showToast("Profile updated successfully", "success");
         closeProfileModal();
-        // 強制清除 Next.js App Router 路由緩存
-        router.refresh();
-        // 由於 me 頁面是純 Client Component，router.refresh() 不會觸發重新拉取數據。
-        // 使用 window.location.reload() 徹底清除瀏覽器內存中的舊狀態，確保刷新後顯示最新數據。
-        // 500ms 延遲讓 success toast 先呈現，提升 UX 流暢感。
-        setTimeout(() => {
-          window.location.reload();
-        }, 500);
       }
     } catch (err: any) {
       console.error('❌ handleSaveProfile exception:', err);
@@ -491,6 +483,10 @@ function MePageContent() {
         username_locked: false,
       };
 
+      // Step 1: 呼叫 sync-user（Service Role Key，繞過 RLS），取得完整用戶行
+      // 注意：客戶端 Supabase 使用 anon key，Privy user ID 非 Supabase auth.uid()，
+      // 因此直接用客戶端讀 users 表會因 RLS 失敗。sync-user 用 Service Role 繞過此限制。
+      let syncedProfile: Record<string, any> | null = null;
       try {
         const syncRes = await fetch('/api/sync-user', {
           method: 'POST',
@@ -499,13 +495,33 @@ function MePageContent() {
           cache: 'no-store',
         });
         if (syncRes.ok) {
-          const syncData = await syncRes.json();
-          // sync-user 返回完整用戶行（含 aif_balance），立即更新餘額避免顯示 0
-          if (syncData && typeof syncData.aif_balance === 'number') {
+          const rawSync = await syncRes.json();
+          if (rawSync && rawSync.id) {
+            syncedProfile = rawSync;
+            // 用完整行（含 display_name）初始化 profile，避免 RLS 問題導致讀不到 display_name
+            setDbProfile({
+              agent_id: rawSync.agent_id ?? '',
+              name: rawSync.name ?? 'New Agent',
+              display_name: rawSync.display_name ?? null,
+              role: rawSync.role ?? 'human',
+              aif_balance: rawSync.aif_balance ?? 0,
+              avatar_seed: rawSync.avatar_seed ?? userId,
+              bio: rawSync.bio ?? null,
+              tech_stack: rawSync.tech_stack ?? null,
+              core_team: rawSync.core_team ?? null,
+              deposit_address: rawSync.deposit_address ?? null,
+              wallet_index: rawSync.wallet_index ?? null,
+              verification_status: (rawSync.verification_status ?? 'unverified') as typeof defaultProfile.verification_status,
+              verification_type: rawSync.verification_type ?? null,
+              rejection_reason: rawSync.rejection_reason ?? null,
+              verified_identities: rawSync.verified_identities ?? [],
+              username_locked: rawSync.username_locked ?? false,
+            });
+          } else if (rawSync && typeof rawSync.aif_balance === 'number') {
             setDbProfile((prev) =>
               prev
-                ? { ...prev, aif_balance: syncData.aif_balance }
-                : { ...defaultProfile, aif_balance: syncData.aif_balance }
+                ? { ...prev, aif_balance: rawSync.aif_balance }
+                : { ...defaultProfile, aif_balance: rawSync.aif_balance }
             );
           }
         }
@@ -513,44 +529,37 @@ function MePageContent() {
         console.error('Failed to sync', err);
       }
 
-      // Step 2: 直接從 Supabase 讀取完整 profile（含充值地址及所有驗證欄位）
+      // Step 2: 加載子數據（身份申請 + 鏈上地址分配）
+      // creator_applications 未啟用 RLS，客戶端可直接讀取
+      // profile 數據已在 Step 1 從 sync-user 取得，此處使用 syncedProfile 變量
       try {
-        const { data: profileRow, error: profileError } = await supabase
-          .from('users')
-          .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team, deposit_address, wallet_index, verification_status, verification_type, rejection_reason, verified_identities, username_locked')
-          .eq('id', userId)
-          .single();
+        const profileData = syncedProfile;
 
-        if (profileError) {
-          console.error('❌ Failed to fetch profile:', profileError.message);
-          setDbProfile((prev) => prev ?? { ...defaultProfile, verified_identities: [] });
-        } else if (profileRow) {
-          setDbProfile({ ...profileRow, verified_identities: profileRow.verified_identities ?? [], username_locked: profileRow.username_locked ?? false });
+        // Step 2a: 加載多重身份申請記錄（含認證名稱）
+        const { data: apps } = await supabase
+          .from('creator_applications')
+          .select('id, identity_type, status, expires_at, rejection_reason, submitted_at, verification_name')
+          .eq('user_id', userId)
+          .in('status', ['pending', 'approved', 'rejected', 'awaiting_payment'])
+          .order('submitted_at', { ascending: false });
+        setIdentityApplications(apps ?? []);
 
-          // Step 2b: 加載多重身份申請記錄（含認證名稱）
-          const { data: apps } = await supabase
-            .from('creator_applications')
-            .select('id, identity_type, status, expires_at, rejection_reason, submitted_at, verification_name')
-            .eq('user_id', userId)
-            .in('status', ['pending', 'approved', 'rejected', 'awaiting_payment'])
-            .order('submitted_at', { ascending: false });
-          setIdentityApplications(apps ?? []);
+        // 計算認證按鈕鎖定狀態：有任何 pending 或 approved 未過期記錄即鎖定
+        const nowTs = new Date().toISOString();
+        const locked = (apps ?? []).some(
+          (a) =>
+            a.status === 'pending' ||
+            a.status === 'awaiting_payment' ||
+            (a.status === 'approved' && (!a.expires_at || a.expires_at > nowTs))
+        );
+        setIsVerifyLocked(locked);
 
-          // 計算認證按鈕鎖定狀態：有任何 pending 或 approved 未過期記錄即鎖定
-          const nowTs = new Date().toISOString();
-          const locked = (apps ?? []).some(
-            (a) =>
-              a.status === 'pending' ||
-              a.status === 'awaiting_payment' ||
-              (a.status === 'approved' && (!a.expires_at || a.expires_at > nowTs))
-          );
-          setIsVerifyLocked(locked);
-
-          if (profileRow.deposit_address) {
-            setDepositAddress(profileRow.deposit_address);
-          } else if (!profileRow.wallet_index && profileRow.wallet_index !== 0) {
+        // Step 2b: 鏈上地址分配（基於 Step 1 取得的 profileData）
+        if (profileData) {
+          if (profileData.deposit_address) {
+            setDepositAddress(profileData.deposit_address);
+          } else if (!profileData.wallet_index && profileData.wallet_index !== 0) {
             // 全新用戶（無 wallet_index）：一次性自動分配充值地址
-            // walletAssignCalledRef 防止 effect 重跑時重複呼叫
             if (!walletAssignCalledRef.current) {
               walletAssignCalledRef.current = true;
               try {
@@ -576,7 +585,7 @@ function MePageContent() {
                   }
                 } else {
                   console.warn('⚠️ Auto-assign deposit address failed, user can generate manually.');
-                  walletAssignCalledRef.current = false; // 失敗允許重試
+                  walletAssignCalledRef.current = false;
                 }
               } catch (assignErr) {
                 console.warn('⚠️ Auto-assign exception:', assignErr);
@@ -616,12 +625,10 @@ function MePageContent() {
               }
             }
           }
-        } else {
-          setDbProfile((prev) => prev ?? defaultProfile);
         }
       } catch (err) {
-        console.error('❌ Profile fetch exception:', err);
-        setDbProfile((prev) => prev ?? defaultProfile);
+        console.error('❌ Sub-data fetch exception:', err);
+        setDbProfile((prev) => prev ?? { ...defaultProfile, verified_identities: [] });
       } finally {
         setIsProfileLoading(false);
       }
