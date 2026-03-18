@@ -191,12 +191,12 @@ const SECTIONS: Section[] = [
       {
         title: "4.1 授權許可",
         content:
-          "閣下提交用戶內容時，即向電影節機構授予一項非獨家、可轉授、免版稅、全球適用的有限許可，用於平台展示、電影節宣傳、存檔及技術運營。上述授權不影響閣下對用戶內容的所有權及其他使用權利。",
+          "閣下提交用戶內容時，即向香港AI國際電影節協會授予一項非獨家、可轉授、免版稅、全球適用的有限許可，用於平台展示、電影節宣傳、存檔及技術運營。上述授權不影響閣下對用戶內容的所有權及其他使用權利。",
       },
       {
         title: "4.2 版權保護",
         content:
-          "本平台所有內容受香港《版權條例》（第528章）保護。未經書面授權，嚴禁任何形式複製、轉載或商業使用。版權投訴請電郵：copyright@hkaiff.com",
+          "本平台所有內容受香港《版權條例》（第528章）保護。未經書面授權，嚴禁任何形式複製、轉載或商業使用。版權投訴請電郵：copyright@hkaiiff.com",
       },
     ],
     subsectionsEn: [
@@ -208,7 +208,7 @@ const SECTIONS: Section[] = [
       {
         title: "4.2 Copyright Protection",
         content:
-          "All platform content is protected under the Hong Kong Copyright Ordinance (Cap. 528) and applicable international conventions. Reproduction, republication or commercial use without written authorization is strictly prohibited. Copyright complaints: copyright@hkaiff.com",
+          "All platform content is protected under the Hong Kong Copyright Ordinance (Cap. 528) and applicable international conventions. Reproduction, republication or commercial use without written authorization is strictly prohibited. Copyright complaints: copyright@hkaiiff.com",
       },
     ],
   },
@@ -263,7 +263,7 @@ const SECTIONS: Section[] = [
       {
         title: "6.1 退款政策",
         content:
-          "除本電影節主動取消場次外，所有已售出門票均不設退款，亦不得更換其他場次。如遇電影節機構主動取消放映、黑色暴雨警告或8號或以上熱帶氣旋警告信號，將以原付款方式退還全額票款。",
+          "除本電影節主動取消場次外，所有已售出門票均不設退款，亦不得更換其他場次。如遇香港AI國際電影節協會主動取消放映、黑色暴雨警告或8號或以上熱帶氣旋警告信號，將以原付款方式退還全額票款。",
       },
     ],
     subsectionsEn: [
@@ -279,7 +279,7 @@ const SECTIONS: Section[] = [
     titleZh: "第七條　免責聲明與責任限制",
     titleEn: "Article 7 — Disclaimer & Limitation of Liability",
     contentZh:
-      "本服務依「現狀」提供，不附帶任何明示或默示保證。電影節機構對服務中斷、AI內容準確性、第三方服務問題及不可抗力事件不承擔責任。責任總額不超過閣下過去十二個月支付費用或港幣一千元（以較高者為準）。",
+      "本服務依「現狀」提供，不附帶任何明示或默示保證。香港AI國際電影節協會對服務中斷、AI內容準確性、第三方服務問題及不可抗力事件不承擔責任。責任總額不超過閣下過去十二個月支付費用或港幣一千元（以較高者為準）。",
     contentEn:
       "The Services are provided 'as is' and 'as available' without any express or implied warranties. HKAIFF shall not be liable for service interruptions, the accuracy of AI-generated content, third-party service issues, or force majeure events. Our total liability to you shall not exceed the greater of: the fees you paid to HKAIFF in the twelve months preceding the event, or HKD 1,000.",
   },
@@ -297,7 +297,7 @@ const SECTIONS: Section[] = [
     titleZh: "第九條　協議修訂",
     titleEn: "Article 9 — Amendments",
     contentZh:
-      "電影節機構保留隨時修訂本協議的權利。重大修訂將透過平台公告及電郵通知用戶。閣下繼續使用本服務即表示接受修訂後的協議。",
+      "香港AI國際電影節協會保留隨時修訂本協議的權利。重大修訂將透過平台公告及電郵通知用戶。閣下繼續使用本服務即表示接受修訂後的協議。",
     contentEn:
       "HKAIFF reserves the right to amend these Terms at any time. Material changes will be notified via platform announcements and email. Continued use of the Services after changes take effect constitutes acceptance of the revised Terms.",
   },
@@ -305,8 +305,8 @@ const SECTIONS: Section[] = [
     id: "s10",
     titleZh: "第十條　聯絡資料",
     titleEn: "Article 10 — Contact",
-    contentZh: "如對本協議有任何疑問，請電郵：legal@hkaiff.com",
-    contentEn: "For any questions regarding these Terms, please contact us at: legal@hkaiff.com",
+    contentZh: "如對本協議有任何疑問，請電郵：legal@hkaiiff.com",
+    contentEn: "For any questions regarding these Terms, please contact us at: legal@hkaiiff.com",
   },
 ];
 
@@ -438,10 +438,10 @@ export default function TermsPage() {
             </Link>
             <span className="text-[#1e1e1e] hidden sm:block">|</span>
             <a
-              href="mailto:legal@hkaiff.com"
+              href="mailto:legal@hkaiiff.com"
               className="text-xs text-[#555] underline hover:text-[#CCFF00] transition-colors font-mono"
             >
-              legal@hkaiff.com
+              legal@hkaiiff.com
             </a>
           </div>
         </div>

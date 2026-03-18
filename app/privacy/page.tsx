@@ -33,9 +33,9 @@ const SECTIONS: Section[] = [
     titleZh: "第一條　資料控制者",
     titleEn: "Article 1 — Data Controller",
     contentZh:
-      "本服務的個人資料控制者為香港AI國際電影節主辦機構。個人資料保護主任電郵：privacy@hkaiff.com。我們按照香港私隱條例規定的六項保障資料原則處理所有個人資料。",
+      "本服務的個人資料控制者為香港AI國際電影節主辦機構。個人資料保護主任電郵：privacy@hkaiiff.com。我們按照香港私隱條例規定的六項保障資料原則處理所有個人資料。",
     contentEn:
-      "The data controller for the Services is the Hong Kong AI International Film Festival organising body. Data Protection Officer email: privacy@hkaiff.com. We process all personal data in accordance with the six Data Protection Principles under the Hong Kong Personal Data (Privacy) Ordinance (Cap. 486).",
+      "The data controller for the Services is the Hong Kong AI International Film Festival organising body. Data Protection Officer email: privacy@hkaiiff.com. We process all personal data in accordance with the six Data Protection Principles under the Hong Kong Personal Data (Privacy) Ordinance (Cap. 486).",
   },
   {
     id: "p2",
@@ -243,14 +243,14 @@ const SECTIONS: Section[] = [
     subsectionsZh: [
       { title: "7.1 查閱及更正權", content: "閣下有權查閱及更正我們持有的個人資料。我們將在40日內回應。" },
       { title: "7.2 刪除權", content: "在資料不再用於原收集目的、閣下撤回同意或資料被違法處理等情況下，閣下有權要求刪除個人資料。" },
-      { title: "7.3 反對行銷權", content: "閣下可隨時透過電郵底部的「取消訂閱」連結或發送電郵至 optout@hkaiff.com 退出行銷通訊。" },
+      { title: "7.3 反對行銷權", content: "閣下可隨時透過電郵底部的「取消訂閱」連結或發送電郵至 optout@hkaiiff.com 退出行銷通訊。" },
       { title: "7.4 可攜帶性權利", content: "閣下有權以JSON或CSV格式獲取個人資料副本。" },
       { title: "7.5 提出私隱投訴", content: "閣下有權向香港私隱專員公署提出投訴。網址：www.pcpd.org.hk" },
     ],
     subsectionsEn: [
       { title: "7.1 Right of Access & Correction", content: "You have the right to access and correct personal data we hold about you. We will respond within 40 days." },
       { title: "7.2 Right to Erasure", content: "You may request deletion of your personal data where it is no longer needed for the original purpose, you withdraw consent, or it has been unlawfully processed." },
-      { title: "7.3 Right to Object to Marketing", content: "You may opt out of marketing communications at any time via the unsubscribe link in any email or by emailing optout@hkaiff.com." },
+      { title: "7.3 Right to Object to Marketing", content: "You may opt out of marketing communications at any time via the unsubscribe link in any email or by emailing optout@hkaiiff.com." },
       { title: "7.4 Data Portability", content: "You have the right to receive a copy of your personal data in JSON or CSV format." },
       { title: "7.5 Right to Lodge a Complaint", content: "You have the right to lodge a complaint with the Hong Kong Privacy Commissioner for Personal Data. Website: www.pcpd.org.hk" },
     ],
@@ -277,9 +277,9 @@ const SECTIONS: Section[] = [
     titleZh: "第九條　未成年人保護",
     titleEn: "Article 9 — Protection of Minors",
     contentZh:
-      "本服務不針對十六（16）歲以下的未成年人。如發現未成年子女未獲授權使用本服務，請電郵：privacy@hkaiff.com，我們將及時刪除相關資料。",
+      "本服務不針對十六（16）歲以下的未成年人。如發現未成年子女未獲授權使用本服務，請電郵：privacy@hkaiiff.com，我們將及時刪除相關資料。",
     contentEn:
-      "The Services are not directed at persons under 16 years of age. If you discover that a minor has used the Services without authorisation, please email privacy@hkaiff.com and we will promptly delete the relevant data.",
+      "The Services are not directed at persons under 16 years of age. If you discover that a minor has used the Services without authorisation, please email privacy@hkaiiff.com and we will promptly delete the relevant data.",
   },
   {
     id: "p10",
@@ -304,9 +304,9 @@ const SECTIONS: Section[] = [
     titleZh: "第十二條　聯絡我們",
     titleEn: "Article 12 — Contact Us",
     contentZh:
-      "個人資料保護主任（Data Protection Officer）\n電郵：privacy@hkaiff.com\n書面郵件：香港AI國際電影節 個人資料保護部\n\n查閱/更正申請表格可於平台官方網站下載。",
+      "個人資料保護主任（Data Protection Officer）\n電郵：privacy@hkaiiff.com\n書面郵件：香港AI國際電影節 個人資料保護部\n\n查閱/更正申請表格可於平台官方網站下載。",
     contentEn:
-      "Data Protection Officer\nEmail: privacy@hkaiff.com\nPostal: Hong Kong AI International Film Festival, Data Protection Department\n\nAccess/Correction request forms are available on the official website.",
+      "Data Protection Officer\nEmail: privacy@hkaiiff.com\nPostal: Hong Kong AI International Film Festival, Data Protection Department\n\nAccess/Correction request forms are available on the official website.",
   },
 ];
 
@@ -456,10 +456,10 @@ export default function PrivacyPage() {
             </Link>
             <span className="text-[#1e1e1e] hidden sm:block">|</span>
             <a
-              href="mailto:privacy@hkaiff.com"
+              href="mailto:privacy@hkaiiff.com"
               className="text-xs text-[#555] underline hover:text-[#CCFF00] transition-colors font-mono"
             >
-              privacy@hkaiff.com
+              privacy@hkaiiff.com
             </a>
           </div>
         </div>
