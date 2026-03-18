@@ -1,9 +1,10 @@
 "use client";
 
+import BackButton from "@/components/BackButton";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useI18n } from "@/app/context/I18nContext";
 import { motion, useScroll, useTransform } from "framer-motion";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
 import { useRef } from "react";
 
 const PRIZE_INDICES = [0, 1, 2, 3, 4, 5, 6, 7] as const;
@@ -19,7 +20,6 @@ const fadeUp = {
 
 export default function AwardsPage() {
   const { t } = useI18n();
-  const router = useRouter();
   const heroRef = useRef<HTMLDivElement>(null);
 
   const { scrollYProgress } = useScroll({
@@ -33,37 +33,15 @@ export default function AwardsPage() {
 
   return (
     <main className="min-h-screen bg-[#050505] text-white overflow-x-hidden">
-      {/* ── BACK BUTTON ─────────────────────────────────────────── */}
-      <button
-        onClick={() => router.push("/about")}
-        className="fixed top-6 left-6 z-50 flex items-center gap-2 group"
-        aria-label="Back to Festival"
-      >
-        <span
-          className="flex items-center justify-center w-9 h-9 rounded-full border border-[#CCFF00]/40 bg-black/60 backdrop-blur-md transition-all duration-300 group-hover:border-[#CCFF00] group-hover:bg-[#CCFF00]/10"
-          style={{ boxShadow: "0 0 16px rgba(204,255,0,0.08)" }}
-        >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 16 16"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            className="transition-transform duration-300 group-hover:-translate-x-0.5"
-          >
-            <path
-              d="M10 3L5 8L10 13"
-              stroke="#CCFF00"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
-        </span>
-        <span className="hidden sm:block text-[#CCFF00] font-mono text-xs tracking-[0.2em] uppercase opacity-80 group-hover:opacity-100 transition-opacity duration-300">
-          {t("awards.backBtn")}
-        </span>
-      </button>
+      {/* ── TOP BAR: Back + Language Switcher ───────────────────── */}
+      <div className="fixed top-6 left-0 w-full px-6 flex justify-between items-center z-50 pointer-events-none">
+        <div className="pointer-events-auto">
+          <BackButton />
+        </div>
+        <div className="pointer-events-auto">
+          <LanguageSwitcher />
+        </div>
+      </div>
       {/* ── HERO ────────────────────────────────────────────────── */}
       <section
         ref={heroRef}
