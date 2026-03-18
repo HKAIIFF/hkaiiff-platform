@@ -1,8 +1,13 @@
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import ClientProviders from "./components/ClientProviders";
 import ConditionalNav from "./components/ConditionalNav";
 import Providers from "@/components/Providers";
 import "./globals.css";
+
+const PwaInstallPrompt = dynamic(() => import("@/components/PwaInstallPrompt"), {
+  ssr: false,
+});
 
 export const viewport = {
   themeColor: '#CCFF00',
@@ -59,6 +64,7 @@ export default function RootLayout({
           <ConditionalNav>
             {children}
           </ConditionalNav>
+          <PwaInstallPrompt />
         </ClientProviders>
         </Providers>
       </body>
