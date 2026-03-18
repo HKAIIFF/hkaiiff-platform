@@ -354,7 +354,7 @@ function MobileMessagesView({
               <h1 className="font-heavy text-4xl text-white leading-none tracking-tight mb-3">
                 {t('mobileAbout.heroSlogan')}
               </h1>
-              <div className="inline-block px-4 py-1.5 mt-2 mb-4 rounded-full border border-[#CCFF00] text-[#CCFF00] text-sm font-bold tracking-widest">
+              <div className="inline-block px-4 py-1.5 mt-6 rounded-full border border-[#CCFF00] text-[#CCFF00] text-sm font-bold tracking-widest">
                 {t('mobileAbout.heroDates')}
               </div>
               <p className="font-mono text-[11px] text-gray-400 leading-relaxed max-w-sm">
