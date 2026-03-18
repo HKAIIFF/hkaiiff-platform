@@ -5,7 +5,7 @@ import Providers from "@/components/Providers";
 import "./globals.css";
 
 export const viewport = {
-  themeColor: '#000000',
+  themeColor: '#CCFF00',
 };
 
 export const metadata: Metadata = {
@@ -43,11 +43,14 @@ export default function RootLayout({
           rel="stylesheet"
         />
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#000000" />
+        <meta name="theme-color" content="#CCFF00" />
+        <meta name="application-name" content="HKAIIFF" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="HKAIIFF" />
+        <meta name="mobile-web-app-capable" content="yes" />
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
+        <link rel="apple-touch-icon" sizes="512x512" href="/icon-512x512.png" />
       </head>
       {/* bg/text 由 ConditionalNav 按路由分流處理：前台=bg-void/text-white，/admin=白底畫布 */}
       <body className="font-zh antialiased">

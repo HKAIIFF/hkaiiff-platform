@@ -1,11 +1,11 @@
 {
-  "name": "HKAIIFF",
+  "name": "HKAIIFF 2026",
   "short_name": "HKAIIFF",
-  "description": "Hong Kong AI International Film Festival",
+  "description": "全球首個 AI 原生國際電影節",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#050505",
+  "theme_color": "#CCFF00",
   "orientation": "portrait",
   "icons": [
     {
