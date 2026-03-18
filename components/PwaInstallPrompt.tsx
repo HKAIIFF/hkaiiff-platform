@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
+import logoImg from '@/app/icon-512x512.png';
 
 const DISMISS_KEY = 'pwa_prompt_dismissed';
 const COOLDOWN_DAYS = 7;
@@ -83,7 +85,7 @@ export default function PwaInstallPrompt() {
 
   return (
     <div
-      className={`fixed bottom-6 left-4 right-4 z-[100] transition-transform duration-500 ease-out ${
+      className={`fixed bottom-[100px] md:bottom-6 left-4 right-4 z-[999] transition-transform duration-500 ease-out ${
         slideIn ? 'translate-y-0' : 'translate-y-[150%]'
       }`}
     >
@@ -91,8 +93,8 @@ export default function PwaInstallPrompt() {
         {/* 主體行 */}
         <div className="flex items-center gap-3 px-4 py-3.5">
           {/* 圖標 */}
-          <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-[#CCFF00]/10 border border-[#CCFF00]/20 flex items-center justify-center text-xl">
-            ✨
+          <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-[#CCFF00]/10 border border-[#CCFF00]/20 overflow-hidden">
+            <Image src={logoImg} alt="HKAIIFF Logo" className="w-full h-full object-cover rounded-xl" />
           </div>
 
           {/* 文案 */}
