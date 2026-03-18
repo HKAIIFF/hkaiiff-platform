@@ -81,16 +81,22 @@ export async function POST(req: Request) {
     }
 
     // ── Step 4: 使用 Service Role Key 更新，繞過 RLS ─────────────────────────
+    // users.id 為 text 類型（非 uuid），顯式傳入 String(userId) 確保 text 比較
     const { data, error } = await adminSupabase
       .from('users')
       .update(updatePayload)
-      .eq('id', userId)
+      .eq('id', String(userId))
       .select('agent_id, name, display_name, role, aif_balance, avatar_seed, bio, tech_stack, core_team, deposit_address, wallet_index, verification_status, verification_type, rejection_reason, verified_identities, username_locked')
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('[update-profile] Supabase update error:', error.message);
       return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    if (!data) {
+      console.error('[update-profile] User not found in users table:', userId);
+      return NextResponse.json({ error: 'User record not found' }, { status: 404 });
     }
 
     return NextResponse.json(data);
