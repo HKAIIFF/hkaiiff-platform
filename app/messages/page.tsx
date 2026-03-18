@@ -354,25 +354,12 @@ function MobileMessagesView({
               <h1 className="font-heavy text-4xl text-white leading-none tracking-tight mb-3">
                 {t('mobileAbout.heroSlogan')}
               </h1>
+              <div className="inline-block px-4 py-1.5 mt-2 mb-4 rounded-full border border-[#CCFF00] text-[#CCFF00] text-sm font-bold tracking-widest">
+                {t('mobileAbout.heroDates')}
+              </div>
               <p className="font-mono text-[11px] text-gray-400 leading-relaxed max-w-sm">
                 {t('mobileAbout.heroDesc')}
               </p>
-            </div>
-          </div>
-
-          {/* Key Stats */}
-          <div className="px-4 mt-4">
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { val: '7',    label: lang === 'zh' ? '天' : 'DAYS',          color: 'text-[#CCFF00]' },
-                { val: '51%',  label: lang === 'zh' ? 'AI 門檻' : 'AI THRESHOLD', color: 'text-white' },
-                { val: '$500', label: lang === 'zh' ? '報名費' : 'ENTRY FEE',  color: 'text-white' },
-              ].map((s) => (
-                <div key={s.label} className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-4 text-center backdrop-blur-sm">
-                  <div className={`font-heavy text-2xl ${s.color}`}>{s.val}</div>
-                  <div className="text-[9px] font-mono text-gray-500 mt-1">{s.label}</div>
-                </div>
-              ))}
             </div>
           </div>
 
