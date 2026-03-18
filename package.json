@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1008.0",
+    "@ducanh2912/next-pwa": "^10.2.9",
     "@privy-io/node": "^0.10.1",
     "@privy-io/react-auth": "^3.15.0",
     "@privy-io/server-auth": "^1.32.5",
