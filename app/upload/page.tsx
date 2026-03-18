@@ -332,9 +332,21 @@ function UploadContent() {
     }
 
     setUploadStatus('MEDIA SECURED. MINTING DATA TO DATABASE...');
+    // 获取 Bearer token 用于 API 认证，让服务端可以验证用户身份
+    let authToken: string | null = null;
+    try {
+      authToken = await getAccessToken();
+    } catch (tokenErr) {
+      console.warn('[upload] 获取 access token 失败:', tokenErr);
+    }
+    console.log('[upload] doUploadAndCreateRecord user.id:', user!.id, '| hasToken:', !!authToken);
+
     const dbRes = await fetch('/api/upload-film', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+      },
       body: JSON.stringify({
         creator_id:     user!.id,
         title:          formData.title,
@@ -345,16 +357,20 @@ function UploadContent() {
         core_cast:      formData.coreCast,
         region:         formData.region,
         lbs_royalty:    formData.lbsRoyalty,
-        poster_url:     posterUrl,   // R2 公共 CDN URL
-        trailer_url:    trailerUrl,  // Bunny HLS URL (.m3u8)
-        full_film_url:  fullFilmUrl, // Bunny HLS URL (.m3u8)
+        poster_url:     posterUrl,
+        trailer_url:    trailerUrl,
+        full_film_url:  fullFilmUrl,
         contact_email:  formData.contactEmail.trim().toLowerCase(),
         payment_method: paymentMethod,
       }),
     });
 
     const data = await dbRes.json();
-    if (!data.success) throw new Error(data.error ?? 'Submission failed');
+    if (!data.success) {
+      const errMsg = data.error ?? 'Submission failed';
+      console.error('[upload] upload-film API error:', errMsg);
+      throw new Error(errMsg);
+    }
     return data.film.id as string;
   };
 
@@ -379,7 +395,17 @@ function UploadContent() {
       setCreatedFilmId(filmId);
       setShowCheckoutModal(true);
     } catch (err: unknown) {
-      const msg = (err instanceof Error ? err.message : String(err)) || 'Upload failed';
+      const rawMsg = (err instanceof Error ? err.message : String(err)) || 'Upload failed';
+      // 将技术性错误转为用户友好的中文提示
+      const msg = rawMsg.includes('string did not match') || rawMsg.includes('SCHEMA_MISMATCH')
+        ? '影片資料格式有誤，請重新提交。如問題持續請聯繫客服。'
+        : rawMsg.includes('DB_COLUMN') || rawMsg.includes('does not exist')
+          ? '系統配置異常，請聯繫平台客服。'
+          : rawMsg.includes('Missing required') || rawMsg.includes('Missing or invalid')
+            ? '請確保所有必填欄位已填寫完整。'
+            : rawMsg.includes('AI ratio')
+              ? 'AI 比例必須達到 51% 以上。'
+              : rawMsg;
       showToast(msg, 'error');
       setErrorMsg(msg);
       setUploadStatus('');

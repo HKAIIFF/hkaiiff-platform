@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { PrivyClient } from '@privy-io/server-auth';
 
 const adminSupabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
   { auth: { persistSession: false } },
+);
+
+const privyClient = new PrivyClient(
+  process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
+  process.env.PRIVY_APP_SECRET!
 );
 
 export const dynamic = 'force-dynamic';
@@ -15,6 +21,20 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(req: Request) {
   try {
+    // ── Auth：优先使用 Bearer Token 验证用户身份 ─────────────────────────────
+    const authHeader = req.headers.get('authorization');
+    let verifiedUserId: string | null = null;
+
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const claims = await privyClient.verifyAuthToken(authHeader.slice(7));
+        verifiedUserId = claims.userId;
+        console.log('[upload-film] 已通过 Bearer token 验证用户:', verifiedUserId);
+      } catch (authErr) {
+        console.warn('[upload-film] Bearer token 验证失败，回退到 creator_id:', authErr);
+      }
+    }
+
     const body = await req.json();
     const { 
       creator_id, title, studio_name, tech_stack, ai_ratio, 
@@ -23,9 +43,14 @@ export async function POST(req: Request) {
       contact_email,
     } = body;
 
-    // 後端二次強制校驗：creator_id 必須是非空字串，防止孤兒影片寫入
-    if (!creator_id || typeof creator_id !== 'string' || creator_id.trim() === '') {
-      return NextResponse.json({ error: 'Missing or invalid creator_id: cannot create orphan film record' }, { status: 400 });
+    // 确定最终使用的 user_id：优先使用 Token 验证的 ID，fallback 到客户端传入的 creator_id
+    const finalUserId = verifiedUserId || creator_id;
+
+    console.log('[upload-film] finalUserId:', finalUserId, '| verifiedUserId:', verifiedUserId, '| creator_id:', creator_id);
+
+    // 后端二次强制校验：user_id 必须是非空字串，防止孤儿影片写入
+    if (!finalUserId || typeof finalUserId !== 'string' || finalUserId.trim() === '') {
+      return NextResponse.json({ error: 'Missing or invalid user identity: cannot create orphan film record' }, { status: 400 });
     }
     if (!title || !poster_url || !trailer_url || !full_film_url) {
       return NextResponse.json({ error: 'Missing required media files or fields' }, { status: 400 });
@@ -33,16 +58,18 @@ export async function POST(req: Request) {
     if (parseInt(ai_ratio) < 51) {
       return NextResponse.json({ error: 'AI ratio must be at least 51%' }, { status: 400 });
     }
-    // 🔒 官方联系邮箱：必填且格式合法
+    // 官方联系邮箱：必填且格式合法
     if (!contact_email || typeof contact_email !== 'string' || !EMAIL_REGEX.test(contact_email.trim())) {
       return NextResponse.json({ error: '請填寫合法的官方聯繫郵箱 (contact_email)' }, { status: 400 });
     }
 
-    // 插入影片記錄：user_id 強制綁定 creator_id，初始狀態為待支付
+    const userId = finalUserId.trim();
+
+    // 插入影片记录：user_id 强制绑定已验证 userId，初始状态为待支付
     const { data: film, error: filmError } = await adminSupabase
       .from('films')
       .insert([{
-        user_id:        creator_id.trim(),
+        user_id:        userId,
         title,
         studio:         studio_name,
         tech_stack,
@@ -63,11 +90,20 @@ export async function POST(req: Request) {
       .single();
 
     if (filmError) {
-      console.error('[UPLOAD API] Supabase filmError:', filmError);
-      throw new Error(filmError.message ?? JSON.stringify(filmError));
+      console.error('[UPLOAD API] Supabase filmError:', JSON.stringify(filmError));
+      // 将 Supabase 技术性错误转换为用户友好的提示
+      const rawMessage = filmError.message ?? JSON.stringify(filmError);
+      const userMessage = rawMessage.includes('string did not match') || rawMessage.includes('invalid input syntax')
+        ? '影片資料格式有誤，請重新提交或聯繫客服（錯誤碼：SCHEMA_MISMATCH）'
+        : rawMessage.includes('does not exist')
+          ? '數據庫欄位配置有誤，請聯繫平台客服（錯誤碼：DB_COLUMN）'
+          : rawMessage.includes('violates check constraint')
+            ? '影片狀態值不合法，請聯繫平台客服（錯誤碼：CONSTRAINT）'
+            : rawMessage;
+      throw new Error(userMessage);
     }
 
-    // 交易流水由對應的支付 API（/api/stripe/checkout 或 /api/pay/aif）在支付確認後記錄
+    // 交易流水由对应的支付 API（/api/stripe/checkout 或 /api/pay/aif）在支付确认后记录
     return NextResponse.json({ success: true, film });
   } catch (error: unknown) {
     console.error('[UPLOAD API CRASH]:', error);
