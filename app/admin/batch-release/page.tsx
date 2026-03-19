@@ -266,11 +266,7 @@ export default function BatchReleasePage() {
   // ── 視頻文件處理 ─────────────────────────────────────────────────────────────
   function addVideoFiles(files: FileList | File[]) {
     const arr = Array.from(files).filter((f) => f.type.startsWith("video/"));
-    setVideoFiles((prev) => {
-      const existing = new Map(prev.map((f) => [f.name, f]));
-      arr.forEach((f) => existing.set(f.name, f));
-      return Array.from(existing.values());
-    });
+    setVideoFiles((prev) => [...prev, ...arr]);
   }
 
   function handleVideoSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -283,10 +279,8 @@ export default function BatchReleasePage() {
     if (e.dataTransfer.files) addVideoFiles(e.dataTransfer.files);
   }
 
-  // ── 計算匹配 ─────────────────────────────────────────────────────────────────
-  const matchedCount = filmsData.filter((f) =>
-    videoFiles.some((v) => v.name === f.video_filename)
-  ).length;
+  // ── 計算匹配（按順序索引） ──────────────────────────────────────────────────
+  const matchedCount = Math.min(videoFiles.length, filmsData.length);
 
   // ── 驗證用戶-影片關聯 ─────────────────────────────────────────────────────────
   const userEmails = new Set(usersData.map((u) => u.email));
@@ -359,7 +353,7 @@ export default function BatchReleasePage() {
     for (let i = 0; i < filmsData.length; i++) {
       const film = filmsData[i];
       const user = usersData.find((u) => u.email === film.email)!;
-      const videoFile = videoFiles.find((v) => v.name === film.video_filename)!;
+      const videoFile = videoFiles[i];
       const itemId = itemIds[i];
 
       const updateStep = (stepKey: keyof ItemProgress["steps"], status: StepStatus) => {
@@ -374,7 +368,7 @@ export default function BatchReleasePage() {
         // a. 提取海報
         updateStep("uploadPoster", "running");
         const posterBlob = await extractPoster(videoFile);
-        const posterFilename = `poster_${film.video_filename?.replace(/\.[^.]+$/, "")}.jpg`;
+        const posterFilename = `poster_${videoFile.name.replace(/\.[^.]+$/, "")}.jpg`;
 
         // b. 上傳海報
         const posterUrl = await uploadFile(posterBlob, posterFilename);
@@ -626,7 +620,7 @@ export default function BatchReleasePage() {
         <div>
           <h3 className="font-bold text-neutral-900">③ 上傳預告片</h3>
           <p className="text-sm text-neutral-500 mt-0.5">
-            文件名需與影片信息表格中的 <code className="bg-neutral-100 px-1 rounded text-xs">video_filename</code> 欄位一致
+            按順序匹配：第 1 個影片對應表格第 1 行，第 2 個對應第 2 行，以此類推
           </p>
         </div>
 
@@ -677,23 +671,26 @@ export default function BatchReleasePage() {
               <table className="w-full">
                 <thead className="bg-neutral-50">
                   <tr>
-                    {["影片標題", "期望文件名", "匹配狀態", "文件大小"].map((h) => (
+                    {["#", "影片標題", "已上傳影片", "匹配狀態", "文件大小"].map((h) => (
                       <th key={h} className={TH}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100">
                   {filmsData.map((film, i) => {
-                    const matched = videoFiles.find((v) => v.name === film.video_filename);
+                    const matched = videoFiles[i];
                     return (
                       <tr key={i} className="hover:bg-neutral-50/50">
+                        <td className={`${TD} w-10 text-neutral-400`}>{i + 1}</td>
                         <td className={`${TD} font-medium`}>{film.project_title}</td>
-                        <td className={`${TD} font-mono text-xs text-neutral-500`}>{film.video_filename}</td>
+                        <td className={`${TD} font-mono text-xs text-neutral-500`}>
+                          {matched ? matched.name : <span className="text-neutral-300">—</span>}
+                        </td>
                         <td className={TD}>
                           {matched ? (
                             <span className="text-green-600 text-sm font-medium">✅ 已匹配</span>
                           ) : (
-                            <span className="text-amber-600 text-sm font-medium">⚠️ 未找到文件</span>
+                            <span className="text-amber-600 text-sm font-medium">⚠️ 待上傳</span>
                           )}
                         </td>
                         <td className={`${TD} text-neutral-400`}>
