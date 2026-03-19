@@ -980,7 +980,9 @@ export default function VerificationPage() {
                 form.verificationType
                   ? {
                       identityType: form.verificationType,
-                      verificationName: form.verificationName,
+                      ...(form.verificationName.trim()
+                        ? { verificationName: form.verificationName.trim() }
+                        : {}),
                     }
                   : undefined
               }

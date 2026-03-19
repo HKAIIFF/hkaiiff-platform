@@ -112,24 +112,26 @@ function SuccessContent() {
     getAccessToken().then(async (token) => {
       if (!token) return;
       try {
+        const submitBody: Record<string, string | null> = {
+          verificationType: parsed.verificationType ?? null,
+          paymentMethod: 'fiat',
+        };
+        if (parsed.verificationName) submitBody.verificationName = parsed.verificationName;
+        if (parsed.applicationId) submitBody.applicationId = parsed.applicationId;
+
         const res = await fetch('/api/verification/submit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            verificationType: parsed.verificationType,
-            bio: parsed.bio,
-            techStack: parsed.techStack,
-            coreTeam: parsed.coreTeam,
-            portfolio: parsed.portfolio,
-            docUrl: parsed.docUrl || null,
-            paymentMethod: 'fiat',
-          }),
+          body: JSON.stringify(submitBody),
         });
         if (res.ok) {
           localStorage.removeItem('pending_verification');
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          console.error('[success] pending_verification submit failed (server):', errData);
         }
       } catch (err) {
-        console.error('[success] pending_verification submit failed:', err);
+        console.error('【認證表單 Zod 解析失敗細節】:', (err as { errors?: unknown })?.errors || err);
       } finally {
         setPendingVerification(false);
       }

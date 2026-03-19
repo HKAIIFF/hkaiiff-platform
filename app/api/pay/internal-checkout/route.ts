@@ -376,6 +376,7 @@ export async function POST(req: Request) {
 
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('【認證表單 Zod 解析失敗細節】:', (err as { errors?: unknown })?.errors || err);
     console.error('[internal-checkout] Unexpected error:', message);
     return NextResponse.json({ error: message }, { status: 500 });
   }

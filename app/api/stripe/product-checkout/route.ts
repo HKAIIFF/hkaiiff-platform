@@ -105,6 +105,14 @@ export async function POST(req: Request) {
       ? baseSuccessUrl
       : `${baseSuccessUrl}${baseSuccessUrl.includes('?') ? '&' : '?'}session_id={CHECKOUT_SESSION_ID}`;
 
+    // Stripe metadata 只允许非空字符串值，空字符串/null/undefined 会导致 "missing string" 报错
+    const safeMetadata: Record<string, string> = { userId: verifiedUserId, productCode, type: 'product_purchase' };
+    if (extraMetadata) {
+      for (const [k, v] of Object.entries(extraMetadata)) {
+        if (v != null && v !== '') safeMetadata[k] = String(v);
+      }
+    }
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
@@ -123,18 +131,13 @@ export async function POST(req: Request) {
       ],
       success_url: finalSuccessUrl,
       cancel_url: cancelUrl || `${siteUrl}/me?payment=cancelled`,
-      metadata: {
-        userId: verifiedUserId,
-        productCode,
-        type: 'product_purchase',
-        // 攤開 extraMetadata（例如 filmId），Stripe metadata 僅支持字符串值
-        ...(extraMetadata ?? {}),
-      },
+      metadata: safeMetadata,
     });
 
     return NextResponse.json({ sessionId: session.id, url: session.url });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('【認證表單 Zod 解析失敗細節】:', (err as { errors?: unknown })?.errors || err);
     console.error('[stripe/product-checkout] Error:', message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
