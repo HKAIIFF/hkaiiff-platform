@@ -109,6 +109,9 @@ async function handleIdentityVerifyPaid(userId: string, identityType?: string, v
 }
 
 async function handleFilmEntryPaid(userId: string, filmId: string): Promise<void> {
+  if (!filmId) throw new Error('缺少影片 ID（filmId），無法更新影片支付狀態');
+  if (!userId) throw new Error('缺少用戶 ID（userId），無法更新影片支付狀態');
+
   console.log('[internal-checkout] handleFilmEntryPaid filmId:', filmId, 'userId:', userId);
 
   const { data: film, error: filmFetchError } = await adminSupabase
@@ -118,8 +121,15 @@ async function handleFilmEntryPaid(userId: string, filmId: string): Promise<void
     .eq('user_id', userId)
     .single();
 
-  if (filmFetchError) console.error('[internal-checkout] film fetch error:', filmFetchError.message);
-  if (!film || film.payment_status === 'paid') return;
+  if (filmFetchError) {
+    console.error('【影片記錄查詢致命錯誤】:', filmFetchError.message, filmFetchError.details, filmFetchError.hint);
+    throw new Error(`影片記錄查詢失敗: ${filmFetchError.message}`);
+  }
+  if (!film) throw new Error(`找不到影片記錄（filmId: ${filmId}）`);
+  if (film.payment_status === 'paid') {
+    console.log('[internal-checkout] 影片已支付，跳過重複更新:', filmId);
+    return;
+  }
 
   // status 值必须符合 films 表 CHECK 约束 ('pending','approved','rejected')
   const { error: updateError } = await adminSupabase
@@ -127,7 +137,11 @@ async function handleFilmEntryPaid(userId: string, filmId: string): Promise<void
     .update({ payment_status: 'paid', payment_method: 'aif', status: 'pending' })
     .eq('id', filmId)
     .eq('user_id', userId);
-  if (updateError) console.error('[internal-checkout] film update error:', updateError.message);
+
+  if (updateError) {
+    console.error('【影片記錄更新致命錯誤】:', updateError.message, updateError.details, updateError.hint);
+    throw new Error(`影片狀態更新失敗: ${updateError.message}`);
+  }
 
   await sendMessage({
     userId,

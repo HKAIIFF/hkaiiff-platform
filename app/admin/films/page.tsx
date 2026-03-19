@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { revalidateFeed } from "@/app/actions/revalidate";
+import { adminUpdateFilmStatus, adminToggleFilmField } from "@/app/actions/adminFilms";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface FilmUser {
@@ -223,9 +224,10 @@ export default function FilmsReviewPage() {
     setProcessing(id);
     // 审核通过时同步开启 Feed 上架；拒绝时同步下架，确保 Feed 过滤生效
     const is_feed_published = status === "approved";
-    const { error } = await supabase.from("films").update({ status, is_feed_published }).eq("id", id);
-    if (error) {
-      showToast("狀態更新失敗", "error");
+    const { error: updateErr } = await adminUpdateFilmStatus(id, status, is_feed_published);
+    if (updateErr) {
+      console.error("【adminUpdateFilmStatus 致命錯誤】:", updateErr);
+      showToast(`狀態更新失敗: ${updateErr}`, "error");
       setProcessing(null);
       return;
     }
@@ -271,9 +273,10 @@ export default function FilmsReviewPage() {
     value: boolean
   ) {
     setProcessing(id + field);
-    const { error } = await supabase.from("films").update({ [field]: value }).eq("id", id);
-    if (error) {
-      showToast(`更新失敗: ${error.message}`, "error");
+    const { error: toggleErr } = await adminToggleFilmField(id, field, value);
+    if (toggleErr) {
+      console.error("【adminToggleFilmField 致命錯誤】:", toggleErr);
+      showToast(`更新失敗: ${toggleErr}`, "error");
     } else {
       const labels: Record<string, string> = {
         is_feed_published: "Feed",
