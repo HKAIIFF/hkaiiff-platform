@@ -87,7 +87,7 @@ export async function POST(req: Request) {
         studio:         studio_name,
         tech_stack,
         ai_ratio:       parseInt(ai_ratio),
-        synopsis,
+        description:    synopsis,
         core_cast:      core_cast || null,
         region:         region || null,
         lbs_royalty:    lbs_royalty != null ? parseFloat(lbs_royalty) : null,
