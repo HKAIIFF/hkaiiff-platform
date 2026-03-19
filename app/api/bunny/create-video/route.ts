@@ -17,11 +17,14 @@ import { NextResponse } from 'next/server';
 import { createBunnyVideo } from '@/lib/bunnyStream';
 
 export const dynamic = 'force-dynamic';
+export const runtime  = 'nodejs';
 
 export async function POST(req: Request) {
+  console.log('[POST /api/bunny/create-video] 路由被正確呼叫 ✓');
   try {
     const body = await req.json() as { title?: string };
     const videoTitle = body.title?.trim() || 'Untitled';
+    console.log(`[create-video] title="${videoTitle}"`);
 
     const libraryId  = process.env.BUNNY_LIBRARY_ID;
     const accessKey  = process.env.BUNNY_API_KEY;
@@ -29,20 +32,22 @@ export async function POST(req: Request) {
       process.env.BUNNY_CDN_HOSTNAME ||
       process.env.NEXT_PUBLIC_BUNNY_CDN_HOSTNAME;
 
+    console.log(`[create-video] env check: libraryId=${!!libraryId}, apiKey=${!!accessKey}, cdn=${!!cdnHostname}`);
+
     if (!libraryId || !accessKey || !cdnHostname) {
-      console.error('[create-video] 缺少 Bunny 环境变量');
+      console.error('[create-video] 缺少 Bunny 環境變量');
       return NextResponse.json(
-        { error: 'Bunny 服务配置缺失，请联系管理员' },
+        { error: 'Bunny 服務配置缺失，請聯繫管理員' },
         { status: 500 },
       );
     }
 
-    // 在 Bunny 创建空视频占位符，仅传标题（极小请求，不经过文件内容）
+    // 在 Bunny 創建空視頻占位符，僅傳標題（不包含文件内容）
     const videoId = await createBunnyVideo(videoTitle);
 
     const uploadUrl = `https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`;
 
-    console.log(`[create-video] 占位符已创建: videoId=${videoId}, title="${videoTitle}"`);
+    console.log(`[create-video] ✓ 占位符已創建: videoId=${videoId}, uploadUrl=${uploadUrl}`);
 
     return NextResponse.json({
       success:     true,
@@ -53,7 +58,7 @@ export async function POST(req: Request) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error('[create-video] 错误:', message);
+    console.error('[create-video] 錯誤:', message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
