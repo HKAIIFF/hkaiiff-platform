@@ -272,90 +272,102 @@ function UploadContent() {
     setStep(2);
   };
 
-  // ── 視頻直傳 Bunny（完全繞過 Vercel，無 4.5 MB 限制）───────────────────
+  // ══════════════════════════════════════════════════════════════════════════
+  // 視頻直傳 Bunny Stream（瀏覽器 → Bunny CDN，完全不經過 Vercel）
   //
   // 流程：
-  //   1. 調用 /api/bunny/create-video → 服務端在 Bunny 建立空占位符並回傳直傳憑證
-  //   2. 前端用 XMLHttpRequest 直接 PUT 二進位流到 Bunny API（不經過 Vercel）
-  //   3. XHR upload.onprogress 實時更新進度條
-  //   4. 回傳組裝好的 HLS 播放地址
-  //
+  //   Step 1  POST /api/upload/video-credential
+  //           服務端調用 Bunny API 創建空占位符，返回 videoId + uploadUrl + accessKey
+  //   Step 2  XHR PUT <file binary> 直接到 uploadUrl
+  //           AccessKey header 由服務端下發，前端不硬編碼任何密鑰
+  //   Step 3  成功後返回 HLS URL：https://<cdnHostname>/<videoId>/playlist.m3u8
+  // ══════════════════════════════════════════════════════════════════════════
   const uploadVideoDirectly = (
     file: File,
     title?: string,
     statusLabel?: string,
-  ): Promise<string> => new Promise(async (resolve, reject) => {
-    try {
-      // ── Step 1: 向服務端申請 Video ID 和直傳憑證 ────────────────────────
-      console.log(`[upload] uploadVideoDirectly: name="${file.name}", size=${file.size}, type="${file.type || '(empty)'}"`);
+  ): Promise<string> => new Promise((resolve, reject) => {
+    (async () => {
+      // ── Step 1: 申請上傳憑證 ───────────────────────────────────────────────
+      console.log(`[upload] 開始直傳：name="${file.name}", size=${file.size}, type="${file.type || 'unknown'}"`);
 
-      const credRes = await fetch('/api/bunny/create-video', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title || file.name }),
-      });
-      const credCt = credRes.headers.get('content-type') ?? '';
-      let cred: { success?: boolean; error?: string; videoId?: string; uploadUrl?: string; accessKey?: string; cdnHostname?: string } = {};
-      if (credCt.includes('application/json')) {
-        cred = await credRes.json();
-      } else {
-        const text = await credRes.text();
-        throw new Error(`申請直傳憑證失敗（HTTP ${credRes.status}）：${text.slice(0, 200)}`);
+      let credRes: Response;
+      try {
+        credRes = await fetch('/api/upload/video-credential', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ title: title || file.name }),
+        });
+      } catch (networkErr) {
+        throw new Error(`無法連接上傳服務：${(networkErr as Error).message}`);
       }
-      if (!cred.success || !cred.videoId || !cred.uploadUrl || !cred.accessKey) {
-        throw new Error(cred.error ?? '無法取得 Bunny 直傳憑證');
+
+      // 安全解析響應
+      const ct = credRes.headers.get('content-type') ?? '';
+      if (!ct.includes('application/json')) {
+        const raw = await credRes.text();
+        throw new Error(`獲取上傳憑證失敗（HTTP ${credRes.status}）：${raw.slice(0, 300)}`);
       }
+
+      const cred = await credRes.json() as {
+        success?:     boolean;
+        error?:       string;
+        videoId?:     string;
+        uploadUrl?:   string;
+        accessKey?:   string;
+        cdnHostname?: string;
+      };
+
+      if (!credRes.ok || !cred.success) {
+        throw new Error(cred.error ?? `獲取上傳憑證失敗（HTTP ${credRes.status}）`);
+      }
+      if (!cred.videoId || !cred.uploadUrl || !cred.accessKey || !cred.cdnHostname) {
+        throw new Error(`憑證字段不完整：${JSON.stringify({ videoId: !!cred.videoId, uploadUrl: !!cred.uploadUrl, accessKey: !!cred.accessKey, cdn: !!cred.cdnHostname })}`);
+      }
+
       const { videoId, uploadUrl, accessKey, cdnHostname } = cred as Required<typeof cred>;
-      console.log(`[upload] 憑證取得成功，videoId=${videoId}，uploadUrl=${uploadUrl}`);
+      console.log(`[upload] 憑證就緒：videoId=${videoId}`);
 
-      // ── Step 2: XHR 直接 PUT 到 Bunny（不經過 Vercel）─────────────────
+      // ── Step 2: XHR PUT 二進制流直傳到 Bunny ──────────────────────────────
       const xhr = new XMLHttpRequest();
       xhr.open('PUT', uploadUrl);
       xhr.setRequestHeader('AccessKey', accessKey);
       xhr.setRequestHeader('Content-Type', 'application/octet-stream');
 
-      // 實時進度更新
       xhr.upload.onprogress = (e) => {
         if (!e.lengthComputable) return;
         const pct = Math.round((e.loaded / e.total) * 100);
-        console.log(`[upload] Bunny 直傳進度: ${pct}%`);
+        console.log(`[upload] 進度 ${pct}%`);
         if (statusLabel) setUploadStatus(`${statusLabel} ${pct}%...`);
       };
 
       xhr.onload = () => {
         if (xhr.status >= 200 && xhr.status < 300) {
           const hlsUrl = `https://${cdnHostname}/${videoId}/playlist.m3u8`;
-          console.log(`[upload] Bunny 直傳完成，HLS=${hlsUrl}`);
+          console.log(`[upload] 直傳完成 ✓  HLS=${hlsUrl}`);
           resolve(hlsUrl);
         } else {
-          console.error(`[upload] Bunny PUT 失敗：HTTP ${xhr.status}，body="${xhr.responseText.slice(0, 300)}"`);
-          reject(new Error(`影片上傳失敗（HTTP ${xhr.status}）：${xhr.responseText.slice(0, 200) || '未知錯誤'}`));
+          const body = xhr.responseText.slice(0, 300);
+          console.error(`[upload] Bunny PUT 失敗 HTTP ${xhr.status}: ${body}`);
+          reject(new Error(`影片上傳失敗（HTTP ${xhr.status}）：${body || '未知錯誤'}`));
         }
       };
-
-      xhr.onerror = () => {
-        console.error('[upload] Bunny 直傳網絡錯誤');
-        reject(new Error('影片上傳網絡錯誤，請檢查網絡後重試'));
-      };
-
-      xhr.ontimeout = () => {
-        reject(new Error('影片上傳超時，請稍後重試'));
-      };
+      xhr.onerror   = () => reject(new Error('影片上傳時發生網絡錯誤，請檢查網絡後重試'));
+      xhr.ontimeout = () => reject(new Error('影片上傳超時，請稍後重試'));
 
       xhr.send(file);
-    } catch (err) {
-      reject(err);
-    }
+    })().catch(reject);
   });
 
-  // ── 統一上傳入口：視頻 → TUS 直傳 Bunny（繞過 Vercel），圖片 → 服務端代理 R2 ──
+  // ── 統一上傳入口 ──────────────────────────────────────────────────────────
+  // 視頻  → uploadVideoDirectly()  （瀏覽器直傳 Bunny，不經過 Vercel）
+  // 圖片  → fetch('/api/upload')   （服務端代理到 Cloudflare R2，小文件安全）
   const uploadFile = async (file: File, title?: string, statusLabel?: string): Promise<string> => {
-    // 視頻檔案使用 TUS 直傳，完全繞過 Vercel 請求體限制
     if (isValidVideoFile(file)) {
       return uploadVideoDirectly(file, title, statusLabel);
     }
 
-    // 圖片 / 其他 → 服務端代理上傳至 Cloudflare R2
+    // 圖片 / 其他靜態資源 → 服務端代理至 Cloudflare R2
     const fd = new FormData();
     fd.append('file', file);
     if (title) fd.append('title', title);
@@ -367,32 +379,26 @@ function UploadContent() {
     try {
       res = await fetch('/api/upload', {
         method: 'POST',
-        body: fd,
+        body:   fd,
         signal: controller.signal,
       });
     } catch (err) {
-      if ((err as Error)?.name === 'AbortError') {
-        throw new Error(`上传超时（${file.name}），请检查网络连接后重试`);
-      }
+      if ((err as Error)?.name === 'AbortError') throw new Error(`上傳超時（${file.name}），請檢查網絡後重試`);
       throw err;
     } finally {
       clearTimeout(timer);
     }
 
-    // 安全解析：先检查 Content-Type，防止 413 / nginx 错误页导致 JSON.parse 崩溃
     const ct = res.headers.get('content-type') ?? '';
     let data: { success?: boolean; error?: string; url?: string } = {};
     if (ct.includes('application/json')) {
       data = await res.json();
     } else {
       const text = await res.text();
-      if (res.status === 413 || text.includes('Request Entity Too Large') || text.includes('Too Large')) {
-        throw new Error(`檔案過大，上傳被伺服器拒絕（413）。請確認檔案大小符合要求。`);
-      }
       throw new Error(`伺服器回傳非預期格式（HTTP ${res.status}）：${text.slice(0, 300)}`);
     }
     if (!res.ok || !data.success) {
-      throw new Error(data.error ?? `上传失败 (${file.name})`);
+      throw new Error(data.error ?? `上傳失敗（${file.name}）`);
     }
     return data.url as string;
   };

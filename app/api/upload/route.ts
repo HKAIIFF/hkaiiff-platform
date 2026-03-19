@@ -1,104 +1,51 @@
 /**
  * POST /api/upload
  *
- * 智能分流上传枢纽
+ * 靜態資源上傳代理：圖片 / PDF / 其他 → Cloudflare R2
  *
- * 接收前端 FormData，根据文件类型自动路由：
- *  - video/*  → Bunny Stream（服务端直接上传，返回 .m3u8 HLS 地址）
- *  - 其他类型  → Cloudflare R2（返回公共 CDN 免流 URL）
+ * 注意：視頻文件直接由瀏覽器 PUT 到 Bunny（見 /api/upload/video-credential），
+ *       本路由不再處理任何視頻，避免觸發 Vercel 4.5 MB 請求體限制。
  *
  * FormData 字段：
- *  file   {File}    必填，待上传文件
- *  title  {string}  可选，视频标题（仅 video/* 时使用）
+ *   file  {File}  必填，待上傳靜態資源（圖片 / PDF 等）
  *
- * 响应：
- *  { success: true, url: string, type: "video" | "image" }
+ * 響應：{ success: true, url: string }
  */
 
 import { NextResponse } from 'next/server';
 import { uploadFileToR2 } from '@/lib/cloudflareR2';
-import { createBunnyVideo, uploadToBunny, getBunnyHlsUrl } from '@/lib/bunnyStream';
 
 export const dynamic = 'force-dynamic';
-
-// Vercel Pro 最长函数执行时间（处理大视频文件）
-export const maxDuration = 300;
-
-/** 根据文件名扩展名判断是否为视频（用于 MIME type 为空或异常时的兜底检测） */
-function isVideoByExtension(filename: string): boolean {
-  return /\.(mp4|mov|webm|avi|mkv|m4v|qt|wmv|flv|3gp)$/i.test(filename);
-}
 
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
-    const title = (formData.get('title') as string | null) ?? undefined;
 
     if (!file) {
       return NextResponse.json({ error: '缺少必要字段：file' }, { status: 400 });
     }
 
-    // 打印收到的 file 对象详情，用于调试 MIME type / 路由问题
     console.log(`[/api/upload] 收到文件: name="${file.name}", size=${file.size}, type="${file.type}"`);
 
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    // 支持 MIME type 为空（部分 macOS .mov 文件）时以扩展名兜底
-    const isVideo = file.type.startsWith('video/') || isVideoByExtension(file.name);
-    console.log(`[/api/upload] isVideo=${isVideo}（type="${file.type}", ext检测=${isVideoByExtension(file.name)}）`);
+    // 50s 超時保護
+    const r2Timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Cloudflare R2 上傳超時，請重試')), 50_000),
+    );
 
-    if (isVideo) {
-      // ── 视频 → Bunny Stream ────────────────────────────────────────────────
-      const videoTitle = title?.trim() || file.name || 'Untitled';
-      console.log(`[/api/upload] 视频分流 → Bunny Stream，title="${videoTitle}"，size=${buffer.byteLength}，originalType="${file.type}"`);
+    const url = await Promise.race([
+      uploadFileToR2(buffer, file.name, file.type || 'application/octet-stream'),
+      r2Timeout,
+    ]);
 
-      // 使用 AbortController 实现 120 秒超时（setTimeout+throw 在异步上下文中无效）
-      const BUNNY_TIMEOUT_MS = 120_000;
-      const controller = new AbortController();
-      const bunnyTimer = setTimeout(() => {
-        console.warn('[/api/upload] Bunny 上传超时，正在中止请求...');
-        controller.abort();
-      }, BUNNY_TIMEOUT_MS);
+    console.log(`[/api/upload] R2 上傳完成: url=${url}`);
+    return NextResponse.json({ success: true, url });
 
-      let guid: string;
-      try {
-        guid = await createBunnyVideo(videoTitle, controller.signal);
-        await uploadToBunny(guid, buffer, controller.signal);
-      } catch (err) {
-        const errMsg = err instanceof Error ? err.message : String(err);
-        console.error('[/api/upload] Bunny 上传失败：', errMsg);
-        return NextResponse.json(
-          { error: `视频上传失败：${errMsg}` },
-          { status: 500 },
-        );
-      } finally {
-        clearTimeout(bunnyTimer);
-      }
-      const hlsUrl = getBunnyHlsUrl(guid);
-
-      console.log(`[/api/upload] Bunny 上传完成，guid=${guid}，HLS=${hlsUrl}`);
-      return NextResponse.json({ success: true, url: hlsUrl, type: 'video', guid });
-    } else {
-      // ── 图片 / PDF / 其他 → Cloudflare R2 ────────────────────────────────
-      console.log(`[/api/upload] 静态文件分流 → R2，name="${file.name}"，type=${file.type}，size=${buffer.byteLength}`);
-
-      // R2 上传超时 50s
-      const r2Timeout = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Cloudflare R2 上传超时，请检查网络或 R2 凭证配置')), 50_000)
-      );
-
-      const url = await Promise.race([
-        uploadFileToR2(buffer, file.name, file.type || 'application/octet-stream'),
-        r2Timeout,
-      ]);
-
-      console.log(`[/api/upload] R2 上传完成，url=${url}`);
-      return NextResponse.json({ success: true, url, type: 'image' });
-    }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error('[/api/upload] 上传失败：', message);
+    console.error('[/api/upload] 上傳失敗:', message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
