@@ -1033,6 +1033,25 @@ function MePageContent() {
                 );
               })()}
             </h2>
+            {/* 加V認證標識：已通過任意身份認證時顯示 */}
+            {((dbProfile?.verified_identities?.length ?? 0) > 0 || dbProfile?.verification_status === 'approved') && (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                className="w-5 h-5 shrink-0"
+                aria-label="已認證"
+              >
+                <circle cx="12" cy="12" r="12" fill="#1DA1F2" />
+                <polyline
+                  points="6 12 10 16 18 8"
+                  fill="none"
+                  stroke="#fff"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            )}
             {/* 多重身份認證徽章 */}
             {(dbProfile?.verified_identities ?? []).map((identity) => {
               const cfg = {
@@ -1129,7 +1148,7 @@ function MePageContent() {
       }
 
       {/* ── LBS Curator Entry Banner ───────────────────────────────────── */}
-      {(dbProfile?.verified_identities ?? []).includes('curator') && (
+      {(dbProfile?.verified_identities ?? []).some((id) => id === 'curator' || id === 'institution') && (
         <div className="mb-6">
           {/* 已上线影展横向滚动列表 */}
           {onlineLbsNodes.length > 0 && (
