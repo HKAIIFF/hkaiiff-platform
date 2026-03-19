@@ -452,8 +452,8 @@ export default function BatchReleasePage() {
       <div className="space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-bold text-neutral-900">① 上傳用戶信息表格</h3>
-            <p className="text-sm text-neutral-500 mt-0.5">每一行代表一個創作者帳號</p>
+            <h3 className="font-bold text-neutral-900">① 上傳用戶信息表格（可選）</h3>
+            <p className="text-sm text-neutral-500 mt-0.5">可選步驟，如無用戶信息可直接跳過，影片 email 將自動建立帳號</p>
           </div>
           <a
             href="/templates/users-template.csv"
@@ -512,7 +512,6 @@ export default function BatchReleasePage() {
         <div className="flex justify-end">
           <button
             className={BTN_PRIMARY}
-            disabled={usersData.length === 0}
             onClick={() => setStep(2)}
           >
             下一步 →
@@ -529,7 +528,7 @@ export default function BatchReleasePage() {
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-bold text-neutral-900">② 上傳影片信息表格</h3>
-            <p className="text-sm text-neutral-500 mt-0.5">email 欄位需與用戶表格一致</p>
+            <p className="text-sm text-neutral-500 mt-0.5">每行 email 將作為創作者標識，無需與用戶表格完全匹配</p>
           </div>
           <a
             href="/templates/films-template.csv"
@@ -547,9 +546,9 @@ export default function BatchReleasePage() {
           <p className="text-xs text-neutral-400 mt-1">支持 .csv 或 .xlsx 格式</p>
         </label>
 
-        {unlinkedFilms.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
-            ⚠️ {unlinkedFilms.length} 部影片的 email 在用戶表格中未找到匹配：{" "}
+        {usersData.length > 0 && unlinkedFilms.length > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-800">
+            ℹ️ {unlinkedFilms.length} 部影片的 email 未在用戶表格中找到匹配，將自動建立新帳號：{" "}
             {unlinkedFilms.map((f) => f.email).join("、")}
           </div>
         )}
@@ -584,7 +583,7 @@ export default function BatchReleasePage() {
                           {linked ? (
                             <span className="text-green-600 text-xs font-medium">✓ {f.email}</span>
                           ) : (
-                            <span className="text-amber-600 text-xs font-medium">⚠ {f.email}</span>
+                            <span className="text-neutral-500 text-xs font-medium">→ {f.email}</span>
                           )}
                         </td>
                         <td className={`${TD} font-mono text-xs text-neutral-400`}>{f.video_filename}</td>
