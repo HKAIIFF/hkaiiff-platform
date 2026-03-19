@@ -202,9 +202,22 @@ function UploadContent() {
     reader.readAsDataURL(file);
   };
 
+  /** 校验视频文件的 MIME type（兜底：若 type 为空则以扩展名判断） */
+  const isValidVideoFile = (file: File): boolean => {
+    const ACCEPTED_MIME = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-m4v', 'video/mov'];
+    const ACCEPTED_EXT  = /\.(mp4|mov|webm|m4v|qt)$/i;
+    return ACCEPTED_MIME.includes(file.type) || file.type.startsWith('video/') || ACCEPTED_EXT.test(file.name);
+  };
+
   const handleTrailerChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     if (!file) return;
+    console.log(`[upload] handleTrailerChange: name="${file.name}", size=${file.size}, type="${file.type}"`);
+    if (!isValidVideoFile(file)) {
+      showToast('預告片格式不支援，請上傳 MP4、MOV 或 WebM 格式的影片。', 'error');
+      e.target.value = '';
+      return;
+    }
     if (file.size > 50 * 1024 * 1024) {
       showToast(t('err_trailer_size'), 'error');
       e.target.value = '';
@@ -220,6 +233,12 @@ function UploadContent() {
   const handleFilmChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     if (!file) return;
+    console.log(`[upload] handleFilmChange: name="${file.name}", size=${file.size}, type="${file.type}"`);
+    if (!isValidVideoFile(file)) {
+      showToast('影片格式不支援，請上傳 MP4、MOV 或 WebM 格式的影片。', 'error');
+      e.target.value = '';
+      return;
+    }
     if (file.size > 5 * 1024 * 1024 * 1024) {
       showToast(t('err_film_size'), 'error');
       e.target.value = '';
@@ -765,7 +784,7 @@ function UploadContent() {
                       <input
                         type="file"
                         className="hidden"
-                        accept="video/mp4,video/quicktime"
+                        accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
                         onChange={handleTrailerChange}
                       />
                       {trailerFile ? (
@@ -800,7 +819,7 @@ function UploadContent() {
                       <input
                         type="file"
                         className="hidden"
-                        accept="video/mp4,video/quicktime"
+                        accept="video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm"
                         onChange={handleFilmChange}
                       />
                       {filmFile ? (

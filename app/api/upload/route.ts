@@ -24,6 +24,11 @@ export const dynamic = 'force-dynamic';
 // Vercel Pro 最长函数执行时间（处理大视频文件）
 export const maxDuration = 300;
 
+/** 根据文件名扩展名判断是否为视频（用于 MIME type 为空或异常时的兜底检测） */
+function isVideoByExtension(filename: string): boolean {
+  return /\.(mp4|mov|webm|avi|mkv|m4v|qt|wmv|flv|3gp)$/i.test(filename);
+}
+
 export async function POST(req: Request) {
   try {
     const formData = await req.formData();
@@ -34,12 +39,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: '缺少必要字段：file' }, { status: 400 });
     }
 
+    // 打印收到的 file 对象详情，用于调试 MIME type / 路由问题
+    console.log(`[/api/upload] 收到文件: name="${file.name}", size=${file.size}, type="${file.type}"`);
+
     const buffer = Buffer.from(await file.arrayBuffer());
 
-    if (file.type.startsWith('video/')) {
+    // 支持 MIME type 为空（部分 macOS .mov 文件）时以扩展名兜底
+    const isVideo = file.type.startsWith('video/') || isVideoByExtension(file.name);
+    console.log(`[/api/upload] isVideo=${isVideo}（type="${file.type}", ext检测=${isVideoByExtension(file.name)}）`);
+
+    if (isVideo) {
       // ── 视频 → Bunny Stream ────────────────────────────────────────────────
       const videoTitle = title?.trim() || file.name || 'Untitled';
-      console.log(`[/api/upload] 视频分流 → Bunny Stream，title="${videoTitle}"，size=${buffer.byteLength}`);
+      console.log(`[/api/upload] 视频分流 → Bunny Stream，title="${videoTitle}"，size=${buffer.byteLength}，originalType="${file.type}"`);
 
       // 使用 AbortController 实现 120 秒超时（setTimeout+throw 在异步上下文中无效）
       const BUNNY_TIMEOUT_MS = 120_000;

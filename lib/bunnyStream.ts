@@ -60,6 +60,8 @@ export async function createBunnyVideo(title: string, signal?: AbortSignal): Pro
   const libraryId = getEnv('BUNNY_LIBRARY_ID');
   const url = `https://video.bunnycdn.com/library/${libraryId}/videos`;
 
+  console.log(`[BunnyStream] createBunnyVideo 调用: title="${title}", libraryId="${libraryId}", url="${url}"`);
+
   try {
     const res = await fetch(url, {
       method: 'POST',
@@ -108,6 +110,9 @@ export async function uploadToBunny(
 ): Promise<void> {
   const libraryId = getEnv('BUNNY_LIBRARY_ID');
   const url = `https://video.bunnycdn.com/library/${libraryId}/videos/${guid}`;
+
+  const bufferSize = fileBuffer instanceof Buffer ? fileBuffer.byteLength : fileBuffer.size;
+  console.log(`[BunnyStream] uploadToBunny 调用: guid="${guid}", bufferSize=${bufferSize} bytes (${(bufferSize / 1024 / 1024).toFixed(2)} MB), Content-Type="application/octet-stream", url="${url}"`);
 
   try {
     const apiKey = getEnv('BUNNY_API_KEY');
