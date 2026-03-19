@@ -12,6 +12,12 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  // 增大 Server Actions 及 API Route 的请求体上限（支持大视频文件上传）
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '500mb',
+    },
+  },
   images: {
     remotePatterns: [
       // ── Cloudflare R2 公共 CDN（图片、海报、认证文件等静态资源）─────────────

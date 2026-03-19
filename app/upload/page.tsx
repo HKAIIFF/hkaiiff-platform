@@ -299,7 +299,18 @@ function UploadContent() {
       clearTimeout(timer);
     }
 
-    const data = await res.json();
+    // 安全解析：先检查 Content-Type，防止 413 / nginx 错误页 导致 JSON.parse 崩溃
+    const ct = res.headers.get('content-type') ?? '';
+    let data: { success?: boolean; error?: string; url?: string } = {};
+    if (ct.includes('application/json')) {
+      data = await res.json();
+    } else {
+      const text = await res.text();
+      if (res.status === 413 || text.includes('Request Entity Too Large') || text.includes('Too Large')) {
+        throw new Error(`檔案過大，上傳被伺服器拒絕（413）。請確認影片大小符合要求，或嘗試壓縮後重新上傳。`);
+      }
+      throw new Error(`伺服器回傳非預期格式（HTTP ${res.status}）：${text.slice(0, 300)}`);
+    }
     if (!res.ok || !data.success) {
       throw new Error(data.error ?? `上传失败 (${file.name})`);
     }
@@ -384,7 +395,14 @@ function UploadContent() {
       }),
     });
 
-    const data = await dbRes.json();
+    const dbCt = dbRes.headers.get('content-type') ?? '';
+    let data: { success?: boolean; error?: string; film?: { id?: string } } = {};
+    if (dbCt.includes('application/json')) {
+      data = await dbRes.json();
+    } else {
+      const text = await dbRes.text();
+      throw new Error(`upload-film API 返回非 JSON 格式（HTTP ${dbRes.status}）：${text.slice(0, 300)}`);
+    }
     console.log('[upload] upload-film API 完整響應:', JSON.stringify({ success: data.success, filmId: data.film?.id, error: data.error }));
     if (!data.success) {
       const errMsg = data.error ?? 'Submission failed';
