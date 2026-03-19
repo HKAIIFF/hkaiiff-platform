@@ -9,6 +9,7 @@ import CyberLoading from '@/app/components/CyberLoading';
 import UniversalCheckout from '@/app/components/UniversalCheckout';
 import BackButton from '@/components/BackButton';
 import { useProduct } from '@/lib/hooks/useProduct';
+import { Upload as TusUpload } from 'tus-js-client';
 
 type Step = 1 | 2 | 'processing';
 
@@ -272,16 +273,87 @@ function UploadContent() {
     setStep(2);
   };
 
-  // ── 统一上传助手：调用 /api/upload 分流路由（含超时保护）─────────────────
-  const uploadFile = async (file: File, title?: string): Promise<string> => {
+  // ── 視頻直傳 Bunny（繞過 Vercel 4.5 MB 限制）────────────────────────────
+  //
+  // 流程：
+  //   1. 調用 /api/bunny/video-upload-token → 服務端建立 Bunny 占位符並回傳 HMAC 簽名
+  //   2. 前端使用 tus-js-client 直接 PUT 到 Bunny TUS 端點
+  //   3. 回傳組裝好的 HLS 播放地址
+  //
+  const uploadVideoDirectly = async (
+    file: File,
+    title?: string,
+    statusLabel?: string,
+  ): Promise<string> => {
+    // Step 1: 從服務端獲取 TUS 憑證
+    console.log(`[upload] uploadVideoDirectly: name="${file.name}", size=${file.size}, type="${file.type}"`);
+    const tokenRes = await fetch('/api/bunny/video-upload-token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: title || file.name }),
+    });
+    const tokenCt = tokenRes.headers.get('content-type') ?? '';
+    let tokenData: { success?: boolean; error?: string; guid?: string; libraryId?: string; signature?: string; expire?: number; cdnHostname?: string } = {};
+    if (tokenCt.includes('application/json')) {
+      tokenData = await tokenRes.json();
+    } else {
+      const text = await tokenRes.text();
+      throw new Error(`獲取上傳憑證失敗（HTTP ${tokenRes.status}）：${text.slice(0, 200)}`);
+    }
+    if (!tokenData.success || !tokenData.guid) {
+      throw new Error(tokenData.error ?? '無法取得 Bunny 上傳憑證');
+    }
+    const { guid, libraryId, signature, expire, cdnHostname } = tokenData as Required<typeof tokenData>;
+    console.log(`[upload] TUS 憑證取得成功，guid=${guid}`);
+
+    // Step 2: TUS 直傳至 Bunny
+    return new Promise<string>((resolve, reject) => {
+      const upload = new TusUpload(file, {
+        endpoint: 'https://video.bunnycdn.com/tusupload',
+        retryDelays: [0, 3000, 5000, 10000, 20000],
+        headers: {
+          AuthorizationSignature: signature,
+          AuthorizationExpire:    String(expire),
+          VideoId:                guid,
+          LibraryId:              libraryId,
+        },
+        metadata: {
+          filetype: file.type || 'video/mp4',
+          title:    title || file.name,
+        },
+        onError: (error) => {
+          console.error('[upload] TUS 上傳失敗:', error);
+          reject(new Error(`影片直傳失敗：${(error as Error).message || String(error)}`));
+        },
+        onProgress: (bytesUploaded, bytesTotal) => {
+          const pct = Math.round((bytesUploaded / bytesTotal) * 100);
+          console.log(`[upload] TUS 進度: ${pct}%`);
+          if (statusLabel) setUploadStatus(`${statusLabel} ${pct}%...`);
+        },
+        onSuccess: () => {
+          const hlsUrl = `https://${cdnHostname}/${guid}/playlist.m3u8`;
+          console.log(`[upload] TUS 上傳完成，HLS=${hlsUrl}`);
+          resolve(hlsUrl);
+        },
+      });
+      upload.start();
+    });
+  };
+
+  // ── 統一上傳入口：視頻 → TUS 直傳 Bunny（繞過 Vercel），圖片 → 服務端代理 R2 ──
+  const uploadFile = async (file: File, title?: string, statusLabel?: string): Promise<string> => {
+    // 視頻檔案使用 TUS 直傳，完全繞過 Vercel 請求體限制
+    if (isValidVideoFile(file)) {
+      return uploadVideoDirectly(file, title, statusLabel);
+    }
+
+    // 圖片 / 其他 → 服務端代理上傳至 Cloudflare R2
     const fd = new FormData();
     fd.append('file', file);
     if (title) fd.append('title', title);
 
-    // 图片 60s，视频 600s（10 分钟）
-    const timeoutMs = file.type.startsWith('video/') ? 600_000 : 60_000;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const timer = setTimeout(() => controller.abort(), 60_000);
 
     let res: Response;
     try {
@@ -299,7 +371,7 @@ function UploadContent() {
       clearTimeout(timer);
     }
 
-    // 安全解析：先检查 Content-Type，防止 413 / nginx 错误页 导致 JSON.parse 崩溃
+    // 安全解析：先检查 Content-Type，防止 413 / nginx 错误页导致 JSON.parse 崩溃
     const ct = res.headers.get('content-type') ?? '';
     let data: { success?: boolean; error?: string; url?: string } = {};
     if (ct.includes('application/json')) {
@@ -307,7 +379,7 @@ function UploadContent() {
     } else {
       const text = await res.text();
       if (res.status === 413 || text.includes('Request Entity Too Large') || text.includes('Too Large')) {
-        throw new Error(`檔案過大，上傳被伺服器拒絕（413）。請確認影片大小符合要求，或嘗試壓縮後重新上傳。`);
+        throw new Error(`檔案過大，上傳被伺服器拒絕（413）。請確認檔案大小符合要求。`);
       }
       throw new Error(`伺服器回傳非預期格式（HTTP ${res.status}）：${text.slice(0, 300)}`);
     }
@@ -333,13 +405,14 @@ function UploadContent() {
       throw err;
     }
 
-    // ── 预告片 → Bunny Stream HLS ─────────────────────────────────────────
+    // ── 预告片 → Bunny Stream（TUS 直傳）────────────────────────────────────
     setTrailerUploadStatus('uploading');
-    setUploadStatus('UPLOADING TRAILER TO BUNNY STREAM (HLS ENCODING)...');
+    setUploadStatus('UPLOADING TRAILER TO BUNNY STREAM (DIRECT TUS)...');
     let trailerUrl: string;
     try {
-      trailerUrl = await uploadFile(trailerFile!, `${formData.title} - Trailer`);
+      trailerUrl = await uploadFile(trailerFile!, `${formData.title} - Trailer`, 'UPLOADING TRAILER');
       setTrailerUploadStatus('success');
+      setUploadStatus('TRAILER UPLOAD COMPLETE ✓');
     } catch (err) {
       setTrailerUploadStatus('error');
       const msg = (err instanceof Error ? err.message : String(err)) || '预告片上传失败';
@@ -347,13 +420,14 @@ function UploadContent() {
       throw err;
     }
 
-    // ── 正片 → Bunny Stream HLS ──────────────────────────────────────────
+    // ── 正片 → Bunny Stream（TUS 直傳）──────────────────────────────────────
     setFilmUploadStatus('uploading');
-    setUploadStatus('UPLOADING FULL FILM TO BUNNY STREAM (THIS MAY TAKE A WHILE)...');
+    setUploadStatus('UPLOADING FULL FILM TO BUNNY STREAM (DIRECT TUS)...');
     let fullFilmUrl: string;
     try {
-      fullFilmUrl = await uploadFile(filmFile!, `${formData.title} - Full Film`);
+      fullFilmUrl = await uploadFile(filmFile!, `${formData.title} - Full Film`, 'UPLOADING FILM');
       setFilmUploadStatus('success');
+      setUploadStatus('FILM UPLOAD COMPLETE ✓');
     } catch (err) {
       setFilmUploadStatus('error');
       const msg = (err instanceof Error ? err.message : String(err)) || '正片上传失败';
