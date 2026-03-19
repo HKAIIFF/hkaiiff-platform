@@ -9,7 +9,6 @@ import CyberLoading from '@/app/components/CyberLoading';
 import UniversalCheckout from '@/app/components/UniversalCheckout';
 import BackButton from '@/components/BackButton';
 import { useProduct } from '@/lib/hooks/useProduct';
-import { Upload as TusUpload } from 'tus-js-client';
 
 type Step = 1 | 2 | 'processing';
 
@@ -273,72 +272,81 @@ function UploadContent() {
     setStep(2);
   };
 
-  // ── 視頻直傳 Bunny（繞過 Vercel 4.5 MB 限制）────────────────────────────
+  // ── 視頻直傳 Bunny（完全繞過 Vercel，無 4.5 MB 限制）───────────────────
   //
   // 流程：
-  //   1. 調用 /api/bunny/video-upload-token → 服務端建立 Bunny 占位符並回傳 HMAC 簽名
-  //   2. 前端使用 tus-js-client 直接 PUT 到 Bunny TUS 端點
-  //   3. 回傳組裝好的 HLS 播放地址
+  //   1. 調用 /api/bunny/create-video → 服務端在 Bunny 建立空占位符並回傳直傳憑證
+  //   2. 前端用 XMLHttpRequest 直接 PUT 二進位流到 Bunny API（不經過 Vercel）
+  //   3. XHR upload.onprogress 實時更新進度條
+  //   4. 回傳組裝好的 HLS 播放地址
   //
-  const uploadVideoDirectly = async (
+  const uploadVideoDirectly = (
     file: File,
     title?: string,
     statusLabel?: string,
-  ): Promise<string> => {
-    // Step 1: 從服務端獲取 TUS 憑證
-    console.log(`[upload] uploadVideoDirectly: name="${file.name}", size=${file.size}, type="${file.type}"`);
-    const tokenRes = await fetch('/api/bunny/video-upload-token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title: title || file.name }),
-    });
-    const tokenCt = tokenRes.headers.get('content-type') ?? '';
-    let tokenData: { success?: boolean; error?: string; guid?: string; libraryId?: string; signature?: string; expire?: number; cdnHostname?: string } = {};
-    if (tokenCt.includes('application/json')) {
-      tokenData = await tokenRes.json();
-    } else {
-      const text = await tokenRes.text();
-      throw new Error(`獲取上傳憑證失敗（HTTP ${tokenRes.status}）：${text.slice(0, 200)}`);
-    }
-    if (!tokenData.success || !tokenData.guid) {
-      throw new Error(tokenData.error ?? '無法取得 Bunny 上傳憑證');
-    }
-    const { guid, libraryId, signature, expire, cdnHostname } = tokenData as Required<typeof tokenData>;
-    console.log(`[upload] TUS 憑證取得成功，guid=${guid}`);
+  ): Promise<string> => new Promise(async (resolve, reject) => {
+    try {
+      // ── Step 1: 向服務端申請 Video ID 和直傳憑證 ────────────────────────
+      console.log(`[upload] uploadVideoDirectly: name="${file.name}", size=${file.size}, type="${file.type || '(empty)'}"`);
 
-    // Step 2: TUS 直傳至 Bunny
-    return new Promise<string>((resolve, reject) => {
-      const upload = new TusUpload(file, {
-        endpoint: 'https://video.bunnycdn.com/tusupload',
-        retryDelays: [0, 3000, 5000, 10000, 20000],
-        headers: {
-          AuthorizationSignature: signature,
-          AuthorizationExpire:    String(expire),
-          VideoId:                guid,
-          LibraryId:              libraryId,
-        },
-        metadata: {
-          filetype: file.type || 'video/mp4',
-          title:    title || file.name,
-        },
-        onError: (error) => {
-          console.error('[upload] TUS 上傳失敗:', error);
-          reject(new Error(`影片直傳失敗：${(error as Error).message || String(error)}`));
-        },
-        onProgress: (bytesUploaded, bytesTotal) => {
-          const pct = Math.round((bytesUploaded / bytesTotal) * 100);
-          console.log(`[upload] TUS 進度: ${pct}%`);
-          if (statusLabel) setUploadStatus(`${statusLabel} ${pct}%...`);
-        },
-        onSuccess: () => {
-          const hlsUrl = `https://${cdnHostname}/${guid}/playlist.m3u8`;
-          console.log(`[upload] TUS 上傳完成，HLS=${hlsUrl}`);
-          resolve(hlsUrl);
-        },
+      const credRes = await fetch('/api/bunny/create-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title || file.name }),
       });
-      upload.start();
-    });
-  };
+      const credCt = credRes.headers.get('content-type') ?? '';
+      let cred: { success?: boolean; error?: string; videoId?: string; uploadUrl?: string; accessKey?: string; cdnHostname?: string } = {};
+      if (credCt.includes('application/json')) {
+        cred = await credRes.json();
+      } else {
+        const text = await credRes.text();
+        throw new Error(`申請直傳憑證失敗（HTTP ${credRes.status}）：${text.slice(0, 200)}`);
+      }
+      if (!cred.success || !cred.videoId || !cred.uploadUrl || !cred.accessKey) {
+        throw new Error(cred.error ?? '無法取得 Bunny 直傳憑證');
+      }
+      const { videoId, uploadUrl, accessKey, cdnHostname } = cred as Required<typeof cred>;
+      console.log(`[upload] 憑證取得成功，videoId=${videoId}，uploadUrl=${uploadUrl}`);
+
+      // ── Step 2: XHR 直接 PUT 到 Bunny（不經過 Vercel）─────────────────
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', uploadUrl);
+      xhr.setRequestHeader('AccessKey', accessKey);
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+
+      // 實時進度更新
+      xhr.upload.onprogress = (e) => {
+        if (!e.lengthComputable) return;
+        const pct = Math.round((e.loaded / e.total) * 100);
+        console.log(`[upload] Bunny 直傳進度: ${pct}%`);
+        if (statusLabel) setUploadStatus(`${statusLabel} ${pct}%...`);
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          const hlsUrl = `https://${cdnHostname}/${videoId}/playlist.m3u8`;
+          console.log(`[upload] Bunny 直傳完成，HLS=${hlsUrl}`);
+          resolve(hlsUrl);
+        } else {
+          console.error(`[upload] Bunny PUT 失敗：HTTP ${xhr.status}，body="${xhr.responseText.slice(0, 300)}"`);
+          reject(new Error(`影片上傳失敗（HTTP ${xhr.status}）：${xhr.responseText.slice(0, 200) || '未知錯誤'}`));
+        }
+      };
+
+      xhr.onerror = () => {
+        console.error('[upload] Bunny 直傳網絡錯誤');
+        reject(new Error('影片上傳網絡錯誤，請檢查網絡後重試'));
+      };
+
+      xhr.ontimeout = () => {
+        reject(new Error('影片上傳超時，請稍後重試'));
+      };
+
+      xhr.send(file);
+    } catch (err) {
+      reject(err);
+    }
+  });
 
   // ── 統一上傳入口：視頻 → TUS 直傳 Bunny（繞過 Vercel），圖片 → 服務端代理 R2 ──
   const uploadFile = async (file: File, title?: string, statusLabel?: string): Promise<string> => {
@@ -407,7 +415,7 @@ function UploadContent() {
 
     // ── 预告片 → Bunny Stream（TUS 直傳）────────────────────────────────────
     setTrailerUploadStatus('uploading');
-    setUploadStatus('UPLOADING TRAILER TO BUNNY STREAM (DIRECT TUS)...');
+    setUploadStatus('UPLOADING TRAILER TO BUNNY STREAM (DIRECT PUT)...');
     let trailerUrl: string;
     try {
       trailerUrl = await uploadFile(trailerFile!, `${formData.title} - Trailer`, 'UPLOADING TRAILER');
@@ -422,7 +430,7 @@ function UploadContent() {
 
     // ── 正片 → Bunny Stream（TUS 直傳）──────────────────────────────────────
     setFilmUploadStatus('uploading');
-    setUploadStatus('UPLOADING FULL FILM TO BUNNY STREAM (DIRECT TUS)...');
+    setUploadStatus('UPLOADING FULL FILM TO BUNNY STREAM (DIRECT PUT)...');
     let fullFilmUrl: string;
     try {
       fullFilmUrl = await uploadFile(filmFile!, `${formData.title} - Full Film`, 'UPLOADING FILM');
