@@ -97,12 +97,13 @@ async function handleFilmEntryPaid(
     return;
   }
 
+  // status 值必须符合 films 表 CHECK 约束 ('pending','approved','rejected')
   const { error } = await db
     .from('films')
     .update({
       payment_status: 'paid',
       payment_method: 'stripe',
-      status: 'pending_review',
+      status: 'pending',
     })
     .eq('id', filmId)
     .eq('user_id', userId);

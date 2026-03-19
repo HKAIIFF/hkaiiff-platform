@@ -64,6 +64,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'productCode and userId are required' }, { status: 400 });
     }
 
+    console.log('【結帳頁面接收到的參數】:', { productCode, userId, extraMetadata });
+    if (productCode === 'film_entry') {
+      console.log('[stripe/product-checkout] filmId from extraMetadata:', extraMetadata?.filmId ?? '(缺失！)');
+    }
+
     if (userId !== verifiedUserId) {
       return NextResponse.json({ error: 'Unauthorized: userId mismatch' }, { status: 403 });
     }

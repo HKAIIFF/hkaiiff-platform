@@ -73,17 +73,17 @@ function UploadContent() {
     }
   }, [ready, authenticated, router]);
 
-  // ── URL 参数中的 film_id 格式校验 ─────────────────────────────────────────
-  // 若有 film_id 参数但不是合法 UUID，立即清除并提示
+  // ── URL 参数中的 film_id 格式校验（放宽：仅记录警告，不强制重定向）────────
   useEffect(() => {
     const filmId = searchParams.get('film_id');
-    console.log('[upload] film_id 校验 =>', filmId, '| isUUID =>', filmId ? UUID_REGEX.test(filmId) : 'n/a');
-    if (filmId && !UUID_REGEX.test(filmId)) {
-      console.warn('[upload] film_id 不是合法 UUID，已重置:', filmId);
-      showToast('film_id 参数格式错误，已重置', 'error');
-      router.replace('/upload');
+    const isUUID = filmId ? UUID_REGEX.test(filmId) : false;
+    console.log('[upload] film_id 校验 =>', filmId ?? '(无)', '| isUUID =>', filmId ? isUUID : 'n/a');
+    if (filmId && !isUUID) {
+      // 注意：film_id 不匹配标准 UUID 格式时只警告，不强制跳转
+      // Supabase gen_random_uuid() 应始终返回标准 UUID，但本地/测试环境可能不同
+      console.warn('[upload] film_id 不是标准 UUID 格式（已放宽校验，继续处理）:', filmId);
     }
-  }, [searchParams, router, showToast]);
+  }, [searchParams]);
 
   const [step, setStep] = useState<Step>(1);
   const [formData, setFormData] = useState({
@@ -366,12 +366,19 @@ function UploadContent() {
     });
 
     const data = await dbRes.json();
+    console.log('[upload] upload-film API 完整響應:', JSON.stringify({ success: data.success, filmId: data.film?.id, error: data.error }));
     if (!data.success) {
       const errMsg = data.error ?? 'Submission failed';
       console.error('[upload] upload-film API error:', errMsg);
       throw new Error(errMsg);
     }
-    return data.film.id as string;
+    const filmId = data.film?.id;
+    if (!filmId) {
+      console.error('[upload] film.id 為空！data.film:', JSON.stringify(data.film));
+      throw new Error('影片 ID 未能正確取得，請重試（錯誤碼：NULL_FILM_ID）');
+    }
+    console.log('[upload] ✓ film.id 獲取成功:', filmId);
+    return filmId as string;
   };
 
   // ── 上傳媒體 → 建立 DB 記錄 → 直接彈出結帳視窗（無中轉頁） ───────────────────

@@ -36,6 +36,17 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
+    console.log('【upload-film 接收到的參數】:', {
+      creator_id: body.creator_id,
+      title: body.title,
+      ai_ratio: body.ai_ratio,
+      has_poster: !!body.poster_url,
+      has_trailer: !!body.trailer_url,
+      has_film: !!body.full_film_url,
+      contact_email: body.contact_email ? '(已填寫)' : '(空)',
+      lbs_royalty: body.lbs_royalty,
+    });
+
     const { 
       creator_id, title, studio_name, tech_stack, ai_ratio, 
       synopsis, core_cast, region, lbs_royalty,
@@ -65,6 +76,8 @@ export async function POST(req: Request) {
 
     const userId = finalUserId.trim();
 
+    console.log('[upload-film] 準備插入 films 表, userId:', userId, '| title:', title, '| ai_ratio:', ai_ratio, '| has poster:', !!poster_url, '| has trailer:', !!trailer_url, '| has film:', !!full_film_url);
+
     // 插入影片记录：user_id 强制绑定已验证 userId，初始状态为待支付
     const { data: film, error: filmError } = await adminSupabase
       .from('films')
@@ -74,7 +87,7 @@ export async function POST(req: Request) {
         studio:         studio_name,
         tech_stack,
         ai_ratio:       parseInt(ai_ratio),
-        description:    synopsis,
+        synopsis,
         core_cast:      core_cast || null,
         region:         region || null,
         lbs_royalty:    lbs_royalty != null ? parseFloat(lbs_royalty) : null,
@@ -90,7 +103,7 @@ export async function POST(req: Request) {
       .single();
 
     if (filmError) {
-      console.error('[UPLOAD API] Supabase filmError:', JSON.stringify(filmError));
+      console.error('[upload-film] Supabase insert 失敗 | code:', filmError.code, '| message:', filmError.message, '| details:', filmError.details, '| hint:', filmError.hint);
       // 将 Supabase 技术性错误转换为用户友好的提示
       const rawMessage = filmError.message ?? JSON.stringify(filmError);
       const userMessage = rawMessage.includes('string did not match') || rawMessage.includes('invalid input syntax')
@@ -103,6 +116,13 @@ export async function POST(req: Request) {
       throw new Error(userMessage);
     }
 
+    // 防禦性空值保護：確保 film 和 film.id 不為 null
+    if (!film || !film.id) {
+      console.error('[upload-film] film 或 film.id 為空！DB 返回:', JSON.stringify(film));
+      throw new Error('影片記錄創建後未能取得 ID，請重試（錯誤碼：NULL_FILM_ID）');
+    }
+
+    console.log('[upload-film] ✓ 影片記錄創建成功 | film.id:', film.id, '| payment_status: unpaid');
     // 交易流水由对应的支付 API（/api/stripe/checkout 或 /api/pay/aif）在支付确认后记录
     return NextResponse.json({ success: true, film });
   } catch (error: unknown) {

@@ -229,7 +229,8 @@ export async function POST(req: Request) {
       );
     }
 
-    console.log('[internal-checkout] productCode:', productCode, 'userId:', verifiedUserId, 'extraMetadata:', extraMetadata);
+    console.log('【結帳頁面接收到的參數】:', { productCode, userId: verifiedUserId, extraMetadata });
+    console.log('[internal-checkout] filmId from extraMetadata:', extraMetadata?.filmId ?? '(缺失！)');
 
     // ── Step 3: 從服務端 DB 取產品（防止前端偽造價格）───────────────────────
     const { data: product, error: productError } = await adminSupabase
