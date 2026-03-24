@@ -3162,7 +3162,7 @@ function ProdActivePill({ active }: { active: boolean }) {
   );
 }
 
-function FinProductsTab({ pushToast }: { pushToast: (s: string, ok?: boolean) => void }) {
+function FinProductsTab({ pushToast, adminFetch }: { pushToast: (s: string, ok?: boolean) => void; adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
   const [products, setProducts] = useState<PlatformProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -3611,7 +3611,7 @@ function FinInlineCopy({ text }: { text: string }) {
 
 // ─── 全局流水：主組件 ─────────────────────────────────────────────────────────
 
-function FinLedgerTab() {
+function FinLedgerTab({ adminFetch }: { adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
   const [rows, setRows] = useState<FinLedgerRow[]>([]);
   const [summary, setSummary] = useState<FinLedgerSummary>({ total_usd: 0, total_aif: 0, total_tx: 0 });
   const [loading, setLoading] = useState(true);
@@ -4510,7 +4510,7 @@ function TrLedgerTable({ rows, total, page, pageSize, loading, search, onSearch,
 
 // ─── Treasury: 主組件 ─────────────────────────────────────────────────────────
 
-function FinTreasuryTab({ t: _t }: { t: T }) {
+function FinTreasuryTab({ t: _t, adminFetch }: { t: T; adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
   const [stats, setStats] = useState<TrStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
   const [ledger, setLedger] = useState<TrLedger | null>(null);
@@ -5654,10 +5654,10 @@ export default function AdminPage() {
       case "ai:models": return <div className="flex flex-col items-center justify-center h-64 gap-4"><div className="text-4xl">🚧</div><p className="text-lg font-semibold text-neutral-600">功能開發中</p><p className="text-sm text-neutral-400">敬請期待，即將上線</p></div>;
       case "ai:prompts": return <div className="flex flex-col items-center justify-center h-64 gap-4"><div className="text-4xl">🚧</div><p className="text-lg font-semibold text-neutral-600">功能開發中</p><p className="text-sm text-neutral-400">敬請期待，即將上線</p></div>;
       case "ai:assembly": return <div className="flex flex-col items-center justify-center h-64 gap-4"><div className="text-4xl">🚧</div><p className="text-lg font-semibold text-neutral-600">功能開發中</p><p className="text-sm text-neutral-400">敬請期待，即將上線</p></div>;
-      case "fin:ledger": return <FinLedgerTab />;
-      case "fin:treasury": return <FinTreasuryTab t={t} />;
+      case "fin:ledger": return <FinLedgerTab adminFetch={boundAdminFetch} />;
+      case "fin:treasury": return <FinTreasuryTab t={t} adminFetch={boundAdminFetch} />;
       case "fin:settlement": return <FinSettlementTab t={t} pushToast={pushToast} />;
-      case "fin:products": return <FinProductsTab pushToast={pushToast} />;
+      case "fin:products": return <FinProductsTab pushToast={pushToast} adminFetch={boundAdminFetch} />;
       case "ops:assets": return <OpsAssetsTab t={t} pushToast={pushToast} />;
       case "ops:tower": return <OpsTowerTab t={t} pushToast={pushToast} />;
       case "ops:params": return <OpsParamsTab t={t} lang={lang} setLang={setLang} pushToast={pushToast} />;
