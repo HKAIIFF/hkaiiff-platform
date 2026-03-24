@@ -50,7 +50,7 @@ function StepIndicator({ current, total, labels }: { current: number; total: num
               {i + 1 < current ? <i className="fas fa-check text-[9px]" /> : i + 1}
             </div>
             <span className={`text-[8px] font-mono mt-1 tracking-wider whitespace-nowrap
-              ${i + 1 === current ? "text-signal" : i + 1 < current ? "text-gray-400" : "text-gray-700"}`}>
+              ${i + 1 === current ? "text-signal" : i + 1 < current ? "text-gray-200" : "text-gray-700"}`}>
               {labels[i]}
             </span>
           </div>
@@ -80,7 +80,7 @@ function ResubmitWarningModal({
         <h3 className="text-base font-heavy text-white mb-3">
           ⚠️ {lang === "zh" ? "重新提交將清除原認證" : "Resubmitting Will Clear Current Verification"}
         </h3>
-        <p className="text-[11px] font-mono text-gray-400 leading-relaxed mb-6">
+        <p className="text-[11px] font-mono text-gray-200 leading-relaxed mb-6">
           {lang === "zh"
             ? "重新提交認證將導致當前認證記錄失效，認證名稱將被釋放，需重新付費審核。確認繼續？"
             : "Resubmitting will invalidate your current verification record. Your verification name will be released and a new fee will be required. Continue?"}
@@ -88,7 +88,7 @@ function ResubmitWarningModal({
         <div className="flex gap-3">
           <button
             onClick={onCancel}
-            className="flex-1 py-2.5 border border-[#333] text-gray-400 font-mono text-xs tracking-widest rounded-xl hover:border-[#555] hover:text-white transition-all"
+            className="flex-1 py-2.5 border border-[#333] text-gray-200 font-mono text-xs tracking-widest rounded-xl hover:border-[#555] hover:text-white transition-all"
           >
             {lang === "zh" ? "取消" : "Cancel"}
           </button>
@@ -474,7 +474,7 @@ export default function VerificationPage() {
             </button>
             <button
               onClick={() => setActiveModal("lang")}
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-black/60 backdrop-blur border border-[#444] text-gray-300 hover:text-signal hover:border-signal transition-all shadow-lg"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-black/60 backdrop-blur border border-[#444] text-gray-100 hover:text-signal hover:border-signal transition-all shadow-lg"
             >
               <i className="fas fa-globe text-sm" />
             </button>
@@ -492,7 +492,7 @@ export default function VerificationPage() {
               <h2 className="font-heavy text-3xl text-white tracking-wider">
                 {lang === "zh" ? "審核中" : "UNDER REVIEW"}
               </h2>
-              <p className="font-mono text-[11px] text-gray-400 tracking-widest leading-relaxed max-w-xs">
+              <p className="font-mono text-[11px] text-gray-200 tracking-widest leading-relaxed max-w-xs">
                 {lang === "zh"
                   ? "您的認證申請已提交，審核團隊將在 3-5 個工作日內完成審核。"
                   : "Your application has been submitted. Our team will review it within 3-5 business days."}
@@ -512,7 +512,7 @@ export default function VerificationPage() {
                 {pendingApps.map((app) => (
                   <div key={app.id} className="bg-[#0d0d0d] border border-yellow-500/20 rounded-xl px-4 py-3 flex items-center justify-between">
                     <div className="text-left">
-                      <div className="text-[10px] font-mono text-gray-500 mb-0.5">
+                      <div className="text-[10px] font-mono text-gray-300 mb-0.5">
                         {typeLabel(app.identity_type)}
                       </div>
                       {app.verification_name && (
@@ -531,7 +531,7 @@ export default function VerificationPage() {
             {/* 重新提交按鈕（帶警告） */}
             <button
               onClick={() => setShowResubmitWarning(true)}
-              className="inline-flex items-center gap-2 px-6 py-2.5 border border-gray-700 text-gray-500 font-mono text-xs tracking-widest rounded-xl hover:border-red-500/50 hover:text-red-400 active:scale-95 transition-all"
+              className="inline-flex items-center gap-2 px-6 py-2.5 border border-gray-700 text-gray-300 font-mono text-xs tracking-widest rounded-xl hover:border-red-500/50 hover:text-red-400 active:scale-95 transition-all"
             >
               <i className="fas fa-redo text-[10px]" />
               {lang === "zh" ? "重新提交認證" : "Resubmit Verification"}
@@ -571,7 +571,7 @@ export default function VerificationPage() {
             </button>
             <button
               onClick={() => setActiveModal("lang")}
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-black/60 backdrop-blur border border-[#444] text-gray-300 hover:text-signal hover:border-signal transition-all shadow-lg"
+              className="w-10 h-10 flex items-center justify-center rounded-full bg-black/60 backdrop-blur border border-[#444] text-gray-100 hover:text-signal hover:border-signal transition-all shadow-lg"
             >
               <i className="fas fa-globe text-sm" />
             </button>
@@ -588,7 +588,7 @@ export default function VerificationPage() {
               <h2 className="font-heavy text-3xl text-white tracking-wider">
                 {lang === "zh" ? "認證已完成" : "VERIFIED"}
               </h2>
-              <p className="font-mono text-[11px] text-gray-400 tracking-widest leading-relaxed max-w-xs">
+              <p className="font-mono text-[11px] text-gray-200 tracking-widest leading-relaxed max-w-xs">
                 {lang === "zh"
                   ? "您的身份認證已通過，以下為已認證的身份資訊（只讀）。"
                   : "Your identity verification is approved. The information below is read-only."}
@@ -602,7 +602,7 @@ export default function VerificationPage() {
                 .map((app) => (
                   <div key={app.id} className="bg-[#0d0d0d] border border-signal/20 rounded-xl px-4 py-3 flex items-center justify-between">
                     <div className="text-left">
-                      <div className="text-[10px] font-mono text-gray-500 mb-0.5">
+                      <div className="text-[10px] font-mono text-gray-300 mb-0.5">
                         {typeLabel(app.identity_type)}
                       </div>
                       {app.verification_name && (
@@ -626,7 +626,7 @@ export default function VerificationPage() {
             {/* 重新提交按鈕（帶警告） */}
             <button
               onClick={() => setShowResubmitWarning(true)}
-              className="inline-flex items-center gap-2 px-6 py-2.5 border border-gray-700 text-gray-500 font-mono text-xs tracking-widest rounded-xl hover:border-red-500/50 hover:text-red-400 active:scale-95 transition-all"
+              className="inline-flex items-center gap-2 px-6 py-2.5 border border-gray-700 text-gray-300 font-mono text-xs tracking-widest rounded-xl hover:border-red-500/50 hover:text-red-400 active:scale-95 transition-all"
             >
               <i className="fas fa-redo text-[10px]" />
               {lang === "zh" ? "重新提交認證" : "Resubmit Verification"}
@@ -663,7 +663,7 @@ export default function VerificationPage() {
           )}
           <button
             onClick={() => setActiveModal("lang")}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-black/60 backdrop-blur border border-[#444] text-gray-300 hover:text-signal hover:border-signal transition-all shadow-lg"
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-black/60 backdrop-blur border border-[#444] text-gray-100 hover:text-signal hover:border-signal transition-all shadow-lg"
           >
             <i className="fas fa-globe text-sm" />
           </button>
@@ -694,7 +694,7 @@ export default function VerificationPage() {
 
             {/* Identity Type */}
             <div>
-              <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-3">
+              <label className="block text-[10px] font-mono text-gray-300 tracking-widest mb-3">
                 IDENTITY TYPE *
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -707,7 +707,7 @@ export default function VerificationPage() {
                       className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition-all relative
                         ${isSelected
                           ? "border-signal bg-signal/10 text-signal shadow-[0_0_12px_rgba(204,255,0,0.15)] active:scale-95"
-                          : "border-[#2a2a2a] bg-[#0d0d0d] text-gray-500 hover:border-[#444] active:scale-95"
+                          : "border-[#2a2a2a] bg-[#0d0d0d] text-gray-300 hover:border-[#444] active:scale-95"
                         }`}
                     >
                       <i className={`fas ${icon} text-xl`} />
@@ -722,7 +722,7 @@ export default function VerificationPage() {
 
             {/* Verification Name（= Display Name，全平台唯一） */}
             <div>
-              <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5">
+              <label className="block text-[10px] font-mono text-gray-300 tracking-widest mb-1.5">
                 <i className="fas fa-id-badge mr-1 text-signal" />
                 {lang === "zh" ? "認證名稱 (VERIFICATION NAME)" : "VERIFICATION NAME"}
                 <span className="text-red-500 ml-1">*</span>
@@ -747,7 +747,7 @@ export default function VerificationPage() {
 
             {/* Bio */}
             <div>
-              <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5">
+              <label className="block text-[10px] font-mono text-gray-300 tracking-widest mb-1.5">
                 <i className="fas fa-align-left mr-1 text-purple-400" />
                 BIO
                 <span className="text-gray-700 ml-2 normal-case tracking-normal text-[9px]">
@@ -771,7 +771,7 @@ export default function VerificationPage() {
 
             {/* About Studio */}
             <div>
-              <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5">
+              <label className="block text-[10px] font-mono text-gray-300 tracking-widest mb-1.5">
                 <i className="fas fa-building mr-1 text-blue-400" />
                 ABOUT STUDIO
                 <span className="text-gray-700 ml-2 normal-case tracking-normal text-[9px]">
@@ -795,7 +795,7 @@ export default function VerificationPage() {
 
             {/* Tech Stack */}
             <div>
-              <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5">
+              <label className="block text-[10px] font-mono text-gray-300 tracking-widest mb-1.5">
                 <i className="fas fa-code mr-1 text-green-400" />
                 TECH STACK
                 <span className="text-gray-700 ml-2 normal-case tracking-normal text-[9px]">
@@ -848,7 +848,7 @@ export default function VerificationPage() {
                 <span className="text-[9px] font-mono text-gray-600">{t("verify_doc_optional")}</span>
               </div>
 
-              <p className="text-[10px] font-mono text-gray-500 leading-relaxed mb-4">
+              <p className="text-[10px] font-mono text-gray-300 leading-relaxed mb-4">
                 {lang === "zh"
                   ? "支持格式：JPG、PNG、PDF。大小限制 5MB。可上傳機構認證書、個人簡歷等佐證材料。"
                   : "Accepted: JPG, PNG, PDF. Max 5MB. You may upload certificates, resumes, or other supporting materials."}
@@ -874,7 +874,7 @@ export default function VerificationPage() {
                   </div>
                   <button
                     onClick={() => { updateForm("docUrl", ""); updateForm("docFileName", ""); }}
-                    className="text-gray-500 hover:text-red-400 text-xs transition-colors shrink-0"
+                    className="text-gray-300 hover:text-red-400 text-xs transition-colors shrink-0"
                   >
                     <i className="fas fa-times" />
                   </button>
@@ -927,7 +927,7 @@ export default function VerificationPage() {
               {form.bio && (
                 <div className="flex items-start gap-2 text-xs">
                   <span className="text-gray-600 font-mono w-24 shrink-0">BIO</span>
-                  <span className="text-gray-400 font-mono line-clamp-2">{form.bio}</span>
+                  <span className="text-gray-200 font-mono line-clamp-2">{form.bio}</span>
                 </div>
               )}
             </div>
@@ -1005,13 +1005,13 @@ export default function VerificationPage() {
             {/* ── Back button ─────────────────────────────────────────────── */}
             <button
               onClick={() => setStep(1)}
-              className="w-full font-mono text-[9px] tracking-[0.4em] text-gray-400 hover:text-white transition-colors
+              className="w-full font-mono text-[9px] tracking-[0.4em] text-gray-200 hover:text-white transition-colors
                          flex items-center justify-center gap-1.5 py-2"
             >
               ← {t("btn_back")}
             </button>
 
-            <p className="font-mono text-[8px] tracking-[0.3em] text-gray-500 text-center">
+            <p className="font-mono text-[8px] tracking-[0.3em] text-gray-300 text-center">
               SECURED BY STRIPE &amp; SOLANA · HKAIIFF 2026
             </p>
           </div>
@@ -1026,7 +1026,7 @@ export default function VerificationPage() {
                   style={{ animationDelay: `${i * 0.12}s` }} />
               ))}
             </div>
-            <p className="font-mono text-xs text-gray-400 tracking-widest">
+            <p className="font-mono text-xs text-gray-200 tracking-widest">
               {lang === "zh" ? "處理中..." : "PROCESSING..."}
             </p>
           </div>

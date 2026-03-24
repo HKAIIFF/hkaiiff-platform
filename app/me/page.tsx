@@ -952,7 +952,7 @@ function MePageContent() {
         <button
           onClick={() => logout()}
           className="hidden md:flex w-8 h-8 rounded-full bg-[#111] border border-[#333] items-center justify-center
-                     text-gray-400 hover:text-white hover:border-signal transition-all cursor-pointer"
+                     text-gray-200 hover:text-white hover:border-signal transition-all cursor-pointer"
           title="Sign Out"
         >
           <i className="fas fa-sign-out-alt text-sm" />
@@ -974,7 +974,7 @@ function MePageContent() {
           {/* 編輯按鈕 → 無論是否鎖定均可點擊，進入 Modal 後看鎖定提示 */}
           <button
             onClick={openProfileModal}
-            className="w-8 h-8 rounded-full bg-[#111] border border-[#333] flex items-center justify-center text-gray-400 hover:text-signal hover:border-signal transition-colors"
+            className="w-8 h-8 rounded-full bg-[#111] border border-[#333] flex items-center justify-center text-gray-200 hover:text-signal hover:border-signal transition-colors"
             title="Edit Profile"
           >
             <i className="fas fa-edit text-xs" />
@@ -982,7 +982,7 @@ function MePageContent() {
           {/* 登出按鈕 */}
           <button
             onClick={() => logout()}
-            className="w-8 h-8 rounded-full bg-[#111] border border-[#333] flex items-center justify-center text-gray-400 hover:text-red-500 hover:border-red-500 transition-colors"
+            className="w-8 h-8 rounded-full bg-[#111] border border-[#333] flex items-center justify-center text-gray-200 hover:text-red-500 hover:border-red-500 transition-colors"
             title="Logout"
           >
             <i className="fas fa-sign-out-alt text-xs" />
@@ -1081,14 +1081,14 @@ function MePageContent() {
           </div>
           {(dbProfile?.verified_identities?.length ?? 0) === 0 && (
             <div className="mb-2 pr-14">
-              <span className="text-[9px] text-gray-400 font-mono tracking-wider uppercase">普通用戶</span>
+              <span className="text-[9px] text-gray-200 font-mono tracking-wider uppercase">普通用戶</span>
             </div>
           )}
           {/* Wallet address + Verify button — full width, no padding constraint */}
           <div className="flex flex-wrap items-center gap-2 mt-1">
             <button
               onClick={handleCopy}
-              className="flex items-center gap-2 bg-[#111] border border-[#333] px-3 py-1.5 rounded text-xs text-gray-400 hover:text-signal transition-colors"
+              className="flex items-center gap-2 bg-[#111] border border-[#333] px-3 py-1.5 rounded text-xs text-gray-200 hover:text-signal transition-colors"
             >
               <i className="fa-brands fa-solana text-signal" />
               <span className="font-mono ltr-force">
@@ -1121,7 +1121,7 @@ function MePageContent() {
                   {isVerifyLocked ? (
                     <button
                       disabled
-                      className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-neutral-800/60 text-gray-500 border border-gray-700/40 rounded-full px-4 py-1.5 opacity-50 cursor-not-allowed whitespace-nowrap"
+                      className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-neutral-800/60 text-gray-300 border border-gray-700/40 rounded-full px-4 py-1.5 opacity-50 cursor-not-allowed whitespace-nowrap"
                     >
                       <i className="fas fa-lock text-[8px]" />
                       {lang === 'zh' ? '認證中' : 'In Review'}
@@ -1260,7 +1260,7 @@ function MePageContent() {
                   <div className="font-heavy text-white text-sm tracking-wider">
                     {lang === 'zh' ? 'LBS 影展/影院' : 'LBS FESTIVAL / CINEMA'}
                   </div>
-                  <div className="text-[10px] text-gray-500 font-mono mt-0.5">
+                  <div className="text-[10px] text-gray-300 font-mono mt-0.5">
                     {lang === 'zh' ? '新建/提交 LBS 地理位置展映節點申請' : 'New LBS Geolocation Screening Node'}
                   </div>
                 </div>
@@ -1296,7 +1296,7 @@ function MePageContent() {
                   }`}
               />
               <span className={`font-mono text-[8px] tracking-widest transition-colors duration-500
-                ${isRealtimeConnected ? 'text-signal/60' : 'text-gray-500'}`}>
+                ${isRealtimeConnected ? 'text-signal/60' : 'text-gray-300'}`}>
                 {isRealtimeConnected ? 'LIVE' : 'CONNECTING'}
               </span>
             </span>
@@ -1310,7 +1310,7 @@ function MePageContent() {
             <span
               className={`text-4xl font-heavy ltr-force transition-colors duration-300
                 ${isProfileLoading
-                  ? 'text-gray-500'
+                  ? 'text-gray-300'
                   : aifFlash
                     ? 'text-signal drop-shadow-[0_0_10px_rgba(204,255,0,0.6)]'
                     : 'text-white'
@@ -1349,7 +1349,7 @@ function MePageContent() {
 
       {/* ── My Submissions ─────────────────────────────────────────────── */}
       <h3 className="font-heavy text-xl mb-4 border-b border-[#333] pb-2 text-white flex items-center gap-2">
-        <i className="fas fa-film text-gray-500" /> MY SUBMISSIONS
+        <i className="fas fa-film text-gray-300" /> MY SUBMISSIONS
         {mySubmissions.length > 0 && (
           <span className="ml-auto text-[10px] font-mono text-signal bg-signal/10 border border-signal/30 px-2 py-0.5 rounded">
             {mySubmissions.length} FILM{mySubmissions.length > 1 ? 'S' : ''}
@@ -1358,7 +1358,7 @@ function MePageContent() {
       </h3>
       <div className="mb-8">
         {mySubmissions.length === 0 ? (
-          <div className="text-center text-xs text-gray-500 font-mono py-8 border border-dashed border-[#333] rounded-xl">
+          <div className="text-center text-xs text-gray-300 font-mono py-8 border border-dashed border-[#333] rounded-xl">
             <i className="fas fa-film text-2xl mb-3 block text-gray-700" />
             No submissions yet. Mint your first film.
           </div>
@@ -1413,18 +1413,18 @@ function MePageContent() {
                     </div>
 
                     {/* 創作者 */}
-                    <div className="text-[10px] text-gray-500 font-mono truncate">
+                    <div className="text-[10px] text-gray-300 font-mono truncate">
                       {film?.studio || film?.core_cast || dbProfile?.display_name || '—'}
                     </div>
 
                     {/* 詳細時間 YYYYMMDD HH:mm */}
-                    <div className="text-[9px] font-mono text-gray-500 tracking-wider">
+                    <div className="text-[9px] font-mono text-gray-300 tracking-wider">
                       {film?.created_at ? formatDateTime(film.created_at) : '—'}
                     </div>
 
                     {/* 流水串號 + 一鍵複製 */}
                     <div className="flex items-center gap-1 pt-0.5">
-                      <span className="text-[9px] font-mono text-gray-500 flex-1 truncate tracking-wider">
+                      <span className="text-[9px] font-mono text-gray-300 flex-1 truncate tracking-wider">
                         #{(film?.id ?? '').slice(0, 8).toUpperCase()}
                       </span>
                       <button
@@ -1464,7 +1464,7 @@ function MePageContent() {
 
       {/* ── Interaction History ────────────────────────────────────────── */}
       <h3 className="font-heavy text-xl mb-4 border-b border-[#333] pb-2 text-white flex items-center gap-2">
-        <i className="fas fa-history text-gray-500" /> INTERACTION HISTORY
+        <i className="fas fa-history text-gray-300" /> INTERACTION HISTORY
       </h3>
       <div className="space-y-3 pb-4">
         {interactionHistory.length > 0 ? (
@@ -1488,13 +1488,13 @@ function MePageContent() {
                   Rendered via: {item.inject_type || 'Data'}
                 </div>
               </div>
-              <button className="text-gray-500 hover:text-white">
+              <button className="text-gray-300 hover:text-white">
                 <i className="fas fa-play-circle text-2xl" />
               </button>
             </div>
           ))
         ) : (
-          <div className="text-center text-xs text-gray-500 font-mono py-8 border border-dashed border-[#333] rounded-xl">
+          <div className="text-center text-xs text-gray-300 font-mono py-8 border border-dashed border-[#333] rounded-xl">
             No interactions yet. Inject data to render universes.
           </div>
         )}
@@ -1515,7 +1515,7 @@ function MePageContent() {
             <button
               onClick={() => setSelectedFilm(null)}
               className="absolute -top-3 -right-3 z-20 w-9 h-9 bg-black border border-[#333] rounded-full
-                         flex items-center justify-center text-gray-400 hover:text-white hover:border-[#CCFF00]
+                         flex items-center justify-center text-gray-200 hover:text-white hover:border-[#CCFF00]
                          active:scale-90 transition-all"
             >
               <i className="fas fa-times text-sm" />
@@ -1571,17 +1571,17 @@ function MePageContent() {
                     className="text-center leading-relaxed relative z-10 mb-5"
                     style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}
                   >
-                    <p className="text-gray-400 text-sm">This is to certify that the AI-Native Film</p>
+                    <p className="text-gray-200 text-sm">This is to certify that the AI-Native Film</p>
                     <p className="text-white text-xl font-bold my-3 uppercase tracking-wide leading-snug">
                       {selectedFilm?.title || 'UNTITLED'}
                     </p>
-                    <p className="text-gray-400 text-sm">
+                    <p className="text-gray-200 text-sm">
                       submitted by{' '}
                       <span className="text-[#CCFF00]">
                         {selectedFilm?.studio || dbProfile?.display_name || 'Unknown Studio'}
                       </span>
                     </p>
-                    <p className="text-gray-400 text-sm mt-2">
+                    <p className="text-gray-200 text-sm mt-2">
                       has been officially selected and approved by the
                     </p>
                     <p className="text-white font-semibold text-sm mt-1">
@@ -1592,11 +1592,11 @@ function MePageContent() {
                   {/* 關鍵數據網格 */}
                   <div className="grid grid-cols-3 gap-2 relative z-10 mb-5">
                     <div className="bg-black/40 border border-[#D4AF37]/20 rounded-lg p-2 text-center">
-                      <div className="text-[8px] font-mono text-gray-500 tracking-widest mb-1">AI RATIO</div>
+                      <div className="text-[8px] font-mono text-gray-300 tracking-widest mb-1">AI RATIO</div>
                       <div className="text-[#CCFF00] font-bold text-base">{selectedFilm?.ai_ratio ?? 0}%</div>
                     </div>
                     <div className="bg-black/40 border border-[#D4AF37]/20 rounded-lg p-2 text-center">
-                      <div className="text-[8px] font-mono text-gray-500 tracking-widest mb-1">TECH STACK</div>
+                      <div className="text-[8px] font-mono text-gray-300 tracking-widest mb-1">TECH STACK</div>
                       <div className="text-white font-mono text-[9px] leading-tight">
                         {selectedFilm?.tech_stack
                           ? (Array.isArray(selectedFilm.tech_stack)
@@ -1606,7 +1606,7 @@ function MePageContent() {
                       </div>
                     </div>
                     <div className="bg-black/40 border border-[#D4AF37]/20 rounded-lg p-2 text-center">
-                      <div className="text-[8px] font-mono text-gray-500 tracking-widest mb-1">DATE</div>
+                      <div className="text-[8px] font-mono text-gray-300 tracking-widest mb-1">DATE</div>
                       <div className="text-white font-mono text-[9px]">
                         {selectedFilm?.created_at
                           ? new Date(selectedFilm.created_at).toLocaleDateString('en-GB', { year: 'numeric', month: 'short', day: 'numeric' })
@@ -1714,13 +1714,13 @@ function MePageContent() {
                         <i className="fas fa-hourglass-half text-yellow-500 text-xl animate-pulse" />
                       </div>
                       <div className="text-yellow-500 font-heavy tracking-widest text-sm">UNDER REVIEW</div>
-                      <p className="text-gray-500 text-xs font-mono leading-relaxed">
+                      <p className="text-gray-300 text-xs font-mono leading-relaxed">
                         Your submission is being reviewed by the HKAIIFF jury. You will be notified once a decision is made.
                       </p>
                     </div>
                   )}
 
-                  <div className="text-[9px] font-mono text-gray-500 text-center pt-1">
+                  <div className="text-[9px] font-mono text-gray-300 text-center pt-1">
                     SUBMITTED · {selectedFilm?.created_at
                       ? new Date(selectedFilm.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
                       : '—'}
@@ -1759,7 +1759,7 @@ function MePageContent() {
               <button
                 onClick={() => setIsTopUpOpen(false)}
                 className="w-9 h-9 bg-[#111] border border-[#2a2a2a] rounded-full flex items-center justify-center
-                           text-gray-400 hover:text-white hover:border-signal active:scale-90 transition-all"
+                           text-gray-200 hover:text-white hover:border-signal active:scale-90 transition-all"
               >
                 <i className="fas fa-times text-sm" />
               </button>
@@ -1808,7 +1808,7 @@ function MePageContent() {
                             level="M"
                           />
                         </div>
-                        <div className="text-[9px] font-mono text-gray-500 tracking-wider">
+                        <div className="text-[9px] font-mono text-gray-300 tracking-wider">
                           SCAN WITH PHANTOM / ANY SOLANA WALLET
                         </div>
                       </>
@@ -1854,7 +1854,7 @@ function MePageContent() {
                                      transition-all active:scale-90
                                      ${isCopied
                                        ? 'bg-signal/20 border-signal text-signal shadow-[0_0_12px_rgba(204,255,0,0.3)]'
-                                       : 'bg-[#111] border-[#333] text-gray-400 hover:border-signal hover:text-signal'
+                                       : 'bg-[#111] border-[#333] text-gray-200 hover:border-signal hover:text-signal'
                                      }`}
                           title="Copy address"
                         >
@@ -1927,7 +1927,7 @@ function MePageContent() {
               </div>
               <button
                 onClick={closeProfileModal}
-                className="w-9 h-9 bg-[#111] border border-[#333] rounded-full flex items-center justify-center text-gray-400 hover:text-white hover:border-signal active:scale-90 transition-all"
+                className="w-9 h-9 bg-[#111] border border-[#333] rounded-full flex items-center justify-center text-gray-200 hover:text-white hover:border-signal active:scale-90 transition-all"
               >
                 <i className="fas fa-times text-sm" />
               </button>
@@ -1986,9 +1986,9 @@ function MePageContent() {
                         </div>
                       </div>
                       <div className="flex flex-col gap-2">
-                        <div className="text-[10px] font-mono text-gray-500">AVATAR SEED</div>
+                        <div className="text-[10px] font-mono text-gray-300">AVATAR SEED</div>
                         <div className="flex items-center gap-2">
-                          <div className={`font-mono text-xs px-2 py-1 rounded tracking-widest ${isAvatarLocked ? 'text-gray-500 bg-gray-800/40 border border-gray-700/30' : 'text-signal bg-signal/10 border border-signal/20'}`}>
+                          <div className={`font-mono text-xs px-2 py-1 rounded tracking-widest ${isAvatarLocked ? 'text-gray-300 bg-gray-800/40 border border-gray-700/30' : 'text-signal bg-signal/10 border border-signal/20'}`}>
                             {editAvatarSeed.substring(0, 10)}
                           </div>
                           <button
@@ -2025,7 +2025,7 @@ function MePageContent() {
                       : '認證審核中，暫不可修改';
                   return (
                     <div>
-                      <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5 flex items-center gap-1.5">
+                      <label className="block text-[10px] font-mono text-gray-300 tracking-widest mb-1.5 flex items-center gap-1.5">
                         DISPLAY NAME
                         {isNameLocked && (
                           <span className="flex items-center gap-1 text-[9px] text-yellow-500">
@@ -2043,7 +2043,7 @@ function MePageContent() {
                         disabled={isNameLocked}
                         className={`w-full font-mono text-sm px-3 py-2.5 rounded-lg outline-none transition-all
                           ${isNameLocked
-                            ? 'bg-gray-100 border border-yellow-900/30 text-gray-500 cursor-not-allowed opacity-60 select-none'
+                            ? 'bg-gray-100 border border-yellow-900/30 text-gray-300 cursor-not-allowed opacity-60 select-none'
                             : 'bg-[#0d0d0d] border border-[#2a2a2a] text-white focus:border-signal focus:shadow-[0_0_12px_rgba(204,255,0,0.15)] placeholder:text-gray-600'
                           }`}
                       />
@@ -2058,8 +2058,8 @@ function MePageContent() {
                   <div className="w-10 h-10 bg-[#111] border border-[#333] rounded-full flex items-center justify-center mx-auto mb-3">
                     <i className="fas fa-lock text-gray-600 text-sm" />
                   </div>
-                  <div className="text-[11px] font-heavy text-gray-500 tracking-widest mb-1">CREATOR PROFILE LOCKED</div>
-                  <div className="text-[10px] font-mono text-gray-500 leading-relaxed">
+                  <div className="text-[11px] font-heavy text-gray-300 tracking-widest mb-1">CREATOR PROFILE LOCKED</div>
+                  <div className="text-[10px] font-mono text-gray-300 leading-relaxed">
                     Submit at least one film to unlock<br />advanced creator settings.
                   </div>
                 </div>
@@ -2075,7 +2075,7 @@ function MePageContent() {
 
                   {/* About Studio */}
                   <div className="mb-4">
-                    <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5">
+                    <label className="block text-[10px] font-mono text-gray-300 tracking-widest mb-1.5">
                       <i className="fas fa-building mr-1 text-[#00F0FF]" />ABOUT STUDIO
                     </label>
                     <textarea
@@ -2095,7 +2095,7 @@ function MePageContent() {
 
                   {/* Tech Stack */}
                   <div className="mb-5">
-                    <label className="block text-[10px] font-mono text-gray-500 tracking-widest mb-1.5">
+                    <label className="block text-[10px] font-mono text-gray-300 tracking-widest mb-1.5">
                       <i className="fas fa-microchip mr-1 text-signal" />TECH STACK
                       <span className="text-gray-600 ml-2 normal-case tracking-normal">comma-separated</span>
                     </label>
@@ -2122,7 +2122,7 @@ function MePageContent() {
                   {/* Core Team */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
-                      <label className="text-[10px] font-mono text-gray-500 tracking-widest">
+                      <label className="text-[10px] font-mono text-gray-300 tracking-widest">
                         <i className="fas fa-users mr-1 text-[#9D00FF]" />CORE TEAM
                       </label>
                       <button
@@ -2135,7 +2135,7 @@ function MePageContent() {
                     </div>
 
                     {editCoreTeam.length === 0 ? (
-                      <div className="border border-dashed border-[#222] rounded-lg py-4 text-center text-[10px] font-mono text-gray-500">
+                      <div className="border border-dashed border-[#222] rounded-lg py-4 text-center text-[10px] font-mono text-gray-300">
                         No team members added yet.
                       </div>
                     ) : (
@@ -2186,7 +2186,7 @@ function MePageContent() {
               <button
                 onClick={closeProfileModal}
                 disabled={isSaving}
-                className="flex-1 py-2.5 bg-[#111] text-gray-300 font-heavy text-[11px] rounded-lg tracking-widest
+                className="flex-1 py-2.5 bg-[#111] text-gray-100 font-heavy text-[11px] rounded-lg tracking-widest
                            border border-[#333] hover:border-white hover:text-white active:scale-95 transition-all
                            disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -2206,7 +2206,7 @@ function MePageContent() {
                   return (
                     <button
                       disabled
-                      className="flex-[2] py-2.5 bg-gray-800/60 text-gray-500 font-heavy text-[11px] rounded-lg tracking-widest
+                      className="flex-[2] py-2.5 bg-gray-800/60 text-gray-300 font-heavy text-[11px] rounded-lg tracking-widest
                                  border border-yellow-900/40 cursor-not-allowed opacity-70 flex items-center justify-center gap-1.5"
                     >
                       <i className="fas fa-lock text-yellow-600 text-[10px]" />
