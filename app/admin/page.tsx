@@ -5437,6 +5437,7 @@ function OpsRbacTab({ t: _t, pushToast, adminFetch }: { t: T; pushToast: (s: str
       {/* ── 人員管理 ── */}
       <div className={CARD + " p-5"}>
         <h3 className="font-bold text-neutral-900 mb-4">碳基人員管理 <span className="text-neutral-400 font-normal text-sm ml-1">{members.length} 位成員</span></h3>
+        {/* 人员列表 */}
         <div className="space-y-2 mb-5">
           {members.length === 0 && <p className="text-sm text-neutral-400 text-center py-4">暫無成員</p>}
           {members.map(m => (
@@ -5449,22 +5450,45 @@ function OpsRbacTab({ t: _t, pushToast, adminFetch }: { t: T; pushToast: (s: str
                 {m.status === "active" ? "活躍" : "已停用"}
               </span>
               <button onClick={() => handleMemberStatus(m.id, m.status === "active" ? "disabled" : "active")}
-                className="text-xs font-semibold text-blue-600 hover:text-blue-800">
+                className="text-xs font-semibold text-blue-600 hover:text-blue-800 whitespace-nowrap">
                 {m.status === "active" ? "禁用" : "啟用"}
               </button>
-              <button onClick={() => handleDeleteMember(m.id)} className="text-xs font-semibold text-red-500 hover:text-red-700">移除</button>
+              <button
+                onClick={() => {
+                  if (window.confirm(`確認移除成員「${m.account}」？此操作無法撤銷。`)) {
+                    handleDeleteMember(m.id);
+                  }
+                }}
+                className="text-xs font-semibold text-red-500 hover:text-red-700 whitespace-nowrap">
+                移除
+              </button>
             </div>
           ))}
         </div>
+
+        {/* 邀请新成员 */}
         <div className="border-t border-neutral-100 pt-4">
           <p className="text-xs font-semibold text-neutral-600 mb-3">邀請新成員</p>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <input value={inviteAccount} onChange={e => setInviteAccount(e.target.value)} placeholder="Email / DID / 錢包地址" className={INPUT + " flex-1"} />
-            <select value={inviteRoleId} onChange={e => setInviteRoleId(Number(e.target.value))} className={INPUT + " w-40"}>
-              <option value="">選擇角色</option>
-              {roles.map(r => <option key={r.id} value={r.id}>{r.name}{r.is_system ? " (系統)" : ""}</option>)}
-            </select>
-            <button onClick={handleInvite} className={BTN_PRIMARY + " shrink-0"}>加入</button>
+          <div className="space-y-2">
+            <input
+              value={inviteAccount}
+              onChange={e => setInviteAccount(e.target.value)}
+              placeholder="輸入 Email / DID / 錢包地址"
+              className={INPUT}
+            />
+            <div className="flex gap-2">
+              <select
+                value={inviteRoleId}
+                onChange={e => setInviteRoleId(Number(e.target.value))}
+                className={INPUT + " flex-1"}
+              >
+                <option value="">— 選擇角色 —</option>
+                {roles.map(r => (
+                  <option key={r.id} value={r.id}>{r.name}{r.is_system ? "（系統）" : ""}</option>
+                ))}
+              </select>
+              <button onClick={handleInvite} className={BTN_PRIMARY + " shrink-0 px-6"}>加入</button>
+            </div>
           </div>
         </div>
       </div>
