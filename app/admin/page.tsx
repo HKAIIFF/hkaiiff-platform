@@ -322,7 +322,7 @@ function getBreadcrumb(active: SubMenuId, lang: Lang, t: T): string {
 // ────────────────────────────────────────────────────────────────────────────
 // 模塊一：指揮大盤
 // ────────────────────────────────────────────────────────────────────────────
-function DashboardModule({ t }: { t: T }) {
+function DashboardModule({ t, adminFetch }: { t: T; adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
   const [dashStats, setDashStats] = useState({ pendingFilms: 0, pendingKyc: 0, totalUsers: 0, feedPublished: 0 });
 
   useEffect(() => {
@@ -1536,7 +1536,7 @@ function KycCopyBtn({ text }: { text: string }) {
   );
 }
 
-function ReviewKycTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
+function ReviewKycTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: string, ok?: boolean) => void; adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
   const [records, setRecords] = useState<KycRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "rejected">("pending");
@@ -2331,7 +2331,7 @@ function DistOnlineTab({ t }: { t: T }) {
 // ────────────────────────────────────────────────────────────────────────────
 // 模塊三‑C：官方代客發行 · VIP 綠色通道
 // ────────────────────────────────────────────────────────────────────────────
-function DistOfficialTab({ pushToast }: { pushToast: (s: string, ok?: boolean) => void }) {
+function DistOfficialTab({ pushToast, adminFetch }: { pushToast: (s: string, ok?: boolean) => void; adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
 
@@ -2596,7 +2596,7 @@ function DistOfficialTab({ pushToast }: { pushToast: (s: string, ok?: boolean) =
 // ────────────────────────────────────────────────────────────────────────────
 // 模塊四：矩陣生態
 // ────────────────────────────────────────────────────────────────────────────
-function EcoHumanTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string, ok?: boolean) => void; askConfirm: (c: ConfirmConfig) => void }) {
+function EcoHumanTab({ t, pushToast, askConfirm, adminFetch }: { t: T; pushToast: (s: string, ok?: boolean) => void; askConfirm: (c: ConfirmConfig) => void; adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -3944,7 +3944,7 @@ function TrExtLinkIcon() {
 
 // ─── Treasury: 墊付錢包管理 Modal ────────────────────────────────────────────
 
-function TrFundingConfigModal({ onClose, onSuccess, onToast }: { onClose: () => void; onSuccess: () => void; onToast: (msg: string, ok?: boolean) => void }) {
+function TrFundingConfigModal({ onClose, onSuccess, onToast, adminFetch }: { onClose: () => void; onSuccess: () => void; onToast: (msg: string, ok?: boolean) => void; adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
   const [adminEmail, setAdminEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [otpCountdown, setOtpCountdown] = useState(0);
@@ -4070,7 +4070,7 @@ function TrFundingConfigModal({ onClose, onSuccess, onToast }: { onClose: () => 
 
 // ─── Treasury: 金庫錢包管理 Modal ────────────────────────────────────────────
 
-function TrTreasuryConfigModal({ onClose, onSuccess, onToast }: { onClose: () => void; onSuccess: () => void; onToast: (msg: string, ok?: boolean) => void }) {
+function TrTreasuryConfigModal({ onClose, onSuccess, onToast, adminFetch }: { onClose: () => void; onSuccess: () => void; onToast: (msg: string, ok?: boolean) => void; adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
   const [adminEmail, setAdminEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [otpCountdown, setOtpCountdown] = useState(0);
@@ -4184,7 +4184,7 @@ function TrTreasuryConfigModal({ onClose, onSuccess, onToast }: { onClose: () =>
 
 type TrSweepDustPhase = "scanning" | "ready" | "executing" | "error";
 
-function TrSweepDustModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: (msg: string) => void }) {
+function TrSweepDustModal({ onClose, onSuccess, adminFetch }: { onClose: () => void; onSuccess: (msg: string) => void; adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
   const [phase, setPhase] = useState<TrSweepDustPhase>("scanning");
   const [scanResult, setScanResult] = useState<{ eligibleCount: number; estimatedSol: number } | null>(null);
   const [errMsg, setErrMsg] = useState("");
@@ -4616,13 +4616,13 @@ function FinTreasuryTab({ t: _t, adminFetch }: { t: T; adminFetch: (url: string,
 
       {/* Modals */}
       {fundingConfigOpen && (
-        <TrFundingConfigModal onClose={() => setFundingConfigOpen(false)} onSuccess={() => { trToast("墊付錢包助記詞已更新"); fetchStats(); }} onToast={trToast} />
+        <TrFundingConfigModal onClose={() => setFundingConfigOpen(false)} onSuccess={() => { trToast("墊付錢包助記詞已更新"); fetchStats(); }} onToast={trToast} adminFetch={adminFetch} />
       )}
       {treasuryConfigOpen && (
-        <TrTreasuryConfigModal onClose={() => setTreasuryConfigOpen(false)} onSuccess={() => { trToast("金庫錢包地址已更新"); fetchStats(); }} onToast={trToast} />
+        <TrTreasuryConfigModal onClose={() => setTreasuryConfigOpen(false)} onSuccess={() => { trToast("金庫錢包地址已更新"); fetchStats(); }} onToast={trToast} adminFetch={adminFetch} />
       )}
       {sweepDustOpen && (
-        <TrSweepDustModal onClose={() => setSweepDustOpen(false)} onSuccess={(msg) => { trToast(msg); fetchStats(); fetchLedger(ledgerPage, ledgerSearch); }} />
+        <TrSweepDustModal onClose={() => setSweepDustOpen(false)} onSuccess={(msg) => { trToast(msg); fetchStats(); fetchLedger(ledgerPage, ledgerSearch); }} adminFetch={adminFetch} />
       )}
       {forceSweepTarget && (
         <TrForceSweepModal depositAddress={forceSweepTarget.depositAddress} onClose={() => setForceSweepTarget(null)} onConfirm={handleForceSweep} loading={sweepingAddr === forceSweepTarget.depositAddress} />
@@ -4754,7 +4754,7 @@ interface MsgHistoryRow {
   deleted_at: string | null;
 }
 
-function OpsTowerTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
+function OpsTowerTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: string, ok?: boolean) => void; adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
   const [msg, setMsg] = useState<{ channel: "system" | "render" | "chain"; title: string; body: string }>({
     channel: "system", title: "", body: "",
   });
@@ -5170,7 +5170,7 @@ function OtpKeyModal({
   );
 }
 
-function OpsRbacTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
+function OpsRbacTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: string, ok?: boolean) => void; adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
   const [roles, setRoles] = useState<RbacRole[]>([
     SUPER_ADMIN_ROLE,
     { id: 1, name: "初級審核員",  permissions: ["core:dashboard", "review:film"] },
@@ -5641,15 +5641,15 @@ export default function AdminPage() {
 
   function renderContent() {
     switch (activeSubMenu) {
-      case "dashboard": return <DashboardModule t={t} />;
+      case "dashboard": return <DashboardModule t={t} adminFetch={boundAdminFetch} />;
       case "review:films": return <ReviewFilmsTab t={t} pushToast={pushToast} />;
       case "review:lbs": return <ReviewLbsTab t={t} pushToast={pushToast} />;
-      case "review:kyc": return <ReviewKycTab t={t} pushToast={pushToast} />;
+      case "review:kyc": return <ReviewKycTab t={t} pushToast={pushToast} adminFetch={boundAdminFetch} />;
       case "dist:lbs": return <DistLbsTab t={t} pushToast={pushToast} />;
       case "dist:online": return <DistOnlineTab t={t} />;
-      case "dist:official": return <DistOfficialTab pushToast={pushToast} />;
+      case "dist:official": return <DistOfficialTab pushToast={pushToast} adminFetch={boundAdminFetch} />;
       case "dist:batch": return <BatchReleaseTab />;
-      case "eco:human": return <EcoHumanTab t={t} pushToast={pushToast} askConfirm={askConfirm} />;
+      case "eco:human": return <EcoHumanTab t={t} pushToast={pushToast} askConfirm={askConfirm} adminFetch={boundAdminFetch} />;
       case "eco:bot": return <EcoBotTab t={t} pushToast={pushToast} askConfirm={askConfirm} />;
       case "ai:models": return <div className="flex flex-col items-center justify-center h-64 gap-4"><div className="text-4xl">🚧</div><p className="text-lg font-semibold text-neutral-600">功能開發中</p><p className="text-sm text-neutral-400">敬請期待，即將上線</p></div>;
       case "ai:prompts": return <div className="flex flex-col items-center justify-center h-64 gap-4"><div className="text-4xl">🚧</div><p className="text-lg font-semibold text-neutral-600">功能開發中</p><p className="text-sm text-neutral-400">敬請期待，即將上線</p></div>;
@@ -5659,9 +5659,9 @@ export default function AdminPage() {
       case "fin:settlement": return <FinSettlementTab t={t} pushToast={pushToast} />;
       case "fin:products": return <FinProductsTab pushToast={pushToast} adminFetch={boundAdminFetch} />;
       case "ops:assets": return <OpsAssetsTab t={t} pushToast={pushToast} />;
-      case "ops:tower": return <OpsTowerTab t={t} pushToast={pushToast} />;
+      case "ops:tower": return <OpsTowerTab t={t} pushToast={pushToast} adminFetch={boundAdminFetch} />;
       case "ops:params": return <OpsParamsTab t={t} lang={lang} setLang={setLang} pushToast={pushToast} />;
-      case "ops:rbac": return <OpsRbacTab t={t} pushToast={pushToast} />;
+      case "ops:rbac": return <OpsRbacTab t={t} pushToast={pushToast} adminFetch={boundAdminFetch} />;
       default: return null;
     }
   }
