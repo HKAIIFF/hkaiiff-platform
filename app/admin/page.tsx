@@ -1501,6 +1501,8 @@ interface KycRecord {
   rejection_reason: string | null;
   email: string | null;
   wallet_address: string | null;
+  verification_name: string | null;
+  user_id: string | null;
 }
 
 const KYC_REJECTION_REASONS = [
@@ -1543,7 +1545,6 @@ function ReviewKycTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: strin
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [rejectTarget, setRejectTarget] = useState<KycRecord | null>(null);
   const [rejectReason, setRejectReason] = useState("");
-  const [formModal, setFormModal] = useState<KycRecord | null>(null);
 
   const fetchRecords = useCallback(async () => {
     setIsLoading(true);
@@ -1555,7 +1556,7 @@ function ReviewKycTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: strin
     } finally {
       setIsLoading(false);
     }
-  }, [statusFilter]);
+  }, [statusFilter, adminFetch]);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
 
@@ -1563,8 +1564,8 @@ function ReviewKycTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: strin
     setProcessingId(rec.id);
     try {
       const res = await adminFetch("/api/admin/verifications/review", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: rec.id, action: "approve" }),
+        method: "POST",
+        body: JSON.stringify({ applicationId: rec.id, action: "approve" }),
       });
       if (res.ok) { pushToast("✓ 已通過審核，站內信已發送", true); fetchRecords(); }
       else { const d = await res.json(); pushToast(d.error ?? "操作失敗", false); }
@@ -1576,8 +1577,8 @@ function ReviewKycTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: strin
     setProcessingId(rejectTarget.id);
     try {
       const res = await adminFetch("/api/admin/verifications/review", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: rejectTarget.id, action: "reject", rejectionReason: rejectReason }),
+        method: "POST",
+        body: JSON.stringify({ applicationId: rejectTarget.id, action: "reject", rejectionReason: rejectReason }),
       });
       if (res.ok) { pushToast("已退回申請，站內信已發送", true); setRejectTarget(null); setRejectReason(""); fetchRecords(); }
       else { const d = await res.json(); pushToast(d.error ?? "操作失敗", false); }
@@ -1591,32 +1592,135 @@ function ReviewKycTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: strin
     rejected: records.filter(r => r.verification_status === "rejected").length,
   };
 
-  const TYPE_MAP: Record<string, { label: string; cls: string }> = {
-    creator:     { label: "創作人", cls: "bg-yellow-50 text-yellow-700" },
-    institution: { label: "機構",   cls: "bg-blue-50 text-blue-700"   },
-    curator:     { label: "策展人", cls: "bg-purple-50 text-purple-700" },
-  };
-  const STATUS_MAP: Record<string, { label: string; cls: string }> = {
-    pending:  { label: "Pending",  cls: "bg-amber-50 text-amber-700"  },
-    approved: { label: "Approved", cls: "bg-emerald-50 text-emerald-700" },
-    rejected: { label: "Rejected", cls: "bg-red-50 text-red-600"     },
-  };
-  const PAY_MAP: Record<string, { label: string; cls: string }> = {
-    fiat: { label: "Fiat $30", cls: "bg-yellow-50 text-yellow-700" },
-    aif:  { label: "150 AIF",  cls: "bg-emerald-50 text-emerald-700" },
-  };
+  const TYPE_LABEL: Record<string, string> = { creator: "創作人", institution: "機構", curator: "策展人" };
+  const PAY_LABEL: Record<string, string> = { fiat: "法幣 (Stripe)", aif: "AIF (Web3)", stripe: "法幣 (Stripe)" };
 
-  const TAB_KEYS: Array<"pending" | "approved" | "rejected" | "all"> = ["pending", "approved", "rejected", "all"];
-  const TAB_LABELS: Record<string, string> = { pending: "待審核", approved: "已通過", rejected: "已退回", all: "全部" };
+  const VALID_REASONS = ["侵權風險", "通用詞語", "違規風險"];
 
   return (
     <>
-      {/* 身份資質審核 內嵌頁面 */}
-      <iframe
-        src="/admin/verifications"
-        className="w-full border-0"
-        style={{ height: 'calc(100vh - 120px)' }}
-      />
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        {[
+          { label: "全部申請", value: counts.all, dot: "bg-neutral-400" },
+          { label: "待審核", value: counts.pending, dot: "bg-[#fbbc04]" },
+          { label: "已通過", value: counts.approved, dot: "bg-[#34a853]" },
+          { label: "已退回", value: counts.rejected, dot: "bg-[#ea4335]" },
+        ].map((card) => (
+          <div key={card.label} className="bg-white border border-neutral-200 rounded-2xl px-5 py-4 flex items-center gap-3">
+            <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${card.dot}`} />
+            <div>
+              <p className="text-xs font-medium text-neutral-500">{card.label}</p>
+              <p className="text-3xl font-black mt-0.5 leading-none text-neutral-900">{card.value}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Filter Bar */}
+      <div className="bg-white border border-neutral-200 rounded-2xl p-4 mb-4 flex flex-wrap gap-2 items-center">
+        {(["pending", "approved", "rejected", "all"] as const).map((s) => (
+          <button
+            key={s}
+            onClick={() => setStatusFilter(s)}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold transition-colors ${statusFilter === s ? "bg-[#1a73e8] text-white" : "border border-neutral-300 text-neutral-600 hover:bg-neutral-50"}`}
+          >
+            {s === "pending" ? "待審核" : s === "approved" ? "已通過" : s === "rejected" ? "已退回" : "全部"}
+          </button>
+        ))}
+        <button onClick={fetchRecords} className="ml-auto rounded-full border border-neutral-300 bg-white px-4 py-1.5 text-sm font-semibold text-neutral-700 hover:bg-neutral-50">
+          {isLoading ? "讀取中…" : "↺ 刷新"}
+        </button>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white border border-neutral-200 rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[900px]">
+            <thead>
+              <tr className="border-b border-neutral-100 bg-neutral-50 text-[10px] font-medium uppercase tracking-wider text-neutral-500">
+                <th className="px-4 py-3.5 text-left">申請時間</th>
+                <th className="px-4 py-3.5 text-left">用戶</th>
+                <th className="px-4 py-3.5 text-left">認證類型</th>
+                <th className="px-4 py-3.5 text-left">認證名稱</th>
+                <th className="px-4 py-3.5 text-left">支付方式</th>
+                <th className="px-4 py-3.5 text-left">狀態</th>
+                <th className="px-4 py-3.5 text-left">決策</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr><td colSpan={7} className="p-10 text-center text-sm text-neutral-400">讀取中…</td></tr>
+              ) : records.length === 0 ? (
+                <tr><td colSpan={7} className="p-10 text-center text-sm text-neutral-400">暫無資料</td></tr>
+              ) : records.map((rec) => (
+                <tr key={rec.id} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/70 transition-colors">
+                  <td className="px-4 py-4 font-mono text-[11px] text-neutral-600 whitespace-nowrap">
+                    {rec.verification_submitted_at ? new Date(rec.verification_submitted_at).toLocaleString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "—"}
+                  </td>
+                  <td className="px-4 py-4">
+                    <p className="text-sm font-semibold text-neutral-900">{rec.display_name || rec.name || "—"}</p>
+                    <p className="text-[10px] text-neutral-400 truncate max-w-[160px]">{rec.email || rec.wallet_address || rec.id}</p>
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className="rounded-full bg-blue-50 border border-blue-200 px-2.5 py-0.5 text-[10px] font-semibold text-blue-700">
+                      {TYPE_LABEL[rec.verification_type ?? ""] ?? rec.verification_type}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4 text-sm text-neutral-700">{rec.verification_name || "—"}</td>
+                  <td className="px-4 py-4">
+                    <span className="text-[10px] text-neutral-600">{PAY_LABEL[rec.verification_payment_method ?? ""] ?? rec.verification_payment_method ?? "—"}</span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${
+                      rec.verification_status === "approved" ? "bg-green-50 border border-green-200 text-green-700" :
+                      rec.verification_status === "rejected" ? "bg-red-50 border border-red-200 text-red-600" :
+                      "bg-amber-50 border border-amber-200 text-amber-700"
+                    }`}>
+                      {rec.verification_status === "approved" ? "已通過" : rec.verification_status === "rejected" ? "已退回" : "待審核"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-4">
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleApprove(rec)}
+                        disabled={!!processingId || rec.verification_status === "approved"}
+                        className="rounded-full border border-emerald-300 px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-white hover:bg-emerald-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {processingId === rec.id ? "處理中…" : "通過"}
+                      </button>
+                      <button
+                        onClick={() => { setRejectTarget(rec); setRejectReason(VALID_REASONS[0]); }}
+                        disabled={!!processingId || rec.verification_status === "rejected"}
+                        className="rounded-full border border-rose-300 px-3 py-1.5 text-xs font-semibold text-rose-600 bg-white hover:bg-rose-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        退回
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Reject Modal */}
+      {rejectTarget && (
+        <Modal title={`退回申請：${rejectTarget.verification_name || rejectTarget.display_name || ""}`} onClose={() => setRejectTarget(null)}
+          footer={
+            <div className="flex justify-end gap-2">
+              <button className={BTN_GHOST} onClick={() => setRejectTarget(null)}>取消</button>
+              <button className={BTN_DANGER} onClick={handleRejectConfirm} disabled={!rejectReason}>確認退回</button>
+            </div>
+          }
+        >
+          <label className="mb-2 block text-sm font-semibold text-neutral-700">退回原因</label>
+          <select value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} className={INPUT}>
+            {VALID_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </Modal>
+      )}
     </>
   );
 }
