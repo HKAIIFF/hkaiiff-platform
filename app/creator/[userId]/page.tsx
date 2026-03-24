@@ -23,7 +23,7 @@ interface CreatorProfile {
   tech_stack: string | null;
   core_team: TeamMember[] | null;
   verified_identities: string[];
-  portfolio: string | null;
+  portfolio: string | object | null;
 }
 
 interface ApprovedFilm {
@@ -324,7 +324,7 @@ export default function CreatorPage() {
           )}
 
           {/* PORTFOLIO */}
-          {profile.portfolio?.trim() && (
+          {typeof profile.portfolio === 'string' && profile.portfolio.trim() && (
             <section>
               <h2 className="font-bold text-sm text-white mb-2 border-l-4 border-blue-400/60 pl-3 uppercase tracking-widest">
                 Portfolio
