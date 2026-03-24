@@ -605,7 +605,9 @@ function FeedInner() {
 
   const fetchFilms = useCallback(async () => {
     try {
-      const res = await fetch("/api/feed", { cache: "no-store" });
+      const seen = JSON.parse(sessionStorage.getItem('hkaiiff_seen_films') ?? '[]') as string[];
+      const seenParam = seen.length > 0 ? `?seen=${seen.slice(-50).join(',')}` : '';
+      const res = await fetch(`/api/feed${seenParam}`, { cache: "no-store" });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         console.error("【Feed /api/feed 失敗】:", res.status, body);
@@ -626,6 +628,12 @@ function FeedInner() {
           return p(getParallelState(a.parallel_start_time, now)) - p(getParallelState(b.parallel_start_time, now));
         });
         setFilms(sorted);
+        // 记录已看过的影片（最多保留100个）
+        const allSeen = [...new Set([
+          ...(JSON.parse(sessionStorage.getItem('hkaiiff_seen_films') ?? '[]') as string[]),
+          ...sorted.map((f: SupabaseFilm) => f.id),
+        ])].slice(-100);
+        sessionStorage.setItem('hkaiiff_seen_films', JSON.stringify(allSeen));
       } else {
         setFilms([]);
       }
