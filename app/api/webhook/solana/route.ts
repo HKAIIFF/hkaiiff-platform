@@ -70,6 +70,18 @@ export async function POST(req: Request) {
     for (const tx of transactions) {
       const { signature, type, transactionError, tokenTransfers } = tx;
 
+      // 幂等性检查：防止重复处理同一笔交易
+      const { data: alreadyProcessed } = await supabase
+        .from('processed_webhook_sigs')
+        .select('id')
+        .eq('signature', signature)
+        .maybeSingle();
+
+      if (alreadyProcessed) {
+        results.push({ signature, status: 'duplicate_skipped' });
+        continue;
+      }
+
       // 只處理成功的 TRANSFER 類型交易
       if (type !== 'TRANSFER' || transactionError !== null) {
         results.push({ signature, status: 'skipped_not_valid_transfer' });
@@ -125,6 +137,10 @@ export async function POST(req: Request) {
           `[Solana Webhook] 充值成功 ✓ | 用戶: ${targetAddress} | 金額: ${amount} AIF`
         );
         results.push({ signature, status: 'credited', wallet: targetAddress });
+        // 记录已处理签名，防止重放
+        await supabase
+          .from('processed_webhook_sigs')
+          .upsert({ signature, processed_at: new Date().toISOString() });
       }
     }
 
