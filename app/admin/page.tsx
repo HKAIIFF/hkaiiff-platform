@@ -3004,138 +3004,6 @@ function EcoBotTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string, 
 // ────────────────────────────────────────────────────────────────────────────
 // 模塊五：AI 引擎與插件庫
 // ────────────────────────────────────────────────────────────────────────────
-function AiModelsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
-  const [models, setModels] = useState([
-    { name: "Gemini 3.1", api: "AIzaSy***wFg", usage24h: "1.24M tokens", costUsd: "$18.60", enabled: true },
-    { name: "OpenAI 5.4", api: "sk-proj-***Xy9", usage24h: "980K tokens", costUsd: "$14.70", enabled: true },
-    { name: "Claude 3.7", api: "sk-ant-***Qp2", usage24h: "420K tokens", costUsd: "$6.30", enabled: false },
-  ]);
-  function toggle(name: string) {
-    setModels((prev) => prev.map((m) => m.name === name ? { ...m, enabled: !m.enabled } : m));
-    pushToast(`模型開關已切換`);
-  }
-  return (
-    <div className={`${CARD} overflow-hidden`}>
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[720px] text-sm">
-          <thead>
-            <tr className="bg-neutral-50 border-b border-neutral-100 text-[10px] text-neutral-500 font-medium uppercase tracking-wider">
-              {["模型名稱", "API Key (遮罩)", "24H Token 消耗", "24H 費用 (USD)", "狀態", "開關"].map((h) => (
-                <th key={h} className="px-4 py-3.5 text-left">{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {models.map((m) => (
-              <tr key={m.name} className="border-b border-neutral-100 last:border-0 hover:bg-neutral-50/70 transition-colors">
-                <td className="px-4 py-4 font-semibold text-neutral-900">{m.name}</td>
-                <td className="px-4 py-4 text-xs text-neutral-600 font-mono">{m.api}</td>
-                <td className="px-4 py-4 text-neutral-700">{m.usage24h}</td>
-                <td className="px-4 py-4 text-neutral-700 font-medium">{m.costUsd}</td>
-                <td className="px-4 py-4"><span className={`text-xs font-semibold px-2 py-1 rounded-full ${m.enabled ? "bg-green-100 text-green-700" : "bg-neutral-100 text-neutral-500"}`}>{m.enabled ? "啟用中" : "已停用"}</span></td>
-                <td className="px-4 py-4">
-                  <button onClick={() => toggle(m.name)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${m.enabled ? "bg-blue-600" : "bg-gray-300"}`}>
-                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${m.enabled ? "translate-x-4" : "translate-x-1"}`} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function AiPromptsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
-  const [prompts, setPrompts] = useState([
-    { id: "P1", title: "侵權檢測", model: "Gemini 3.1", desc: "檢查風格抄襲與素材來源，返回侵權風險評分 0-100", uses: 2841 },
-    { id: "P2", title: "摘要生成", model: "OpenAI 5.4", desc: "自動生成影片及活動的雙語簡介摘要", uses: 1523 },
-    { id: "P3", title: "合約文案", model: "Claude 3.7", desc: "生成智能合約條款與用戶協議草稿", uses: 476 },
-    { id: "P4", title: "合規審核", model: "Gemini 3.1", desc: "檢測違規內容與政策風險，輸出合規報告", uses: 988 },
-  ]);
-  return (
-    <div className="space-y-3">
-      {prompts.map((p) => (
-        <div key={p.id} className={`${CARD} p-4 flex items-start justify-between gap-4`}>
-          <div className="flex items-start gap-3">
-                  <span className="text-xs font-black text-neutral-600 bg-neutral-100 px-2 py-1 rounded font-mono">{p.id}</span>
-            <div>
-              <p className="font-bold text-neutral-900">{p.title}</p>
-              <p className="text-xs text-neutral-500 mt-0.5">綁定模型: {p.model}</p>
-              <p className="text-sm text-neutral-600 mt-1">{p.desc}</p>
-            </div>
-          </div>
-          <div className="text-right shrink-0">
-            <p className="text-xs text-neutral-400">累計調用</p>
-            <p className="font-bold text-neutral-800">{p.uses.toLocaleString()}</p>
-            <button className={`${BTN_SM} border border-neutral-200 text-neutral-600 hover:bg-neutral-50 mt-2`} onClick={() => pushToast(`${p.id} 已編輯`)}>編輯</button>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function AiAssemblyTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
-  const [form, setForm] = useState({ name: "", model: "Gemini 3.1", prompt: "P1" });
-  const [bots, setBots] = useState([
-    { name: "版權審核 Bot", model: "Gemini 3.1", prompt: "P1", created: "2025-04-10" },
-    { name: "摘要生成 Bot", model: "OpenAI 5.4", prompt: "P2", created: "2025-04-22" },
-  ]);
-  return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-      <div className={`${CARD} p-5 space-y-3`}>
-        <h3 className="font-bold text-neutral-900">🔧 Bot 組裝台</h3>
-        <p className="text-sm text-neutral-500">選擇模型 API + 提示詞 → 封裝生成可執行 Bot</p>
-        <div>
-          <label className="text-xs font-semibold text-neutral-600 mb-1 block">Bot 名稱</label>
-          <input className={INPUT} placeholder="e.g. 版權審核 Bot" value={form.name} onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))} />
-        </div>
-        <div>
-          <label className="text-xs font-semibold text-neutral-600 mb-1 block">模型 API</label>
-          <select className={INPUT} value={form.model} onChange={(e) => setForm((p) => ({ ...p, model: e.target.value }))}>
-            <option>Gemini 3.1</option>
-            <option>OpenAI 5.4</option>
-            <option>Claude 3.7</option>
-          </select>
-        </div>
-        <div>
-          <label className="text-xs font-semibold text-neutral-600 mb-1 block">提示詞</label>
-          <select className={INPUT} value={form.prompt} onChange={(e) => setForm((p) => ({ ...p, prompt: e.target.value }))}>
-            <option value="P1">P1 – 侵權檢測</option>
-            <option value="P2">P2 – 摘要生成</option>
-            <option value="P3">P3 – 合約文案</option>
-            <option value="P4">P4 – 合規審核</option>
-          </select>
-        </div>
-        <button className={`${BTN_PRIMARY} w-full`}
-          onClick={() => {
-            if (!form.name) { pushToast("請輸入 Bot 名稱", false); return; }
-            setBots((prev) => [...prev, { name: form.name, model: form.model, prompt: form.prompt, created: new Date().toISOString().slice(0, 10) }]);
-            pushToast(`✅ Bot 封裝成功: ${form.name} (${form.model} + ${form.prompt})`);
-            setForm({ name: "", model: "Gemini 3.1", prompt: "P1" });
-          }}>
-          封裝 Bot →
-        </button>
-      </div>
-      <div className={`${CARD} p-5`}>
-        <h3 className="font-bold text-neutral-900 mb-3">已封裝 Bot 列表</h3>
-        <div className="space-y-2">
-          {bots.map((b, i) => (
-            <div key={i} className="rounded-xl border border-neutral-200 p-3 flex items-center justify-between">
-              <div>
-                <p className="font-semibold text-neutral-900">{b.name}</p>
-                <p className="text-xs text-neutral-500">{b.model} + {b.prompt} · {b.created}</p>
-              </div>
-              <span className="text-xs font-semibold text-neutral-700 bg-neutral-100 px-2 py-1 rounded-full">Active</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ────────────────────────────────────────────────────────────────────────────
 // 模塊六：財務與智能合約
@@ -5777,9 +5645,9 @@ export default function AdminPage() {
       case "dist:batch": return <BatchReleaseTab />;
       case "eco:human": return <EcoHumanTab t={t} pushToast={pushToast} askConfirm={askConfirm} />;
       case "eco:bot": return <EcoBotTab t={t} pushToast={pushToast} askConfirm={askConfirm} />;
-      case "ai:models": return <AiModelsTab t={t} pushToast={pushToast} />;
-      case "ai:prompts": return <AiPromptsTab t={t} pushToast={pushToast} />;
-      case "ai:assembly": return <AiAssemblyTab t={t} pushToast={pushToast} />;
+      case "ai:models": return <div className="flex flex-col items-center justify-center h-64 gap-4"><div className="text-4xl">🚧</div><p className="text-lg font-semibold text-neutral-600">功能開發中</p><p className="text-sm text-neutral-400">敬請期待，即將上線</p></div>;
+      case "ai:prompts": return <div className="flex flex-col items-center justify-center h-64 gap-4"><div className="text-4xl">🚧</div><p className="text-lg font-semibold text-neutral-600">功能開發中</p><p className="text-sm text-neutral-400">敬請期待，即將上線</p></div>;
+      case "ai:assembly": return <div className="flex flex-col items-center justify-center h-64 gap-4"><div className="text-4xl">🚧</div><p className="text-lg font-semibold text-neutral-600">功能開發中</p><p className="text-sm text-neutral-400">敬請期待，即將上線</p></div>;
       case "fin:ledger": return <FinLedgerTab />;
       case "fin:treasury": return <FinTreasuryTab t={t} />;
       case "fin:settlement": return <FinSettlementTab t={t} pushToast={pushToast} />;
