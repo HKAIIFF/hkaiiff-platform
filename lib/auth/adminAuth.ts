@@ -50,6 +50,7 @@ export async function checkAdminAuth(
       .eq('id', userId)
       .maybeSingle();
 
+    console.log('[adminAuth] userId:', userId, 'userEmail:', user?.email, 'adminEmails:', adminEmails);
     if (!user?.email || !adminEmails.includes(user.email.toLowerCase())) {
       return NextResponse.json(
         { error: 'Forbidden: not an admin' },
