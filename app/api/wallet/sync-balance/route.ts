@@ -141,6 +141,11 @@ export async function POST(req: Request) {
           body:
             `用戶 ${userId} 的 ${creditAmount} AIF 已成功歸集（tx: ${sweepResult.txSignature}），` +
             `但 aif_balance 資料庫更新失敗（${updateError.message}）。請手動補記。`,
+          msg_type: 'system',
+          content:
+            `用戶 ${userId} 的 ${creditAmount} AIF 已成功歸集（tx: ${sweepResult.txSignature}），` +
+            `但 aif_balance 資料庫更新失敗（${updateError.message}）。請手動補記。`,
+          status: 'sent',
           is_read: false,
         });
       } catch { /* 告警寫入失敗不影響主流程響應 */ }

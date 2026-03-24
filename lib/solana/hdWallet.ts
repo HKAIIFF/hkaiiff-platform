@@ -213,6 +213,13 @@ export async function initUserDepositATA(depositAddress: string): Promise<InitAt
           `${(fundingBalance / LAMPORTS_PER_SOL).toFixed(6)} SOL，` +
           `已低於安全閾值 ${FUNDING_ALARM_LAMPORTS / LAMPORTS_PER_SOL} SOL，` +
           `請立即充值，否則新用戶 ATA 初始化將失敗！`,
+        msg_type: 'system',
+        content:
+          `墊付錢包 ${fundingWallet.publicKey.toBase58()} 餘額僅剩 ` +
+          `${(fundingBalance / LAMPORTS_PER_SOL).toFixed(6)} SOL，` +
+          `已低於安全閾值 ${FUNDING_ALARM_LAMPORTS / LAMPORTS_PER_SOL} SOL，` +
+          `請立即充值，否則新用戶 ATA 初始化將失敗！`,
+        status: 'sent',
         is_read: false,
       });
     } catch (dbErr: unknown) {
