@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
           verification_name: cleanName || null,
           payment_method: paymentMethod,
           submitted_at: now,
+          amount: paymentMethod === 'aif' ? 150 : 30,
         })
         .eq('id', applicationId);
 
@@ -125,6 +126,7 @@ export async function POST(req: NextRequest) {
       verification_name: cleanName || null,
       payment_method: paymentMethod,
       submitted_at: now,
+      amount: paymentMethod === 'aif' ? 150 : 30,
     })
     .select('id')
     .single();
