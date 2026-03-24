@@ -23,6 +23,21 @@ export async function GET(req: Request) {
     const currencyRaw = searchParams.get('currency') ?? searchParams.get('payment_method');
     const currency = currencyRaw === 'stripe' ? 'USD' : currencyRaw === 'solana' ? 'AIF' : currencyRaw;
 
+    // 从 platform_products 获取实际定价
+    const { data: products } = await adminSupabase
+      .from('platform_products')
+      .select('product_code, price_usd, price_aif')
+      .eq('is_active', true);
+
+    const priceMap: Record<string, { usd: number; aif: number }> = {};
+    for (const p of products ?? []) {
+      priceMap[p.product_code] = { usd: Number(p.price_usd), aif: Number(p.price_aif) };
+    }
+    const filmEntryUsd = priceMap['film_entry']?.usd ?? 99;
+    const filmEntryAif = priceMap['film_entry']?.aif ?? 500;
+    const identityUsd  = priceMap['identity_verify']?.usd ?? 30;
+    const identityAif  = priceMap['identity_verify']?.aif ?? 150;
+
     let query = adminSupabase
       .from('transactions')
       .select('id, user_id, related_film_id, amount, currency, tx_type, status, created_at, related_deposit_address, tx_hash')
@@ -145,7 +160,7 @@ export async function GET(req: Request) {
       tx_type: 'submission_fee',
       tx_hash: null,
       stripe_session_id: null,
-      amount: 99,
+      amount: filmEntryUsd,
       currency: 'USD',
       payment_method: 'stripe',
       status: 'success',
@@ -166,7 +181,7 @@ export async function GET(req: Request) {
       tx_type: 'identity_verification',
       tx_hash: null,
       stripe_session_id: null,
-      amount: r.amount ?? (r.payment_method === 'aif' ? 150 : 30),
+      amount: r.amount ?? (r.payment_method === 'aif' ? identityAif : identityUsd),
       currency: r.payment_method === 'aif' ? 'AIF' : 'USD',
       payment_method: r.payment_method,
       status: r.status === 'approved' ? 'success' : r.status,

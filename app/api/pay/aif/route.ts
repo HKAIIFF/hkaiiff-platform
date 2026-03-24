@@ -30,8 +30,6 @@ const privyClient = new PrivyClient(
   process.env.PRIVY_APP_SECRET!
 );
 
-const AIF_FEE = 500;
-
 export async function POST(req: Request) {
   try {
     // ── Step 1: 驗證 Privy Access Token ──────────────────────────────────────
@@ -54,6 +52,15 @@ export async function POST(req: Request) {
         { status: 401 }
       );
     }
+
+    // 从 platform_products 读取 film_entry 的实际 AIF 价格
+    const { data: product } = await adminSupabase
+      .from('platform_products')
+      .select('price_aif')
+      .eq('product_code', 'film_entry')
+      .eq('is_active', true)
+      .maybeSingle();
+    const AIF_FEE = product ? Number(product.price_aif) : 500;
 
     // ── Step 2: 解析並校驗請求體 ─────────────────────────────────────────────
     const body = await req.json();
