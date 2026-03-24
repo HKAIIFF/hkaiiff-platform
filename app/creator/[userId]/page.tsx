@@ -405,16 +405,6 @@ export default function CreatorPage() {
         </div>
       </div>
 
-      {/* ─── Bottom: Back to Feed ───────────────────────────────────────────── */}
-      <div className="fixed bottom-[50px] left-0 w-full bg-gradient-to-t from-black via-black/80 to-transparent pt-6 pb-3 px-4 z-40">
-        <Link
-          href="/"
-          className="w-full flex items-center justify-center gap-2 py-2.5 bg-signal text-black font-bold text-sm tracking-widest rounded-xl active:scale-95 transition-transform"
-        >
-          <i className="fas fa-film" />
-          BACK TO FESTIVAL FEED
-        </Link>
-      </div>
 
     </div>
   );

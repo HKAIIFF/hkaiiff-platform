@@ -43,8 +43,8 @@ export default function BottomNav() {
       onClose={() => setShowConsent(false)}
     />
 
-    {/* 高度压缩至 50px，图标 text-lg，标签 text-[8px] */}
-    <div className="md:hidden fixed bottom-0 left-0 w-full z-[999] bg-black/98 backdrop-blur-xl border-t border-[#1e1e1e] px-1 flex justify-between items-center" style={{ height: 'calc(50px + env(safe-area-inset-bottom))', paddingBottom: 'env(safe-area-inset-bottom)' }}>
+    {/* 高度 62px，适配 iPhone 安全区域 */}
+    <div className="md:hidden fixed bottom-0 left-0 w-full z-[999] bg-black/98 backdrop-blur-xl border-t border-[#1e1e1e] px-1 flex justify-between items-center" style={{ height: 'calc(62px + env(safe-area-inset-bottom))', paddingBottom: 'calc(env(safe-area-inset-bottom) + 6px)' }}>
       {NAV_ITEMS.map((item, i) => {
         const isProtected = PROTECTED_HREFS.has(item.href);
 
