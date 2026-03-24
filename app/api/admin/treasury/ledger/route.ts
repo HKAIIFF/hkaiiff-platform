@@ -9,6 +9,7 @@
 import 'server-only';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { checkAdminAuth } from '@/lib/auth/adminAuth';
 
 function createAdminSupabase() {
   return createClient(
@@ -20,6 +21,9 @@ function createAdminSupabase() {
 
 export async function GET(req: Request) {
   try {
+    const authResult = await checkAdminAuth(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') ?? '1', 10);
     const pageSize = parseInt(searchParams.get('pageSize') ?? '20', 10);

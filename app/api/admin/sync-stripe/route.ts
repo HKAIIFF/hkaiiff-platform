@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
+import { checkAdminAuth } from '@/lib/auth/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,15 +29,6 @@ function getAdminClient() {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-// ── Admin 鉴权 ─────────────────────────────────────────────────────────────────
-
-function isAdminAuthorized(req: NextRequest): boolean {
-  const auth = req.headers.get('authorization') ?? '';
-  if (!auth.startsWith('Bearer ')) return false;
-  const token = auth.slice(7).trim();
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? '';
-  return token.length > 0 && token === serviceRoleKey;
-}
 
 // ── 检查 transactions 中是否已存在记录 ────────────────────────────────────────
 
@@ -195,9 +187,8 @@ async function markProcessed(
 // ── 主 Handler ────────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  if (!isAdminAuthorized(req)) {
-    return NextResponse.json({ error: 'Unauthorized: valid service role key required' }, { status: 401 });
-  }
+  const authResult = await checkAdminAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
 
   const stripeKey = process.env.STRIPE_SECRET_KEY;
   if (!stripeKey) {

@@ -1,8 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { checkAdminAuth } from '@/lib/auth/adminAuth';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const authResult = await checkAdminAuth(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

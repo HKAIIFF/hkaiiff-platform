@@ -30,6 +30,7 @@ import {
 import { derivePath } from 'ed25519-hd-key';
 import * as bip39 from 'bip39';
 import { decryptSeed } from '@/lib/utils/encryption';
+import { checkAdminAuth } from '@/lib/auth/adminAuth';
 
 const FUNDING_WALLET_PATH = "m/44'/501'/0'/0'";
 
@@ -83,6 +84,9 @@ async function getTreasuryAddress(): Promise<string> {
 
 export async function POST(req: Request) {
   try {
+    const authResult = await checkAdminAuth(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const body = await req.json() as { depositAddress: string };
     const { depositAddress } = body;
 

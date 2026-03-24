@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { checkAdminAuth } from '@/lib/auth/adminAuth';
 
 function getAdminSupabase() {
   return createClient(
@@ -18,8 +19,11 @@ function getAdminSupabase() {
   );
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const authResult = await checkAdminAuth(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const adminSupabase = getAdminSupabase();
     const { data, error } = await adminSupabase
       .from('platform_products')
@@ -39,6 +43,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   try {
+    const authResult = await checkAdminAuth(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const adminSupabase = getAdminSupabase();
     const body = await req.json();
     const { product_code, name_zh, name_en, price_usd, price_aif, metadata, is_active } = body;
@@ -84,6 +91,9 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
+    const authResult = await checkAdminAuth(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const adminSupabase = getAdminSupabase();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');

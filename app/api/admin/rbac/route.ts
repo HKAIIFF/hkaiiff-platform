@@ -56,6 +56,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createHash, randomBytes } from "crypto";
+import { checkAdminAuth } from '@/lib/auth/adminAuth';
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -83,6 +84,9 @@ function generateSecureApiKey(): { plaintext: string; hash: string; preview: str
 // ─── GET ─────────────────────────────────────────────────────────────────────
 // ?type=roles | members | bots
 export async function GET(req: NextRequest) {
+  const authResult = await checkAdminAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+
   const type = req.nextUrl.searchParams.get("type") ?? "roles";
 
   if (type === "roles") {
@@ -119,6 +123,9 @@ export async function GET(req: NextRequest) {
 // ─── POST ─────────────────────────────────────────────────────────────────────
 // body: { entity: "role"|"member"|"bot", ...fields }
 export async function POST(req: NextRequest) {
+  const authResult = await checkAdminAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+
   const body = await req.json();
   const { entity, ...fields } = body as { entity: EntityType; [k: string]: unknown };
 
@@ -170,6 +177,9 @@ export async function POST(req: NextRequest) {
 // ─── PATCH ────────────────────────────────────────────────────────────────────
 // body: { entity, id, ...fieldsToUpdate }
 export async function PATCH(req: NextRequest) {
+  const authResult = await checkAdminAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+
   const body = await req.json();
   const { entity, id, ...updates } = body as { entity: EntityType; id: number; [k: string]: unknown };
 
@@ -226,6 +236,9 @@ export async function PATCH(req: NextRequest) {
 // ─── DELETE ───────────────────────────────────────────────────────────────────
 // body: { entity, id }
 export async function DELETE(req: NextRequest) {
+  const authResult = await checkAdminAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+
   const body = await req.json();
   const { entity, id } = body as { entity: EntityType; id: number };
 

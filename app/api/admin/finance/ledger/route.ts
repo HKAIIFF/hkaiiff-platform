@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { checkAdminAuth } from '@/lib/auth/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +11,9 @@ const adminSupabase = createClient(
 
 export async function GET(req: Request) {
   try {
+    const authResult = await checkAdminAuth(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const { searchParams } = new URL(req.url);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');

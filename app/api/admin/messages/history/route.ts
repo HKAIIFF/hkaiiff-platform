@@ -11,6 +11,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { checkAdminAuth } from '@/lib/auth/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,9 @@ function getAdminClient() {
 
 export async function GET(req: Request) {
   try {
+    const authResult = await checkAdminAuth(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const { searchParams } = new URL(req.url);
     const rawLimit = parseInt(searchParams.get('limit') ?? '50', 10);
     const limit = Math.min(Math.max(rawLimit, 1), 200);

@@ -13,6 +13,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import * as bip39 from 'bip39';
 import { encryptSeed, decryptSeed } from '@/lib/utils/encryption';
+import { checkAdminAuth } from '@/lib/auth/adminAuth';
 
 function createAdminSupabase() {
   return createClient(
@@ -29,8 +30,11 @@ function maskSeedPhrase(seed: string): string {
   return `${words.slice(0, visibleCount).join(' ')} ${'**** '.repeat(words.length - visibleCount).trim()} (${words.length} words)`;
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const authResult = await checkAdminAuth(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const adminSupabase = createAdminSupabase();
     const { data: config } = await adminSupabase
       .from('system_configs')
@@ -68,6 +72,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    const authResult = await checkAdminAuth(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const body = await req.json() as {
       otp: string;
       adminEmail: string;

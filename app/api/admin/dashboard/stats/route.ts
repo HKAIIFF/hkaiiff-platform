@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { checkAdminAuth } from '@/lib/auth/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,8 +12,11 @@ function getAdminSupabase() {
   );
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const authResult = await checkAdminAuth(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const db = getAdminSupabase();
 
     const [filmsRes, kycRes, usersRes, feedRes] = await Promise.all([

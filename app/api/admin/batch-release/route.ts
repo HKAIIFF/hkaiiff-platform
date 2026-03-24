@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { checkAdminAuth } from '@/lib/auth/adminAuth';
 
 function getAdminClient() {
   return createClient(
@@ -19,8 +20,11 @@ function getAdminClient() {
 }
 
 // ── GET：列出所有批次（含條目） ──────────────────────────────────────────────
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const authResult = await checkAdminAuth(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const db = getAdminClient();
     const { data, error } = await db
       .from('batch_releases')
@@ -38,6 +42,9 @@ export async function GET() {
 // ── POST ─────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
+    const authResult = await checkAdminAuth(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const body = await req.json();
     const { action } = body;
     const db = getAdminClient();

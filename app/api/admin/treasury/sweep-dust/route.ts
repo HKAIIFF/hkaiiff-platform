@@ -25,6 +25,7 @@ import {
 import { derivePath } from 'ed25519-hd-key';
 import * as bip39 from 'bip39';
 import { decryptSeed } from '@/lib/utils/encryption';
+import { checkAdminAuth } from '@/lib/auth/adminAuth';
 
 const FUNDING_WALLET_PATH = "m/44'/501'/0'/0'";
 /** 每筆 SOL 轉帳預留手續費（lamports） */
@@ -71,8 +72,11 @@ function deriveKeypairFromIndex(seedPhrase: string, index: number): Keypair {
 }
 
 /** GET — 掃描階段：僅查詢可提取地址數量與預估 SOL，不執行鏈上交易 */
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const authResult = await checkAdminAuth(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com';
     const adminSupabase = createAdminSupabase();
     const connection = new Connection(rpcUrl, 'confirmed');
@@ -130,8 +134,11 @@ export async function GET() {
   }
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
+    const authResult = await checkAdminAuth(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com';
     const adminSupabase = createAdminSupabase();
     const connection = new Connection(rpcUrl, 'confirmed');

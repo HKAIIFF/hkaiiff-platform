@@ -26,6 +26,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 import { sendMessage } from '@/lib/actions/message';
+import { checkAdminAuth } from '@/lib/auth/adminAuth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -44,6 +45,9 @@ interface ReviewBody {
 }
 
 export async function POST(req: NextRequest) {
+  const authResult = await checkAdminAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+
   const body: ReviewBody = await req.json();
   const { applicationId: rawAppId, action, rejectionReason, userId: legacyUserId } = body;
 

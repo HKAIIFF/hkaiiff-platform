@@ -16,6 +16,7 @@ import { Connection, PublicKey, LAMPORTS_PER_SOL } from '@solana/web3.js';
 import { getAssociatedTokenAddress } from '@solana/spl-token';
 import { decryptSeed } from '@/lib/utils/encryption';
 import { getFundingWalletAddressFromSeed } from '@/lib/solana/hdWallet';
+import { checkAdminAuth } from '@/lib/auth/adminAuth';
 
 // 統一使用 hdWallet.ts 的派生邏輯（Phantom 標準路徑 m/44'/501'/0'/0'）
 const FUNDING_ALARM_THRESHOLD = 2; // SOL，低於此值觸發紅色警告
@@ -58,8 +59,11 @@ async function getFundingWalletAddress(): Promise<string> {
   return getFundingWalletAddressFromSeed(seedPhrase);
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const authResult = await checkAdminAuth(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const rpcUrl = process.env.NEXT_PUBLIC_SOLANA_RPC_URL ?? 'https://api.mainnet-beta.solana.com';
     const mintAddressStr = process.env.NEXT_PUBLIC_AIF_MINT_ADDRESS;
     if (!mintAddressStr) {

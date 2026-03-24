@@ -7,9 +7,13 @@
 import 'server-only';
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { checkAdminAuth } from '@/lib/auth/adminAuth';
 
 export async function POST(req: Request) {
   try {
+    const authResult = await checkAdminAuth(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const { email } = await req.json() as { email: string };
 
     if (!email) {

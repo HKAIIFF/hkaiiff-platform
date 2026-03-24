@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
+import { checkAdminAuth } from '@/lib/auth/adminAuth';
 
 /**
  * POST /api/admin/fix-feed
@@ -17,7 +18,10 @@ const serviceSupabase = createClient(
   { auth: { persistSession: false } }
 );
 
-export async function POST() {
+export async function POST(req: Request) {
+  const authResult = await checkAdminAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+
   // 1. 先查出所有 approved 影片的當前狀態（診斷用）
   const { data: allApproved, error: fetchError } = await serviceSupabase
     .from('films')
@@ -71,7 +75,10 @@ export async function POST() {
   });
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const authResult = await checkAdminAuth(req);
+  if (authResult instanceof NextResponse) return authResult;
+
   // 診斷接口：查看當前 approved 影片的 is_feed_published 狀態
   const { data, error } = await serviceSupabase
     .from('films')
