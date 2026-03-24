@@ -5458,11 +5458,11 @@ function OpsRbacTab({ t: _t, pushToast, adminFetch }: { t: T; pushToast: (s: str
         </div>
         <div className="border-t border-neutral-100 pt-4">
           <p className="text-xs font-semibold text-neutral-600 mb-3">邀請新成員</p>
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <input value={inviteAccount} onChange={e => setInviteAccount(e.target.value)} placeholder="Email / DID / 錢包地址" className={INPUT + " flex-1"} />
             <select value={inviteRoleId} onChange={e => setInviteRoleId(Number(e.target.value))} className={INPUT + " w-40"}>
               <option value="">選擇角色</option>
-              {roles.filter(r => !r.is_system).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              {roles.map(r => <option key={r.id} value={r.id}>{r.name}{r.is_system ? " (系統)" : ""}</option>)}
             </select>
             <button onClick={handleInvite} className={BTN_PRIMARY + " shrink-0"}>加入</button>
           </div>
@@ -5499,7 +5499,7 @@ function OpsRbacTab({ t: _t, pushToast, adminFetch }: { t: T; pushToast: (s: str
             <input value={botName} onChange={e => setBotName(e.target.value)} placeholder="Bot 名稱" className={INPUT + " flex-1"} />
             <select value={botRoleId} onChange={e => setBotRoleId(Number(e.target.value))} className={INPUT + " w-40"}>
               <option value="">選擇角色</option>
-              {roles.filter(r => !r.is_system).map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              {roles.map(r => <option key={r.id} value={r.id}>{r.name}{r.is_system ? " (系統)" : ""}</option>)}
             </select>
             <button onClick={handleCreateBot} className={BTN_PRIMARY + " shrink-0"}>創建</button>
           </div>
