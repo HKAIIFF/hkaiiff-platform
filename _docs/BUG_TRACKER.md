@@ -10,7 +10,7 @@
 |------|------|------|
 | 阶段一 | 紧急功能修复 | ✅ 全部完成已上线 |
 | 阶段二 | 安全加固 | ✅ 全部完成已上线 |
-| 阶段三 | 功能优化 | 🟡 进行中 |
+| 阶段三 | 功能优化 | ✅ 全部完成已上线 |
 
 ---
 
@@ -68,18 +68,18 @@
 
 ---
 
-## 🟡 阶段三 — 待完成（功能优化）
+## ✅ 阶段三 — 全部完成（功能优化）
 
-### [P1-001] ⏳ 待修复 — AIF余额更新竞态条件
+### [P1-001] ✅ 已修复 — AIF余额更新竞态条件（commit 25ddad5）
 
-**文件：** `app/api/sync-balance/route.ts`
+**文件：** `app/api/wallet/sync-balance/route.ts`
 **问题：** read-then-write模式，并发时可能丢失更新
 **修复方案：** 改用Supabase RPC `increment_aif_balance`（参考webhook/solana中已有的正确实现）
 **预计工时：** 30分钟
 
 ---
 
-### [P1-002] ⏳ 待修复 — 财务金额单位不一致
+### [P1-002] ✅ 已修复 — 财务金额单位不一致（commit 25ddad5）
 
 **文件：** `app/api/admin/treasury/sweep/route.ts`
 **问题：** 第1704行 `amount: Number(userAifAmount)` 使用链上最小单位，展示时应除以10^9
@@ -88,25 +88,25 @@
 
 ---
 
-### [P1-003] ⏳ 待分析 — 消息系统字段不统一
+### [P1-003] ✅ 已修复 — 消息系统字段不统一（commit b8d5736）
 
 **文件：** `lib/actions/message.ts`、相关API
 **问题：** `body` vs `content`、`msg_type` vs `type` 混用
-**状态：** 需要先读取message.ts完整代码再制定方案
+**修复：** sync-balance和hdWallet.ts直接insert补齐msg_type/content/status字段
 
 ---
 
-### [P2-001] ⏳ 待决策 — 空壳菜单处理
+### [P2-001] ✅ 已完成 — 空壳菜单处理（commit d827f12）
 
 **文件：** `app/admin/page.tsx`
 **问题：** AI相关菜单（ai:models、ai:prompts、ai:assembly）无实际功能
 **方案A：** 隐藏这些菜单项
 **方案B：** 显示"即将上线"提示
-**需要用户决策后执行**
+**已选方案B：显示即将上线提示，并删除三个Mock组件**
 
 ---
 
-### [P2-002] ⏳ 待修复 — creator_applications金额硬编码
+### [P2-002] ✅ 已修复 — creator_applications金额硬编码（commit 8bcf750）
 
 **文件：** `app/api/admin/finance/ledger/route.ts`
 **问题：** 第1027行金额用估算值（150 AIF / 30 USD）而非实际金额
@@ -124,6 +124,10 @@
 | 2026-03-24 | cef0ae9 | 18个Admin API认证 | ✅ 线上 |
 | 2026-03-24 | 806e15d | Admin前端Auth Token | ✅ 线上 |
 | 2026-03-24 | 7c02d72 | sync-user + Webhook幂等 | ✅ 线上 |
+| 2026-03-24 | 25ddad5 | P1-001 AIF余额原子RPC + P1-002 财务金额单位 | ✅ 线上 |
+| 2026-03-24 | b8d5736 | P1-003 消息字段统一 | ✅ 线上 |
+| 2026-03-24 | d827f12 | P2-001 AI菜单开发中提示 | ✅ 线上 |
+| 2026-03-24 | 8bcf750 | P2-002 creator_applications amount字段 | ✅ 线上 |
 
 ---
 
