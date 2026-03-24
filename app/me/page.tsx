@@ -800,7 +800,7 @@ function MePageContent() {
           table: 'users',
           filter: `id=eq.${user.id}`,
         },
-        (payload) => {
+        async (payload) => {
           const newData = payload.new as any;
           if (!newData) return;
           setDbProfile((prev) => prev ? {
@@ -815,6 +815,17 @@ function MePageContent() {
           if (typeof newData.aif_balance === 'number') {
             setAifFlash(true);
             setTimeout(() => setAifFlash(false), 900);
+          }
+          // 同步刷新认证申请状态
+          if (payload.new.verified_identities !== payload.old.verified_identities ||
+              payload.new.verification_status !== payload.old.verification_status) {
+            const { data: freshApps } = await supabase
+              .from('creator_applications')
+              .select('id, identity_type, status, expires_at, rejection_reason, submitted_at, verification_name')
+              .eq('user_id', user.id)
+              .in('status', ['pending', 'approved', 'rejected', 'awaiting_payment'])
+              .order('submitted_at', { ascending: false });
+            if (freshApps) setIdentityApplications(freshApps);
           }
         }
       )
