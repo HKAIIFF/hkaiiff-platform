@@ -115,15 +115,14 @@ export async function POST(req: Request) {
       });
     }
 
-    // ── Step 5: Sweep 成功 → 記帳（aif_balance += swept_amount）─────────────
-    // Sweep 已上鏈，此時才寫入資料庫，保證「先扣後記」不空帳
+    // ── Step 5: Sweep 成功 → 記帳（原子 RPC，防止並發競態）─────────────────
+    // 使用 increment_aif_balance RPC 原子操作，避免 read-then-write 競態條件
     const creditAmount = sweepResult.aifAmount;
-    const newBalance   = (aif_balance ?? 0) + creditAmount;
-
     const { error: updateError } = await adminSupabase
-      .from('users')
-      .update({ aif_balance: newBalance })
-      .eq('id', userId);
+      .rpc('increment_aif_balance', {
+        user_id_param: userId,
+        amount_to_add: creditAmount,
+      });
 
     if (updateError) {
       // 嚴重：鏈上已歸集但資料庫記帳失敗
@@ -157,14 +156,14 @@ export async function POST(req: Request) {
 
     console.log(
       `[sync-balance] ✅ 同步完成 | 用戶: ${userId} | ` +
-      `歸集: ${creditAmount} AIF | 新餘額: ${newBalance} | tx: ${sweepResult.txSignature}`
+      `歸集: ${creditAmount} AIF | 新餘額: ${(aif_balance ?? 0) + creditAmount} | tx: ${sweepResult.txSignature}`
     );
 
     return NextResponse.json({
       synced: true,
       aifAmount:    creditAmount,
       txSignature:  sweepResult.txSignature,
-      aif_balance:  newBalance,
+      aif_balance:  (aif_balance ?? 0) + creditAmount,
     });
 
   } catch (err: unknown) {

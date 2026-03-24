@@ -193,7 +193,7 @@ export async function POST(req: Request) {
       related_deposit_address: depositAddress,
       tx_type: 'sweep',
       tx_hash: signature,
-      amount: Number(userAifAmount),
+      amount: Number(userAifAmount) / Math.pow(10, 9),
       currency: 'AIF',
       status: 'success',
     });
