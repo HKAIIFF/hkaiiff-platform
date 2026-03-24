@@ -313,7 +313,7 @@ function DashboardModule({ t }: { t: T }) {
   const [dashStats, setDashStats] = useState({ pendingFilms: 0, pendingKyc: 0, totalUsers: 0, feedPublished: 0 });
 
   useEffect(() => {
-    fetch('/api/admin/dashboard/stats')
+    adminFetch('/api/admin/dashboard/stats')
       .then((r) => r.json())
       .then((d) => { if (!d.error) setDashStats(d); })
       .catch(() => null);
@@ -1536,7 +1536,7 @@ function ReviewKycTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bool
     setIsLoading(true);
     try {
       const param = statusFilter === "all" ? "?status=all" : `?status=${statusFilter}`;
-      const res = await fetch(`/api/admin/verifications${param}`);
+      const res = await adminFetch(`/api/admin/verifications${param}`);
       const data = await res.json();
       setRecords(data.verifications ?? []);
     } finally {
@@ -1549,7 +1549,7 @@ function ReviewKycTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bool
   async function handleApprove(rec: KycRecord) {
     setProcessingId(rec.id);
     try {
-      const res = await fetch("/api/admin/verifications/review", {
+      const res = await adminFetch("/api/admin/verifications/review", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: rec.id, action: "approve" }),
       });
@@ -1562,7 +1562,7 @@ function ReviewKycTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bool
     if (!rejectTarget || !rejectReason) return;
     setProcessingId(rejectTarget.id);
     try {
-      const res = await fetch("/api/admin/verifications/review", {
+      const res = await adminFetch("/api/admin/verifications/review", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: rejectTarget.id, action: "reject", rejectionReason: rejectReason }),
       });
@@ -2341,7 +2341,7 @@ function DistOfficialTab({ pushToast }: { pushToast: (s: string, ok?: boolean) =
     async function loadUsers() {
       setUsersLoading(true);
       try {
-        const res = await fetch("/api/admin/users");
+        const res = await adminFetch("/api/admin/users");
         const data = await res.json();
         if (!res.ok) { pushToast(data.error || "獲取用戶列表失敗", false); return; }
         setUsers(Array.isArray(data) ? data : []);
@@ -2602,7 +2602,7 @@ function EcoHumanTab({ t, pushToast, askConfirm }: { t: T; pushToast: (s: string
     setLoading(true);
     setFetchError(null);
     try {
-      const res = await fetch('/api/admin/users');
+      const res = await adminFetch('/api/admin/users');
       const data = await res.json();
       if (!res.ok) {
         setFetchError(data.error || '獲取用戶失敗，請稍後重試');
@@ -3296,7 +3296,7 @@ function FinProductsTab({ pushToast }: { pushToast: (s: string, ok?: boolean) =>
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/admin/products');
+      const res = await adminFetch('/api/admin/products');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json() as { products: PlatformProduct[] };
       setProducts(json.products ?? []);
@@ -3339,7 +3339,7 @@ function FinProductsTab({ pushToast }: { pushToast: (s: string, ok?: boolean) =>
       const isEdit = !!editingProduct;
       const url = isEdit ? `/api/admin/products?id=${editingProduct!.id}` : '/api/admin/products';
       const method = isEdit ? 'PATCH' : 'POST';
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -3364,7 +3364,7 @@ function FinProductsTab({ pushToast }: { pushToast: (s: string, ok?: boolean) =>
 
   async function toggleActive(p: PlatformProduct) {
     try {
-      const res = await fetch(`/api/admin/products?id=${p.id}`, {
+      const res = await adminFetch(`/api/admin/products?id=${p.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: !p.is_active }),
@@ -3764,7 +3764,7 @@ function FinLedgerTab() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(buildUrl());
+      const res = await adminFetch(buildUrl());
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json() as { summary: FinLedgerSummary; data: FinLedgerRow[]; error?: string; txError?: string };
       console.log('[FinLedger] API 返回:', { rows: json.data?.length ?? 0, summary: json.summary, error: json.error, txError: json.txError });
@@ -4073,7 +4073,7 @@ function TrFundingConfigModal({ onClose, onSuccess, onToast }: { onClose: () => 
   const [currentConfig, setCurrentConfig] = useState<{ seedMask: string } | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/treasury/config").then((r) => r.json()).then((d) => setCurrentConfig({ seedMask: d.seedMask ?? "" })).catch(() => {});
+    adminFetch("/api/admin/treasury/config").then((r) => r.json()).then((d) => setCurrentConfig({ seedMask: d.seedMask ?? "" })).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -4086,7 +4086,7 @@ function TrFundingConfigModal({ onClose, onSuccess, onToast }: { onClose: () => 
     if (!adminEmail) { setErr("請先填寫管理員郵箱"); return; }
     setErr("");
     try {
-      const res = await fetch("/api/admin/send-otp", {
+      const res = await adminFetch("/api/admin/send-otp", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: adminEmail }),
       });
@@ -4104,7 +4104,7 @@ function TrFundingConfigModal({ onClose, onSuccess, onToast }: { onClose: () => 
     if (!newSeedPhrase) { setErr("請填寫新的墊付錢包助記詞"); return; }
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/treasury/config", {
+      const res = await adminFetch("/api/admin/treasury/config", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adminEmail, otp, newSeedPhrase }),
       });
@@ -4199,7 +4199,7 @@ function TrTreasuryConfigModal({ onClose, onSuccess, onToast }: { onClose: () =>
   const [currentConfig, setCurrentConfig] = useState<{ treasuryWalletAddress: string } | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/treasury/config").then((r) => r.json()).then((d) => setCurrentConfig({ treasuryWalletAddress: d.treasuryWalletAddress ?? "" })).catch(() => {});
+    adminFetch("/api/admin/treasury/config").then((r) => r.json()).then((d) => setCurrentConfig({ treasuryWalletAddress: d.treasuryWalletAddress ?? "" })).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -4212,7 +4212,7 @@ function TrTreasuryConfigModal({ onClose, onSuccess, onToast }: { onClose: () =>
     if (!adminEmail) { setErr("請先填寫管理員郵箱"); return; }
     setErr("");
     try {
-      const res = await fetch("/api/admin/send-otp", {
+      const res = await adminFetch("/api/admin/send-otp", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: adminEmail }),
       });
@@ -4230,7 +4230,7 @@ function TrTreasuryConfigModal({ onClose, onSuccess, onToast }: { onClose: () =>
     if (!newTreasuryAddress) { setErr("請填寫新的金庫錢包地址"); return; }
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/treasury/config", {
+      const res = await adminFetch("/api/admin/treasury/config", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adminEmail, otp, newTreasuryAddress }),
       });
@@ -4311,7 +4311,7 @@ function TrSweepDustModal({ onClose, onSuccess }: { onClose: () => void; onSucce
   useEffect(() => {
     async function runScan() {
       try {
-        const res = await fetch("/api/admin/treasury/sweep-dust");
+        const res = await adminFetch("/api/admin/treasury/sweep-dust");
         const data = await res.json();
         if (!res.ok) { setErrMsg(data.error ?? "掃描失敗，請稍後重試"); setPhase("error"); return; }
         setScanResult(data);
@@ -4324,7 +4324,7 @@ function TrSweepDustModal({ onClose, onSuccess }: { onClose: () => void; onSucce
   async function handleConfirm() {
     setPhase("executing");
     try {
-      const res = await fetch("/api/admin/treasury/sweep-dust", { method: "POST" });
+      const res = await adminFetch("/api/admin/treasury/sweep-dust", { method: "POST" });
       const data = await res.json();
       if (!res.ok) { setErrMsg(data.error ?? "執行失敗，請稍後重試"); setPhase("error"); return; }
       onSuccess(data.message ?? `已歸集 ${data.swept} 個地址`);
@@ -4653,7 +4653,7 @@ function FinTreasuryTab({ t: _t }: { t: T }) {
   const fetchStats = useCallback(async () => {
     setStatsLoading(true);
     try {
-      const res = await fetch("/api/admin/treasury/stats");
+      const res = await adminFetch("/api/admin/treasury/stats");
       const data = await res.json();
       if (!res.ok) { trToast(`大盤載入失敗: ${data.error ?? res.statusText}`, false); return; }
       setStats(data);
@@ -4666,7 +4666,7 @@ function FinTreasuryTab({ t: _t }: { t: T }) {
     try {
       const params = new URLSearchParams({ page: String(page), pageSize: "20" });
       if (search) params.set("search", search);
-      const res = await fetch(`/api/admin/treasury/ledger?${params}`);
+      const res = await adminFetch(`/api/admin/treasury/ledger?${params}`);
       const data = await res.json();
       if (!res.ok) { trToast(`流水載入失敗: ${data.error ?? res.statusText}`, false); return; }
       setLedger(data);
@@ -4689,7 +4689,7 @@ function FinTreasuryTab({ t: _t }: { t: T }) {
     setSweepingAddr(forceSweepTarget.depositAddress);
     setForceSweepTarget(null);
     try {
-      const res = await fetch("/api/admin/treasury/sweep", {
+      const res = await adminFetch("/api/admin/treasury/sweep", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ depositAddress: forceSweepTarget.depositAddress }),
       });
@@ -4891,7 +4891,7 @@ function OpsTowerTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boole
       const params = new URLSearchParams({ limit: "50" });
       if (histFrom) params.set("from", histFrom);
       if (histTo) params.set("to", histTo);
-      const res = await fetch(`/api/admin/messages/history?${params.toString()}`);
+      const res = await adminFetch(`/api/admin/messages/history?${params.toString()}`);
       if (!res.ok) { pushToast("查詢歷史記錄失敗", false); return; }
       const data = await res.json();
       setHistory(data.messages ?? []);
@@ -5352,7 +5352,7 @@ function OpsRbacTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
     if (!newBot.name.trim()) { pushToast("請輸入節點名稱", false); return; }
     setIsCreatingBot(true);
     try {
-      const res = await fetch("/api/admin/rbac", {
+      const res = await adminFetch("/api/admin/rbac", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ entity: "bot", name: newBot.name.trim(), roleId: newBot.roleId }),
@@ -5381,7 +5381,7 @@ function OpsRbacTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
 
   async function handleResetKey(bot: BotMember) {
     try {
-      const res = await fetch("/api/admin/rbac", {
+      const res = await adminFetch("/api/admin/rbac", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ entity: "bot", id: bot.id, resetKey: true }),
@@ -5708,7 +5708,18 @@ function OpsRbacTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
 // 主頁面：AdminPage
 // ────────────────────────────────────────────────────────────────────────────
 export default function AdminPage() {
-  const { user, logout } = usePrivy();
+  const { user, logout, getAccessToken } = usePrivy();
+  const adminFetch = useCallback(async (url: string, options: RequestInit = {}) => {
+    const token = await getAccessToken();
+    return fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers as Record<string, string> ?? {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+  }, [getAccessToken]);
   const router = useRouter();
   const [lang, setLang] = useState<Lang>("zh");
   const [activeSubMenu, setActiveSubMenu] = useState<SubMenuId>("dashboard");
