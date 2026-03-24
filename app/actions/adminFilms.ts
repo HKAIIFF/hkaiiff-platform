@@ -3,30 +3,42 @@
 /**
  * Admin 影片管理 Server Actions
  *
- * 使用 SUPABASE_SERVICE_ROLE_KEY（上帝模式）繞過 RLS，
- * 確保 Admin 後台的 UPDATE 操作不被 RLS 攔截。
- *
- * 根本原因：films 表 RLS 未定義 UPDATE policy，
- * 任何使用 anon key 的 UPDATE 均會靜默失敗或拋出權限錯誤。
+ * 每次調用都在函數內部創建 Supabase 客戶端（惰性初始化），
+ * 確保 SUPABASE_SERVICE_ROLE_KEY 在 Vercel 運行時被正確讀取。
+ * 模組層面初始化會導致 Vercel Edge 環境下 env var 尚未注入即被讀取，
+ * 造成所有 UPDATE 靜默失敗。
  */
 
 import { createClient } from '@supabase/supabase-js';
 import { revalidatePath } from 'next/cache';
 
-const adminSupabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { persistSession: false } }
-);
+function getAdminClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!url || !key) {
+    throw new Error(
+      `Supabase 環境變量缺失 — URL: ${url ? '✓' : '✗ NEXT_PUBLIC_SUPABASE_URL'}, KEY: ${key ? '✓' : '✗ SUPABASE_SERVICE_ROLE_KEY'}。請在 Vercel → Settings → Environment Variables 中設置。`
+    );
+  }
+
+  return createClient(url, key, { auth: { persistSession: false } });
+}
 
 export async function adminUpdateFilmStatus(
   id: string,
   status: 'approved' | 'rejected',
   is_feed_published: boolean
 ): Promise<{ error: string | null }> {
-  if (!id) {
-    console.error('【adminUpdateFilmStatus】缺少影片 ID，無法更新資料庫');
-    return { error: '缺少影片 ID，無法更新資料庫' };
+  if (!id) return { error: '缺少影片 ID' };
+
+  let adminSupabase;
+  try {
+    adminSupabase = getAdminClient();
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('【adminUpdateFilmStatus】Supabase 客戶端初始化失敗:', msg);
+    return { error: msg };
   }
 
   const { error } = await adminSupabase
@@ -35,11 +47,29 @@ export async function adminUpdateFilmStatus(
     .eq('id', id);
 
   if (error) {
-    console.error('【adminUpdateFilmStatus 致命錯誤】:', error.message, error.details, error.hint);
+    console.error('【adminUpdateFilmStatus 錯誤】:', error.message);
     return { error: error.message };
   }
 
-  // 同時使 Feed 首頁與管理頁緩存失效，確保上架後前台立即可見
+  // 回讀驗證
+  const { data: verify, error: vErr } = await adminSupabase
+    .from('films')
+    .select('status,is_feed_published')
+    .eq('id', id)
+    .single();
+
+  if (vErr) {
+    console.warn('【adminUpdateFilmStatus 驗證失敗】無法讀回:', vErr.message);
+  } else {
+    const row = verify as { status: string; is_feed_published: boolean } | null;
+    if (row?.status !== status || row?.is_feed_published !== is_feed_published) {
+      const msg = `DB 更新未生效 — 期望 status=${status} is_feed_published=${is_feed_published}，DB 實際值 status=${row?.status} is_feed_published=${row?.is_feed_published}。請確認 Supabase RLS UPDATE 策略。`;
+      console.error('【adminUpdateFilmStatus 數據不一致】', msg);
+      return { error: msg };
+    }
+    console.log(`【adminUpdateFilmStatus 成功】id=${id.slice(0, 8)} status=${status} is_feed_published=${is_feed_published}`);
+  }
+
   revalidatePath('/admin/films');
   revalidatePath('/');
   return { error: null };
@@ -50,9 +80,15 @@ export async function adminToggleFilmField(
   field: 'is_feed_published' | 'is_main_published' | 'is_parallel_universe',
   value: boolean
 ): Promise<{ error: string | null }> {
-  if (!id) {
-    console.error('【adminToggleFilmField】缺少影片 ID，無法更新資料庫');
-    return { error: '缺少影片 ID，無法更新資料庫' };
+  if (!id) return { error: '缺少影片 ID' };
+
+  let adminSupabase;
+  try {
+    adminSupabase = getAdminClient();
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('【adminToggleFilmField】Supabase 客戶端初始化失敗:', msg);
+    return { error: msg };
   }
 
   const { error } = await adminSupabase
@@ -61,11 +97,11 @@ export async function adminToggleFilmField(
     .eq('id', id);
 
   if (error) {
-    console.error('【adminToggleFilmField 致命錯誤】:', error.message, error.details, error.hint);
+    console.error('【adminToggleFilmField 錯誤】:', error.message);
     return { error: error.message };
   }
 
-  // 回讀驗證：確認 DB 裡的值已正確更新，防止靜默失敗
+  // 回讀驗證：確保 DB 實際更新
   const { data: verify, error: verifyErr } = await adminSupabase
     .from('films')
     .select(field)
@@ -73,14 +109,16 @@ export async function adminToggleFilmField(
     .single();
 
   if (verifyErr) {
-    console.warn(`【adminToggleFilmField 驗證失敗】無法讀回 ${field}:`, verifyErr.message);
+    // 讀回失敗本身不算業務錯誤，但要記錄警告
+    console.warn(`【adminToggleFilmField 驗證讀取失敗】field=${field}:`, verifyErr.message);
   } else {
     const actual = (verify as Record<string, unknown>)?.[field];
     if (actual !== value) {
-      console.error(`【adminToggleFilmField 數據不一致】期望 ${field}=${value}，DB 實際值=${actual}`);
-      return { error: `DB 更新未生效（期望 ${value}，實際 ${actual}）。請檢查 Supabase RLS UPDATE 策略。` };
+      const msg = `DB 更新未生效 — 期望 ${field}=${value}，DB 實際值=${actual}。請確認 Supabase RLS UPDATE 策略。`;
+      console.error('【adminToggleFilmField 數據不一致】', msg);
+      return { error: msg };
     }
-    console.log(`【adminToggleFilmField 成功】${field} 已更新為 ${value}`);
+    console.log(`【adminToggleFilmField 成功】id=${id.slice(0, 8)} ${field}=${value}`);
   }
 
   revalidatePath('/admin/films');

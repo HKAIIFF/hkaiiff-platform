@@ -34,9 +34,10 @@ export async function GET() {
     display_name: string | null; verified_identities: string[] | null;
   };
 
-  // ── 1. 獲取已審核且 Feed 已上架的影片 ────────────────────────────────────
-  // 雙重條件：status='approved' AND is_feed_published=true
-  // 管理員可通過 Feed 開關即時控制單部影片的可見性。
+  // ── 1. 獲取 Feed 影片 ────────────────────────────────────────────────────
+  // 顯示條件：status='approved' 且 is_feed_published 不為 false
+  // （true 或 null 均顯示，只有管理員明確設為 false 才隱藏）
+  // 這樣即使批量操作出錯導致部分值為 null，影片仍可正常顯示。
   const { data: filmsRaw, error: filmsError } = await serviceSupabase
     .from('films')
     .select(
@@ -44,7 +45,7 @@ export async function GET() {
       'user_id,created_at,is_parallel_universe,parallel_start_time'
     )
     .eq('status', 'approved')
-    .eq('is_feed_published', true)
+    .or('is_feed_published.eq.true,is_feed_published.is.null')
     .order('created_at', { ascending: false });
 
   if (filmsError) {
