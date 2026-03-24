@@ -228,13 +228,13 @@ function MobileFeedItem({
 
   const handleParallelClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!authenticated) { showToast(lang === "en" ? "Please connect wallet." : "請先登錄。", "error"); setShowConsent(true); return; }
+    if (!authenticated) { setShowConsent(true); return; }
     setDrawerOpen(true);
   };
 
   const handleMintToChain = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!authenticated) { showToast(lang === "en" ? "Please connect wallet." : "請先連接錢包。", "error"); setShowConsent(true); return; }
+    if (!authenticated) { setShowConsent(true); return; }
     showToast(lang === "en" ? "Minting coming soon..." : "鏈上鑄造即將上線。", "info");
   };
 
@@ -595,7 +595,6 @@ function FeedInner() {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("authRequired") === "1") {
-      showToast(lang === "en" ? "Please connect wallet / login first." : "請先登錄或連接錢包。", "error");
       setShowConsent(true);
       window.history.replaceState({}, "", window.location.pathname);
     }
