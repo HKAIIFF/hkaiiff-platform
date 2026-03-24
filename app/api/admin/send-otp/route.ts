@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean);
 
-    if (allowedEmails.length > 0 && !allowedEmails.includes(email.toLowerCase())) {
+    if (allowedEmails.length === 0 || !allowedEmails.includes(email.toLowerCase())) {
       return NextResponse.json({ error: '該郵箱沒有管理員權限' }, { status: 403 });
     }
 

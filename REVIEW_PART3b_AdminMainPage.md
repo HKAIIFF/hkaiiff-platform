@@ -1,3 +1,9 @@
+# HKAIIFF Platform — Part 3b: Admin 主控制台页面（超大文件）
+> 提交给 Claude 进行代码审查 | 附加部分
+> 注意：此文件包含 admin/page.tsx（主控制台）和 AdminPageV2.tsx + BatchReleaseTab.tsx
+
+### app/admin/page.tsx (主控制台)
+```typescript
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -20,7 +26,6 @@ interface Film {
   status: "pending" | "approved" | "rejected"; created_at: string;
   is_parallel_universe?: boolean | null;
   parallel_start_time?: string | null;
-  is_feed_published?: boolean | null;
   feed_enabled?: boolean | null;
   feature_enabled?: boolean | null;
   users?: { email: string | null; wallet_address: string | null } | null;
@@ -310,15 +315,6 @@ function getBreadcrumb(active: SubMenuId, lang: Lang, t: T): string {
 // 模塊一：指揮大盤
 // ────────────────────────────────────────────────────────────────────────────
 function DashboardModule({ t }: { t: T }) {
-  const [dashStats, setDashStats] = useState({ pendingFilms: 0, pendingKyc: 0, totalUsers: 0, feedPublished: 0 });
-
-  useEffect(() => {
-    fetch('/api/admin/dashboard/stats')
-      .then((r) => r.json())
-      .then((d) => { if (!d.error) setDashStats(d); })
-      .catch(() => null);
-  }, []);
-
   const briefing = useMemo(
     () => Array.from({ length: 100 }, (_, i) => `${i + 1}. [Web3/AI] Mock briefing #${i + 1} — On-chain ecosystem & global AI cinema update`),
     []
@@ -339,9 +335,9 @@ function DashboardModule({ t }: { t: T }) {
           <h3 className="font-bold text-neutral-900 mb-4">{t.todoCenter}</h3>
           <div className="space-y-2">
             {[
-              { label: t.pendingFilms, count: dashStats.pendingFilms, dot: "bg-[#fbbc04]" },
+              { label: t.pendingFilms, count: 12, dot: "bg-[#fbbc04]" },
               { label: t.pendingWithdraw, count: 4, dot: "bg-[#ea4335]" },
-              { label: "KYC 待審核", count: dashStats.pendingKyc, dot: "bg-[#1a73e8]" },
+              { label: "KYC 待審核", count: 7, dot: "bg-[#1a73e8]" },
             ].map(({ label, count, dot }) => (
               <div key={label} className="rounded-xl border border-neutral-200 bg-white p-3 flex items-center justify-between hover:bg-neutral-50 transition-colors duration-150">
                 <span className="flex items-center gap-2 text-sm font-medium text-neutral-700">
@@ -643,15 +639,10 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
   }
 
   async function toggleFeed(film: Film) {
-    const next = !film.is_feed_published;
-    const { error } = await supabase
-      .from("films")
-      .update({ is_feed_published: next, feed_enabled: next })
-      .eq("id", film.id);
+    const next = !film.feed_enabled;
+    const { error } = await supabase.from("films").update({ feed_enabled: next }).eq("id", film.id);
     if (error) { pushToast(error.message, false); return; }
-    setFilms((prev) => prev.map((f) =>
-      f.id === film.id ? { ...f, is_feed_published: next, feed_enabled: next } : f
-    ));
+    setFilms((prev) => prev.map((f) => f.id === film.id ? { ...f, feed_enabled: next } : f));
     pushToast(next ? "✅ Feed 已上架" : "Feed 已下架");
     revalidateFeed().catch(() => null);
   }
@@ -1017,9 +1008,9 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
                   <td className="px-4 py-4 align-middle">
                     <div className="space-y-0.5">
                       <MiniToggle
-                        on={!!film.is_feed_published}
+                        on={!!film.feed_enabled}
                         onChange={() => toggleFeed(film)}
-                        label={film.is_feed_published ? "Feed 上架" : "Feed 下架"}
+                        label={film.feed_enabled ? "Feed 上架" : "Feed 下架"}
                       />
                       <div className="flex items-center gap-1">
                         <MiniToggle
@@ -5941,3 +5932,3278 @@ export default function AdminPage() {
     </div>
   );
 }
+```
+### app/admin/AdminPageV2.tsx
+```typescript
+"use client";
+console.log("AdminPageV2 loaded v2");
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePrivy } from "@privy-io/react-auth";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+
+type Lang = "zh" | "en";
+type MainModule = "dashboard" | "review" | "distribution" | "ecosystem" | "ai" | "finance" | "ops";
+type ToastItem = { id: number; text: string; ok: boolean };
+type ConfirmConfig = { title: string; body: string; danger?: boolean; onConfirm: () => void | Promise<void> };
+
+interface Film {
+  id: string;
+  user_id: string | null;
+  title: string | null;
+  studio: string | null;
+  ai_ratio: number | null;
+  poster_url: string | null;
+  trailer_url?: string | null;
+  feature_url?: string | null;
+  copyright_url?: string | null;
+  status: "pending" | "approved" | "rejected";
+  created_at: string;
+  contact_email?: string | null;
+}
+
+interface UserRow {
+  id: string;
+  email: string | null;
+  wallet_address: string | null;
+  aif_balance: number | null;
+  deposit_address: string | null;
+  created_at: string;
+  role?: string;
+  display_name?: string | null;
+  name?: string | null;
+  agent_id?: string | null;
+}
+
+interface LbsNode {
+  id: string;
+  title: string;
+  location: string | null;
+  lat: number | null;
+  lng: number | null;
+  start_time: string | null;
+  end_time: string | null;
+  contract_req: string | null;
+  film_ids: string[] | null;
+  created_at: string;
+}
+
+const DICT = {
+  zh: {
+    brand: "HKAIIFF",
+    breadcrumbRoot: "管理後台",
+    logout: "退出",
+    logoutFail: "退出失敗，請重試",
+    langLabel: "語言",
+    coreModules: "核心模塊",
+    dashboard: "Dashboard 指揮大盤",
+    review: "Review 審核與風控",
+    distribution: "Distribution 發行與策展",
+    ecosystem: "Ecosystem 矩陣生態",
+    ai: "AI Orchestration",
+    finance: "Finance 財務中心",
+    ops: "Ops & Settings",
+    refresh: "刷新",
+    loading: "讀取中...",
+    empty: "暫無資料",
+    cancel: "取消",
+    confirm: "確認",
+    danger: "確認執行",
+    dashboardCards: [
+      "今日新增人類 / Bot / 活躍錢包",
+      "24H 資金流入（USD / AIF）",
+      "實時在線影展",
+      "全局 AIF.BOT 算力",
+    ],
+    todoCenter: "待辦中樞",
+    aiBriefing: "AI 全球簡報（Mock 100 條）",
+    pendingFilms: "待審核影片",
+    pendingWithdraw: "待處理提現",
+    reviewTabs: ["參展作品審核", "LBS 影展審核", "身份認證審核 (KYC)"],
+    approve: "通過",
+    reject: "拒絕",
+    reason: "駁回原因",
+    rejectReasons: ["侵權", "違規", "缺失"],
+    sendReject: "發送駁回信",
+    nftHint: "已觸發 NFT 上鏈流程",
+    distributionTabs: ["官方 LBS 院線", "線上首映流管理", "排片池總覽"],
+    nodeForm: "創建官方節點",
+    unlockRadius: "解鎖半徑（米）",
+    timeLock: "時間鎖",
+    contractPolicy: "智能合約策略",
+    contractOptions: ["無限制", "必須持有特定 Token", "親臨現場 <500m"],
+    ticketAif: "門票費用（AIF）",
+    ticketUsd: "門票費用（USD）",
+    uploadPoster: "上傳影展海報",
+    uploadBg: "上傳背景圖",
+    poolBtn: "排片池",
+    savePool: "保存排片池",
+    ecosystemTabs: ["碳基人類檔案", "硅基數字人檔案"],
+    ban: "封禁",
+    forceOffline: "強制下線",
+    clear: "清空",
+    sleep: "休眠",
+    reset: "重置",
+    aiTabs: ["大模型管理", "提示詞工程庫", "Bot 組裝台"],
+    financeTabs: ["全局財務流水", "平台金庫", "分潤提現結算"],
+    opsTabs: ["官方物料庫", "全局消息塔", "系統參數", "RBAC 權限管理"],
+    sendMsg: "發送通知",
+    aiThreshold: "AI 及格線",
+    rbacRole: "角色管理",
+    rbacPeople: "人員管理",
+  },
+  en: {
+    brand: "HKAIIFF",
+    breadcrumbRoot: "Admin Console",
+    logout: "Logout",
+    logoutFail: "Logout failed",
+    langLabel: "Language",
+    coreModules: "Core Modules",
+    dashboard: "Dashboard",
+    review: "Review & Risk",
+    distribution: "Distribution",
+    ecosystem: "Ecosystem",
+    ai: "AI Orchestration",
+    finance: "Finance",
+    ops: "Ops & Settings",
+    refresh: "Refresh",
+    loading: "Loading...",
+    empty: "No data",
+    cancel: "Cancel",
+    confirm: "Confirm",
+    danger: "Proceed",
+    dashboardCards: [
+      "New Humans / Bots / Active Wallets",
+      "24H Inflow (USD / AIF)",
+      "Live Festivals Online",
+      "Global AIF.BOT Compute",
+    ],
+    todoCenter: "Todo Hub",
+    aiBriefing: "AI Global Briefing (100 Mock Items)",
+    pendingFilms: "Pending film reviews",
+    pendingWithdraw: "Pending withdrawals",
+    reviewTabs: ["Film Review", "LBS Festival Review", "Identity & KYC"],
+    approve: "Approve",
+    reject: "Reject",
+    reason: "Reject reason",
+    rejectReasons: ["Copyright", "Violation", "Missing materials"],
+    sendReject: "Send rejection letter",
+    nftHint: "NFT mint pipeline has been triggered",
+    distributionTabs: ["Official LBS Cinemas", "Online Premiere Streams", "Scheduling Pool"],
+    nodeForm: "Create Official Node",
+    unlockRadius: "Unlock Radius (m)",
+    timeLock: "Time Lock",
+    contractPolicy: "Contract Policy",
+    contractOptions: ["No restriction", "Must hold specific token", "On-site <500m"],
+    ticketAif: "Ticket Fee (AIF)",
+    ticketUsd: "Ticket Fee (USD)",
+    uploadPoster: "Upload festival poster",
+    uploadBg: "Upload background image",
+    poolBtn: "Scheduling Pool",
+    savePool: "Save Pool",
+    ecosystemTabs: ["Carbon Humans", "Silicon Bots"],
+    ban: "Ban",
+    forceOffline: "Force Offline",
+    clear: "Clear",
+    sleep: "Sleep",
+    reset: "Reset",
+    aiTabs: ["Model Management", "Prompt Library", "Bot Workbench"],
+    financeTabs: ["Global Ledger", "Platform Treasury", "Revenue Settlements"],
+    opsTabs: ["Asset Library", "Message Tower", "System Params", "RBAC"],
+    sendMsg: "Send notification",
+    aiThreshold: "AI passing threshold",
+    rbacRole: "Role Management",
+    rbacPeople: "People Management",
+  },
+} as const;
+
+type Dict = (typeof DICT)["zh"];
+
+const CARD = "bg-white border border-gray-200 rounded-2xl shadow-sm";
+const INPUT = "w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/30";
+const BTN = "rounded-xl px-4 py-2 text-sm font-semibold transition-colors";
+
+function ToastStack({ items }: { items: ToastItem[] }) {
+  return (
+    <div className="fixed top-4 left-1/2 z-[9999] -translate-x-1/2 space-y-2 pointer-events-none">
+      {items.map((t) => (
+        <div
+          key={t.id}
+          className={`${CARD} pointer-events-auto px-4 py-3 text-sm font-semibold ${t.ok ? "text-green-700 border-green-200" : "text-red-700 border-red-200"}`}
+        >
+          {t.text}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Modal({
+  title,
+  children,
+  onClose,
+  footer,
+}: {
+  title: string;
+  children: React.ReactNode;
+  onClose: () => void;
+  footer?: React.ReactNode;
+}) {
+  return (
+    <div className="fixed inset-0 z-[9998] flex items-end sm:items-center justify-center p-4">
+      <div className="absolute inset-0 bg-gray-900/30" onClick={onClose} />
+      <div className={`${CARD} relative z-10 w-full max-w-2xl max-h-[90vh] overflow-hidden`}>
+        <div className="border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between">
+          <h3 className="font-bold text-gray-900">{title}</h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+            ✕
+          </button>
+        </div>
+        <div className="p-4 sm:p-6 overflow-y-auto">{children}</div>
+        {footer && <div className="border-t border-gray-200 px-4 sm:px-6 py-4">{footer}</div>}
+      </div>
+    </div>
+  );
+}
+
+function SubTabs<T extends string>({
+  tabs,
+  active,
+  onChange,
+}: {
+  tabs: { id: T; label: string }[];
+  active: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div className="mb-5 overflow-x-auto">
+      <div className="flex w-max min-w-full gap-1 border-b border-gray-200">
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            className={`whitespace-nowrap px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px ${
+              tab.id === active ? "border-blue-600 text-blue-700" : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}
+            onClick={() => onChange(tab.id)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function UploadMock({ title, onPick }: { title: string; onPick: (fileName: string) => void }) {
+  return (
+    <label className={`${CARD} block cursor-pointer border-dashed p-4 text-center text-sm text-gray-500 hover:border-blue-300`}>
+      <input
+        type="file"
+        className="hidden"
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onPick(f.name);
+        }}
+      />
+      <p className="font-semibold text-gray-700">{title}</p>
+      <p className="mt-1 text-xs text-gray-400">Drag & drop or click to upload (Mock)</p>
+    </label>
+  );
+}
+
+function OssImageUpload({
+  title,
+  currentUrl,
+  onSuccess,
+  pushToast,
+}: {
+  title: string;
+  currentUrl: string;
+  onSuccess: (url: string) => void;
+  pushToast: (text: string, ok?: boolean) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error ?? "上传失败");
+      }
+      const data = await res.json();
+      if (!data.success || !data.url) throw new Error("上传未返回有效 URL");
+      onSuccess(data.url as string);
+      pushToast(`${title} 上傳成功`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      pushToast(`${title} 上傳失敗: ${msg}`, false);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <label
+      className={`${CARD} block cursor-pointer border-dashed p-4 text-center text-sm text-gray-500 hover:border-blue-300 ${uploading ? "opacity-60 pointer-events-none" : ""}`}
+    >
+      <input type="file" className="hidden" accept="image/*" onChange={handleChange} />
+      <p className="font-semibold text-gray-700">{title}</p>
+      {uploading ? (
+        <p className="mt-1 text-xs text-blue-500">上傳中，請稍候…</p>
+      ) : currentUrl ? (
+        <p className="mt-1 text-xs text-green-600 truncate">✓ {currentUrl.split("/").pop()}</p>
+      ) : (
+        <p className="mt-1 text-xs text-gray-400">點擊上傳圖片至阿里雲 OSS</p>
+      )}
+    </label>
+  );
+}
+
+type SharedProps = {
+  t: Dict;
+  pushToast: (text: string, ok?: boolean) => void;
+  askConfirm: (cfg: ConfirmConfig) => void;
+  lang: Lang;
+  setLang: (l: Lang) => void;
+};
+
+function DashboardModule({ t }: { t: Dict }) {
+  const briefing = useMemo(
+    () => Array.from({ length: 100 }, (_, i) => `${i + 1}. AI News Mock #${i + 1} - Global film + on-chain ecosystem update`),
+    []
+  );
+
+  const cards = [
+    { label: t.dashboardCards[0], value: "Human +128 / Bot +47 / Wallet +982", sub: "+12.4%" },
+    { label: t.dashboardCards[1], value: "USD $56,200 / AIF 198,000", sub: "24H realtime" },
+    { label: t.dashboardCards[2], value: "31 Festivals Online", sub: "HK / SG / JP / US" },
+    { label: t.dashboardCards[3], value: "8,420 TFLOPS", sub: "AIF.BOT cluster" },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+        {cards.map((c) => (
+          <div key={c.label} className={`${CARD} p-5`}>
+            <p className="text-xs text-gray-500">{c.label}</p>
+            <p className="mt-2 text-xl font-black text-gray-900">{c.value}</p>
+            <p className="mt-1 text-xs text-blue-600">{c.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className={`${CARD} p-5`}>
+          <h3 className="text-base font-bold text-gray-900 mb-4">{t.todoCenter}</h3>
+          <div className="space-y-3">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-amber-800">
+              ⚠ {t.pendingFilms}: 12
+            </div>
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-red-700">
+              ⚠ {t.pendingWithdraw}: 4
+            </div>
+          </div>
+        </div>
+
+        <div className={`${CARD} p-5`}>
+          <h3 className="text-base font-bold text-gray-900 mb-4">{t.aiBriefing}</h3>
+          <div className="h-72 overflow-y-auto space-y-2 pr-2">
+            {briefing.map((item) => (
+              <div key={item} className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600">
+                {item}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function VerificationsPanel() {
+  const [records, setRecords] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<"pending"|"approved"|"rejected"|"all">("pending");
+  const [processing, setProcessing] = useState<string|null>(null);
+  const [rejectId, setRejectId] = useState<string|null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [toast, setToast] = useState<{msg:string;ok:boolean}|null>(null);
+  const [detail, setDetail] = useState<any|null>(null);
+
+  const showToast = (msg:string, ok:boolean) => { setToast({msg,ok}); setTimeout(()=>setToast(null),3000); };
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/admin/verifications?status=all`);
+      const data = await res.json();
+      setRecords(data.verifications ?? []);
+    } catch { showToast("載入失敗", false); }
+    finally { setLoading(false); }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  function fmt(s:string|null) {
+    if (!s) return "—";
+    const d = new Date(s);
+    return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+  }
+
+  const TYPE_MAP: Record<string,{label:string;cls:string}> = {
+    creator:     {label:"創作人", cls:"bg-yellow-50 text-yellow-700 border-yellow-200"},
+    institution: {label:"機構",   cls:"bg-blue-50 text-blue-700 border-blue-200"},
+    curator:     {label:"策展人", cls:"bg-purple-50 text-purple-700 border-purple-200"},
+  };
+  const PAY_MAP: Record<string,{label:string;cls:string}> = {
+    fiat: {label:"Fiat $30", cls:"bg-yellow-50 text-yellow-700 border-yellow-200"},
+    aif:  {label:"150 AIF",  cls:"bg-green-50 text-green-700 border-green-200"},
+  };
+
+  const counts = {
+    pending:  records.filter(r=>r.verification_status==="pending").length,
+    approved: records.filter(r=>r.verification_status==="approved").length,
+    rejected: records.filter(r=>r.verification_status==="rejected").length,
+    all: records.length,
+  };
+
+  async function approve(id:string) {
+    setProcessing(id);
+    try {
+      const res = await fetch("/api/admin/verifications/review", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({applicationId:id, action:"approve"}),
+      });
+      const d = await res.json();
+      if (res.ok) { showToast("✓ 已通過審核", true); load(); }
+      else { showToast(d.error??"失敗", false); }
+    } finally { setProcessing(null); }
+  }
+
+  async function doReject() {
+    if (!rejectId||!rejectReason) return;
+    setProcessing(rejectId);
+    try {
+      const res = await fetch("/api/admin/verifications/review", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({applicationId:rejectId, action:"reject", rejectionReason:rejectReason}),
+      });
+      const d = await res.json();
+      if (res.ok) { showToast("已退回", true); setRejectId(null); setRejectReason(""); load(); }
+      else { showToast(d.error??"失敗", false); }
+    } finally { setProcessing(null); }
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+      {toast && (
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-5 py-2.5 rounded-full text-xs font-medium shadow-lg text-white ${toast.ok?"bg-green-500":"bg-red-500"}`}>
+          {toast.msg}
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        {(["pending","approved","rejected","all"] as const).map(t=>(
+          <button key={t} onClick={()=>setTab(t)}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-medium transition-colors ${tab===t?"bg-blue-600 text-white":"text-gray-500 hover:bg-gray-100 bg-white border"}`}>
+            {t==="pending"?"待審核":t==="approved"?"已通過":t==="rejected"?"已退回":"全部"}
+            <span className="ml-1 text-[9px]">{counts[t]}</span>
+          </button>
+        ))}
+        <button onClick={load} disabled={loading} className="ml-auto w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400 bg-white border">
+          <svg className={`w-3.5 h-3.5 ${loading?"animate-spin":""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+        </button>
+      </div>
+
+      {/* Table */}
+      {loading ? (
+        <div className="flex justify-center py-16"><div className="flex gap-1">{[0,1,2].map(i=><span key={i} className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" style={{animationDelay:`${i*0.12}s`}}/>)}</div></div>
+      ) : records.filter(r=>tab==="all"||r.verification_status===tab).length===0 ? (
+        <div className="flex justify-center py-16"><p className="text-sm text-gray-400">暫無審核記錄</p></div>
+      ) : (
+        <div className="bg-white rounded-2xl border overflow-x-auto">
+          <table className="w-full min-w-[800px] text-left">
+            <thead><tr className="border-b bg-gray-50">
+              {["提交時間","認證名稱","原用戶名","身份類型","支付方式","狀態","操作"].map(h=>(
+                <th key={h} className="px-4 py-3 text-[9px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+              ))}
+            </tr></thead>
+            <tbody>
+              {records.filter(r=>tab==="all"||r.verification_status===tab).map((r,i,arr)=>{
+                const tc=TYPE_MAP[r.identity_type??""];
+                const pc=PAY_MAP[r.verification_payment_method??""];
+                return (
+                  <tr key={r.id} className={`hover:bg-gray-50 ${i<arr.length-1?"border-b":""}`}>
+                    <td className="px-4 py-3 text-[11px] text-gray-500 font-mono whitespace-nowrap">{fmt(r.verification_submitted_at)}</td>
+                    <td className="px-4 py-3">
+                      <div className="text-xs font-semibold text-gray-900">{r.verification_name||"—"}</div>
+                      <div className="text-[10px] text-gray-400">{r.display_name||"—"}</div>
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-600">{r.email||"—"}</td>
+                    <td className="px-4 py-3">{tc?<span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${tc.cls}`}>{tc.label}</span>:<span className="text-gray-300">—</span>}</td>
+                    <td className="px-4 py-3">{pc?<span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${pc.cls}`}>{pc.label}</span>:<span className="text-gray-300">—</span>}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${r.verification_status==="pending"?"bg-orange-50 text-orange-600 border-orange-200":r.verification_status==="approved"?"bg-green-50 text-green-700 border-green-200":"bg-red-50 text-red-600 border-red-200"}`}>
+                        {r.verification_status==="pending"?"待審":r.verification_status==="approved"?"已通過":"已退回"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1.5">
+                        <button onClick={()=>setDetail(r)} className="px-2.5 py-1 text-[10px] text-blue-600 border border-blue-200 rounded-full hover:bg-blue-50">詳情</button>
+                        {r.verification_status==="pending"&&<>
+                          <button onClick={()=>approve(r.id)} disabled={processing===r.id} className="px-3 py-1 text-[11px] font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full hover:bg-green-100 disabled:opacity-40">{processing===r.id?"…":"通過"}</button>
+                          <button onClick={()=>{setRejectId(r.id);setRejectReason("");}} disabled={processing===r.id} className="px-3 py-1 text-[11px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full hover:bg-red-100 disabled:opacity-40">退回</button>
+                        </>}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Detail Modal */}
+      {detail && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={()=>setDetail(null)}/>
+          <div className="relative z-10 w-full max-w-md bg-white rounded-2xl shadow-xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b">
+              <h3 className="text-sm font-semibold">📋 申請詳情</h3>
+              <button onClick={()=>setDetail(null)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <div className="p-5 space-y-2 overflow-y-auto max-h-[60vh]">
+              {[
+                {label:"認證名稱", value:detail.verification_name||"—"},
+                {label:"身份類型", value:TYPE_MAP[detail.identity_type??""]?.label||"—"},
+                {label:"支付方式", value:PAY_MAP[detail.verification_payment_method??""]?.label||"—"},
+                {label:"提交時間", value:fmt(detail.verification_submitted_at)},
+                {label:"原用戶名", value:detail.display_name||"—"},
+                {label:"電郵",     value:detail.email||"—"},
+                {label:"錢包地址", value:detail.wallet_address||"—"},
+                {label:"申請ID",  value:detail.id},
+              ].map(({label,value})=>(
+                <div key={label} className="flex gap-3 py-2 border-b border-gray-50 last:border-0">
+                  <span className="text-[10px] font-semibold text-gray-400 w-16 shrink-0">{label}</span>
+                  <span className="text-xs text-gray-800 break-all">{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Modal */}
+      {rejectId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" onClick={()=>setRejectId(null)}/>
+          <div className="relative z-10 bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4">
+            <h3 className="text-sm font-semibold">退回認證申請</h3>
+            <select value={rejectReason} onChange={e=>setRejectReason(e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-xs outline-none">
+              <option value="">請選擇原因…</option>
+              {["侵權風險","通用詞語","違規風險"].map(r=><option key={r} value={r}>{r}</option>)}
+            </select>
+            <div className="flex gap-2">
+              <button onClick={()=>setRejectId(null)} className="flex-1 py-2.5 border border-gray-200 text-gray-500 text-xs rounded-full">取消</button>
+              <button onClick={doReject} disabled={!rejectReason||processing===rejectId} className="flex-[2] py-2.5 bg-red-500 text-white text-xs font-semibold rounded-full disabled:opacity-50">確認退回</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReviewModule({ t, pushToast }: SharedProps) {
+  const [sub, setSub] = useState<"films" | "lbs" | "kyc">("films");
+  const [films, setFilms] = useState<Film[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [rejectFilm, setRejectFilm] = useState<Film | null>(null);
+  const [rejectReason, setRejectReason] = useState<string>(t.rejectReasons[0]);
+
+  const fetchFilms = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("films")
+      .select("id,user_id,title,studio,ai_ratio,poster_url,status,created_at,trailer_url,feature_url,copyright_url,contact_email")
+      .order("created_at", { ascending: false });
+    setLoading(false);
+    if (error) {
+      pushToast(error.message, false);
+      return;
+    }
+    setFilms((data as Film[]) ?? []);
+  }, [pushToast]);
+
+  useEffect(() => {
+    if (sub === "films") fetchFilms();
+  }, [fetchFilms, sub]);
+
+  async function approveFilm(film: Film) {
+    const { error } = await supabase.from("films").update({ status: "approved" }).eq("id", film.id);
+    if (error) {
+      pushToast(error.message, false);
+      return;
+    }
+    if (film.user_id) {
+      await supabase.from("messages").insert([
+        {
+          user_id: film.user_id,
+          type: "system",
+          msg_type: "system",
+          title: "Review Passed",
+          content: "Your film passed review and NFT mint process has started.",
+        },
+      ]);
+    }
+    setFilms((prev) => prev.map((f) => (f.id === film.id ? { ...f, status: "approved" } : f)));
+    pushToast(t.nftHint);
+  }
+
+  async function rejectSubmit() {
+    if (!rejectFilm) return;
+    const { error } = await supabase.from("films").update({ status: "rejected" }).eq("id", rejectFilm.id);
+    if (error) {
+      pushToast(error.message, false);
+      return;
+    }
+    if (rejectFilm.user_id) {
+      await supabase.from("messages").insert([
+        {
+          user_id: rejectFilm.user_id,
+          type: "system",
+          msg_type: "system",
+          title: "Review Rejected",
+          content: `${t.reason}: ${rejectReason}`,
+        },
+      ]);
+    }
+    setFilms((prev) => prev.map((f) => (f.id === rejectFilm.id ? { ...f, status: "rejected" } : f)));
+    setRejectFilm(null);
+    pushToast("已發送駁回信");
+  }
+
+  return (
+    <div>
+      <SubTabs
+        tabs={[
+          { id: "films", label: t.reviewTabs[0] },
+          { id: "lbs", label: t.reviewTabs[1] },
+          { id: "kyc", label: t.reviewTabs[2] },
+        ]}
+        active={sub}
+        onChange={setSub}
+      />
+
+      {sub === "films" && (
+        <div className="space-y-4">
+          <div className="flex justify-end">
+            <button className={`${BTN} border border-gray-200 text-gray-700`} onClick={fetchFilms}>
+              {loading ? t.loading : t.refresh}
+            </button>
+          </div>
+          <div className={`${CARD} overflow-hidden`}>
+            <div className="overflow-x-auto">
+              <div className="min-w-[980px]">
+                <div className="grid grid-cols-[1.6fr_1fr_110px_330px_160px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
+                  <div className="p-3">影片</div>
+                  <div className="p-3">AI 質檢(51%)</div>
+                  <div className="p-3">狀態</div>
+                  <div className="p-3">素材</div>
+                  <div className="p-3">操作</div>
+                </div>
+                {films.length === 0 ? (
+                  <div className="p-6 text-sm text-gray-400">{loading ? t.loading : t.empty}</div>
+                ) : (
+                  films.map((film) => (
+                    <div key={film.id} className="grid grid-cols-[1.6fr_1fr_110px_330px_160px] border-b border-gray-100 last:border-0">
+                      <div className="p-3">
+                        <p className="font-semibold text-gray-900">{film.title ?? "-"}</p>
+                        <p className="text-xs text-gray-500">{film.studio ?? "-"}</p>
+                        {film.contact_email && (
+                          <div className="mt-1 flex items-center gap-1">
+                            <span className="text-[9px] font-semibold text-amber-600 bg-amber-50 border border-amber-200 rounded px-1 py-0.5 shrink-0">官方郵箱🔒</span>
+                            <span className="text-[10px] text-gray-600 truncate max-w-[140px]" title={film.contact_email}>{film.contact_email}</span>
+                            <button
+                              onClick={() => navigator.clipboard.writeText(film.contact_email!).then(() => pushToast("已複製官方郵箱", true)).catch(() => pushToast("複製失敗", false))}
+                              title="複製官方郵箱"
+                              className="shrink-0 inline-flex items-center justify-center w-4 h-4 rounded text-gray-300 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                              </svg>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-3">
+                        <p className={`font-bold ${(film.ai_ratio ?? 0) >= 51 ? "text-green-600" : "text-red-600"}`}>
+                          {Math.round(film.ai_ratio ?? 0)}%
+                        </p>
+                      </div>
+                      <div className="p-3 text-sm text-gray-700">{film.status}</div>
+                      <div className="p-3 flex flex-wrap gap-2">
+                        <a className={`${BTN} !px-2 !py-1 border border-gray-200 text-xs`} href={film.trailer_url ?? "#"} target="_blank" rel="noreferrer">預告</a>
+                        <a className={`${BTN} !px-2 !py-1 border border-gray-200 text-xs`} href={film.feature_url ?? "#"} target="_blank" rel="noreferrer">正片</a>
+                        <a className={`${BTN} !px-2 !py-1 border border-gray-200 text-xs`} href={film.poster_url ?? "#"} target="_blank" rel="noreferrer">海報</a>
+                        <a className={`${BTN} !px-2 !py-1 border border-gray-200 text-xs`} href={film.copyright_url ?? "#"} target="_blank" rel="noreferrer">版權</a>
+                      </div>
+                      <div className="p-3 flex gap-2">
+                        <button className={`${BTN} !px-3 !py-1.5 bg-green-600 text-white`} onClick={() => approveFilm(film)}>
+                          {t.approve}
+                        </button>
+                        <button
+                          className={`${BTN} !px-3 !py-1.5 bg-red-600 text-white`}
+                          onClick={() => {
+                            setRejectFilm(film);
+                            setRejectReason(t.rejectReasons[0]);
+                          }}
+                        >
+                          {t.reject}
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sub === "lbs" && <div className={`${CARD} p-6 text-gray-500`}>{t.empty}</div>}
+      {sub === "kyc" && <VerificationsPanel />}
+
+      {rejectFilm && (
+        <Modal
+          title={`${t.reject}: ${rejectFilm.title ?? ""}`}
+          onClose={() => setRejectFilm(null)}
+          footer={
+            <div className="flex justify-end gap-2">
+              <button className={`${BTN} border border-gray-200 text-gray-700`} onClick={() => setRejectFilm(null)}>
+                {t.cancel}
+              </button>
+              <button className={`${BTN} bg-red-600 text-white`} onClick={rejectSubmit}>
+                {t.sendReject}
+              </button>
+            </div>
+          }
+        >
+          <label className="block text-sm font-semibold text-gray-700 mb-2">{t.reason}</label>
+          <select value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} className={INPUT}>
+            {t.rejectReasons.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function DistributionModule({ t, pushToast }: SharedProps) {
+  const [sub, setSub] = useState<"official" | "online" | "pool">("official");
+  const [nodes, setNodes] = useState<LbsNode[]>([]);
+  const [approvedFilms, setApprovedFilms] = useState<Film[]>([]);
+  const [poster, setPoster] = useState("");
+  const [bgImage, setBgImage] = useState("");
+  const [poolNode, setPoolNode] = useState<LbsNode | null>(null);
+  const [pickedFilmIds, setPickedFilmIds] = useState<string[]>([]);
+  const [form, setForm] = useState({
+    title: "",
+    lat: "",
+    lng: "",
+    unlockRadius: "",
+    timeLock: "",
+    contractPolicy: t.contractOptions[0] as string,
+    ticketAif: "",
+    ticketUsd: "",
+  });
+
+  const fetchData = useCallback(async () => {
+    const [nodeRes, filmRes] = await Promise.all([
+      supabase.from("lbs_nodes").select("*").order("created_at", { ascending: false }),
+      supabase.from("films").select("id,user_id,title,studio,ai_ratio,poster_url,status,created_at").eq("status", "approved"),
+    ]);
+    if (!nodeRes.error) setNodes((nodeRes.data as LbsNode[]) ?? []);
+    if (!filmRes.error) setApprovedFilms((filmRes.data as Film[]) ?? []);
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  async function createNode(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.title || !form.lat || !form.lng || !form.unlockRadius || !form.timeLock) {
+      pushToast("請填寫完整節點表單", false);
+      return;
+    }
+    const payload = {
+      title: form.title,
+      lat: Number(form.lat),
+      lng: Number(form.lng),
+      location: `unlock_radius=${form.unlockRadius}`,
+      start_time: form.timeLock,
+      end_time: null,
+      contract_req: form.contractPolicy,
+      film_ids: [] as string[],
+      poster_url: poster || null,
+      background_url: bgImage || null,
+    };
+    const { error } = await supabase.from("lbs_nodes").insert([payload]);
+    if (error) {
+      pushToast(`建立節點失敗: ${error.message}`, false);
+      return;
+    }
+    pushToast(`節點已建立`);
+    setForm({
+      title: "",
+      lat: "",
+      lng: "",
+      unlockRadius: "",
+      timeLock: "",
+      contractPolicy: t.contractOptions[0],
+      ticketAif: "",
+      ticketUsd: "",
+    });
+    setPoster("");
+    setBgImage("");
+    fetchData();
+  }
+
+  function openPool(node: LbsNode) {
+    setPoolNode(node);
+    setPickedFilmIds(node.film_ids ?? []);
+  }
+
+  async function savePool() {
+    if (!poolNode) return;
+    const { error } = await supabase.from("lbs_nodes").update({ film_ids: pickedFilmIds }).eq("id", poolNode.id);
+    if (error) {
+      pushToast(error.message, false);
+      return;
+    }
+    pushToast("排片池已更新");
+    setPoolNode(null);
+    fetchData();
+  }
+
+  const streams = [
+    { id: "S-001", title: "Hong Kong AI Premiere", bitrate: "8Mbps", status: "LIVE" },
+    { id: "S-002", title: "Web3 Indies Night", bitrate: "6Mbps", status: "Standby" },
+  ];
+
+  return (
+    <div>
+      <SubTabs
+        tabs={[
+          { id: "official", label: t.distributionTabs[0] },
+          { id: "online", label: t.distributionTabs[1] },
+          { id: "pool", label: t.distributionTabs[2] },
+        ]}
+        active={sub}
+        onChange={setSub}
+      />
+
+      {sub === "official" && (
+        <div className="grid grid-cols-1 xl:grid-cols-[360px_1fr] gap-4">
+          <form onSubmit={createNode} className={`${CARD} p-5 space-y-3`}>
+            <h3 className="font-bold text-gray-900">{t.nodeForm}</h3>
+            <input className={INPUT} placeholder="標題" value={form.title} onChange={(e) => setForm((p) => ({ ...p, title: e.target.value }))} />
+            <div className="grid grid-cols-2 gap-2">
+              <input className={INPUT} placeholder="GPS Lat" value={form.lat} onChange={(e) => setForm((p) => ({ ...p, lat: e.target.value }))} />
+              <input className={INPUT} placeholder="GPS Lng" value={form.lng} onChange={(e) => setForm((p) => ({ ...p, lng: e.target.value }))} />
+            </div>
+            <input className={INPUT} placeholder={t.unlockRadius} value={form.unlockRadius} onChange={(e) => setForm((p) => ({ ...p, unlockRadius: e.target.value }))} />
+            <input className={INPUT} type="datetime-local" placeholder={t.timeLock} value={form.timeLock} onChange={(e) => setForm((p) => ({ ...p, timeLock: e.target.value }))} />
+            <select className={INPUT} value={form.contractPolicy} onChange={(e) => setForm((p) => ({ ...p, contractPolicy: e.target.value }))}>
+              {t.contractOptions.map((op) => (
+                <option key={op} value={op}>
+                  {op}
+                </option>
+              ))}
+            </select>
+            <div className="grid grid-cols-2 gap-2">
+              <input className={INPUT} placeholder={t.ticketAif} value={form.ticketAif} onChange={(e) => setForm((p) => ({ ...p, ticketAif: e.target.value }))} />
+              <input className={INPUT} placeholder={t.ticketUsd} value={form.ticketUsd} onChange={(e) => setForm((p) => ({ ...p, ticketUsd: e.target.value }))} />
+            </div>
+            <OssImageUpload title={t.uploadPoster} currentUrl={poster} onSuccess={setPoster} pushToast={pushToast} />
+            <OssImageUpload title={t.uploadBg} currentUrl={bgImage} onSuccess={setBgImage} pushToast={pushToast} />
+            <button className={`${BTN} w-full bg-blue-600 text-white`} type="submit">
+              建立節點
+            </button>
+          </form>
+
+          <div className="space-y-3">
+            {nodes.map((n) => (
+              <div key={n.id} className={`${CARD} p-4 flex items-center justify-between gap-3`}>
+                <div>
+                  <p className="font-bold text-gray-900">{n.title}</p>
+                  <p className="text-sm text-gray-500">
+                    GPS: {n.lat ?? "-"}, {n.lng ?? "-"} | Contract: {n.contract_req ?? "-"}
+                  </p>
+                </div>
+                <button className={`${BTN} bg-indigo-600 text-white`} onClick={() => openPool(n)}>
+                  {t.poolBtn}
+                </button>
+              </div>
+            ))}
+            {nodes.length === 0 && <div className={`${CARD} p-4 text-sm text-gray-400`}>{t.empty}</div>}
+          </div>
+        </div>
+      )}
+
+      {sub === "online" && (
+        <div className={`${CARD} overflow-hidden`}>
+          <div className="overflow-x-auto">
+            <div className="min-w-[640px]">
+              <div className="grid grid-cols-4 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
+                <div className="p-3">ID</div>
+                <div className="p-3">Stream</div>
+                <div className="p-3">Bitrate</div>
+                <div className="p-3">Status</div>
+              </div>
+              {streams.map((s) => (
+                <div key={s.id} className="grid grid-cols-4 border-b border-gray-100 last:border-0">
+                  <div className="p-3 text-gray-500">{s.id}</div>
+                  <div className="p-3 text-gray-900 font-semibold">{s.title}</div>
+                  <div className="p-3 text-gray-700">{s.bitrate}</div>
+                  <div className="p-3 text-gray-700">{s.status}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sub === "pool" && (
+        <div className={`${CARD} p-5`}>
+          <h3 className="font-bold text-gray-900">排片池總覽</h3>
+          <p className="mt-2 text-sm text-gray-600">共 {nodes.length} 個節點，已通過影片 {approvedFilms.length} 部</p>
+        </div>
+      )}
+
+      {poolNode && (
+        <Modal
+          title={`${t.poolBtn} - ${poolNode.title}`}
+          onClose={() => setPoolNode(null)}
+          footer={
+            <div className="flex justify-end gap-2">
+              <button className={`${BTN} border border-gray-200 text-gray-700`} onClick={() => setPoolNode(null)}>
+                {t.cancel}
+              </button>
+              <button className={`${BTN} bg-blue-600 text-white`} onClick={savePool}>
+                {t.savePool}
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-2 max-h-80 overflow-y-auto">
+            {approvedFilms.map((film) => {
+              const checked = pickedFilmIds.includes(film.id);
+              return (
+                <label key={film.id} className="flex items-center gap-3 rounded-lg border border-gray-200 p-3">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() =>
+                      setPickedFilmIds((prev) =>
+                        prev.includes(film.id) ? prev.filter((id) => id !== film.id) : [...prev, film.id]
+                      )
+                    }
+                  />
+                  <span className="text-sm text-gray-800">{film.title ?? "-"}</span>
+                </label>
+              );
+            })}
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function formatBotDate(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function BotCopyIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+function EcosystemModule({ t, pushToast, askConfirm }: SharedProps) {
+  const [sub, setSub] = useState<"human" | "bot">("human");
+  const [users, setUsers] = useState<UserRow[]>([]);
+  const [botRows, setBotRows] = useState<UserRow[]>([]);
+  const [copiedBot, setCopiedBot] = useState<string | null>(null);
+
+  // ── Search & Pagination state ────────────────────────────────────────────
+  const [humanSearch, setHumanSearch] = useState('');
+  const [humanPage, setHumanPage] = useState(1);
+  const [botSearch, setBotSearch] = useState('');
+  const [botPage, setBotPage] = useState(1);
+  const PAGE_SIZE = 10;
+
+  useEffect(() => {
+    supabase
+      .from("users")
+      .select("*")
+      .neq("role", "bot")
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setUsers((data as UserRow[]) ?? []));
+  }, []);
+
+  useEffect(() => {
+    supabase
+      .from("users")
+      .select("*")
+      .eq("role", "bot")
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setBotRows((data as UserRow[]) ?? []));
+  }, []);
+
+  useEffect(() => { setHumanPage(1); }, [humanSearch]);
+  useEffect(() => { setBotPage(1); }, [botSearch]);
+
+  const copyBotField = useCallback(
+    async (text: string, label: string) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopiedBot(text);
+        pushToast(`已複製 ${label}`);
+        setTimeout(() => setCopiedBot(null), 2000);
+      } catch {
+        pushToast("複製失敗", false);
+      }
+    },
+    [pushToast],
+  );
+
+  // ── Filtered & paginated data ────────────────────────────────────────────
+  const humanFiltered = useMemo(() => {
+    const q = humanSearch.toLowerCase().trim();
+    if (!q) return users;
+    return users.filter((u) =>
+      u.id.toLowerCase().includes(q) ||
+      (u.display_name ?? '').toLowerCase().includes(q) ||
+      (u.name ?? '').toLowerCase().includes(q) ||
+      (u.agent_id ?? '').toLowerCase().includes(q) ||
+      (u.email ?? '').toLowerCase().includes(q) ||
+      (u.wallet_address ?? '').toLowerCase().includes(q)
+    );
+  }, [users, humanSearch]);
+
+  const humanTotal = humanFiltered.length;
+  const humanTotalPages = Math.max(1, Math.ceil(humanTotal / PAGE_SIZE));
+  const humanPaginated = humanFiltered.slice((humanPage - 1) * PAGE_SIZE, humanPage * PAGE_SIZE);
+
+  const botFiltered = useMemo(() => {
+    const q = botSearch.toLowerCase().trim();
+    if (!q) return botRows;
+    return botRows.filter((b) =>
+      b.id.toLowerCase().includes(q) ||
+      (b.wallet_address ?? '').toLowerCase().includes(q) ||
+      (b.deposit_address ?? '').toLowerCase().includes(q)
+    );
+  }, [botRows, botSearch]);
+
+  const botTotal = botFiltered.length;
+  const botTotalPages = Math.max(1, Math.ceil(botTotal / PAGE_SIZE));
+  const botPaginated = botFiltered.slice((botPage - 1) * PAGE_SIZE, botPage * PAGE_SIZE);
+
+  const BOT_GRID = "280px 200px 90px 200px 130px 230px";
+  const BOT_MIN = "1130px";
+  const BOT_HEADERS = ["BOT DID", "錢包地址 / 綁定身份", "AIF 餘額", "專屬充值地址", "註冊時間", "操作"];
+
+  return (
+    <div>
+      <SubTabs
+        tabs={[
+          { id: "human", label: t.ecosystemTabs[0] },
+          { id: "bot", label: t.ecosystemTabs[1] },
+        ]}
+        active={sub}
+        onChange={setSub}
+      />
+
+      {/* ══════════════════ 碳基人類 Tab ══════════════════ */}
+      {sub === "human" && (
+        <div className={`${CARD}`}>
+          {/* ── Action Bar ────────────────────────────────────────────────── */}
+          <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
+            <input
+              type="text"
+              value={humanSearch}
+              onChange={(e) => setHumanSearch(e.target.value)}
+              placeholder="🔍 搜尋用戶名、ID、錢包地址或信箱..."
+              className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm w-full max-w-md focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8] focus:outline-none transition-all"
+            />
+          </div>
+
+          {/* ── Grid Table ────────────────────────────────────────────────── */}
+          <div className="w-full overflow-x-auto">
+            <div className="min-w-[1300px]">
+              <div className="grid grid-cols-[120px_220px_2fr_1fr_1.5fr_120px_1fr_200px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
+                {["用戶名", "用戶 ID", "錢包地址 / 郵箱", "AIF 餘額", "專屬充值地址", "註冊時間", "狀態", "操作"].map((h) => (
+                  <div key={h} className="p-3">{h}</div>
+                ))}
+              </div>
+              {humanPaginated.length === 0 && (
+                <div className="p-6 text-sm text-gray-400">
+                  {humanSearch ? '無符合條件的記錄' : t.empty}
+                </div>
+              )}
+              {humanPaginated.map((u) => (
+                <div key={u.id} className="grid grid-cols-[120px_220px_2fr_1fr_1.5fr_120px_1fr_200px] border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors">
+                  {/* 用戶名 */}
+                  <div className="p-3">
+                    <span className="font-semibold text-neutral-900 text-sm">
+                      {u.display_name || (u.name && u.name !== 'New Agent' ? u.name : null) || u.agent_id || '-'}
+                    </span>
+                  </div>
+                  {/* 用戶 ID */}
+                  <div className="p-3">
+                    <div className="flex items-center gap-2 text-[10px] sm:text-xs font-mono break-all text-neutral-700">
+                      {u.id}
+                      <i className="fas fa-copy cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors flex-shrink-0"
+                        onClick={() => { navigator.clipboard.writeText(u.id); alert('已複製'); }} />
+                    </div>
+                  </div>
+                  {/* 錢包地址 / 郵箱 */}
+                  <div className="p-3">
+                    {u.wallet_address ? (
+                      <div className="flex items-center gap-2 text-[10px] sm:text-xs font-mono break-all text-neutral-700">
+                        {u.wallet_address}
+                        <i className="fas fa-copy cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors flex-shrink-0"
+                          onClick={() => { navigator.clipboard.writeText(u.wallet_address!); alert('已複製'); }} />
+                      </div>
+                    ) : u.email ? (
+                      <span className="text-xs text-gray-600">{u.email}</span>
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">未綁定</span>
+                    )}
+                  </div>
+                  {/* AIF 餘額 */}
+                  <div className="p-3 text-xs font-semibold text-blue-700">{(u.aif_balance ?? 0).toLocaleString()} AIF</div>
+                  {/* 專屬充值地址 */}
+                  <div className="p-3">
+                    {u.deposit_address ? (
+                      <div className="flex items-center gap-2 text-[10px] sm:text-xs font-mono break-all text-neutral-700">
+                        {u.deposit_address}
+                        <i className="fas fa-copy cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors flex-shrink-0"
+                          onClick={() => { navigator.clipboard.writeText(u.deposit_address!); alert('已複製'); }} />
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">未分配</span>
+                    )}
+                  </div>
+                  {/* 註冊時間 */}
+                  <div className="p-3 text-xs text-gray-500 font-mono whitespace-nowrap">
+                    {formatBotDate(u.created_at)}
+                  </div>
+                  {/* 狀態 */}
+                  <div className="p-3 text-xs text-green-700 font-medium">Active</div>
+                  {/* 操作 */}
+                  <div className="p-3 flex gap-1.5 flex-wrap">
+                    <button
+                      className="border border-rose-300 text-rose-600 rounded-full px-3 py-1 text-xs hover:bg-rose-50 transition-colors"
+                      onClick={() => askConfirm({ title: t.ban, body: "確認封禁？", danger: true, onConfirm: () => pushToast("已封禁") })}
+                    >{t.ban}</button>
+                    <button
+                      className="border border-neutral-300 text-neutral-700 rounded-full px-3 py-1 text-xs hover:bg-neutral-100 transition-colors"
+                      onClick={() => askConfirm({ title: t.forceOffline, body: "確認強制下線？", danger: true, onConfirm: () => pushToast("已強制下線") })}
+                    >{t.forceOffline}</button>
+                    <button
+                      className="border border-red-200 text-red-500 rounded-full px-3 py-1 text-xs hover:bg-red-50 transition-colors"
+                      onClick={() => askConfirm({ title: t.clear, body: "確認清空數據？", danger: true, onConfirm: () => pushToast("已清空") })}
+                    >{t.clear}</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Pagination Footer ──────────────────────────────────────────── */}
+          <div className="flex justify-between items-center py-4 px-6 border-t border-neutral-200 bg-white rounded-b-2xl">
+            <span className="text-xs text-neutral-500 font-mono">
+              {humanTotal === 0
+                ? '暫無記錄'
+                : `顯示第 ${(humanPage - 1) * PAGE_SIZE + 1} 至 ${Math.min(humanPage * PAGE_SIZE, humanTotal)} 筆，總計 ${humanTotal.toLocaleString()} 名註冊用戶（共 ${humanTotalPages} 頁）`
+              }
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                className="px-3 py-1.5 border border-neutral-300 rounded-lg text-xs text-neutral-600 hover:bg-neutral-100 disabled:opacity-50 transition-colors"
+                onClick={() => setHumanPage((p) => Math.max(1, p - 1))}
+                disabled={humanPage === 1}
+              >上一頁</button>
+              <span className="px-3 py-1.5 text-xs text-neutral-700 font-mono font-semibold">
+                {humanPage} / {humanTotalPages}
+              </span>
+              <button
+                className="px-3 py-1.5 border border-neutral-300 rounded-lg text-xs text-neutral-600 hover:bg-neutral-100 disabled:opacity-50 transition-colors"
+                onClick={() => setHumanPage((p) => Math.min(humanTotalPages, p + 1))}
+                disabled={humanPage === humanTotalPages}
+              >下一頁</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════ 硅基數字人 Tab ══════════════════ */}
+      {sub === "bot" && (
+        <div className={`${CARD}`}>
+          {/* ── Action Bar ────────────────────────────────────────────────── */}
+          <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
+            <input
+              type="text"
+              value={botSearch}
+              onChange={(e) => setBotSearch(e.target.value)}
+              placeholder="🔍 搜尋 BOT DID、錢包地址或專屬充值地址..."
+              className="rounded-full border border-neutral-300 px-5 py-2.5 text-sm w-full max-w-md focus:border-[#1a73e8] focus:ring-1 focus:ring-[#1a73e8] focus:outline-none transition-all"
+            />
+          </div>
+
+          {/* ── Grid Table ────────────────────────────────────────────────── */}
+          <div className="overflow-x-auto">
+            <div style={{ minWidth: BOT_MIN }}>
+              <div
+                className="grid text-[10px] font-medium text-gray-500 uppercase tracking-wider bg-gray-50/70 border-b border-gray-100"
+                style={{ gridTemplateColumns: BOT_GRID }}
+              >
+                {BOT_HEADERS.map((h) => (
+                  <div key={h} className="px-3 py-3 whitespace-nowrap">{h}</div>
+                ))}
+              </div>
+
+              {botPaginated.length === 0 && (
+                <div className="py-16 text-center">
+                  <div className="text-4xl mb-2 text-gray-200">◎</div>
+                  <div className="text-sm text-gray-400">
+                    {botSearch ? '無符合條件的記錄' : '暫無硅基數字人登錄'}
+                  </div>
+                </div>
+              )}
+
+              {botPaginated.map((bot) => (
+                <div
+                  key={bot.id}
+                  className="grid border-b border-gray-100 last:border-0 hover:bg-gray-50/50 transition-colors duration-100"
+                  style={{ gridTemplateColumns: BOT_GRID }}
+                >
+                  {/* ① BOT DID */}
+                  <div className="px-3 py-3 flex items-start gap-2">
+                    <div className="flex items-start gap-1 min-w-0">
+                      <i className="fas fa-robot text-emerald-500 mr-1 animate-pulse flex-shrink-0 mt-0.5" />
+                      <span className={`text-[10px] sm:text-xs font-mono break-all text-neutral-600 transition-colors ${copiedBot === bot.id ? "text-[#1a73e8]" : ""}`}>
+                        {bot.id}
+                      </span>
+                      <button
+                        onClick={() => copyBotField(bot.id, "BOT DID")}
+                        className="flex-shrink-0 cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors mt-0.5"
+                        title="複製 BOT DID"
+                      >
+                        <BotCopyIcon />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ② 錢包地址 / 綁定身份 */}
+                  <div className="px-3 py-3 flex items-start pt-3.5">
+                    {bot.wallet_address ? (
+                      <div className="flex items-start gap-1 w-full min-w-0">
+                        <span className={`text-[10px] sm:text-xs font-mono break-all text-neutral-600 transition-colors ${copiedBot === bot.wallet_address ? "text-[#1a73e8]" : ""}`}>
+                          {bot.wallet_address}
+                        </span>
+                        <button
+                          onClick={() => copyBotField(bot.wallet_address!, "錢包地址")}
+                          className="flex-shrink-0 cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors mt-0.5"
+                          title="複製錢包地址"
+                        >
+                          <BotCopyIcon />
+                        </button>
+                      </div>
+                    ) : bot.email ? (
+                      <span className="text-[10px] sm:text-xs break-all text-neutral-600">{bot.email}</span>
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
+                    )}
+                  </div>
+
+                  {/* ③ AIF 餘額 */}
+                  <div className="px-3 py-3 flex items-center">
+                    <div className="flex flex-col gap-0.5">
+                      <span className={`text-sm font-bold ${(bot.aif_balance ?? 0) > 0 ? "text-green-600" : "text-gray-300"}`}>
+                        {bot.aif_balance != null ? bot.aif_balance.toLocaleString() : "—"}
+                      </span>
+                      {(bot.aif_balance ?? 0) > 0 && (
+                        <span className="text-[10px] text-green-400 font-medium">AIF</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* ④ 專屬充值地址 */}
+                  <div className="px-3 py-3 flex items-start pt-3.5">
+                    {bot.deposit_address ? (
+                      <div className="flex items-start gap-1 w-full min-w-0">
+                        <span className={`text-[10px] sm:text-xs font-mono break-all text-neutral-600 transition-colors ${copiedBot === bot.deposit_address ? "text-[#1a73e8]" : ""}`}>
+                          {bot.deposit_address}
+                        </span>
+                        <button
+                          onClick={() => copyBotField(bot.deposit_address!, "充值地址")}
+                          className="flex-shrink-0 cursor-pointer text-gray-400 hover:text-[#1a73e8] transition-colors mt-0.5"
+                          title="複製充值地址"
+                        >
+                          <BotCopyIcon />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="flex items-center gap-1.5 text-xs text-gray-300">
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-200 flex-shrink-0" />
+                        未分配
+                      </span>
+                    )}
+                  </div>
+
+                  {/* ⑤ 註冊時間 */}
+                  <div className="px-3 py-3 flex items-center">
+                    <span className="text-xs text-gray-500 whitespace-nowrap font-mono">
+                      {bot.created_at ? formatBotDate(bot.created_at) : "—"}
+                    </span>
+                  </div>
+
+                  {/* ⑥ 操作 */}
+                  <div className="px-3 py-3 flex items-center gap-2 flex-wrap">
+                    <button
+                      className="border border-neutral-300 text-neutral-700 hover:bg-neutral-100 rounded-full px-3 py-1 text-xs transition-colors whitespace-nowrap"
+                      onClick={() =>
+                        askConfirm({
+                          title: "凍結權限",
+                          body: `確認凍結 Bot ${bot.id.slice(-8)} 的所有權限？`,
+                          danger: true,
+                          onConfirm: () => pushToast(`已凍結 Bot ${bot.id.slice(-8)}`),
+                        })
+                      }
+                    >
+                      凍結權限
+                    </button>
+                    <button
+                      className="border border-neutral-300 text-neutral-700 hover:bg-neutral-100 rounded-full px-3 py-1 text-xs transition-colors whitespace-nowrap"
+                      onClick={() => pushToast(`Bot 緩存已清除`)}
+                    >
+                      清除緩存
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── Pagination Footer ──────────────────────────────────────────── */}
+          <div className="flex justify-between items-center py-4 px-6 border-t border-neutral-200 bg-white rounded-b-2xl">
+            <span className="text-xs text-neutral-500 font-mono">
+              {botTotal === 0
+                ? '暫無記錄'
+                : `顯示第 ${(botPage - 1) * PAGE_SIZE + 1} 至 ${Math.min(botPage * PAGE_SIZE, botTotal)} 筆，總計 ${botTotal.toLocaleString()} 個 Bot（共 ${botTotalPages} 頁）`
+              }
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                className="px-3 py-1.5 border border-neutral-300 rounded-lg text-xs text-neutral-600 hover:bg-neutral-100 disabled:opacity-50 transition-colors"
+                onClick={() => setBotPage((p) => Math.max(1, p - 1))}
+                disabled={botPage === 1}
+              >上一頁</button>
+              <span className="px-3 py-1.5 text-xs text-neutral-700 font-mono font-semibold">
+                {botPage} / {botTotalPages}
+              </span>
+              <button
+                className="px-3 py-1.5 border border-neutral-300 rounded-lg text-xs text-neutral-600 hover:bg-neutral-100 disabled:opacity-50 transition-colors"
+                onClick={() => setBotPage((p) => Math.min(botTotalPages, p + 1))}
+                disabled={botPage === botTotalPages}
+              >下一頁</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AIModule({ t, pushToast }: SharedProps) {
+  const [sub, setSub] = useState<"models" | "prompts" | "assembly">("models");
+  const [assemble, setAssemble] = useState({ name: "", model: "Gemini 3.1", prompt: "P1" });
+  const models = [
+    { name: "Gemini 3.1", api: "AIzaSy***", usage: "24h: 1.2M tokens" },
+    { name: "OpenAI 5.4", api: "sk-***", usage: "24h: 980k tokens" },
+  ];
+  const prompts = [
+    { id: "P1", title: "侵權檢測", desc: "檢查風格抄襲與素材來源" },
+    { id: "P2", title: "合規審核", desc: "檢測違規內容與政策風險" },
+    { id: "P3", title: "敘事評估", desc: "評估敘事完整度與節奏" },
+  ];
+
+  return (
+    <div>
+      <SubTabs
+        tabs={[
+          { id: "models", label: t.aiTabs[0] },
+          { id: "prompts", label: t.aiTabs[1] },
+          { id: "assembly", label: t.aiTabs[2] },
+        ]}
+        active={sub}
+        onChange={setSub}
+      />
+
+      {sub === "models" && (
+        <div className={`${CARD} overflow-hidden`}>
+          <div className="overflow-x-auto">
+            <div className="min-w-[720px]">
+              <div className="grid grid-cols-3 bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
+                <div className="p-3">Model</div>
+                <div className="p-3">API Config</div>
+                <div className="p-3">Consumption</div>
+              </div>
+              {models.map((m) => (
+                <div key={m.name} className="grid grid-cols-3 border-b border-gray-100 last:border-0">
+                  <div className="p-3 text-sm text-gray-900">{m.name}</div>
+                  <div className="p-3 text-sm text-gray-700">{m.api}</div>
+                  <div className="p-3 text-sm text-gray-700">{m.usage}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sub === "prompts" && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {prompts.map((p) => (
+            <div key={p.id} className={`${CARD} p-4`}>
+              <p className="text-xs text-blue-600 font-semibold">{p.id}</p>
+              <p className="mt-1 font-bold text-gray-900">{p.title}</p>
+              <p className="mt-1 text-sm text-gray-600">{p.desc}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {sub === "assembly" && (
+        <div className={`${CARD} p-5 space-y-3 max-w-xl`}>
+          <h3 className="font-bold text-gray-900">Bot 組裝台</h3>
+          <input className={INPUT} placeholder="Bot Name" value={assemble.name} onChange={(e) => setAssemble((p) => ({ ...p, name: e.target.value }))} />
+          <select className={INPUT} value={assemble.model} onChange={(e) => setAssemble((p) => ({ ...p, model: e.target.value }))}>
+            <option>Gemini 3.1</option>
+            <option>OpenAI 5.4</option>
+          </select>
+          <select className={INPUT} value={assemble.prompt} onChange={(e) => setAssemble((p) => ({ ...p, prompt: e.target.value }))}>
+            <option>P1</option>
+            <option>P2</option>
+            <option>P3</option>
+          </select>
+          <button className={`${BTN} bg-blue-600 text-white`} onClick={() => pushToast(`Bot 已封裝: ${assemble.name || "Unnamed"} (${assemble.model} + ${assemble.prompt})`)}>
+            封裝 Bot
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface LedgerRow {
+  id: string;
+  user_id: string | null;
+  user_email: string | null;
+  related_film_id: string | null;
+  related_film_title: string | null;
+  related_lbs_id: string | null;
+  related_lbs_title: string | null;
+  related_deposit_address: string | null;
+  tx_type: string | null;
+  tx_hash: string | null;
+  stripe_session_id: string | null;
+  amount: number | null;
+  currency: string | null;
+  payment_method: string | null;
+  status: string | null;
+  created_at: string;
+  _source?: string;
+}
+
+interface LedgerApiResponse {
+  summary: { total_usd: number; total_aif: number; total_tx: number };
+  data: LedgerRow[];
+  error?: string;
+}
+
+const TX_TYPE_LABEL: Record<string, string> = {
+  submission_fee: "參展報名費",
+  identity_verification: "身份認證費",
+  lbs_hosting: "LBS影展託管費",
+  aif_topup: "AIF充值",
+  aif_withdraw: "AIF提現",
+  platform_fee: "平台服務費",
+};
+
+function FinanceModule({ t, pushToast }: SharedProps) {
+  const [sub, setSub] = useState<"ledger" | "treasury" | "settlement">("ledger");
+  const [ledgerLoading, setLedgerLoading] = useState(false);
+  const [ledgerData, setLedgerData] = useState<LedgerRow[]>([]);
+  const [ledgerSummary, setLedgerSummary] = useState({ total_usd: 0, total_aif: 0, total_tx: 0 });
+  const [ledgerError, setLedgerError] = useState<string | null>(null);
+  const [ledgerSearch, setLedgerSearch] = useState("");
+  const [ledgerStatusFilter, setLedgerStatusFilter] = useState<"" | "success" | "pending" | "failed">("");
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [ledgerTxTypeFilter, setLedgerTxTypeFilter] = useState("");
+  const [ledgerCurrencyFilter, setLedgerCurrencyFilter] = useState("");
+  const [ledgerStartDate, setLedgerStartDate] = useState("");
+  const [ledgerEndDate, setLedgerEndDate] = useState("");
+
+  const settlements = [
+    { id: "W-001", role: "Curator", amount: "$1,200 / 6,000 AIF", status: "pending" },
+    { id: "W-002", role: "Creator", amount: "$800 / 4,200 AIF", status: "pending" },
+  ];
+
+  useEffect(() => {
+    if (sub !== "ledger") return;
+    setLedgerLoading(true);
+    setLedgerError(null);
+    fetch("/api/admin/finance/ledger")
+      .then(async (res) => {
+        const json: LedgerApiResponse = await res.json();
+        if (json.error) {
+          setLedgerError(`DB Error: ${json.error}`);
+        }
+        setLedgerSummary(json.summary ?? { total_usd: 0, total_aif: 0, total_tx: 0 });
+        setLedgerData(json.data ?? []);
+      })
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : "網絡請求失敗";
+        setLedgerError(msg);
+      })
+      .finally(() => setLedgerLoading(false));
+  }, [sub]);
+
+  const copyToClipboard = (value: string, key: string) => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopiedId(key);
+      setTimeout(() => setCopiedId(null), 1500);
+    }).catch(() => {});
+  };
+
+  const vLedgerData = useMemo(() => {
+    const successStatuses = ["success", "approved", "paid"];
+    const pendingStatuses = ["pending", "awaiting_payment"];
+    const failedStatuses = ["failed", "rejected", "cancelled"];
+    let rows = ledgerData;
+    if (ledgerStatusFilter === "success") rows = rows.filter(r => successStatuses.includes(r.status ?? ""));
+    else if (ledgerStatusFilter === "pending") rows = rows.filter(r => pendingStatuses.includes(r.status ?? ""));
+    else if (ledgerStatusFilter === "failed") rows = rows.filter(r => failedStatuses.includes(r.status ?? ""));
+    if (ledgerTxTypeFilter) rows = rows.filter(r => r.tx_type === ledgerTxTypeFilter);
+    if (ledgerCurrencyFilter) rows = rows.filter(r => (r.currency ?? "").toUpperCase() === ledgerCurrencyFilter);
+    if (ledgerSearch.trim()) {
+      const q = ledgerSearch.trim().toLowerCase();
+      rows = rows.filter(r =>
+        (r.id ?? "").toLowerCase().includes(q) ||
+        (r.user_id ?? "").toLowerCase().includes(q) ||
+        (r.user_email ?? "").toLowerCase().includes(q) ||
+        (r.tx_type ?? "").toLowerCase().includes(q) ||
+        String(r.amount ?? "").toLowerCase().includes(q) ||
+        (r.currency ?? "").toLowerCase().includes(q)
+      );
+    }
+    return rows;
+  }, [ledgerData, ledgerSearch, ledgerStatusFilter, ledgerTxTypeFilter, ledgerCurrencyFilter]);
+
+  return (
+    <div>
+      <SubTabs
+        tabs={[
+          { id: "ledger", label: t.financeTabs[0] },
+          { id: "treasury", label: t.financeTabs[1] },
+          { id: "settlement", label: t.financeTabs[2] },
+        ]}
+        active={sub}
+        onChange={setSub}
+      />
+
+      {sub === "ledger" && (
+        <div className="space-y-4">
+          {/* 匯總卡片 */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className={`${CARD} p-4`}>
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">總法幣收入</p>
+              <p className="text-2xl font-black text-gray-900 mt-1">$ {ledgerSummary.total_usd.toFixed(2)}</p>
+            </div>
+            <div className={`${CARD} p-4`}>
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">總 AIF 收入</p>
+              <p className="text-2xl font-black text-gray-900 mt-1">{ledgerSummary.total_aif.toLocaleString()} AIF</p>
+            </div>
+            <div className={`${CARD} p-4`}>
+              <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">總交易筆數</p>
+              <p className="text-2xl font-black text-gray-900 mt-1">{ledgerSummary.total_tx}</p>
+            </div>
+          </div>
+
+          {/* 錯誤訊息顯示 */}
+          {ledgerError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 font-mono">
+              ⚠️ {ledgerError}
+            </div>
+          )}
+
+          {/* 篩選條件 */}
+          <div className="flex flex-wrap gap-3 items-center bg-white rounded-xl border border-gray-200 p-3">
+            <input
+              type="text"
+              value={ledgerSearch}
+              onChange={e => setLedgerSearch(e.target.value)}
+              placeholder="搜索 TX ID / 用戶 / 金額 / 業務類型"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 mb-2"
+            />
+            <select
+              value={ledgerTxTypeFilter}
+              onChange={e => setLedgerTxTypeFilter(e.target.value)}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+            >
+              <option value="">全部業務類型</option>
+              <option value="submission_fee">參展報名費</option>
+              <option value="identity_verification">身份認證費</option>
+              <option value="lbs_hosting">LBS影展託管費</option>
+              <option value="aif_topup">AIF充值</option>
+              <option value="aif_withdraw">AIF提現</option>
+              <option value="platform_fee">平台服務費</option>
+            </select>
+            <select
+              value={ledgerCurrencyFilter}
+              onChange={e => setLedgerCurrencyFilter(e.target.value)}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+            >
+              <option value="">全部支付方式</option>
+              <option value="USD">法幣 (USD)</option>
+              <option value="AIF">AIF Token</option>
+            </select>
+            <select
+              value={ledgerStatusFilter}
+              onChange={e => setLedgerStatusFilter(e.target.value as "" | "success" | "pending" | "failed")}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+            >
+              <option value="">全部狀態</option>
+              <option value="success">已付款</option>
+              <option value="pending">待付款</option>
+              <option value="failed">失敗</option>
+            </select>
+            <input
+              type="date"
+              value={ledgerStartDate}
+              onChange={e => setLedgerStartDate(e.target.value)}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+            />
+            <input
+              type="date"
+              value={ledgerEndDate}
+              onChange={e => setLedgerEndDate(e.target.value)}
+              className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+            />
+            <button
+              onClick={() => {
+                setLedgerLoading(true);
+                setLedgerError(null);
+                const params = new URLSearchParams();
+                if (ledgerStartDate) params.set('startDate', ledgerStartDate);
+                if (ledgerEndDate) params.set('endDate', ledgerEndDate);
+                if (ledgerTxTypeFilter) params.set('txType', ledgerTxTypeFilter);
+                if (ledgerCurrencyFilter) params.set('currency', ledgerCurrencyFilter);
+                fetch(`/api/admin/finance/ledger?${params.toString()}`)
+                  .then(async res => {
+                    const json = await res.json();
+                    if (json.error) setLedgerError(`DB Error: ${json.error}`);
+                    setLedgerSummary(json.summary ?? { total_usd: 0, total_aif: 0, total_tx: 0 });
+                    setLedgerData(json.data ?? []);
+                  })
+                  .catch(err => setLedgerError((err as Error).message))
+                  .finally(() => setLedgerLoading(false));
+              }}
+              className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              查詢
+            </button>
+            <span className="text-xs text-gray-400">{vLedgerData.length} 筆</span>
+          </div>
+
+          {/* 數據表格 */}
+          <div className={`${CARD} overflow-hidden`}>
+            {ledgerLoading ? (
+              <div className="p-10 text-center text-sm text-gray-400">加載中…</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">交易時間</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">交易單號</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">付款用戶</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">業務類型</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">支付方式</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">交易金額</th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 whitespace-nowrap">狀態</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {vLedgerData.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-400">
+                          {ledgerError ? "資料加載失敗，請查看上方錯誤詳情" : "暫無財務流水記錄"}
+                        </td>
+                      </tr>
+                    ) : (
+                      vLedgerData.map((row) => {
+                        const txLabel = row.tx_type ? (TX_TYPE_LABEL[row.tx_type] ?? row.tx_type) : "—";
+                        console.log("txLabel:", txLabel, "tx_type:", row.tx_type);
+
+                        const isAif = row.currency?.toUpperCase() === "AIF" || row.payment_method?.toLowerCase() === "aif";
+                        const isStripe = row.payment_method?.toLowerCase() === "stripe" || (!isAif && row.currency?.toUpperCase() === "USD");
+
+                        const amountDisplay = row.amount != null
+                          ? isAif
+                            ? `${(Number(row.amount) || 0).toLocaleString()} AIF`
+                            : `$ ${(Number(row.amount) || 0).toFixed(2)}`
+                          : "—";
+
+                        const txIdFull = row.id ?? "";
+                        const txIdShort = txIdFull ? `${txIdFull.slice(0, 8)}…` : "—";
+
+                        const userFull = row.user_email ?? row.user_id ?? "";
+                        const userShort = row.user_email ?? (row.user_id ? `${row.user_id.slice(0, 12)}…` : "—");
+
+                        const st = row.status ?? "";
+                        const isSuccess = ["success", "approved", "paid"].includes(st);
+                        const isPending = ["pending", "awaiting_payment"].includes(st);
+                        const isFailed = ["failed", "rejected", "cancelled"].includes(st);
+
+                        const statusStyle = isSuccess
+                          ? "bg-green-50 border border-green-200 text-green-700"
+                          : isFailed
+                          ? "bg-red-50 border border-red-200 text-red-600"
+                          : isPending
+                          ? "bg-yellow-50 border border-yellow-200 text-yellow-700"
+                          : "bg-gray-100 text-gray-600";
+
+                        const statusLabel = isSuccess
+                          ? "已付款"
+                          : st === "pending" || st === "awaiting_payment"
+                          ? "待付款"
+                          : st === "failed"
+                          ? "失敗"
+                          : st === "rejected"
+                          ? "已退回"
+                          : st || "—";
+
+                        const CopyIcon = () => (
+                          <svg className="w-3 h-3 inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+                            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                          </svg>
+                        );
+
+                        return (
+                          <tr key={row.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-3 text-gray-500 text-xs whitespace-nowrap">
+                              {new Date(row.created_at).toLocaleString("zh-HK", { hour12: false })}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-xs text-gray-500 whitespace-nowrap">
+                              {txIdShort}
+                              {txIdFull && (
+                                <button
+                                  onClick={() => copyToClipboard(txIdFull, `tx_${txIdFull}`)}
+                                  className="ml-1 text-gray-300 hover:text-gray-600 transition-colors"
+                                  title={copiedId === `tx_${txIdFull}` ? "已複製" : "複製"}
+                                >
+                                  {copiedId === `tx_${txIdFull}` ? (
+                                    <span className="text-green-500 text-[10px]">✓</span>
+                                  ) : (
+                                    <CopyIcon />
+                                  )}
+                                </button>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-gray-700 text-xs max-w-[180px] truncate whitespace-nowrap">
+                              {userShort}
+                              {userFull && (
+                                <button
+                                  onClick={() => copyToClipboard(userFull, `user_${row.id}`)}
+                                  className="ml-1 text-gray-300 hover:text-gray-600 transition-colors"
+                                  title={copiedId === `user_${row.id}` ? "已複製" : "複製"}
+                                >
+                                  {copiedId === `user_${row.id}` ? (
+                                    <span className="text-green-500 text-[10px]">✓</span>
+                                  ) : (
+                                    <CopyIcon />
+                                  )}
+                                </button>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-gray-700 whitespace-nowrap">{txLabel}</td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              {isAif ? (
+                                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-700">AIF Token</span>
+                              ) : isStripe ? (
+                                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-semibold bg-green-100 text-green-700">Stripe / 法幣</span>
+                              ) : (
+                                <span className="text-gray-400 text-xs">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 font-mono font-semibold text-gray-900 whitespace-nowrap">{amountDisplay}</td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${statusStyle}`}>
+                                {statusLabel}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {sub === "treasury" && (
+        <div className={`${CARD} p-6 max-w-md`}>
+          <p className="text-sm text-gray-500">Privy Global Wallet</p>
+          <p className="text-3xl font-black text-gray-900 mt-2">12.84 SOL</p>
+        </div>
+      )}
+
+      {sub === "settlement" && (
+        <div className={`${CARD} overflow-hidden`}>
+          <div className="overflow-x-auto">
+            <div className="min-w-[640px]">
+              <div className="grid grid-cols-[120px_1fr_1fr_160px] bg-gray-50 border-b border-gray-200 text-xs font-semibold text-gray-500">
+                <div className="p-3">ID</div>
+                <div className="p-3">Role</div>
+                <div className="p-3">Amount</div>
+                <div className="p-3">Action</div>
+              </div>
+              {settlements.map((s) => (
+                <div key={s.id} className="grid grid-cols-[120px_1fr_1fr_160px] border-b border-gray-100 last:border-0">
+                  <div className="p-3">{s.id}</div>
+                  <div className="p-3">{s.role}</div>
+                  <div className="p-3">{s.amount}</div>
+                  <div className="p-3 flex gap-2">
+                    <button className={`${BTN} !px-2 !py-1 bg-green-600 text-white`} onClick={() => pushToast("已批准提現")}>
+                      Approve
+                    </button>
+                    <button className={`${BTN} !px-2 !py-1 bg-red-600 text-white`} onClick={() => pushToast("已拒絕提現", false)}>
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OpsModule({ t, pushToast, lang, setLang }: SharedProps) {
+  const [sub, setSub] = useState<"assets" | "tower" | "params" | "rbac">("assets");
+  const [threshold, setThreshold] = useState(51);
+  const [message, setMessage] = useState({ channel: "System", title: "", body: "" });
+  const [roles, setRoles] = useState([
+    { name: "初級審核員", perms: ["Dashboard", "Review"] },
+    { name: "財務助理", perms: ["Finance"] },
+  ]);
+  const [newRole, setNewRole] = useState({ name: "", perms: ["Dashboard"] as string[] });
+  const [members, setMembers] = useState([
+    { id: 1, account: "reviewer@hkaiiff.ai", role: "初級審核員", disabled: false },
+    { id: 2, account: "wallet:fiebkz...xros", role: "財務助理", disabled: false },
+  ]);
+  const [invite, setInvite] = useState({ account: "", role: "初級審核員" });
+  const menus = ["Dashboard", "Review", "Distribution", "Ecosystem", "AI", "Finance", "Ops"];
+
+  function togglePerm(perm: string) {
+    setNewRole((prev) => ({
+      ...prev,
+      perms: prev.perms.includes(perm) ? prev.perms.filter((p) => p !== perm) : [...prev.perms, perm],
+    }));
+  }
+
+  return (
+    <div>
+      <SubTabs
+        tabs={[
+          { id: "assets", label: t.opsTabs[0] },
+          { id: "tower", label: t.opsTabs[1] },
+          { id: "params", label: t.opsTabs[2] },
+          { id: "rbac", label: t.opsTabs[3] },
+        ]}
+        active={sub}
+        onChange={setSub}
+      />
+
+      {sub === "assets" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <UploadMock title="上傳海報素材" onPick={(n) => pushToast(`已加入素材庫: ${n}`)} />
+          <UploadMock title="上傳音視頻素材" onPick={(n) => pushToast(`已加入素材庫: ${n}`)} />
+        </div>
+      )}
+
+      {sub === "tower" && (
+        <div className={`${CARD} p-5 max-w-2xl space-y-3`}>
+          <select className={INPUT} value={message.channel} onChange={(e) => setMessage((p) => ({ ...p, channel: e.target.value }))}>
+            <option>System</option>
+            <option>Renders</option>
+            <option>On-Chain</option>
+          </select>
+          <input className={INPUT} placeholder="Title" value={message.title} onChange={(e) => setMessage((p) => ({ ...p, title: e.target.value }))} />
+          <textarea className={INPUT} rows={4} placeholder="Message content" value={message.body} onChange={(e) => setMessage((p) => ({ ...p, body: e.target.value }))} />
+          <button
+            className={`${BTN} bg-blue-600 text-white`}
+            onClick={async () => {
+              const msgTypeVal = message.channel.toLowerCase() as string;
+              const { error } = await supabase.from("messages").insert([{ user_id: null, type: msgTypeVal, msg_type: msgTypeVal, title: message.title, content: message.body }]);
+              if (error) {
+                pushToast(error.message, false);
+                return;
+              }
+              pushToast(`${t.sendMsg}: ${message.channel}`);
+            }}
+          >
+            {t.sendMsg}
+          </button>
+        </div>
+      )}
+
+      {sub === "params" && (
+        <div className={`${CARD} p-5 max-w-2xl space-y-5`}>
+          <div>
+            <p className="font-semibold text-gray-900">{t.aiThreshold}</p>
+            <div className="flex items-center gap-4 mt-2">
+              <input type="range" min={0} max={100} value={threshold} onChange={(e) => setThreshold(Number(e.target.value))} className="w-full" />
+              <span className="font-bold text-blue-700">{threshold}%</span>
+            </div>
+          </div>
+          <div>
+            <p className="font-semibold text-gray-900">{t.langLabel}</p>
+            <div className="mt-2 flex gap-2">
+              <button className={`${BTN} ${lang === "zh" ? "bg-blue-600 text-white" : "border border-gray-200 text-gray-700"}`} onClick={() => setLang("zh")}>
+                繁中
+              </button>
+              <button className={`${BTN} ${lang === "en" ? "bg-blue-600 text-white" : "border border-gray-200 text-gray-700"}`} onClick={() => setLang("en")}>
+                EN
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {sub === "rbac" && (
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+          <div className={`${CARD} p-5 space-y-4`}>
+            <h3 className="font-bold text-gray-900">{t.rbacRole}</h3>
+            {roles.map((r) => (
+              <div key={r.name} className="rounded-xl border border-gray-200 p-3">
+                <p className="font-semibold text-gray-900">{r.name}</p>
+                <p className="text-sm text-gray-500">{r.perms.join(", ")}</p>
+              </div>
+            ))}
+            <div className="rounded-xl border border-gray-200 p-3 space-y-2">
+              <input className={INPUT} placeholder="自定義角色名" value={newRole.name} onChange={(e) => setNewRole((p) => ({ ...p, name: e.target.value }))} />
+              <div className="grid grid-cols-2 gap-2">
+                {menus.map((m) => (
+                  <label key={m} className="text-sm text-gray-700 flex items-center gap-2">
+                    <input type="checkbox" checked={newRole.perms.includes(m)} onChange={() => togglePerm(m)} />
+                    {m}
+                  </label>
+                ))}
+              </div>
+              <button
+                className={`${BTN} bg-blue-600 text-white`}
+                onClick={() => {
+                  if (!newRole.name) return;
+                  setRoles((prev) => [...prev, { name: newRole.name, perms: newRole.perms }]);
+                  setNewRole({ name: "", perms: ["Dashboard"] });
+                  pushToast("角色已創建");
+                }}
+              >
+                新增角色
+              </button>
+            </div>
+          </div>
+
+          <div className={`${CARD} p-5 space-y-4`}>
+            <h3 className="font-bold text-gray-900">{t.rbacPeople}</h3>
+            <div className="rounded-xl border border-gray-200 p-3 space-y-2">
+              <input className={INPUT} placeholder="邀請內部信箱 / 錢包" value={invite.account} onChange={(e) => setInvite((p) => ({ ...p, account: e.target.value }))} />
+              <select className={INPUT} value={invite.role} onChange={(e) => setInvite((p) => ({ ...p, role: e.target.value }))}>
+                {roles.map((r) => (
+                  <option key={r.name}>{r.name}</option>
+                ))}
+              </select>
+              <button
+                className={`${BTN} bg-blue-600 text-white`}
+                onClick={() => {
+                  if (!invite.account) return;
+                  setMembers((prev) => [...prev, { id: Date.now(), account: invite.account, role: invite.role, disabled: false }]);
+                  setInvite((p) => ({ ...p, account: "" }));
+                  pushToast("邀請已發送");
+                }}
+              >
+                邀請並分配角色
+              </button>
+            </div>
+            <div className="space-y-2">
+              {members.map((m) => (
+                <div key={m.id} className="rounded-xl border border-gray-200 p-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{m.account}</p>
+                    <p className="text-xs text-gray-500">Role: {m.role}</p>
+                  </div>
+                  <button
+                    className={`${BTN} !px-3 !py-1.5 ${m.disabled ? "border border-gray-200 text-gray-600" : "bg-red-600 text-white"}`}
+                    onClick={() =>
+                      setMembers((prev) => prev.map((x) => (x.id === m.id ? { ...x, disabled: !x.disabled } : x)))
+                    }
+                  >
+                    {m.disabled ? "啟用賬號" : "禁用賬號"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const NAVS: { id: MainModule; labelKey: keyof Dict }[] = [
+  { id: "dashboard", labelKey: "dashboard" },
+  { id: "review", labelKey: "review" },
+  { id: "distribution", labelKey: "distribution" },
+  { id: "ecosystem", labelKey: "ecosystem" },
+  { id: "ai", labelKey: "ai" },
+  { id: "finance", labelKey: "finance" },
+  { id: "ops", labelKey: "ops" },
+];
+
+export default function AdminPageV2() {
+  const { user, logout } = usePrivy();
+  const router = useRouter();
+  const [lang, setLang] = useState<Lang>("zh");
+  const [active, setActive] = useState<MainModule>("dashboard");
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [confirmCfg, setConfirmCfg] = useState<ConfirmConfig | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const toastId = useRef(0);
+  const t = DICT[lang];
+
+  const pushToast = useCallback((text: string, ok: boolean = true) => {
+    const id = ++toastId.current;
+    setToasts((prev) => [...prev, { id, text, ok }]);
+    setTimeout(() => setToasts((prev) => prev.filter((x) => x.id !== id)), 3200);
+  }, []);
+
+  const askConfirm = useCallback((cfg: ConfirmConfig) => setConfirmCfg(cfg), []);
+
+  const name = user?.email?.address ?? user?.wallet?.address ?? "Admin";
+
+  const shared: SharedProps = { t: t as Dict, pushToast, askConfirm, lang, setLang };
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [active]);
+
+  async function handleLogout() {
+    try {
+      await logout();
+      router.push("/");
+    } catch {
+      pushToast(t.logoutFail, false);
+    }
+  }
+
+  return (
+    <div className="h-screen overflow-hidden flex bg-[#F4F5F7]">
+      <aside className="hidden md:flex w-64 flex-col justify-between border-r border-gray-200 bg-white">
+        <div className="min-h-0 overflow-y-auto">
+          <div className="px-5 py-5 border-b border-gray-200">
+            <p className="text-lg font-black text-gray-900">{t.brand}</p>
+            <p className="text-xs text-gray-500">{t.coreModules}</p>
+          </div>
+          <nav className="p-3 space-y-1">
+            {NAVS.map((n) => (
+              <button
+                key={n.id}
+                className={`w-full text-left rounded-xl px-3 py-2 text-sm font-semibold ${
+                  active === n.id ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-gray-700 hover:bg-gray-50 border border-transparent"
+                }`}
+                onClick={() => {
+                  setActive(n.id);
+                  setMobileMenuOpen(false);
+                }}
+              >
+                {t[n.labelKey]}
+              </button>
+            ))}
+            {/* Identity Verification — standalone page */}
+            <a
+              href="/admin/verifications"
+              className="w-full text-left rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 border border-transparent flex items-center justify-between group"
+            >
+              <span>{lang === "zh" ? "身份認證審核" : "ID Verifications"}</span>
+              <span className="text-[10px] font-mono text-orange-500 bg-orange-50 border border-orange-100 px-1.5 py-0.5 rounded-full group-hover:bg-orange-100 transition-colors">NEW</span>
+            </a>
+          </nav>
+        </div>
+
+        <div className="border-t border-gray-200 p-4 space-y-3">
+          <div className="rounded-xl bg-gray-50 px-3 py-2">
+            <p className="text-xs text-gray-500">Admin</p>
+            <p className="text-sm font-semibold text-gray-900 truncate">{name}</p>
+          </div>
+          <button className={`${BTN} w-full bg-red-600 text-white`} onClick={handleLogout}>
+            {t.logout}
+          </button>
+        </div>
+      </aside>
+
+      {mobileMenuOpen && (
+        <div className="md:hidden fixed inset-0 z-[1200]">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setMobileMenuOpen(false)} />
+          <aside className="absolute left-0 top-0 h-full w-72 max-w-[85vw] bg-white border-r border-gray-200 flex flex-col justify-between">
+            <div className="min-h-0 overflow-y-auto">
+              <div className="px-5 py-5 border-b border-gray-200">
+                <p className="text-lg font-black text-gray-900">{t.brand}</p>
+                <p className="text-xs text-gray-500">{t.coreModules}</p>
+              </div>
+              <nav className="p-3 space-y-1">
+                {NAVS.map((n) => (
+                  <button
+                    key={n.id}
+                    className={`w-full text-left rounded-xl px-3 py-2 text-sm font-semibold ${
+                      active === n.id ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-gray-700 hover:bg-gray-50 border border-transparent"
+                    }`}
+                    onClick={() => {
+                      setActive(n.id);
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    {t[n.labelKey]}
+                  </button>
+                ))}
+                {/* Identity Verification — standalone page */}
+                <a
+                  href="/admin/verifications"
+                  className="w-full text-left rounded-xl px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50 border border-transparent flex items-center justify-between group"
+                >
+                  <span>{lang === "zh" ? "身份認證審核" : "ID Verifications"}</span>
+                  <span className="text-[10px] font-mono text-orange-500 bg-orange-50 border border-orange-100 px-1.5 py-0.5 rounded-full">NEW</span>
+                </a>
+              </nav>
+            </div>
+            <div className="border-t border-gray-200 p-4 space-y-3">
+              <div className="rounded-xl bg-gray-50 px-3 py-2">
+                <p className="text-xs text-gray-500">Admin</p>
+                <p className="text-sm font-semibold text-gray-900 truncate">{name}</p>
+              </div>
+              <button className={`${BTN} w-full bg-red-600 text-white`} onClick={handleLogout}>
+                {t.logout}
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      <div className="flex-1 flex flex-col min-w-0">
+        <header className="h-14 sm:h-16 shrink-0 border-b border-gray-200 bg-white px-4 sm:px-6 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              className="md:hidden rounded-lg border border-gray-200 px-2.5 py-1.5 text-gray-700"
+              onClick={() => setMobileMenuOpen(true)}
+              aria-label="Open menu"
+            >
+              ☰
+            </button>
+            <div className="text-xs sm:text-sm text-gray-600 truncate">
+              {t.breadcrumbRoot} / <span className="font-bold text-gray-900">{t[NAVS.find((x) => x.id === active)?.labelKey ?? "dashboard"]}</span>
+            </div>
+          </div>
+          <button
+            className="rounded-lg border border-gray-200 px-2.5 sm:px-3 py-1.5 text-xs sm:text-sm font-semibold text-gray-700 hover:bg-gray-50 whitespace-nowrap"
+            onClick={() => setLang((prev) => (prev === "zh" ? "en" : "zh"))}
+          >
+            繁 / EN
+          </button>
+        </header>
+
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 bg-[#F4F5F7]">
+          {active === "dashboard" && <DashboardModule {...shared} />}
+          {active === "review" && <ReviewModule {...shared} />}
+          {active === "distribution" && <DistributionModule {...shared} />}
+          {active === "ecosystem" && <EcosystemModule {...shared} />}
+          {active === "ai" && <AIModule {...shared} />}
+          {active === "finance" && <FinanceModule {...shared} />}
+          {active === "ops" && <OpsModule {...shared} />}
+        </main>
+      </div>
+
+      <ToastStack items={toasts} />
+
+      {confirmCfg && (
+        <Modal
+          title={confirmCfg.title}
+          onClose={() => setConfirmCfg(null)}
+          footer={
+            <div className="flex justify-end gap-2">
+              <button className={`${BTN} border border-gray-200 text-gray-700`} onClick={() => setConfirmCfg(null)}>
+                {t.cancel}
+              </button>
+              <button
+                className={`${BTN} ${confirmCfg.danger ? "bg-red-600 text-white" : "bg-blue-600 text-white"}`}
+                onClick={async () => {
+                  await confirmCfg.onConfirm();
+                  setConfirmCfg(null);
+                }}
+              >
+                {confirmCfg.danger ? t.danger : t.confirm}
+              </button>
+            </div>
+          }
+        >
+          <p className="text-sm text-gray-600">{confirmCfg.body}</p>
+        </Modal>
+      )}
+    </div>
+  );
+}
+```
+### app/admin/BatchReleaseTab.tsx
+```typescript
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { parseSpreadsheet } from "@/lib/utils/parse-csv";
+
+// ─── 類型定義 ─────────────────────────────────────────────────────────────────
+interface UserRow {
+  email: string;
+  password?: string;
+  role?: string;
+  verification_name: string;
+  bio?: string;
+  about_studio?: string;
+  tech_stack?: string;
+}
+
+interface FilmRow {
+  email: string;
+  project_title: string;
+  conductor_studio?: string;
+  tech_stack?: string;
+  ai_contribution_ratio?: string | number;
+  synopsis?: string;
+  core_cast?: string;
+  region?: string;
+  lbs_festival_royalty?: string | number;
+  contact_email?: string;
+  country?: string;
+  language?: string;
+  year?: string | number;
+  video_filename?: string;
+}
+
+type StepStatus = "pending" | "running" | "done" | "error";
+
+interface ItemProgress {
+  index: number;
+  title: string;
+  name: string;
+  steps: {
+    createUser: StepStatus;
+    uploadPoster: StepStatus;
+    uploadVideo: StepStatus;
+    createFilm: StepStatus;
+  };
+  error?: string;
+}
+
+interface BatchItem {
+  id: string;
+  batch_id: string;
+  project_title: string;
+  verification_name: string;
+  user_email: string;
+  status: string;
+  trailer_url?: string | null;
+  poster_url?: string | null;
+  error_message?: string | null;
+}
+
+interface BatchRelease {
+  id: string;
+  job_number: string;
+  status: string;
+  total_films: number;
+  completed_films: number;
+  failed_films: number;
+  notes?: string | null;
+  created_at: string;
+  batch_release_items?: BatchItem[];
+}
+
+// ─── 工具函數 ─────────────────────────────────────────────────────────────────
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleString("zh-HK", {
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit",
+  });
+}
+
+async function extractPoster(file: File): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    const canvas = document.createElement("canvas");
+    video.preload = "metadata";
+    video.muted = true;
+    video.onloadeddata = () => {
+      video.currentTime = Math.min(3, video.duration * 0.1);
+    };
+    video.onseeked = () => {
+      canvas.width = 900;
+      canvas.height = 1200;
+      const ctx = canvas.getContext("2d")!;
+      const scale = Math.max(900 / video.videoWidth, 1200 / video.videoHeight);
+      const w = video.videoWidth * scale;
+      const h = video.videoHeight * scale;
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, 900, 1200);
+      ctx.drawImage(video, (900 - w) / 2, (1200 - h) / 2, w, h);
+      canvas.toBlob(
+        (b) => {
+          URL.revokeObjectURL(video.src);
+          b ? resolve(b) : reject(new Error("Canvas toBlob 失敗"));
+        },
+        "image/jpeg",
+        0.85,
+      );
+    };
+    video.onerror = () => reject(new Error("視頻載入失敗"));
+    video.src = URL.createObjectURL(file);
+  });
+}
+
+async function uploadFile(file: File | Blob, filename: string, title?: string): Promise<string> {
+  const form = new FormData();
+  form.append("file", file instanceof File ? file : new File([file], filename, { type: "image/jpeg" }));
+  if (title) form.append("title", title);
+  const res = await fetch("/api/upload", { method: "POST", body: form });
+  const json = await res.json();
+  if (!json.url) throw new Error(json.error ?? "上傳失敗");
+  return json.url as string;
+}
+
+// ─── 樣式常量 ─────────────────────────────────────────────────────────────────
+const CARD = "bg-white border border-neutral-200 rounded-2xl";
+const BTN_PRIMARY = "rounded-full px-5 py-2 text-sm font-semibold bg-[#1a73e8] text-white hover:opacity-90 transition-opacity active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed";
+const BTN_GHOST = "rounded-full px-5 py-2 text-sm font-semibold border border-neutral-300 text-neutral-600 hover:bg-neutral-50 transition-colors active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed";
+const TH = "px-3 py-2.5 text-left text-xs font-semibold text-neutral-500 uppercase tracking-wider";
+const TD = "px-3 py-3 text-sm text-neutral-700";
+
+// ─── 步驟指示器 ───────────────────────────────────────────────────────────────
+function StepIndicator({ step }: { step: number }) {
+  const steps = ["用戶信息", "影片信息", "上傳預告片"];
+  return (
+    <div className="flex items-center gap-0 mb-8">
+      {steps.map((label, i) => {
+        const n = i + 1;
+        const active = step === n;
+        const done = step > n;
+        return (
+          <div key={n} className="flex items-center">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+              active ? "bg-[#1a73e8] text-white" : done ? "bg-green-100 text-green-700" : "bg-neutral-100 text-neutral-400"
+            }`}>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                active ? "bg-white/20" : done ? "bg-green-200" : "bg-neutral-200"
+              }`}>
+                {done ? "✓" : n}
+              </span>
+              {label}
+            </div>
+            {i < steps.length - 1 && (
+              <div className={`w-8 h-px mx-1 ${step > n ? "bg-green-300" : "bg-neutral-200"}`} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── 狀態徽章 ─────────────────────────────────────────────────────────────────
+function StatusBadge({ status, completed, total }: { status: string; completed?: number; total?: number }) {
+  if (status === "processing") {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-blue-50 text-blue-700 px-2.5 py-1 text-xs font-semibold">
+        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+        處理中
+      </span>
+    );
+  }
+  if (status === "completed") {
+    const isPartial = total != null && completed != null && completed < total;
+    if (isPartial) {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 text-amber-700 px-2.5 py-1 text-xs font-semibold">
+          ⚠️ 部分完成 {completed}/{total}
+        </span>
+      );
+    }
+    return <span className="inline-flex items-center gap-1 rounded-full bg-green-50 text-green-700 px-2.5 py-1 text-xs font-semibold">✅ 已完成</span>;
+  }
+  if (status === "failed") {
+    return <span className="inline-flex items-center gap-1 rounded-full bg-red-50 text-red-700 px-2.5 py-1 text-xs font-semibold">❌ 失敗</span>;
+  }
+  return <span className="inline-flex items-center gap-1 rounded-full bg-neutral-100 text-neutral-500 px-2.5 py-1 text-xs font-semibold">草稿</span>;
+}
+
+// ─── 進度步驟圖標 ─────────────────────────────────────────────────────────────
+function StepIcon({ status }: { status: StepStatus }) {
+  if (status === "done") return <span className="text-green-400 text-sm">✅</span>;
+  if (status === "running") return <span className="text-blue-400 text-sm animate-spin inline-block">⏳</span>;
+  if (status === "error") return <span className="text-red-400 text-sm">❌</span>;
+  return <span className="text-neutral-300 text-sm">○</span>;
+}
+
+// ─── 批片發行 Tab 組件（嵌入 Admin 主佈局，無獨立頁殼）────────────────────────
+export function BatchReleaseTab() {
+  const [activeTab, setActiveTab] = useState<"new" | "history">("new");
+  const [step, setStep] = useState(1);
+  const [usersData, setUsersData] = useState<UserRow[]>([]);
+  const [filmsData, setFilmsData] = useState<FilmRow[]>([]);
+  const [videoFiles, setVideoFiles] = useState<File[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishItems, setPublishItems] = useState<ItemProgress[]>([]);
+  const [publishedCount, setPublishedCount] = useState(0);
+  const [publishDone, setPublishDone] = useState(false);
+  const [publishBatchId, setPublishBatchId] = useState<string | null>(null);
+  const [batches, setBatches] = useState<BatchRelease[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [selectedBatch, setSelectedBatch] = useState<BatchRelease | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+
+  // ── 歷史記錄加載 ────────────────────────────────────────────────────────────
+  const loadHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch("/api/admin/batch-release");
+      const json = await res.json();
+      if (json.batches) setBatches(json.batches);
+    } catch {
+      // silent
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "history") loadHistory();
+  }, [activeTab, loadHistory]);
+
+  // ── 文件解析 ────────────────────────────────────────────────────────────────
+  async function handleUsersFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const rows = await parseSpreadsheet<UserRow>(file);
+      setUsersData(rows);
+      setError(null);
+    } catch {
+      setError("用戶信息文件解析失敗，請確認格式正確");
+    }
+  }
+
+  async function handleFilmsFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const rows = await parseSpreadsheet<FilmRow>(file);
+      setFilmsData(rows);
+      setError(null);
+    } catch {
+      setError("影片信息文件解析失敗，請確認格式正確");
+    }
+  }
+
+  // ── 視頻文件處理 ─────────────────────────────────────────────────────────────
+  function addVideoFiles(files: FileList | File[]) {
+    const arr = Array.from(files).filter((f) => f.type.startsWith("video/"));
+    setVideoFiles((prev) => [...prev, ...arr]);
+  }
+
+  function handleVideoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    if (e.target.files) addVideoFiles(e.target.files);
+  }
+
+  function handleVideoDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files) addVideoFiles(e.dataTransfer.files);
+  }
+
+  // ── 計算匹配（按順序索引） ──────────────────────────────────────────────────
+  const matchedCount = Math.min(videoFiles.length, filmsData.length);
+
+  // ── 驗證用戶-影片關聯 ─────────────────────────────────────────────────────────
+  const userEmails = new Set(usersData.map((u) => u.email));
+  const unlinkedFilms = filmsData.filter((f) => !userEmails.has(f.email));
+
+  // ── 發行 ─────────────────────────────────────────────────────────────────────
+  async function handlePublish() {
+    if (matchedCount < filmsData.length) return;
+    setIsPublishing(true);
+    setPublishedCount(0);
+    setPublishDone(false);
+    setPublishBatchId(null);
+
+    const initial: ItemProgress[] = filmsData.map((film, i) => ({
+      index: i,
+      title: film.project_title,
+      name: usersData.find((u) => u.email === film.email)?.verification_name ?? film.email,
+      steps: { createUser: "pending", uploadPoster: "pending", uploadVideo: "pending", createFilm: "pending" },
+    }));
+    setPublishItems(initial);
+
+    const apiItems = filmsData.map((film) => {
+      const user = usersData.find((u) => u.email === film.email)!;
+      return {
+        user_email: film.email,
+        user_password: user?.password ?? "HKaiiff2026!@",
+        role: user?.role ?? "creator",
+        verification_name: user?.verification_name ?? film.email,
+        bio: user?.bio ?? null,
+        about_studio: user?.about_studio ?? null,
+        profile_tech_stack: user?.tech_stack ?? null,
+        project_title: film.project_title,
+        conductor_studio: film.conductor_studio ?? null,
+        film_tech_stack: film.tech_stack ?? null,
+        ai_contribution_ratio: Number(film.ai_contribution_ratio) || 75,
+        synopsis: film.synopsis ?? null,
+        core_cast: film.core_cast ?? null,
+        region: film.region ?? null,
+        lbs_festival_royalty: Number(film.lbs_festival_royalty) || 5,
+        contact_email: film.contact_email ?? film.email,
+        video_filename: film.video_filename ?? null,
+      };
+    });
+
+    let batchId: string;
+    let itemIds: string[];
+    try {
+      const initRes = await fetch("/api/admin/batch-release", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "init", items: apiItems }),
+      });
+      const initJson = await initRes.json();
+      if (!initRes.ok || !initJson.batch) throw new Error(initJson.error ?? "初始化批次失敗");
+      batchId = initJson.batch.id;
+      itemIds = (initJson.items as { id: string }[]).map((it) => it.id);
+      setPublishBatchId(batchId);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+      setIsPublishing(false);
+      return;
+    }
+
+    let completedCount = 0;
+    for (let i = 0; i < filmsData.length; i++) {
+      const film = filmsData[i];
+      const user = usersData.find((u) => u.email === film.email)!;
+      const videoFile = videoFiles[i];
+      const itemId = itemIds[i];
+
+      const updateStep = (stepKey: keyof ItemProgress["steps"], status: StepStatus) => {
+        setPublishItems((prev) =>
+          prev.map((it) =>
+            it.index === i ? { ...it, steps: { ...it.steps, [stepKey]: status } } : it,
+          ),
+        );
+      };
+
+      try {
+        updateStep("uploadPoster", "running");
+        const posterBlob = await extractPoster(videoFile);
+        const posterFilename = `poster_${videoFile.name.replace(/\.[^.]+$/, "")}.jpg`;
+        const posterUrl = await uploadFile(posterBlob, posterFilename);
+        updateStep("uploadPoster", "done");
+
+        updateStep("uploadVideo", "running");
+        const videoUrl = await uploadFile(videoFile, videoFile.name, film.project_title);
+        updateStep("uploadVideo", "done");
+
+        updateStep("createUser", "running");
+        updateStep("createFilm", "running");
+        const procRes = await fetch("/api/admin/batch-release", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "process-item",
+            itemId,
+            batchId,
+            userInfo: {
+              email: user?.email ?? film.email,
+              verification_name: user?.verification_name ?? film.email,
+              role: user?.role ?? "creator",
+              bio: user?.bio,
+            },
+            filmInfo: {
+              project_title: film.project_title,
+              conductor_studio: film.conductor_studio,
+              film_tech_stack: film.tech_stack,
+              ai_contribution_ratio: Number(film.ai_contribution_ratio) || 75,
+              synopsis: film.synopsis,
+              core_cast: film.core_cast,
+              region: film.region,
+              lbs_festival_royalty: Number(film.lbs_festival_royalty) || 5,
+              contact_email: film.contact_email ?? film.email,
+              poster_url: posterUrl,
+              trailer_url: videoUrl,
+            },
+          }),
+        });
+        const procJson = await procRes.json();
+        if (!procRes.ok) throw new Error(procJson.error ?? "記錄創建失敗");
+
+        updateStep("createUser", "done");
+        updateStep("createFilm", "done");
+        completedCount++;
+        setPublishedCount(completedCount);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setPublishItems((prev) =>
+          prev.map((it) => (it.index === i ? { ...it, error: msg } : it)),
+        );
+        ["createUser", "uploadPoster", "uploadVideo", "createFilm"].forEach((k) => {
+          setPublishItems((prev) =>
+            prev.map((it) => {
+              if (it.index !== i) return it;
+              const s = it.steps[k as keyof ItemProgress["steps"]];
+              return s === "running" || s === "pending"
+                ? { ...it, steps: { ...it.steps, [k]: "error" as StepStatus } }
+                : it;
+            }),
+          );
+        });
+      }
+    }
+
+    await fetch("/api/admin/batch-release", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "complete-batch", batchId }),
+    });
+
+    setPublishDone(true);
+  }
+
+  // ── STEP 1：用戶信息上傳 ─────────────────────────────────────────────────────
+  function renderStep1() {
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-bold text-neutral-900">① 上傳用戶信息表格（可選）</h3>
+            <p className="text-sm text-neutral-500 mt-0.5">可選步驟，如無用戶信息可直接跳過，影片 email 將自動建立帳號</p>
+          </div>
+          <a
+            href="/templates/users-template.csv"
+            download
+            className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold border border-neutral-300 text-neutral-600 hover:bg-neutral-50 transition-colors"
+          >
+            📥 下載用戶信息模板 (CSV)
+          </a>
+        </div>
+
+        <label className="block cursor-pointer border-2 border-dashed border-neutral-200 rounded-xl p-10 text-center hover:border-[#1a73e8]/40 hover:bg-blue-50/20 transition-colors">
+          <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleUsersFile} />
+          <div className="text-4xl mb-3">📋</div>
+          <p className="font-semibold text-neutral-700">拖入或點擊上傳用戶信息表格</p>
+          <p className="text-xs text-neutral-400 mt-1">支持 .csv 或 .xlsx 格式</p>
+        </label>
+
+        {usersData.length > 0 && (
+          <div className={`${CARD} overflow-hidden`}>
+            <div className="px-4 py-3 border-b border-neutral-100">
+              <p className="text-sm font-semibold text-neutral-700">
+                已解析 <span className="text-[#1a73e8]">{usersData.length}</span> 條用戶記錄
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-neutral-50">
+                  <tr>
+                    {["#", "姓名", "郵箱", "角色", "Bio 預覽"].map((h) => (
+                      <th key={h} className={TH}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {usersData.map((u, i) => (
+                    <tr key={i} className="hover:bg-neutral-50/50">
+                      <td className={`${TD} w-10 text-neutral-400`}>{i + 1}</td>
+                      <td className={`${TD} font-medium`}>{u.verification_name}</td>
+                      <td className={`${TD} text-neutral-500`}>{u.email}</td>
+                      <td className={TD}>
+                        <span className="rounded-full bg-neutral-100 text-neutral-600 px-2 py-0.5 text-xs font-medium">
+                          {u.role ?? "creator"}
+                        </span>
+                      </td>
+                      <td className={`${TD} max-w-xs truncate text-neutral-500`}>{u.bio}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3">{error}</p>}
+
+        <div className="flex justify-end">
+          <button
+            className={BTN_PRIMARY}
+            onClick={() => setStep(2)}
+          >
+            下一步 →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── STEP 2：影片信息上傳 ─────────────────────────────────────────────────────
+  function renderStep2() {
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-bold text-neutral-900">② 上傳影片信息表格</h3>
+            <p className="text-sm text-neutral-500 mt-0.5">每行 email 將作為創作者標識，無需與用戶表格完全匹配</p>
+          </div>
+          <a
+            href="/templates/films-template.csv"
+            download
+            className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold border border-neutral-300 text-neutral-600 hover:bg-neutral-50 transition-colors"
+          >
+            📥 下載影片信息模板 (CSV)
+          </a>
+        </div>
+
+        <label className="block cursor-pointer border-2 border-dashed border-neutral-200 rounded-xl p-10 text-center hover:border-[#1a73e8]/40 hover:bg-blue-50/20 transition-colors">
+          <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFilmsFile} />
+          <div className="text-4xl mb-3">🎬</div>
+          <p className="font-semibold text-neutral-700">拖入或點擊上傳影片信息表格</p>
+          <p className="text-xs text-neutral-400 mt-1">支持 .csv 或 .xlsx 格式</p>
+        </label>
+
+        {usersData.length > 0 && unlinkedFilms.length > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-800">
+            ℹ️ {unlinkedFilms.length} 部影片的 email 未在用戶表格中找到匹配，將自動建立新帳號：{" "}
+            {unlinkedFilms.map((f) => f.email).join("、")}
+          </div>
+        )}
+
+        {filmsData.length > 0 && (
+          <div className={`${CARD} overflow-hidden`}>
+            <div className="px-4 py-3 border-b border-neutral-100">
+              <p className="text-sm font-semibold text-neutral-700">
+                已解析 <span className="text-[#1a73e8]">{filmsData.length}</span> 部影片
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-neutral-50">
+                  <tr>
+                    {["#", "影片標題", "導演/Studio", "AI比例", "地區", "關聯用戶", "視頻文件名"].map((h) => (
+                      <th key={h} className={TH}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {filmsData.map((f, i) => {
+                    const linked = userEmails.has(f.email);
+                    return (
+                      <tr key={i} className="hover:bg-neutral-50/50">
+                        <td className={`${TD} w-10 text-neutral-400`}>{i + 1}</td>
+                        <td className={`${TD} font-medium`}>{f.project_title}</td>
+                        <td className={`${TD} text-neutral-500`}>{f.conductor_studio}</td>
+                        <td className={TD}>{f.ai_contribution_ratio}%</td>
+                        <td className={TD}>{f.region}</td>
+                        <td className={TD}>
+                          {linked ? (
+                            <span className="text-green-600 text-xs font-medium">✓ {f.email}</span>
+                          ) : (
+                            <span className="text-neutral-500 text-xs font-medium">→ {f.email}</span>
+                          )}
+                        </td>
+                        <td className={`${TD} font-mono text-xs text-neutral-400`}>{f.video_filename}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3">{error}</p>}
+
+        <div className="flex justify-between">
+          <button className={BTN_GHOST} onClick={() => setStep(1)}>← 上一步</button>
+          <button
+            className={BTN_PRIMARY}
+            disabled={filmsData.length === 0}
+            onClick={() => setStep(3)}
+          >
+            下一步 →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── STEP 3：上傳預告片 ───────────────────────────────────────────────────────
+  function renderStep3() {
+    return (
+      <div className="space-y-5">
+        <div>
+          <h3 className="font-bold text-neutral-900">③ 上傳預告片</h3>
+          <p className="text-sm text-neutral-500 mt-0.5">
+            按順序匹配：第 1 個影片對應表格第 1 行，第 2 個對應第 2 行，以此類推
+          </p>
+        </div>
+
+        <div
+          className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors ${
+            isDragging
+              ? "border-[#1a73e8] bg-blue-50"
+              : "border-neutral-200 hover:border-[#1a73e8]/40 hover:bg-blue-50/10"
+          }`}
+          onDrop={handleVideoDrop}
+          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+          onDragLeave={() => setIsDragging(false)}
+          onClick={() => videoInputRef.current?.click()}
+        >
+          <input
+            ref={videoInputRef}
+            type="file"
+            accept="video/mp4,video/quicktime,video/webm"
+            multiple
+            className="hidden"
+            onChange={handleVideoSelect}
+          />
+          <div className="text-4xl mb-3">🎬</div>
+          <p className="text-lg font-semibold text-neutral-700">批量拖入預告片</p>
+          <p className="text-sm text-neutral-400 mt-1">支持同時選擇多個文件 · MP4 / MOV / WebM</p>
+          {videoFiles.length > 0 && (
+            <p className="mt-3 text-sm font-semibold text-[#1a73e8]">
+              已選擇 {videoFiles.length} 個文件
+            </p>
+          )}
+        </div>
+
+        {filmsData.length > 0 && (
+          <div className={`${CARD} overflow-hidden`}>
+            <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
+              <p className="text-sm font-semibold text-neutral-700">影片匹配狀態</p>
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                matchedCount === filmsData.length
+                  ? "bg-green-50 text-green-700"
+                  : "bg-amber-50 text-amber-700"
+              }`}>
+                {matchedCount}/{filmsData.length} 已匹配
+              </span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-neutral-50">
+                  <tr>
+                    {["#", "影片標題", "已上傳影片", "匹配狀態", "文件大小"].map((h) => (
+                      <th key={h} className={TH}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100">
+                  {filmsData.map((film, i) => {
+                    const matched = videoFiles[i];
+                    return (
+                      <tr key={i} className="hover:bg-neutral-50/50">
+                        <td className={`${TD} w-10 text-neutral-400`}>{i + 1}</td>
+                        <td className={`${TD} font-medium`}>{film.project_title}</td>
+                        <td className={`${TD} font-mono text-xs text-neutral-500`}>
+                          {matched ? matched.name : <span className="text-neutral-300">—</span>}
+                        </td>
+                        <td className={TD}>
+                          {matched ? (
+                            <span className="text-green-600 text-sm font-medium">✅ 已匹配</span>
+                          ) : (
+                            <span className="text-amber-600 text-sm font-medium">⚠️ 待上傳</span>
+                          )}
+                        </td>
+                        <td className={`${TD} text-neutral-400`}>
+                          {matched ? formatFileSize(matched.size) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={handlePublish}
+          disabled={matchedCount < filmsData.length || filmsData.length === 0}
+          className={`w-full py-4 text-xl font-bold rounded-xl transition-colors ${
+            matchedCount === filmsData.length && filmsData.length > 0
+              ? "bg-green-500 hover:bg-green-400 text-white cursor-pointer"
+              : "bg-neutral-200 text-neutral-400 cursor-not-allowed"
+          }`}
+        >
+          🚀 發行 Publish ({matchedCount} 部影片)
+        </button>
+
+        <div className="flex justify-between">
+          <button className={BTN_GHOST} onClick={() => setStep(2)}>← 上一步</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── 發行進度覆蓋層 ───────────────────────────────────────────────────────────
+  function renderPublishOverlay() {
+    const totalItems = publishItems.length;
+    const pct = totalItems > 0 ? Math.round((publishedCount / totalItems) * 100) : 0;
+
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/80 backdrop-blur-sm p-4">
+        <div className={`${CARD} w-full max-w-2xl max-h-[90vh] flex flex-col`}>
+          <div className="border-b border-neutral-100 px-6 py-5">
+            <p className="text-lg font-black text-neutral-900">
+              {publishDone ? "✅ 發行完成" : "正在發行 · Processing..."}
+            </p>
+            <div className="mt-3">
+              <div className="flex justify-between text-xs text-neutral-500 mb-1.5">
+                <span>{pct}%</span>
+                <span>{publishedCount}/{totalItems}</span>
+              </div>
+              <div className="w-full bg-neutral-100 rounded-full h-2">
+                <div
+                  className="h-2 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${pct}%`,
+                    background: publishDone ? "#22c55e" : "#1a73e8",
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+            {publishItems.map((item) => (
+              <div key={item.index} className="rounded-xl border border-neutral-100 bg-neutral-50 p-4">
+                <p className="text-sm font-semibold text-neutral-800 mb-2">
+                  [{String(item.index + 1).padStart(3, "0")}] {item.name} — {item.title}
+                </p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { key: "createUser", label: "帳號創建" },
+                    { key: "uploadPoster", label: "提取海報" },
+                    { key: "uploadVideo", label: "上傳預告片" },
+                    { key: "createFilm", label: "創建影片記錄" },
+                  ].map(({ key, label }) => (
+                    <div key={key} className="flex items-center gap-2 text-xs text-neutral-600">
+                      <StepIcon status={item.steps[key as keyof ItemProgress["steps"]]} />
+                      {label}
+                    </div>
+                  ))}
+                </div>
+                {item.error && (
+                  <p className="mt-2 text-xs text-red-600 bg-red-50 rounded-lg px-2 py-1">
+                    {item.error}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {publishDone && (
+            <div className="border-t border-neutral-100 px-6 py-4 flex gap-3 justify-end">
+              <button
+                className={BTN_GHOST}
+                onClick={() => {
+                  setIsPublishing(false);
+                  setStep(1);
+                  setUsersData([]);
+                  setFilmsData([]);
+                  setVideoFiles([]);
+                  setPublishItems([]);
+                  setPublishedCount(0);
+                  setPublishDone(false);
+                }}
+              >
+                新建批次
+              </button>
+              <button
+                className={BTN_PRIMARY}
+                onClick={() => {
+                  setIsPublishing(false);
+                  setActiveTab("history");
+                }}
+              >
+                查看批次記錄 →
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── 批次詳情 Modal ───────────────────────────────────────────────────────────
+  function renderDetailModal() {
+    if (!selectedBatch) return null;
+    const items = selectedBatch.batch_release_items ?? [];
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 backdrop-blur-sm p-4">
+        <div className={`${CARD} w-full max-w-3xl max-h-[90vh] flex flex-col`}>
+          <div className="border-b border-neutral-100 px-6 py-4 flex items-start justify-between">
+            <div>
+              <p className="font-black text-neutral-900">批次詳情 {selectedBatch.job_number}</p>
+              <p className="text-xs text-neutral-400 mt-0.5">{formatDate(selectedBatch.created_at)}</p>
+            </div>
+            <button
+              onClick={() => setSelectedBatch(null)}
+              className="text-neutral-400 hover:text-neutral-700 text-xl leading-none"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div className="px-6 py-4 border-b border-neutral-100 flex gap-6 text-sm">
+            <span className="text-neutral-500">
+              影片數量：<strong className="text-neutral-900">{selectedBatch.total_films} 部</strong>
+            </span>
+            <span className="text-green-600">
+              成功：<strong>{selectedBatch.completed_films}</strong>
+            </span>
+            {selectedBatch.failed_films > 0 && (
+              <span className="text-red-600">
+                失敗：<strong>{selectedBatch.failed_films}</strong>
+              </span>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
+            <table className="w-full">
+              <thead className="bg-neutral-50 sticky top-0">
+                <tr>
+                  {["#", "影片標題", "導演", "狀態", "預告片"].map((h) => (
+                    <th key={h} className={TH}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {items.map((item, i) => (
+                  <tr key={item.id} className="hover:bg-neutral-50/50">
+                    <td className={`${TD} w-10 text-neutral-400`}>{i + 1}</td>
+                    <td className={`${TD} font-medium`}>{item.project_title}</td>
+                    <td className={`${TD} text-neutral-500`}>{item.verification_name}</td>
+                    <td className={TD}>
+                      {item.status === "completed" && (
+                        <span className="text-green-600 text-xs font-semibold">✅ 成功</span>
+                      )}
+                      {item.status === "failed" && (
+                        <span className="text-red-600 text-xs font-semibold">❌ 失敗</span>
+                      )}
+                      {item.status === "pending" && (
+                        <span className="text-neutral-400 text-xs">待處理</span>
+                      )}
+                      {item.error_message && (
+                        <p className="text-xs text-red-500 mt-0.5">{item.error_message}</p>
+                      )}
+                    </td>
+                    <td className={TD}>
+                      {item.trailer_url ? (
+                        <a
+                          href={item.trailer_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[#1a73e8] text-xs font-medium hover:underline"
+                        >
+                          🔗 播放
+                        </a>
+                      ) : (
+                        <span className="text-neutral-300 text-xs">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── 歷史記錄 Tab ─────────────────────────────────────────────────────────────
+  function renderHistory() {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <p className="font-semibold text-neutral-700">批次發行記錄</p>
+          <button className={BTN_GHOST} onClick={loadHistory}>↻ 刷新</button>
+        </div>
+
+        {historyLoading ? (
+          <div className={`${CARD} p-10 text-center text-sm text-neutral-400`}>加載中...</div>
+        ) : batches.length === 0 ? (
+          <div className={`${CARD} p-10 text-center text-sm text-neutral-400`}>暫無批次記錄</div>
+        ) : (
+          <div className={`${CARD} overflow-hidden`}>
+            <table className="w-full">
+              <thead className="bg-neutral-50">
+                <tr>
+                  {["業務流水號", "創建時間", "影片數量", "完成/失敗", "狀態", "操作"].map((h) => (
+                    <th key={h} className={TH}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-neutral-100">
+                {batches.map((b) => (
+                  <tr key={b.id} className="hover:bg-neutral-50/50">
+                    <td className={`${TD} font-mono text-xs font-semibold text-neutral-800`}>
+                      {b.job_number}
+                    </td>
+                    <td className={`${TD} text-neutral-500 text-xs`}>{formatDate(b.created_at)}</td>
+                    <td className={`${TD} font-semibold`}>{b.total_films} 部</td>
+                    <td className={TD}>
+                      <span className="text-green-600 text-xs font-semibold">{b.completed_films}</span>
+                      {b.failed_films > 0 && (
+                        <span className="text-red-600 text-xs font-semibold"> / {b.failed_films}</span>
+                      )}
+                    </td>
+                    <td className={TD}>
+                      <StatusBadge
+                        status={b.status}
+                        completed={b.completed_films}
+                        total={b.total_films}
+                      />
+                    </td>
+                    <td className={TD}>
+                      <button
+                        className="text-[#1a73e8] text-xs font-semibold hover:underline"
+                        onClick={() => setSelectedBatch(b)}
+                      >
+                        查看
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── 渲染 ─────────────────────────────────────────────────────────────────────
+  return (
+    <div className="space-y-5 max-w-4xl">
+      {/* 頂部提示橫幅 */}
+      <div className="rounded-xl border border-neutral-200 bg-gradient-to-r from-neutral-50 to-white p-4 flex items-start gap-3">
+        <span className="text-2xl leading-none mt-0.5">📦</span>
+        <div>
+          <p className="font-black text-neutral-900 text-sm tracking-wide">批片發行 · Batch Release</p>
+          <p className="text-xs text-neutral-500 mt-0.5 leading-relaxed">
+            三步向導批量導入創作者帳號與影片資料，支持 CSV / Excel 格式。上傳預告片後自動提取海報並寫入資料庫。
+          </p>
+        </div>
+      </div>
+
+      {/* 頁籤切換 */}
+      <div className="flex justify-end">
+        <div className="flex rounded-xl border border-neutral-200 overflow-hidden">
+          {(["new", "history"] as const).map((tab) => (
+            <button
+              key={tab}
+              className={`px-4 py-2 text-xs font-semibold transition-colors ${
+                activeTab === tab
+                  ? "bg-[#1a73e8] text-white"
+                  : "bg-white text-neutral-500 hover:bg-neutral-50"
+              }`}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab === "new" ? "新建批次 New Batch" : "批次記錄 History"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 主內容 */}
+      {activeTab === "new" ? (
+        <div className="bg-white border border-neutral-200 rounded-2xl p-6">
+          <StepIndicator step={step} />
+          {step === 1 && renderStep1()}
+          {step === 2 && renderStep2()}
+          {step === 3 && renderStep3()}
+        </div>
+      ) : (
+        renderHistory()
+      )}
+
+      {/* 覆蓋層（發行進度 & 批次詳情） */}
+      {isPublishing && renderPublishOverlay()}
+      {selectedBatch && renderDetailModal()}
+    </div>
+  );
+}
+```
