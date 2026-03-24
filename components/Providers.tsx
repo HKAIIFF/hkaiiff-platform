@@ -11,7 +11,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
         embeddedWallets: {
           createOnLogin: 'users-without-wallets',
           requireUserPasswordOnCreate: false,
-        },
+        } as any,
         externalWallets: {
           walletConnect: { enabled: true },
         },

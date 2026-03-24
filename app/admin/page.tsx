@@ -5422,7 +5422,7 @@ function OpsRbacTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
                           </span>
                         )}
                         {hasDangerPerm(role) && !role.isSystem && (
-                          <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-red-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" title="⚠ 包含高危財務操作權限">
+                          <svg viewBox="0 0 16 16" className="w-3.5 h-3.5 text-red-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.5" aria-label="⚠ 包含高危財務操作權限">
                             <path d="M8 1L1 4v5c0 4 3.25 6.5 7 7 3.75-.5 7-3 7-7V4L8 1z"/>
                             <path d="M8 6v3m0 2v.5" strokeLinecap="round"/>
                           </svg>

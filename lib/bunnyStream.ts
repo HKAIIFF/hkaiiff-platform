@@ -111,7 +111,7 @@ export async function uploadToBunny(
   const libraryId = getEnv('BUNNY_LIBRARY_ID');
   const url = `https://video.bunnycdn.com/library/${libraryId}/videos/${guid}`;
 
-  const bufferSize = fileBuffer instanceof Buffer ? fileBuffer.byteLength : fileBuffer.size;
+  const bufferSize = fileBuffer instanceof Buffer ? fileBuffer.byteLength : (fileBuffer as Blob).size;
   console.log(`[BunnyStream] uploadToBunny 调用: guid="${guid}", bufferSize=${bufferSize} bytes (${(bufferSize / 1024 / 1024).toFixed(2)} MB), Content-Type="application/octet-stream", url="${url}"`);
 
   try {
@@ -123,7 +123,7 @@ export async function uploadToBunny(
         AccessKey: apiKey,
         'Content-Type': 'application/octet-stream',
       },
-      body: fileBuffer,
+      body: fileBuffer as BodyInit,
       signal,
     });
 

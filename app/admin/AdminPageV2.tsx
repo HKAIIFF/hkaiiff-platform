@@ -591,7 +591,7 @@ function ReviewModule({ t, pushToast }: SharedProps) {
   const [films, setFilms] = useState<Film[]>([]);
   const [loading, setLoading] = useState(false);
   const [rejectFilm, setRejectFilm] = useState<Film | null>(null);
-  const [rejectReason, setRejectReason] = useState(t.rejectReasons[0]);
+  const [rejectReason, setRejectReason] = useState<string>(t.rejectReasons[0]);
 
   const fetchFilms = useCallback(async () => {
     setLoading(true);
@@ -789,7 +789,7 @@ function DistributionModule({ t, pushToast }: SharedProps) {
     lng: "",
     unlockRadius: "",
     timeLock: "",
-    contractPolicy: t.contractOptions[0],
+    contractPolicy: t.contractOptions[0] as string,
     ticketAif: "",
     ticketUsd: "",
   });
@@ -2095,7 +2095,7 @@ export default function AdminPageV2() {
 
   const name = user?.email?.address ?? user?.wallet?.address ?? "Admin";
 
-  const shared: SharedProps = { t, pushToast, askConfirm, lang, setLang };
+  const shared: SharedProps = { t: t as Dict, pushToast, askConfirm, lang, setLang };
 
   useEffect(() => {
     setMobileMenuOpen(false);
