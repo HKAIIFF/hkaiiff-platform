@@ -4,14 +4,14 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useMemo } from "react";
 
-const rawAdminEmails =
-  process.env.NEXT_PUBLIC_ADMIN_EMAILS ||
-  process.env.ADMIN_EMAILS ||
-  "";
-const ADMIN_EMAILS = rawAdminEmails
-  .split(",")
-  .map((e) => e.trim().toLowerCase())
-  .filter(Boolean);
+const ADMIN_EMAILS: string[] = (() => {
+  try {
+    const raw = process.env.NEXT_PUBLIC_ADMIN_EMAILS ?? "";
+    return raw.split(",").map((e) => e.trim().toLowerCase()).filter(Boolean);
+  } catch {
+    return [];
+  }
+})();
 
 const ADMIN_WALLETS = [
   (process.env.NEXT_PUBLIC_TREASURY_WALLET ?? "fiebkzndstggewkrqdsmypb1wit6smud3wcujxrosrij").toLowerCase(),
