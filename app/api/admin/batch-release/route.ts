@@ -127,10 +127,15 @@ export async function POST(req: NextRequest) {
         id: userId,
         email: userInfo.email,
         name: userInfo.verification_name,
+        display_name: userInfo.verification_name ?? null,
+        avatar_seed: userInfo.verification_name ?? userId,
+        bio: userInfo.bio ?? null,
+        portfolio: null,
+        tech_stack: null,
+        verified_identities: [],
         last_sign_in_at: new Date().toISOString(),
         verification_status: 'approved',
         verification_type: verificationType,
-        portfolio: userInfo.bio ?? null,
       });
 
       if (userErr) {
