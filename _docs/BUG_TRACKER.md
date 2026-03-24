@@ -138,3 +138,31 @@
 2. 轮换 `STRIPE_SECRET_KEY` + `STRIPE_WEBHOOK_SECRET`
 3. 轮换 `MASTER_SEED_PHRASE`（需同步reset所有用户钱包地址）
 4. 联系Supabase暂停项目
+
+---
+
+## ✅ 阶段四 — Admin登录修复（2026-03-24）
+
+| Commit | 内容 |
+|--------|------|
+| `e5dd30d` | Admin登录读取NEXT_PUBLIC_ADMIN_EMAILS，移除硬编码邮箱 |
+| `4681b29` | Admin layout防御性解析ADMIN_EMAILS |
+| `5e61734` | adminFetch提升为模块级函数，解决运行时崩溃 |
+
+---
+
+## 🟡 阶段五 — 前端用户体验修复（待处理）
+
+### [UX-001] ⏳ 已登录状态下仍弹出"Please connect wallet"提示
+- 现象：已登录用户点击上传影片、Discover等按钮仍弹出登录提示
+- 方案A：去掉所有此类提示
+- 方案B：未登录时点击直接跳转登录页，已登录不提示
+- **已决策：方案B**
+
+### [UX-002] ⏳ me页面显示用户名而非认证名称
+- 现象：认证名称与用户名不同时，me页面显示用户名，编辑页面才显示认证名称
+- 需要：me页面优先显示 display_name（认证名称），fallback到name
+
+### [UX-003] ⏳ 认证已通过但状态仍显示"审核中"
+- 现象：Admin已批准认证，但用户页面状态未更新
+- 需要：排查前端读取认证状态的逻辑
