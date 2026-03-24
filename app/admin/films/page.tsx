@@ -48,7 +48,8 @@ function toBunnyEmbed(url: string | null | undefined): string | null {
   if (url.includes("b-cdn.net")) {
     try {
       const pathname = new URL(url.startsWith("http") ? url : `https://${url}`).pathname;
-      const videoId = pathname.split("/").filter(Boolean)[0];
+      const parts = pathname.split("/").filter(Boolean);
+      const videoId = parts.find(p => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p));
       if (videoId) return `https://iframe.mediadelivery.net/embed/${BUNNY_LIBRARY_ID}/${videoId}`;
     } catch { /* fall through */ }
   }
@@ -479,9 +480,9 @@ export default function FilmsReviewPage() {
 
                 {/* ⑤ 資料池 */}
                 <div className="px-3 py-3 flex flex-col justify-center gap-1">
-                  <AssetLink label="預告片" url={film.video_url} isVideo />
-                  {film.main_video_url
-                    ? <AssetLink label="正　片" url={film.main_video_url} accent isVideo />
+                  <AssetLink label="預告片" url={film.trailer_url || film.video_url} isVideo />
+                  {(film.feature_url || film.main_video_url)
+                    ? <AssetLink label="正　片" url={film.feature_url || film.main_video_url} accent isVideo />
                     : <span className="text-[10px] text-gray-300 whitespace-nowrap">— 無正片</span>
                   }
                   <AssetLink label="海　報" url={film.poster_url} />

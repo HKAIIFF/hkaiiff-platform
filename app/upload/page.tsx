@@ -1161,7 +1161,6 @@ function UploadContent() {
                 onSuccess={() => {
                   setShowCheckoutModal(false);
                 }}
-                successUrl={typeof window !== 'undefined' ? `${window.location.origin}/success?type=film_entry&amount=500&currency=AIF&name=${encodeURIComponent('影片報名費')}` : `/success?type=film_entry&amount=500&currency=AIF&name=${encodeURIComponent('影片報名費')}`}
                 cancelUrl={typeof window !== 'undefined' ? `${window.location.origin}/upload` : '/upload'}
               />
             )}
