@@ -5648,7 +5648,7 @@ export default function AdminPage() {
       case "dist:lbs": return <DistLbsTab t={t} pushToast={pushToast} />;
       case "dist:online": return <DistOnlineTab t={t} />;
       case "dist:official": return <DistOfficialTab pushToast={pushToast} adminFetch={boundAdminFetch} />;
-      case "dist:batch": return <BatchReleaseTab />;
+      case "dist:batch": return <BatchReleaseTab adminFetch={boundAdminFetch} />;
       case "eco:human": return <EcoHumanTab t={t} pushToast={pushToast} askConfirm={askConfirm} adminFetch={boundAdminFetch} />;
       case "eco:bot": return <EcoBotTab t={t} pushToast={pushToast} askConfirm={askConfirm} />;
       case "ai:models": return <div className="flex flex-col items-center justify-center h-64 gap-4"><div className="text-4xl">🚧</div><p className="text-lg font-semibold text-neutral-600">功能開發中</p><p className="text-sm text-neutral-400">敬請期待，即將上線</p></div>;

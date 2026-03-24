@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
           trailer_url: filmInfo.trailer_url,
           contact_email: filmInfo.contact_email ?? userInfo.email,
           status: 'approved',
-          is_feed_published: true,
+          is_feed_published: false,
         })
         .select()
         .single();

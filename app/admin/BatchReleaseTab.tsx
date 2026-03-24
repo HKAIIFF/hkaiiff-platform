@@ -201,7 +201,7 @@ function StepIcon({ status }: { status: StepStatus }) {
 }
 
 // ─── 批片發行 Tab 組件（嵌入 Admin 主佈局，無獨立頁殼）────────────────────────
-export function BatchReleaseTab() {
+export function BatchReleaseTab({ adminFetch }: { adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
   const [activeTab, setActiveTab] = useState<"new" | "history">("new");
   const [step, setStep] = useState(1);
   const [usersData, setUsersData] = useState<UserRow[]>([]);
@@ -223,7 +223,7 @@ export function BatchReleaseTab() {
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
-      const res = await fetch("/api/admin/batch-release");
+      const res = await adminFetch("/api/admin/batch-release");
       const json = await res.json();
       if (json.batches) setBatches(json.batches);
     } catch {
@@ -327,7 +327,7 @@ export function BatchReleaseTab() {
     let batchId: string;
     let itemIds: string[];
     try {
-      const initRes = await fetch("/api/admin/batch-release", {
+      const initRes = await adminFetch("/api/admin/batch-release", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "init", items: apiItems }),
@@ -372,7 +372,7 @@ export function BatchReleaseTab() {
 
         updateStep("createUser", "running");
         updateStep("createFilm", "running");
-        const procRes = await fetch("/api/admin/batch-release", {
+        const procRes = await adminFetch("/api/admin/batch-release", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -426,7 +426,7 @@ export function BatchReleaseTab() {
       }
     }
 
-    await fetch("/api/admin/batch-release", {
+    await adminFetch("/api/admin/batch-release", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "complete-batch", batchId }),
