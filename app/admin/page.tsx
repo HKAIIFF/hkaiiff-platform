@@ -6,6 +6,19 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { revalidateFeed } from "@/app/actions/revalidate";
 import { BatchReleaseTab } from "./BatchReleaseTab";
+
+// 模块级 adminFetch，接收 token 参数供子组件使用
+async function adminFetch(url: string, options: RequestInit = {}, token?: string | null) {
+  return fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.headers as Record<string, string> ?? {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+}
+
 // ─── 類型定義 ───────────────────────────────────────────────────────────────
 type Lang = "zh" | "en";
 type ToastItem = { id: number; text: string; ok: boolean };
@@ -5577,17 +5590,13 @@ function OpsRbacTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
 // ────────────────────────────────────────────────────────────────────────────
 export default function AdminPage() {
   const { user, logout, getAccessToken } = usePrivy();
-  const adminFetch = useCallback(async (url: string, options: RequestInit = {}) => {
-    const token = await getAccessToken();
-    return fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options.headers as Record<string, string> ?? {}),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
+  const token = useRef<string | null>(null);
+  useEffect(() => {
+    getAccessToken().then((t) => { token.current = t; });
   }, [getAccessToken]);
+  const boundAdminFetch = useCallback((url: string, options: RequestInit = {}) => {
+    return adminFetch(url, options, token.current);
+  }, []);
   const router = useRouter();
   const [lang, setLang] = useState<Lang>("zh");
   const [activeSubMenu, setActiveSubMenu] = useState<SubMenuId>("dashboard");
