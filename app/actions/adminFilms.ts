@@ -39,7 +39,9 @@ export async function adminUpdateFilmStatus(
     return { error: error.message };
   }
 
+  // 同時使 Feed 首頁與管理頁緩存失效，確保上架後前台立即可見
   revalidatePath('/admin/films');
+  revalidatePath('/');
   return { error: null };
 }
 
@@ -64,5 +66,6 @@ export async function adminToggleFilmField(
   }
 
   revalidatePath('/admin/films');
+  revalidatePath('/');
   return { error: null };
 }

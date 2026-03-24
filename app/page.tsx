@@ -1,5 +1,9 @@
 "use client";
 
+// 強制動態渲染，禁止 Next.js 路由緩存（對 Server Component 生效；此處亦作為意圖聲明）
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 import { useRef, useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useModal } from "@/app/context/ModalContext";
@@ -606,22 +610,35 @@ function FeedInner() {
 
   useEffect(() => {
     async function fetchFilms() {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("films")
         .select("id,title,studio,tech_stack,ai_ratio,poster_url,trailer_url,feature_url,video_url,user_id,created_at,is_parallel_universe,parallel_start_time")
         .eq("status", "approved")
         .eq("is_feed_published", true)
         .order("created_at", { ascending: false });
 
-      if (data) {
+      if (error) {
+        console.error("【Feed 頁面拉取影片致命錯誤】:", error);
+        // 若為 RLS 權限錯誤，需在 Supabase 後台為 films 表開放匿名讀取 policy
+      } else {
+        console.log(`【Feed 頁面成功抓取到 ${data?.length ?? 0} 部影片】`);
+        if ((data?.length ?? 0) === 0) {
+          console.warn("【Feed 警告】查詢無誤但影片數為 0，請確認：① Supabase RLS 是否允許 anon 讀取 status=approved 且 is_feed_published=true 的影片；② 是否確實有影片符合該條件。");
+        }
+      }
+
+      if (data && data.length > 0) {
         const films = data as SupabaseFilm[];
         const userIds = [...new Set(films.filter((f) => f.user_id).map((f) => f.user_id as string))];
         let userMap: Record<string, { avatar_seed: string | null; display_name: string | null; verified_identities: string[] | null }> = {};
         if (userIds.length > 0) {
-          const { data: users } = await supabase
+          const { data: users, error: usersError } = await supabase
             .from("users")
             .select("id, avatar_seed, display_name, verified_identities")
             .in("id", userIds);
+          if (usersError) {
+            console.error("【Feed 頁面拉取用戶資料失敗】:", usersError);
+          }
           if (users) {
             userMap = Object.fromEntries(
               users.map((u: { id: string; avatar_seed: string | null; display_name: string | null; verified_identities: string[] | null }) => [
@@ -670,14 +687,18 @@ function FeedInner() {
         className="md:hidden no-scrollbar"
         style={{ height: "100dvh" }}
       >
-        {films.map((film) => (
+        {films.map((film) => {
+          // 防禦性渲染：跳過 id 或 title 缺失的損壞記錄，避免整個 Feed 白屏崩潰
+          if (!film.id || !film.title) return null;
+          return (
           <MobileFeedItem
             key={film.id}
             film={film}
             isMuted={isMuted}
             onToggleMute={handleToggleMute}
           />
-        ))}
+          );
+        })}
       </div>
     </>
   );
