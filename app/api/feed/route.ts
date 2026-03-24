@@ -34,10 +34,9 @@ export async function GET() {
     display_name: string | null; verified_identities: string[] | null;
   };
 
-  // ── 1. 獲取已審核通過的影片 ───────────────────────────────────────────────
-  // 只用 status='approved' 作為條件，不過濾 is_feed_published。
-  // 原因：is_feed_published 可因批量操作意外全部設為 false，導致 Feed 空白。
-  //       管理員若要隱藏特定影片，應將其 status 改為 rejected，而非依賴此開關。
+  // ── 1. 獲取已審核且 Feed 已上架的影片 ────────────────────────────────────
+  // 雙重條件：status='approved' AND is_feed_published=true
+  // 管理員可通過 Feed 開關即時控制單部影片的可見性。
   const { data: filmsRaw, error: filmsError } = await serviceSupabase
     .from('films')
     .select(
@@ -45,6 +44,7 @@ export async function GET() {
       'user_id,created_at,is_parallel_universe,parallel_start_time'
     )
     .eq('status', 'approved')
+    .eq('is_feed_published', true)
     .order('created_at', { ascending: false });
 
   if (filmsError) {
@@ -59,7 +59,7 @@ export async function GET() {
   console.log(`【/api/feed】成功返回 ${films.length} 部影片`);
 
   if (films.length === 0) {
-    console.warn('【/api/feed 警告】資料庫中沒有 status=approved 的影片，請到管理後台審核並通過影片。');
+    console.warn('【/api/feed 警告】0 部影片符合條件（status=approved AND is_feed_published=true）。若有已審核影片但 Feed 仍空，請到管理後台點擊「🔧 一鍵修復 Feed」。');
     return NextResponse.json(
       { films: [] },
       { headers: { 'Cache-Control': 'no-store' } }

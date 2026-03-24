@@ -65,6 +65,24 @@ export async function adminToggleFilmField(
     return { error: error.message };
   }
 
+  // 回讀驗證：確認 DB 裡的值已正確更新，防止靜默失敗
+  const { data: verify, error: verifyErr } = await adminSupabase
+    .from('films')
+    .select(field)
+    .eq('id', id)
+    .single();
+
+  if (verifyErr) {
+    console.warn(`【adminToggleFilmField 驗證失敗】無法讀回 ${field}:`, verifyErr.message);
+  } else {
+    const actual = (verify as Record<string, unknown>)?.[field];
+    if (actual !== value) {
+      console.error(`【adminToggleFilmField 數據不一致】期望 ${field}=${value}，DB 實際值=${actual}`);
+      return { error: `DB 更新未生效（期望 ${value}，實際 ${actual}）。請檢查 Supabase RLS UPDATE 策略。` };
+    }
+    console.log(`【adminToggleFilmField 成功】${field} 已更新為 ${value}`);
+  }
+
   revalidatePath('/admin/films');
   revalidatePath('/');
   return { error: null };

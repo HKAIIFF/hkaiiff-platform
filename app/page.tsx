@@ -604,45 +604,55 @@ function FeedInner() {
 
   const handleToggleMute = useCallback(() => setIsMuted((prev) => !prev), []);
 
-  useEffect(() => {
-    async function fetchFilms() {
-      try {
-        // 使用服務端 API 路由（service role key）繞過 Supabase RLS，
-        // 確保無論 RLS 策略如何配置，Feed 都能正確讀取已上架影片。
-        const res = await fetch("/api/feed", { cache: "no-store" });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          console.error("【Feed 頁面 /api/feed 請求失敗】:", res.status, body);
-          setLoading(false);
-          return;
-        }
-        const { films: data, error } = await res.json();
-
-        if (error) {
-          console.error("【Feed 頁面拉取影片致命錯誤】:", error);
-        } else {
-          console.log(`【Feed 頁面成功抓取到 ${data?.length ?? 0} 部影片】`);
-          if ((data?.length ?? 0) === 0) {
-            console.warn("【Feed 警告】資料庫中沒有符合條件的影片。請到管理後台確認影片狀態為「已通過」且 Feed 開關已開啟，或點擊「一鍵修復 Feed」。");
-          }
-        }
-
-        if (data && data.length > 0) {
-          const films = data as SupabaseFilm[];
-          const now = new Date();
-          const sorted = [...films].sort((a, b) => {
-            const priority = (s: ParallelState) => (s === "LIVE" ? 0 : s === "PENDING" ? 1 : 2);
-            return priority(getParallelState(a.parallel_start_time, now)) - priority(getParallelState(b.parallel_start_time, now));
-          });
-          setFilms(sorted);
-        }
-      } catch (err) {
-        console.error("【Feed 頁面網絡錯誤】:", err);
+  const fetchFilms = useCallback(async () => {
+    try {
+      const res = await fetch("/api/feed", { cache: "no-store" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        console.error("【Feed /api/feed 失敗】:", res.status, body);
+        setLoading(false);
+        return;
       }
-      setLoading(false);
+      const { films: data, error } = await res.json();
+      if (error) {
+        console.error("【Feed 拉取錯誤】:", error);
+      } else {
+        console.log(`【Feed 抓取到 ${data?.length ?? 0} 部影片】`);
+      }
+      if (data && data.length > 0) {
+        const list = data as SupabaseFilm[];
+        const now = new Date();
+        const sorted = [...list].sort((a, b) => {
+          const p = (s: ParallelState) => (s === "LIVE" ? 0 : s === "PENDING" ? 1 : 2);
+          return p(getParallelState(a.parallel_start_time, now)) - p(getParallelState(b.parallel_start_time, now));
+        });
+        setFilms(sorted);
+      } else {
+        setFilms([]);
+      }
+    } catch (err) {
+      console.error("【Feed 網絡錯誤】:", err);
     }
-    fetchFilms();
+    setLoading(false);
   }, []);
+
+  // 首次加載
+  useEffect(() => { fetchFilms(); }, [fetchFilms]);
+
+  // 頁面重新可見時（用戶切回標籤頁）立即重新拉取 ── 確保管理員改完開關後用戶能看到最新狀態
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") fetchFilms();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [fetchFilms]);
+
+  // 每 60 秒靜默輪詢，確保長時間停留的用戶也能及時看到上下架變化
+  useEffect(() => {
+    const timer = setInterval(fetchFilms, 60_000);
+    return () => clearInterval(timer);
+  }, [fetchFilms]);
 
   if (loading) return <LoadingSkeleton />;
   if (films.length === 0) return <EmptyState />;
