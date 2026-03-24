@@ -6,7 +6,8 @@ import { useEffect, useState, useMemo } from "react";
 
 const rawAdminEmails =
   process.env.NEXT_PUBLIC_ADMIN_EMAILS ||
-  "j@aif.bot,j@aif.ad";
+  process.env.ADMIN_EMAILS ||
+  "";
 const ADMIN_EMAILS = rawAdminEmails
   .split(",")
   .map((e) => e.trim().toLowerCase())
