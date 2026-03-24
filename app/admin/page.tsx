@@ -5590,13 +5590,10 @@ function OpsRbacTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
 // ────────────────────────────────────────────────────────────────────────────
 export default function AdminPage() {
   const { user, logout, getAccessToken } = usePrivy();
-  const token = useRef<string | null>(null);
-  useEffect(() => {
-    getAccessToken().then((t) => { token.current = t; });
+  const boundAdminFetch = useCallback(async (url: string, options: RequestInit = {}) => {
+    const t = await getAccessToken();
+    return adminFetch(url, options, t);
   }, [getAccessToken]);
-  const boundAdminFetch = useCallback((url: string, options: RequestInit = {}) => {
-    return adminFetch(url, options, token.current);
-  }, []);
   const router = useRouter();
   const [lang, setLang] = useState<Lang>("zh");
   const [activeSubMenu, setActiveSubMenu] = useState<SubMenuId>("dashboard");
