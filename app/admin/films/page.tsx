@@ -187,6 +187,7 @@ export default function FilmsReviewPage() {
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [filter, setFilter] = useState<"all" | "pending" | "approved" | "rejected">("all");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [fixingFeed, setFixingFeed] = useState(false);
 
   const copyEmail = (filmId: string, email: string) => {
     navigator.clipboard.writeText(email).then(() => {
@@ -266,6 +267,27 @@ export default function FilmsReviewPage() {
     setProcessing(null);
   }
 
+  // ── 一鍵修復 Feed（將所有 approved 影片重置為 is_feed_published=true） ────
+  async function fixFeed() {
+    setFixingFeed(true);
+    try {
+      const res = await fetch("/api/admin/fix-feed", { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        showToast(`修復失敗: ${json.error ?? "未知錯誤"}`, "error");
+      } else {
+        showToast(`✓ ${json.message}`, "success");
+        // 刷新本地影片列表以反映最新狀態
+        fetchFilms();
+        revalidateFeed().catch(() => null);
+      }
+    } catch (err) {
+      showToast(`修復請求失敗: ${err instanceof Error ? err.message : String(err)}`, "error");
+    } finally {
+      setFixingFeed(false);
+    }
+  }
+
   // ── Toggle boolean field ──────────────────────────────────────────────────
   async function toggleField(
     id: string,
@@ -307,13 +329,24 @@ export default function FilmsReviewPage() {
           <h1 className="text-gray-900 text-base font-semibold">影片審核</h1>
           <p className="text-gray-400 text-xs mt-0.5">共 {films.length} 部影片</p>
         </div>
-        <button
-          onClick={fetchFilms}
-          disabled={loading}
-          className="rounded-full border border-gray-200 px-4 py-1.5 text-xs font-medium text-gray-600 hover:bg-white hover:shadow-sm transition-all disabled:opacity-40 bg-white"
-        >
-          {loading ? "載入中..." : "↺ 刷新"}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* 一鍵修復：將所有已審核影片的 is_feed_published 重置為 true */}
+          <button
+            onClick={fixFeed}
+            disabled={fixingFeed || loading}
+            title="將所有狀態為「已通過」的影片強制重新上架至 Feed，解決批量關閉後無法恢復的問題"
+            className="rounded-full border border-orange-200 bg-orange-50 px-4 py-1.5 text-xs font-medium text-orange-600 hover:bg-orange-100 transition-all disabled:opacity-40"
+          >
+            {fixingFeed ? "修復中..." : "🔧 一鍵修復 Feed"}
+          </button>
+          <button
+            onClick={fetchFilms}
+            disabled={loading}
+            className="rounded-full border border-gray-200 px-4 py-1.5 text-xs font-medium text-gray-600 hover:bg-white hover:shadow-sm transition-all disabled:opacity-40 bg-white"
+          >
+            {loading ? "載入中..." : "↺ 刷新"}
+          </button>
+        </div>
       </div>
 
       {/* ── Filter Tabs ─────────────────────────────────────────────────── */}

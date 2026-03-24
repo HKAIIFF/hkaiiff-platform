@@ -606,56 +606,38 @@ function FeedInner() {
 
   useEffect(() => {
     async function fetchFilms() {
-      const { data, error } = await supabase
-        .from("films")
-        .select("id,title,studio,tech_stack,ai_ratio,poster_url,trailer_url,feature_url,video_url,user_id,created_at,is_parallel_universe,parallel_start_time")
-        .eq("status", "approved")
-        .eq("is_feed_published", true)
-        .order("created_at", { ascending: false });
-
-      if (error) {
-        console.error("【Feed 頁面拉取影片致命錯誤】:", error);
-        // 若為 RLS 權限錯誤，需在 Supabase 後台為 films 表開放匿名讀取 policy
-      } else {
-        console.log(`【Feed 頁面成功抓取到 ${data?.length ?? 0} 部影片】`);
-        if ((data?.length ?? 0) === 0) {
-          console.warn("【Feed 警告】查詢無誤但影片數為 0，請確認：① Supabase RLS 是否允許 anon 讀取 status=approved 且 is_feed_published=true 的影片；② 是否確實有影片符合該條件。");
+      try {
+        // 使用服務端 API 路由（service role key）繞過 Supabase RLS，
+        // 確保無論 RLS 策略如何配置，Feed 都能正確讀取已上架影片。
+        const res = await fetch("/api/feed", { cache: "no-store" });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          console.error("【Feed 頁面 /api/feed 請求失敗】:", res.status, body);
+          setLoading(false);
+          return;
         }
-      }
+        const { films: data, error } = await res.json();
 
-      if (data && data.length > 0) {
-        const films = data as SupabaseFilm[];
-        const userIds = [...new Set(films.filter((f) => f.user_id).map((f) => f.user_id as string))];
-        let userMap: Record<string, { avatar_seed: string | null; display_name: string | null; verified_identities: string[] | null }> = {};
-        if (userIds.length > 0) {
-          const { data: users, error: usersError } = await supabase
-            .from("users")
-            .select("id, avatar_seed, display_name, verified_identities")
-            .in("id", userIds);
-          if (usersError) {
-            console.error("【Feed 頁面拉取用戶資料失敗】:", usersError);
-          }
-          if (users) {
-            userMap = Object.fromEntries(
-              users.map((u: { id: string; avatar_seed: string | null; display_name: string | null; verified_identities: string[] | null }) => [
-                u.id,
-                { avatar_seed: u.avatar_seed, display_name: u.display_name, verified_identities: u.verified_identities },
-              ])
-            );
+        if (error) {
+          console.error("【Feed 頁面拉取影片致命錯誤】:", error);
+        } else {
+          console.log(`【Feed 頁面成功抓取到 ${data?.length ?? 0} 部影片】`);
+          if ((data?.length ?? 0) === 0) {
+            console.warn("【Feed 警告】資料庫中沒有符合條件的影片。請到管理後台確認影片狀態為「已通過」且 Feed 開關已開啟，或點擊「一鍵修復 Feed」。");
           }
         }
-        const enriched = films.map((f) => ({
-          ...f,
-          user_avatar_seed: f.user_id ? (userMap[f.user_id]?.avatar_seed ?? null) : null,
-          user_display_name: f.user_id ? (userMap[f.user_id]?.display_name ?? null) : null,
-          user_verified_identities: f.user_id ? (userMap[f.user_id]?.verified_identities ?? null) : null,
-        }));
-        const now = new Date();
-        const sorted = [...enriched].sort((a, b) => {
-          const priority = (s: ParallelState) => (s === "LIVE" ? 0 : s === "PENDING" ? 1 : 2);
-          return priority(getParallelState(a.parallel_start_time, now)) - priority(getParallelState(b.parallel_start_time, now));
-        });
-        setFilms(sorted);
+
+        if (data && data.length > 0) {
+          const films = data as SupabaseFilm[];
+          const now = new Date();
+          const sorted = [...films].sort((a, b) => {
+            const priority = (s: ParallelState) => (s === "LIVE" ? 0 : s === "PENDING" ? 1 : 2);
+            return priority(getParallelState(a.parallel_start_time, now)) - priority(getParallelState(b.parallel_start_time, now));
+          });
+          setFilms(sorted);
+        }
+      } catch (err) {
+        console.error("【Feed 頁面網絡錯誤】:", err);
       }
       setLoading(false);
     }
