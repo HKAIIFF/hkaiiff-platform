@@ -3,7 +3,8 @@ import withPWAInit from "@ducanh2912/next-pwa";
 
 const withPWA = withPWAInit({
   dest: "public",
-  disable: process.env.NODE_ENV === "development",
+  // 在 Vercel CI 環境同樣禁用 PWA，避免 rollup-plugin-terser 掛死 webpack worker
+  disable: process.env.NODE_ENV === "development" || process.env.VERCEL === "1",
   register: true,
 });
 
@@ -17,6 +18,20 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '500mb',
     },
+  },
+  // Fix: @ducanh2912/next-pwa 依賴已棄用的 rollup-plugin-terser，
+  // 在 Vercel 受限 CPU 環境中並行執行會導致 webpack worker 掛死。
+  // 強制所有 minimizer 關閉並行模式（parallel: false）解決此問題。
+  webpack: (config) => {
+    if (Array.isArray(config.optimization?.minimizer)) {
+      for (const minimizer of config.optimization.minimizer) {
+        if (minimizer && typeof minimizer === "object" && "options" in minimizer) {
+          const m = minimizer as { options: Record<string, unknown> };
+          m.options.parallel = false;
+        }
+      }
+    }
+    return config;
   },
   images: {
     remotePatterns: [

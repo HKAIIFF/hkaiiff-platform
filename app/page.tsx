@@ -1,9 +1,5 @@
 "use client";
 
-// 強制動態渲染，禁止 Next.js 路由緩存（對 Server Component 生效；此處亦作為意圖聲明）
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
 import { useRef, useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useModal } from "@/app/context/ModalContext";
