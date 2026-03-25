@@ -386,22 +386,6 @@ export default function CreatorPage() {
               </div>
             )}
           </section>
-
-          {/* ALL SUBMISSIONS (if there are non-approved ones too) */}
-          {films.filter(f => f.status !== "approved").length > 0 && (
-            <section>
-              <h2 className="font-bold text-sm text-gray-500 mb-2 border-l-4 border-[#333] pl-3 uppercase tracking-widest">
-                Other Submissions
-                <span className="ml-2 text-gray-700 font-mono">({films.filter(f => f.status !== "approved").length})</span>
-              </h2>
-              <div className="grid grid-cols-2 gap-3">
-                {films.filter(f => f.status !== "approved").map((film) => (
-                  <FilmCard key={film.id} film={film} />
-                ))}
-              </div>
-            </section>
-          )}
-
         </div>
       </div>
 

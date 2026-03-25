@@ -52,19 +52,24 @@ export async function POST(req: Request) {
       synopsis, core_cast, region, lbs_royalty,
       poster_url, trailer_url, full_film_url,
       contact_email,
+      is_placeholder,
     } = body;
 
     // 确定最终使用的 user_id：优先使用 Token 验证的 ID，fallback 到客户端传入的 creator_id
     const finalUserId = verifiedUserId || creator_id;
 
-    console.log('[upload-film] finalUserId:', finalUserId, '| verifiedUserId:', verifiedUserId, '| creator_id:', creator_id);
+    console.log('[upload-film] finalUserId:', finalUserId, '| verifiedUserId:', verifiedUserId, '| creator_id:', creator_id, '| is_placeholder:', !!is_placeholder);
 
     // 后端二次强制校验：user_id 必须是非空字串，防止孤儿影片写入
     if (!finalUserId || typeof finalUserId !== 'string' || finalUserId.trim() === '') {
       return NextResponse.json({ error: 'Missing or invalid user identity: cannot create orphan film record' }, { status: 400 });
     }
-    if (!title || !poster_url || !trailer_url || !full_film_url) {
+    // 占位模式仅要求 title；正常模式要求全部媒体 URL
+    if (!is_placeholder && (!title || !poster_url || !trailer_url || !full_film_url)) {
       return NextResponse.json({ error: 'Missing required media files or fields' }, { status: 400 });
+    }
+    if (!title) {
+      return NextResponse.json({ error: 'Missing required field: title' }, { status: 400 });
     }
     if (parseInt(ai_ratio) < 51) {
       return NextResponse.json({ error: 'AI ratio must be at least 51%' }, { status: 400 });
@@ -76,7 +81,7 @@ export async function POST(req: Request) {
 
     const userId = finalUserId.trim();
 
-    console.log('[upload-film] 準備插入 films 表, userId:', userId, '| title:', title, '| ai_ratio:', ai_ratio, '| has poster:', !!poster_url, '| has trailer:', !!trailer_url, '| has film:', !!full_film_url);
+    console.log('[upload-film] 準備插入 films 表, userId:', userId, '| title:', title, '| ai_ratio:', ai_ratio, '| is_placeholder:', !!is_placeholder);
 
     // 插入影片记录：user_id 强制绑定已验证 userId，初始状态为待支付
     const { data: film, error: filmError } = await adminSupabase
@@ -84,18 +89,18 @@ export async function POST(req: Request) {
       .insert([{
         user_id:        userId,
         title,
-        studio:         studio_name,
-        tech_stack,
-        ai_ratio:       parseInt(ai_ratio),
-        description:    synopsis,
+        studio:         studio_name || null,
+        tech_stack:     tech_stack || null,
+        ai_ratio:       parseInt(ai_ratio) || 0,
+        description:    synopsis || null,
         core_cast:      core_cast || null,
         region:         region || null,
         lbs_royalty:    lbs_royalty != null ? parseFloat(lbs_royalty) : null,
-        poster_url,
-        trailer_url,
-        feature_url:    full_film_url,
+        poster_url:     poster_url || '',
+        trailer_url:    trailer_url || '',
+        feature_url:    full_film_url || '',
         copyright_url:  null,
-        contact_email:  contact_email.trim().toLowerCase(),
+        contact_email:  contact_email?.trim().toLowerCase() || '',
         status:         'pending',
         payment_status: 'unpaid',
       }])
@@ -133,6 +138,49 @@ export async function POST(req: Request) {
         : typeof (error as { message?: string })?.message === 'string'
           ? (error as { message: string }).message
           : String(error);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+// PATCH /api/upload-film — 支付完成後補填媒體 URL
+export async function PATCH(req: Request) {
+  try {
+    const authHeader = req.headers.get('authorization');
+    let verifiedUserId: string | null = null;
+    if (authHeader?.startsWith('Bearer ')) {
+      try {
+        const claims = await privyClient.verifyAuthToken(authHeader.slice(7));
+        verifiedUserId = claims.userId;
+      } catch { /* ignore */ }
+    }
+    if (!verifiedUserId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { film_id, poster_url, trailer_url, full_film_url } = await req.json();
+    if (!film_id || !poster_url || !trailer_url || !full_film_url) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // 确认该影片属于当前用户
+    const { data: existing } = await adminSupabase
+      .from('films').select('id, user_id').eq('id', film_id).single();
+    if (!existing || existing.user_id !== verifiedUserId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { data: film, error } = await adminSupabase
+      .from('films')
+      .update({ poster_url, trailer_url, feature_url: full_film_url })
+      .eq('id', film_id)
+      .select()
+      .single();
+
+    if (error) throw new Error(error.message);
+    console.log('[upload-film PATCH] ✓ 媒體 URL 已更新 | film_id:', film_id);
+    return NextResponse.json({ success: true, film });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

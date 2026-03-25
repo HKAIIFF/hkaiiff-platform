@@ -404,7 +404,8 @@ function UploadContent() {
   };
 
   // ── 核心上传流程（图片 → R2，视频 → Bunny Stream HLS）────────────────────
-  const doUploadAndCreateRecord = async (paymentMethod: 'USD' | 'AIF' | 'pending'): Promise<string> => {
+  // existingFilmId: 已有占位记录则 PATCH 更新媒体 URL，否则 POST 新建记录
+  const doUploadAndCreateRecord = async (paymentMethod: 'USD' | 'AIF' | 'pending' | 'paid', existingFilmId?: string): Promise<string> => {
     // ── 海报 → Cloudflare R2 ──────────────────────────────────────────────
     setPosterUploadStatus('uploading');
     setUploadStatus('UPLOADING POSTER TO CLOUDFLARE R2...');
@@ -450,37 +451,40 @@ function UploadContent() {
     }
 
     setUploadStatus('MEDIA SECURED. MINTING DATA TO DATABASE...');
-    // 获取 Bearer token 用于 API 认证，让服务端可以验证用户身份
     let authToken: string | null = null;
     try {
       authToken = await getAccessToken();
     } catch (tokenErr) {
       console.warn('[upload] 获取 access token 失败:', tokenErr);
     }
-    console.log('[upload] doUploadAndCreateRecord user.id:', user!.id, '| hasToken:', !!authToken);
+    console.log('[upload] doUploadAndCreateRecord user.id:', user!.id, '| hasToken:', !!authToken, '| existingFilmId:', existingFilmId ?? 'none');
 
+    // 已有占位记录 → PATCH 补填媒体 URL；否则 POST 新建
+    const isUpdate = !!existingFilmId;
     const dbRes = await fetch('/api/upload-film', {
-      method: 'POST',
+      method: isUpdate ? 'PATCH' : 'POST',
       headers: {
         'Content-Type': 'application/json',
         ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       },
-      body: JSON.stringify({
-        creator_id:     user!.id,
-        title:          formData.title,
-        studio_name:    formData.studio,
-        tech_stack:     formData.techStack,
-        ai_ratio:       formData.aiRatio,
-        synopsis:       formData.synopsis,
-        core_cast:      formData.coreCast,
-        region:         formData.region,
-        lbs_royalty:    formData.lbsRoyalty,
-        poster_url:     posterUrl,
-        trailer_url:    trailerUrl,
-        full_film_url:  fullFilmUrl,
-        contact_email:  formData.contactEmail.trim().toLowerCase(),
-        payment_method: paymentMethod,
-      }),
+      body: isUpdate
+        ? JSON.stringify({ film_id: existingFilmId, poster_url: posterUrl, trailer_url: trailerUrl, full_film_url: fullFilmUrl })
+        : JSON.stringify({
+            creator_id:     user!.id,
+            title:          formData.title,
+            studio_name:    formData.studio,
+            tech_stack:     formData.techStack,
+            ai_ratio:       formData.aiRatio,
+            synopsis:       formData.synopsis,
+            core_cast:      formData.coreCast,
+            region:         formData.region,
+            lbs_royalty:    formData.lbsRoyalty,
+            poster_url:     posterUrl,
+            trailer_url:    trailerUrl,
+            full_film_url:  fullFilmUrl,
+            contact_email:  formData.contactEmail.trim().toLowerCase(),
+            payment_method: paymentMethod,
+          }),
     });
 
     const dbCt = dbRes.headers.get('content-type') ?? '';
@@ -497,7 +501,7 @@ function UploadContent() {
       console.error('[upload] upload-film API error:', errMsg);
       throw new Error(errMsg);
     }
-    const filmId = data.film?.id;
+    const filmId = data.film?.id ?? existingFilmId;
     if (!filmId) {
       console.error('[upload] film.id 為空！data.film:', JSON.stringify(data.film));
       throw new Error('影片 ID 未能正確取得，請重試（錯誤碼：NULL_FILM_ID）');
@@ -506,40 +510,43 @@ function UploadContent() {
     return filmId as string;
   };
 
-  // ── 上傳媒體 → 建立 DB 記錄 → 直接彈出結帳視窗（無中轉頁） ───────────────────
+  // ── 先建占位 DB 記錄取得 filmId → 再開支付窗 → 支付成功後上傳媒體 ────────────
   const handleProceedToPayment = async () => {
     if (!authenticated || !user) return;
-    // 若已上傳過，僅重新打開彈窗
-    if (createdFilmId) {
-      setShowCheckoutModal(true);
-      return;
-    }
+    // 已有占位記錄，直接重新開窗
+    if (createdFilmId) { setShowCheckoutModal(true); return; }
+
     setIsSubmitting(true);
-    setPosterUploadStatus('idle');
-    setTrailerUploadStatus('idle');
-    setFilmUploadStatus('idle');
-    setPosterUploadError('');
-    setTrailerUploadError('');
-    setFilmUploadError('');
-    setUploadStatus('INITIALIZING SECURE UPLOAD CHANNEL...');
+    setUploadStatus('PREPARING...');
     try {
-      const filmId = await doUploadAndCreateRecord('pending');
-      setCreatedFilmId(filmId);
+      const token = await getAccessToken();
+      const placeholderRes = await fetch('/api/upload-film', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          creator_id:   user.id,
+          title:        formData.title,
+          studio_name:  formData.studio,
+          synopsis:     formData.synopsis,
+          tech_stack:   formData.techStack,
+          ai_ratio:     formData.aiRatio,
+          core_cast:    formData.coreCast,
+          region:       formData.region,
+          lbs_royalty:  formData.lbsRoyalty,
+          contact_email: formData.contactEmail.trim().toLowerCase(),
+          is_placeholder: true,
+        }),
+      });
+      const placeholderJson = await placeholderRes.json();
+      if (!placeholderRes.ok || !placeholderJson.film?.id) {
+        throw new Error(placeholderJson.error ?? '创建影片记录失败，请重试');
+      }
+      setCreatedFilmId(placeholderJson.film.id);
+      setUploadStatus('');
       setShowCheckoutModal(true);
     } catch (err: unknown) {
-      const rawMsg = (err instanceof Error ? err.message : String(err)) || 'Upload failed';
-      // 将技术性错误转为用户友好的中文提示
-      const msg = rawMsg.includes('string did not match') || rawMsg.includes('SCHEMA_MISMATCH')
-        ? '影片資料格式有誤，請重新提交。如問題持續請聯繫客服。'
-        : rawMsg.includes('DB_COLUMN') || rawMsg.includes('does not exist')
-          ? '系統配置異常，請聯繫平台客服。'
-          : rawMsg.includes('Missing required') || rawMsg.includes('Missing or invalid')
-            ? '請確保所有必填欄位已填寫完整。'
-            : rawMsg.includes('AI ratio')
-              ? 'AI 比例必須達到 51% 以上。'
-              : rawMsg;
+      const msg = err instanceof Error ? err.message : '提交失败，请重试';
       showToast(msg, 'error');
-      setErrorMsg(msg);
       setUploadStatus('');
     } finally {
       setIsSubmitting(false);
@@ -1151,15 +1158,42 @@ function UploadContent() {
               SECURED BY STRIPE &amp; SOLANA BLOCKCHAIN · HKAIIFF 2026
             </p>
 
-            {/* 受控模式結帳彈窗：上傳完成後直接彈出，無中轉頁 */}
+            {/* 先建占位記錄取得 filmId → 支付 → 支付成功後上傳媒體（PATCH 補填 URL） */}
             {createdFilmId && (
               <UniversalCheckout
                 productCode="film_entry"
                 extraMetadata={{ filmId: createdFilmId }}
                 open={showCheckoutModal}
                 onClose={() => setShowCheckoutModal(false)}
-                onSuccess={() => {
+                onSuccess={async () => {
                   setShowCheckoutModal(false);
+                  setIsSubmitting(true);
+                  setPosterUploadStatus('idle');
+                  setTrailerUploadStatus('idle');
+                  setFilmUploadStatus('idle');
+                  setPosterUploadError('');
+                  setTrailerUploadError('');
+                  setFilmUploadError('');
+                  setUploadStatus('UPLOADING MEDIA FILES...');
+                  try {
+                    await doUploadAndCreateRecord('paid', createdFilmId);
+                  } catch (err: unknown) {
+                    const rawMsg = (err instanceof Error ? err.message : String(err)) || 'Upload failed';
+                    const msg = rawMsg.includes('string did not match') || rawMsg.includes('SCHEMA_MISMATCH')
+                      ? '影片資料格式有誤，請重新提交。如問題持續請聯繫客服。'
+                      : rawMsg.includes('DB_COLUMN') || rawMsg.includes('does not exist')
+                        ? '系統配置異常，請聯繫平台客服。'
+                        : rawMsg.includes('Missing required') || rawMsg.includes('Missing or invalid')
+                          ? '請確保所有必填欄位已填寫完整。'
+                          : rawMsg.includes('AI ratio')
+                            ? 'AI 比例必須達到 51% 以上。'
+                            : rawMsg;
+                    showToast(msg, 'error');
+                    setErrorMsg(msg);
+                    setUploadStatus('');
+                  } finally {
+                    setIsSubmitting(false);
+                  }
                 }}
                 cancelUrl={typeof window !== 'undefined' ? `${window.location.origin}/upload` : '/upload'}
               />
