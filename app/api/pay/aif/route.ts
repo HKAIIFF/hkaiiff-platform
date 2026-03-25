@@ -197,7 +197,7 @@ export async function POST(req: Request) {
       .update({
         payment_status: 'paid',
         payment_method: 'aif',
-        status: 'pending_review',
+        status: 'pending',
       })
       .eq('id', filmId)
       .eq('user_id', verifiedUserId); // 雙重守衛
