@@ -559,7 +559,7 @@ function toBunnyEmbed(url: string | null | undefined): string | null {
 // ────────────────────────────────────────────────────────────────────────────
 // 模塊二：審核與風控
 // ────────────────────────────────────────────────────────────────────────────
-function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
+function ReviewFilmsTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: string, ok?: boolean) => void; adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
   const [films, setFilms] = useState<Film[]>([]);
   const [loading, setLoading] = useState(false);
   const [rejectTarget, setRejectTarget] = useState<Film | null>(null);
@@ -624,8 +624,9 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
   }, [films, searchQuery, orderQuery, statusFilter, paymentFilter, dateFrom, dateTo]);
 
   async function approveFilm(film: Film) {
-    const { error } = await supabase.from("films").update({ status: "approved" }).eq("id", film.id);
-    if (error) { pushToast(error.message, false); return; }
+    const res = await adminFetch('/api/admin/films', { method: 'PATCH', body: JSON.stringify({ id: film.id, action: 'approve' }) });
+    const { error } = res.ok ? { error: null } : { error: await res.json() };
+    if (error) { pushToast((error as { error?: string }).error ?? 'approve failed', false); return; }
     if (film.user_id) {
       await supabase.from("messages").insert([{ user_id: film.user_id, type: "system", msg_type: "system", title: "Review Passed", content: "Your film passed review and NFT mint process has started." }]);
     }
@@ -637,8 +638,9 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
   async function toggleParallelUniverse(film: Film) {
     const isCurrentlyActive = !!film.parallel_start_time;
     if (isCurrentlyActive) {
-      const { error } = await supabase.from("films").update({ parallel_start_time: null, is_parallel_universe: false }).eq("id", film.id);
-      if (error) { pushToast(error.message, false); return; }
+      const res = await adminFetch('/api/admin/films', { method: 'PATCH', body: JSON.stringify({ id: film.id, action: 'toggle_parallel', enable: false }) });
+      const { error } = res.ok ? { error: null } : { error: await res.json() };
+      if (error) { pushToast((error as { error?: string }).error ?? 'toggle failed', false); return; }
       setFilms((prev) => prev.map((f) => f.id === film.id ? { ...f, parallel_start_time: null, is_parallel_universe: false } : f));
       pushToast("平行宇宙已關閉，已從排隊移除");
     } else {
@@ -648,8 +650,9 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
         const latestEnd = new Date(new Date(activeFilms[0].parallel_start_time).getTime() + 9 * 60000);
         if (latestEnd > newStartTime) newStartTime = latestEnd;
       }
-      const { error } = await supabase.from("films").update({ parallel_start_time: newStartTime.toISOString(), is_parallel_universe: true }).eq("id", film.id);
-      if (error) { pushToast(error.message, false); return; }
+      const res = await adminFetch('/api/admin/films', { method: 'PATCH', body: JSON.stringify({ id: film.id, action: 'toggle_parallel', enable: true, parallel_start_time: newStartTime.toISOString() }) });
+      const { error } = res.ok ? { error: null } : { error: await res.json() };
+      if (error) { pushToast((error as { error?: string }).error ?? 'toggle failed', false); return; }
       setFilms((prev) => prev.map((f) => f.id === film.id ? { ...f, parallel_start_time: newStartTime.toISOString(), is_parallel_universe: true } : f));
       pushToast(`✅ 平行宇宙已加入隊列，開始時間: ${newStartTime.toLocaleTimeString()}`);
     }
@@ -657,11 +660,9 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
 
   async function toggleFeed(film: Film) {
     const next = !film.is_feed_published;
-    const { error } = await supabase
-      .from("films")
-      .update({ is_feed_published: next, feed_enabled: next })
-      .eq("id", film.id);
-    if (error) { pushToast(error.message, false); return; }
+    const res = await adminFetch('/api/admin/films', { method: 'PATCH', body: JSON.stringify({ id: film.id, action: 'toggle_feed', is_feed_published: next }) });
+    const { error } = res.ok ? { error: null } : { error: await res.json() };
+    if (error) { pushToast((error as { error?: string }).error ?? 'toggle failed', false); return; }
     setFilms((prev) => prev.map((f) =>
       f.id === film.id ? { ...f, is_feed_published: next, feed_enabled: next } : f
     ));
@@ -671,8 +672,9 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
 
   async function toggleFeature(film: Film) {
     const next = !film.feature_enabled;
-    const { error } = await supabase.from("films").update({ feature_enabled: next }).eq("id", film.id);
-    if (error) { pushToast(error.message, false); return; }
+    const res = await adminFetch('/api/admin/films', { method: 'PATCH', body: JSON.stringify({ id: film.id, action: 'toggle_feature', feature_enabled: next }) });
+    const { error } = res.ok ? { error: null } : { error: await res.json() };
+    if (error) { pushToast((error as { error?: string }).error ?? 'toggle failed', false); return; }
     setFilms((prev) => prev.map((f) => f.id === film.id ? { ...f, feature_enabled: next } : f));
     pushToast(next ? "✅ 正片已上架" : "正片已下架");
     revalidateFeed().catch(() => null);
@@ -680,8 +682,9 @@ function ReviewFilmsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: bo
 
   async function submitReject() {
     if (!rejectTarget) return;
-    const { error } = await supabase.from("films").update({ status: "rejected" }).eq("id", rejectTarget.id);
-    if (error) { pushToast(error.message, false); return; }
+    const res = await adminFetch('/api/admin/films', { method: 'PATCH', body: JSON.stringify({ id: rejectTarget.id, action: 'reject' }) });
+    const { error } = res.ok ? { error: null } : { error: await res.json() };
+    if (error) { pushToast((error as { error?: string }).error ?? 'reject failed', false); return; }
     if (rejectTarget.user_id) {
       await supabase.from("messages").insert([{ user_id: rejectTarget.user_id, type: "system", msg_type: "system", title: "Review Rejected", content: `${t.reason}: ${rejectReason}` }]);
     }
@@ -2505,9 +2508,11 @@ function DistOfficialTab({ pushToast, adminFetch }: { pushToast: (s: string, ok?
       order_number:      `OFFICIAL-${Date.now().toString().slice(-6)}`,
     };
 
-    const { error } = await supabase.from("films").insert([payload]);
+    const insertRes = await adminFetch('/api/admin/films', { method: 'POST', body: JSON.stringify(payload) });
+    const insertJson = await insertRes.json();
+    const error = insertRes.ok ? null : insertJson;
     setSubmitting(false);
-    if (error) { pushToast(`❌ 提交失敗：${error.message}`, false); return; }
+    if (error) { pushToast(`❌ 提交失敗：${(error as { error?: string }).error ?? JSON.stringify(error)}`, false); return; }
     pushToast("✅ 官方發行提交成功，已進入審核池");
     resetForm();
   }
@@ -5600,7 +5605,7 @@ export default function AdminPage() {
   function renderContent() {
     switch (activeSubMenu) {
       case "dashboard": return <DashboardModule t={t} adminFetch={boundAdminFetch} />;
-      case "review:films": return <ReviewFilmsTab t={t} pushToast={pushToast} />;
+      case "review:films": return <ReviewFilmsTab t={t} pushToast={pushToast} adminFetch={boundAdminFetch} />;
       case "review:lbs": return <ReviewLbsTab t={t} pushToast={pushToast} />;
       case "review:kyc": return <ReviewKycTab t={t} pushToast={pushToast} adminFetch={boundAdminFetch} />;
       case "dist:lbs": return <DistLbsTab t={t} pushToast={pushToast} />;
