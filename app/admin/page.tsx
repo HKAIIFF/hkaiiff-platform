@@ -628,7 +628,7 @@ function ReviewFilmsTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: str
     const { error } = res.ok ? { error: null } : { error: await res.json() };
     if (error) { pushToast((error as { error?: string }).error ?? 'approve failed', false); return; }
     if (film.user_id) {
-      await supabase.from("messages").insert([{ user_id: film.user_id, type: "system", msg_type: "system", title: "Review Passed", content: "Your film passed review and NFT mint process has started." }]);
+      await adminFetch('/api/admin/notify', { method: 'POST', body: JSON.stringify({ userId: film.user_id, type: 'system', title: 'Review Passed', content: 'Your film passed review and NFT mint process has started.' }) });
     }
     setFilms((prev) => prev.map((f) => f.id === film.id ? { ...f, status: "approved" } : f));
     pushToast(t.nftHint);
@@ -686,7 +686,7 @@ function ReviewFilmsTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: str
     const { error } = res.ok ? { error: null } : { error: await res.json() };
     if (error) { pushToast((error as { error?: string }).error ?? 'reject failed', false); return; }
     if (rejectTarget.user_id) {
-      await supabase.from("messages").insert([{ user_id: rejectTarget.user_id, type: "system", msg_type: "system", title: "Review Rejected", content: `${t.reason}: ${rejectReason}` }]);
+      await adminFetch('/api/admin/notify', { method: 'POST', body: JSON.stringify({ userId: rejectTarget.user_id, type: 'system', title: 'Review Rejected', content: `${t.reason}: ${rejectReason}` }) });
     }
     setFilms((prev) => prev.map((f) => f.id === rejectTarget.id ? { ...f, status: "rejected" } : f));
     setRejectTarget(null);
@@ -1080,7 +1080,7 @@ function ReviewFilmsTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: str
   );
 }
 
-function ReviewLbsTab({ pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
+function ReviewLbsTab({ pushToast, adminFetch }: { t: T; pushToast: (s: string, ok?: boolean) => void; adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
   // ── State ──────────────────────────────────────────────────────────────────
   const [nodes, setNodes]               = useState<LbsNode[]>([]);
   const [loading, setLoading]           = useState(true);
@@ -1128,21 +1128,21 @@ function ReviewLbsTab({ pushToast }: { t: T; pushToast: (s: string, ok?: boolean
   // ── Actions ────────────────────────────────────────────────────────────────
   const handleApprove = useCallback(async (id: string) => {
     setProcessingId(id);
-    const { error } = await supabase.from("lbs_nodes").update({ status: "approved" }).eq("id", id);
+    const res = await adminFetch('/api/admin/lbs', { method: 'PATCH', body: JSON.stringify({ id, action: 'approve' }) });
     setProcessingId(null);
-    if (error) { pushToast(`審核失敗: ${error.message}`, false); return; }
+    if (!res.ok) { const d = await res.json(); pushToast(`審核失敗: ${d.error ?? 'unknown'}`, false); return; }
     setNodes(prev => prev.map(n => n.id === id ? { ...n, status: "approved" } : n));
     pushToast("已通過審核，節點排期中 ✓", true);
-  }, [pushToast]);
+  }, [adminFetch, pushToast]);
 
   const handleReject = useCallback(async (id: string) => {
     setProcessingId(id);
-    const { error } = await supabase.from("lbs_nodes").update({ status: "rejected" }).eq("id", id);
+    const res = await adminFetch('/api/admin/lbs', { method: 'PATCH', body: JSON.stringify({ id, action: 'reject' }) });
     setProcessingId(null);
-    if (error) { pushToast(`操作失敗: ${error.message}`, false); return; }
+    if (!res.ok) { const d = await res.json(); pushToast(`操作失敗: ${d.error ?? 'unknown'}`, false); return; }
     setNodes(prev => prev.map(n => n.id === id ? { ...n, status: "rejected" } : n));
     pushToast("已退回申請 ✓", true);
-  }, [pushToast]);
+  }, [adminFetch, pushToast]);
 
   const handleCopy = useCallback((text: string, nodeId: string) => {
     navigator.clipboard.writeText(text).then(() => {
@@ -1731,7 +1731,7 @@ function ReviewKycTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: strin
 // ────────────────────────────────────────────────────────────────────────────
 // 模塊三：發行與策展
 // ────────────────────────────────────────────────────────────────────────────
-function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolean) => void }) {
+function DistLbsTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: string, ok?: boolean) => void; adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
   const [nodes, setNodes] = useState<LbsNode[]>([]);
   const [approvedFilms, setApprovedFilms] = useState<Film[]>([]);
   const [poster, setPoster] = useState("");
@@ -1788,16 +1788,16 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
 
   async function toggleNodeStatus(node: LbsNode) {
     const newStatus = (node.status ?? "active") === "active" ? "offline" : "active";
-    const { error } = await supabase.from("lbs_nodes").update({ status: newStatus }).eq("id", node.id);
-    if (error) { pushToast(error.message, false); return; }
+    const res = await adminFetch('/api/admin/lbs', { method: 'PATCH', body: JSON.stringify({ id: node.id, action: 'toggle', status: newStatus }) });
+    if (!res.ok) { const d = await res.json(); pushToast(d.error ?? 'toggle failed', false); return; }
     setNodes((prev) => prev.map((n) => n.id === node.id ? { ...n, status: newStatus } : n));
     pushToast(`✅ 節點狀態已切換為 ${newStatus === "active" ? "上線" : "下線"}`);
   }
 
   async function deleteNode(node: LbsNode) {
     if (!window.confirm(`確認刪除節點「${node.title}」？此操作不可逆，數據將被徹底清除！`)) return;
-    const { error } = await supabase.from("lbs_nodes").delete().eq("id", node.id);
-    if (error) { pushToast(error.message, false); return; }
+    const res = await adminFetch('/api/admin/lbs', { method: 'DELETE', body: JSON.stringify({ id: node.id }) });
+    if (!res.ok) { const d = await res.json(); pushToast(d.error ?? 'delete failed', false); return; }
     setNodes((prev) => prev.filter((n) => n.id !== node.id));
     pushToast(`✅ 節點「${node.title}」已刪除`);
   }
@@ -1872,8 +1872,8 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
     if (form.description) payload.description = form.description;
     if (poster) payload.poster_url = poster;
     if (bgImage) payload.background_url = bgImage;
-    const { error } = await supabase.from("lbs_nodes").insert([payload]);
-    if (error) { pushToast(`建立影展失敗: ${error.message}`, false); return; }
+    const res = await adminFetch('/api/admin/lbs', { method: 'POST', body: JSON.stringify(payload) });
+    if (!res.ok) { const d = await res.json(); pushToast(`建立影展失敗: ${d.error ?? 'unknown'}`, false); return; }
     pushToast(`✅ LBS 展映影展已建立`);
     setForm({
       title: "", country: "", city: "", venue: "", lat: "", lng: "",
@@ -1885,8 +1885,8 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
 
   async function savePool() {
     if (!poolNode) return;
-    const { error } = await supabase.from("lbs_nodes").update({ film_ids: pickedFilmIds }).eq("id", poolNode.id);
-    if (error) { pushToast(error.message, false); return; }
+    const res = await adminFetch('/api/admin/lbs', { method: 'PATCH', body: JSON.stringify({ id: poolNode.id, action: 'film_ids', film_ids: pickedFilmIds }) });
+    if (!res.ok) { const d = await res.json(); pushToast(d.error ?? 'update failed', false); return; }
     pushToast("✅ 排片池已更新"); setPoolNode(null); fetchData();
   }
 
@@ -1902,8 +1902,8 @@ function DistLbsTab({ t, pushToast }: { t: T; pushToast: (s: string, ok?: boolea
       poster_url: editPoster || null,
       background_url: editBgImage || null,
     };
-    const { error } = await supabase.from("lbs_nodes").update(payload).eq("id", editingLbsData.id);
-    if (error) { pushToast(error.message, false); return; }
+    const res = await adminFetch('/api/admin/lbs', { method: 'PATCH', body: JSON.stringify({ id: editingLbsData.id, action: 'edit', ...payload }) });
+    if (!res.ok) { const d = await res.json(); pushToast(d.error ?? 'update failed', false); return; }
     pushToast("✅ 更新成功");
     setIsEditModalOpen(false);
     setEditingLbsData(null);
@@ -5606,9 +5606,9 @@ export default function AdminPage() {
     switch (activeSubMenu) {
       case "dashboard": return <DashboardModule t={t} adminFetch={boundAdminFetch} />;
       case "review:films": return <ReviewFilmsTab t={t} pushToast={pushToast} adminFetch={boundAdminFetch} />;
-      case "review:lbs": return <ReviewLbsTab t={t} pushToast={pushToast} />;
+      case "review:lbs": return <ReviewLbsTab t={t} pushToast={pushToast} adminFetch={boundAdminFetch} />;
       case "review:kyc": return <ReviewKycTab t={t} pushToast={pushToast} adminFetch={boundAdminFetch} />;
-      case "dist:lbs": return <DistLbsTab t={t} pushToast={pushToast} />;
+      case "dist:lbs": return <DistLbsTab t={t} pushToast={pushToast} adminFetch={boundAdminFetch} />;
       case "dist:online": return <DistOnlineTab t={t} />;
       case "dist:official": return <DistOfficialTab pushToast={pushToast} adminFetch={boundAdminFetch} />;
       case "dist:batch": return <BatchReleaseTab adminFetch={boundAdminFetch} />;
