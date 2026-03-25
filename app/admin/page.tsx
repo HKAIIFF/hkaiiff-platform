@@ -327,6 +327,11 @@ function DashboardModule({ t, adminFetch }: { t: T; adminFetch: (url: string, op
     pendingFilms: 0, pendingKyc: 0, totalUsers: 0, feedPublished: 0,
     totalUsd: 0, totalAif: 0, activeLbs: 0, activeMembers: 0,
   });
+  const [news, setNews] = useState<{
+    title: string; description: string | null; url: string;
+    source: string; publishedAt: string; image: string | null;
+  }[]>([]);
+  const [newsLoading, setNewsLoading] = useState(true);
 
   useEffect(() => {
     adminFetch('/api/admin/dashboard/stats')
@@ -335,14 +340,24 @@ function DashboardModule({ t, adminFetch }: { t: T; adminFetch: (url: string, op
       .catch(() => null);
   }, []);
 
+  useEffect(() => {
+    setNewsLoading(true);
+    adminFetch('/api/admin/news')
+      .then(r => r.json())
+      .then(d => { if (d.articles) setNews(d.articles); })
+      .catch(() => null)
+      .finally(() => setNewsLoading(false));
+  }, [adminFetch]);
+
   return (
     <div className="space-y-5">
+      {/* 顶部统计卡片 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {[
-          { label: "平台用戶總數",  value: dashStats.totalUsers.toLocaleString(),         sub: "↑ 實時更新" },
-          { label: "24H 法幣收入",  value: `$${dashStats.totalUsd.toLocaleString()}`,      sub: "USD 累計" },
-          { label: "24H AIF 流水", value: `${dashStats.totalAif.toLocaleString()} AIF`,    sub: "鏈上累計" },
-          { label: "Feed 上架影片", value: dashStats.feedPublished.toLocaleString(),        sub: "已審核上架" },
+          { label: "平台用戶總數",  value: dashStats.totalUsers.toLocaleString(),          sub: "↑ 實時更新" },
+          { label: "法幣收入累計",  value: `$${dashStats.totalUsd.toLocaleString()}`,       sub: "USD" },
+          { label: "AIF 流水累計", value: `${dashStats.totalAif.toLocaleString()} AIF`,     sub: "鏈上累計" },
+          { label: "Feed 上架影片", value: dashStats.feedPublished.toLocaleString(),         sub: "已審核上架" },
         ].map((card) => (
           <div key={card.label} className={`${CARD} p-5`}>
             <p className="text-xs text-neutral-500">{card.label}</p>
@@ -351,38 +366,91 @@ function DashboardModule({ t, adminFetch }: { t: T; adminFetch: (url: string, op
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className={`${CARD} p-5`}>
-          <h3 className="font-bold text-neutral-900 mb-4">{t.todoCenter}</h3>
-          <div className="space-y-2">
-            {[
-              { label: t.pendingFilms,   count: dashStats.pendingFilms,  dot: "bg-[#fbbc04]" },
-              { label: "活躍 LBS 節點",  count: dashStats.activeLbs,     dot: "bg-purple-500" },
-              { label: "KYC 待審核",     count: dashStats.pendingKyc,    dot: "bg-[#1a73e8]" },
-            ].map(({ label, count, dot }) => (
-              <div key={label} className="rounded-xl border border-neutral-200 bg-white p-3 flex items-center justify-between hover:bg-neutral-50 transition-colors duration-150">
-                <span className="flex items-center gap-2 text-sm font-medium text-neutral-700">
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
-                  {label}
-                </span>
-                <span className="bg-neutral-100 text-neutral-600 text-xs font-bold rounded-full px-2.5 py-0.5">{count}</span>
+
+      {/* 待辦中樞 */}
+      <div className={`${CARD} p-5`}>
+        <h3 className="font-bold text-neutral-900 mb-4">{t.todoCenter}</h3>
+        <div className="space-y-2">
+          {[
+            { label: t.pendingFilms,  count: dashStats.pendingFilms, dot: "bg-[#fbbc04]" },
+            { label: "活躍 LBS 節點", count: dashStats.activeLbs,    dot: "bg-purple-500" },
+            { label: "KYC 待審核",    count: dashStats.pendingKyc,   dot: "bg-[#1a73e8]" },
+          ].map(({ label, count, dot }) => (
+            <div key={label} className="rounded-xl border border-neutral-200 bg-white p-3 flex items-center justify-between hover:bg-neutral-50 transition-colors duration-150">
+              <span className="flex items-center gap-2 text-sm font-medium text-neutral-700">
+                <span className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
+                {label}
+              </span>
+              <span className="bg-neutral-100 text-neutral-600 text-xs font-bold rounded-full px-2.5 py-0.5">{count}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 全球 AI 電影簡報 */}
+      <div className={`${CARD} p-5`}>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="font-bold text-neutral-900 text-base">🌐 全球 AI 電影簡報</h3>
+            <p className="text-xs text-neutral-400 mt-0.5">每小時更新 · AI 聚合 · 關鍵詞：AI Film / Web3 Cinema / Generative Art</p>
+          </div>
+          <span className="text-[10px] text-neutral-400">{new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+        </div>
+
+        {newsLoading ? (
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="animate-pulse flex gap-4">
+                <div className="w-20 h-16 bg-neutral-100 rounded-lg shrink-0" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-3 bg-neutral-100 rounded w-3/4" />
+                  <div className="h-3 bg-neutral-100 rounded w-1/2" />
+                </div>
               </div>
             ))}
           </div>
-        </div>
-        <div className={`${CARD} p-5`}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-neutral-900">🌐 全球 AI 電影簡報</h3>
-            <span className="text-[10px] text-neutral-400">每日更新 · 由 AI 聚合</span>
+        ) : news.length === 0 ? (
+          <div className="text-center py-12 text-neutral-400">
+            <p className="text-3xl mb-3">📰</p>
+            <p className="text-sm font-medium">暫無新聞</p>
+            <p className="text-xs mt-1">請在 Vercel 配置 NEWS_API_KEY 環境變量</p>
           </div>
-          <div className="h-72 overflow-y-auto space-y-3 pr-1">
-            <div className="text-center py-10 text-neutral-400 text-sm">
-              <p className="text-2xl mb-2">📰</p>
-              <p>新聞簡報接入中...</p>
-              <p className="text-xs mt-1">將接入 NewsAPI / RSS 聚合全球 AI 電影資訊</p>
-            </div>
+        ) : (
+          <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
+            {news.map((article, i) => (
+              <a
+                key={i}
+                href={article.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex gap-4 p-3 rounded-xl hover:bg-neutral-50 transition-colors group border border-transparent hover:border-neutral-200"
+              >
+                {article.image && (
+                  <img
+                    src={article.image}
+                    alt=""
+                    className="w-20 h-16 object-cover rounded-lg shrink-0 bg-neutral-100"
+                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-neutral-900 leading-snug group-hover:text-[#1a73e8] transition-colors line-clamp-2">
+                    {article.title}
+                  </p>
+                  {article.description && (
+                    <p className="text-xs text-neutral-500 mt-1 line-clamp-2">{article.description}</p>
+                  )}
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-[10px] font-semibold text-neutral-400 bg-neutral-100 rounded px-1.5 py-0.5">{article.source}</span>
+                    <span className="text-[10px] text-neutral-400">
+                      {new Date(article.publishedAt).toLocaleString('zh-TW', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                </div>
+              </a>
+            ))}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
