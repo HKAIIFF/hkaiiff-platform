@@ -535,6 +535,7 @@ function UploadContent() {
           lbs_royalty:  formData.lbsRoyalty,
           contact_email: formData.contactEmail.trim().toLowerCase(),
           is_placeholder: true,
+          status: 'draft',
         }),
       });
       const placeholderJson = await placeholderRes.json();

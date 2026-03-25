@@ -653,6 +653,7 @@ function ReviewFilmsTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: str
     const { data, error } = await supabase
       .from("films")
       .select("*, users(email, wallet_address)")
+      .not('status', 'eq', 'draft')
       .order("created_at", { ascending: false });
     setLoading(false);
     if (error) { pushToast(error.message, false); return; }

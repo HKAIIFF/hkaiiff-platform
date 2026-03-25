@@ -101,7 +101,7 @@ export async function POST(req: Request) {
         feature_url:    full_film_url || '',
         copyright_url:  null,
         contact_email:  contact_email?.trim().toLowerCase() || '',
-        status:         'pending',
+        status:         'draft',
         payment_status: 'unpaid',
       }])
       .select()
@@ -171,7 +171,7 @@ export async function PATCH(req: Request) {
 
     const { data: film, error } = await adminSupabase
       .from('films')
-      .update({ poster_url, trailer_url, feature_url: full_film_url })
+      .update({ poster_url, trailer_url, feature_url: full_film_url, status: 'pending', payment_status: 'paid' })
       .eq('id', film_id)
       .select()
       .single();
