@@ -323,7 +323,10 @@ function getBreadcrumb(active: SubMenuId, lang: Lang, t: T): string {
 // 模塊一：指揮大盤
 // ────────────────────────────────────────────────────────────────────────────
 function DashboardModule({ t, adminFetch }: { t: T; adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
-  const [dashStats, setDashStats] = useState({ pendingFilms: 0, pendingKyc: 0, totalUsers: 0, feedPublished: 0 });
+  const [dashStats, setDashStats] = useState({
+    pendingFilms: 0, pendingKyc: 0, totalUsers: 0, feedPublished: 0,
+    totalUsd: 0, totalAif: 0, activeLbs: 0, activeMembers: 0,
+  });
 
   useEffect(() => {
     adminFetch('/api/admin/dashboard/stats')
@@ -332,18 +335,19 @@ function DashboardModule({ t, adminFetch }: { t: T; adminFetch: (url: string, op
       .catch(() => null);
   }, []);
 
-  const briefing = useMemo(
-    () => Array.from({ length: 100 }, (_, i) => `${i + 1}. [Web3/AI] Mock briefing #${i + 1} — On-chain ecosystem & global AI cinema update`),
-    []
-  );
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {t.dashboardCards.map((label, i) => (
-          <div key={label} className={`${CARD} p-5`}>
-            <p className="text-xs text-neutral-500">{label}</p>
-            <p className="mt-2 text-lg font-black text-neutral-900 leading-tight">{t.dashboardVals[i]}</p>
-            <p className="mt-1 text-xs text-[#1a73e8]">↑ 實時更新</p>
+        {[
+          { label: "平台用戶總數",  value: dashStats.totalUsers.toLocaleString(),         sub: "↑ 實時更新" },
+          { label: "24H 法幣收入",  value: `$${dashStats.totalUsd.toLocaleString()}`,      sub: "USD 累計" },
+          { label: "24H AIF 流水", value: `${dashStats.totalAif.toLocaleString()} AIF`,    sub: "鏈上累計" },
+          { label: "Feed 上架影片", value: dashStats.feedPublished.toLocaleString(),        sub: "已審核上架" },
+        ].map((card) => (
+          <div key={card.label} className={`${CARD} p-5`}>
+            <p className="text-xs text-neutral-500">{card.label}</p>
+            <p className="mt-2 text-lg font-black text-neutral-900 leading-tight">{card.value}</p>
+            <p className="mt-1 text-xs text-[#1a73e8]">{card.sub}</p>
           </div>
         ))}
       </div>
@@ -352,9 +356,9 @@ function DashboardModule({ t, adminFetch }: { t: T; adminFetch: (url: string, op
           <h3 className="font-bold text-neutral-900 mb-4">{t.todoCenter}</h3>
           <div className="space-y-2">
             {[
-              { label: t.pendingFilms, count: dashStats.pendingFilms, dot: "bg-[#fbbc04]" },
-              { label: t.pendingWithdraw, count: 4, dot: "bg-[#ea4335]" },
-              { label: "KYC 待審核", count: dashStats.pendingKyc, dot: "bg-[#1a73e8]" },
+              { label: t.pendingFilms,   count: dashStats.pendingFilms,  dot: "bg-[#fbbc04]" },
+              { label: "活躍 LBS 節點",  count: dashStats.activeLbs,     dot: "bg-purple-500" },
+              { label: "KYC 待審核",     count: dashStats.pendingKyc,    dot: "bg-[#1a73e8]" },
             ].map(({ label, count, dot }) => (
               <div key={label} className="rounded-xl border border-neutral-200 bg-white p-3 flex items-center justify-between hover:bg-neutral-50 transition-colors duration-150">
                 <span className="flex items-center gap-2 text-sm font-medium text-neutral-700">
@@ -367,11 +371,16 @@ function DashboardModule({ t, adminFetch }: { t: T; adminFetch: (url: string, op
           </div>
         </div>
         <div className={`${CARD} p-5`}>
-          <h3 className="font-bold text-neutral-900 mb-4">{t.aiBriefing}</h3>
-          <div className="h-72 overflow-y-auto space-y-1.5 pr-1">
-            {briefing.map((item) => (
-              <div key={item} className="rounded-lg bg-neutral-50 px-3 py-2 text-xs text-neutral-600">{item}</div>
-            ))}
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-neutral-900">🌐 全球 AI 電影簡報</h3>
+            <span className="text-[10px] text-neutral-400">每日更新 · 由 AI 聚合</span>
+          </div>
+          <div className="h-72 overflow-y-auto space-y-3 pr-1">
+            <div className="text-center py-10 text-neutral-400 text-sm">
+              <p className="text-2xl mb-2">📰</p>
+              <p>新聞簡報接入中...</p>
+              <p className="text-xs mt-1">將接入 NewsAPI / RSS 聚合全球 AI 電影資訊</p>
+            </div>
           </div>
         </div>
       </div>
