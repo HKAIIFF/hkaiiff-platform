@@ -166,3 +166,30 @@
 ### [UX-003] ✅ 已修复 — 认证状态实时更新（commit bdfc801，与UX-002同一修复）
 - 现象：Admin已批准认证，但用户页面状态未更新
 - 修复：同上，Realtime 回调新增 creator_applications 刷新逻辑
+
+---
+## ✅ 阶段六 — 安全加固 & 功能完善（2026-03-25）
+
+| Commit | 内容 |
+|--------|------|
+| 最新 | 16个数据库表启用RLS |
+| 最新 | Admin films写操作迁移到API路由 |
+| 最新 | OpsRbacTab重写接入真实API |
+| 最新 | ReviewKycTab重写为真实数据 |
+| 最新 | BatchReleaseTab携带Auth Token |
+| 最新 | 全局文字对比度优化 |
+| 最新 | BottomNav PWA安全区域适配 |
+| 最新 | Creator页面portfolio类型修复 |
+| 最新 | Feed算法Pool A/B/C分池优化 |
+
+## 🟡 待处理事项
+
+### [TODO-001] lbs_nodes写操作
+- `app/admin/page.tsx` 中对 lbs_nodes 的写操作仍使用anon key
+- 需要创建 `/api/admin/lbs/route.ts` 并迁移
+
+### [TODO-002] 分润提现结算
+- 菜单显示"开发中"，功能未实现
+
+### [TODO-003] 消息系统V2字段统一
+- messages表写操作部分绕过sendMessage()函数
