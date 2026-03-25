@@ -332,6 +332,8 @@ function DashboardModule({ t, adminFetch }: { t: T; adminFetch: (url: string, op
     source: string; publishedAt: string; image: string | null;
   }[]>([]);
   const [newsLoading, setNewsLoading] = useState(true);
+  const [translated, setTranslated] = useState(false);
+  const [translating, setTranslating] = useState(false);
 
   useEffect(() => {
     adminFetch('/api/admin/dashboard/stats')
@@ -348,6 +350,16 @@ function DashboardModule({ t, adminFetch }: { t: T; adminFetch: (url: string, op
       .catch(() => null)
       .finally(() => setNewsLoading(false));
   }, [adminFetch]);
+
+  const toggleTranslate = async () => {
+    setTranslating(true);
+    try {
+      const url = translated ? '/api/admin/news' : '/api/admin/news?translate=zh';
+      const r = await adminFetch(url);
+      const d = await r.json();
+      if (d.articles) { setNews(d.articles); setTranslated(!translated); }
+    } finally { setTranslating(false); }
+  };
 
   return (
     <div className="space-y-5">
@@ -392,9 +404,18 @@ function DashboardModule({ t, adminFetch }: { t: T; adminFetch: (url: string, op
         <div className="flex items-center justify-between mb-5">
           <div>
             <h3 className="font-bold text-neutral-900 text-base">🌐 全球 AI 電影簡報</h3>
-            <p className="text-xs text-neutral-400 mt-0.5">每小時更新 · AI 聚合 · 關鍵詞：AI Film / Web3 Cinema / Generative Art</p>
+            <p className="text-xs text-neutral-400 mt-0.5">15個來源 · 每小時更新 · AI聚合</p>
           </div>
-          <span className="text-[10px] text-neutral-400">{new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] text-neutral-400">{new Date().toLocaleDateString('zh-TW', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            <button
+              onClick={toggleTranslate}
+              disabled={translating || newsLoading}
+              className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors ${translated ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' : 'bg-neutral-100 text-neutral-600 hover:bg-neutral-200'} disabled:opacity-40`}
+            >
+              {translating ? '翻譯中...' : translated ? '🌐 顯示原文' : '🀄 中文翻譯'}
+            </button>
+          </div>
         </div>
 
         {newsLoading ? (
@@ -413,7 +434,7 @@ function DashboardModule({ t, adminFetch }: { t: T; adminFetch: (url: string, op
           <div className="text-center py-12 text-neutral-400">
             <p className="text-3xl mb-3">📰</p>
             <p className="text-sm font-medium">暫無新聞</p>
-            <p className="text-xs mt-1">請在 Vercel 配置 NEWS_API_KEY 環境變量</p>
+            <p className="text-xs mt-1">RSS 源暫無符合條件的文章，稍後重試</p>
           </div>
         ) : (
           <div className="space-y-4 max-h-[600px] overflow-y-auto pr-1">
