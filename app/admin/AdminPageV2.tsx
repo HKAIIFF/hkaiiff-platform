@@ -1948,7 +1948,17 @@ function OpsModule({ t, pushToast, lang, setLang }: SharedProps) {
             className={`${BTN} bg-blue-600 text-white`}
             onClick={async () => {
               const msgTypeVal = message.channel.toLowerCase() as string;
-              const { error } = await supabase.from("messages").insert([{ user_id: null, type: msgTypeVal, msg_type: msgTypeVal, title: message.title, content: message.body }]);
+              const { error } = await supabase.from("messages").insert([
+                {
+                  user_id: null,
+                  type: msgTypeVal,
+                  msg_type: msgTypeVal,
+                  title: message.title,
+                  content: message.body,
+                  body: message.body,
+                  audience: "users",
+                },
+              ]);
               if (error) {
                 pushToast(error.message, false);
                 return;

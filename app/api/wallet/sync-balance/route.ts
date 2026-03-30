@@ -125,30 +125,12 @@ export async function POST(req: Request) {
       });
 
     if (updateError) {
-      // 嚴重：鏈上已歸集但資料庫記帳失敗
-      // 記錄告警，讓管理員手動核查（tokens 已安全在金庫，不會丟失）
+      // 嚴重：鏈上已歸集但資料庫記帳失敗 — 僅服務端日誌與監控告警，禁止寫入用戶可見 messages
       console.error(
         `[sync-balance] ⚠️ CRITICAL: Sweep 成功但記帳失敗！` +
         `用戶: ${userId} | 金額: ${creditAmount} AIF | tx: ${sweepResult.txSignature} | ` +
         `DB錯誤: ${updateError.message}`
       );
-      // 嘗試寫入告警消息到 messages 表
-      try {
-        await adminSupabase.from('messages').insert({
-          user_id: null,
-          type: 'system',
-          title: '⚠️ Sweep 成功但記帳失敗 — 需手動核查',
-          body:
-            `用戶 ${userId} 的 ${creditAmount} AIF 已成功歸集（tx: ${sweepResult.txSignature}），` +
-            `但 aif_balance 資料庫更新失敗（${updateError.message}）。請手動補記。`,
-          msg_type: 'system',
-          content:
-            `用戶 ${userId} 的 ${creditAmount} AIF 已成功歸集（tx: ${sweepResult.txSignature}），` +
-            `但 aif_balance 資料庫更新失敗（${updateError.message}）。請手動補記。`,
-          status: 'sent',
-          is_read: false,
-        });
-      } catch { /* 告警寫入失敗不影響主流程響應 */ }
 
       return NextResponse.json(
         {

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import ClientProviders from "./components/ClientProviders";
 import ConditionalNav from "./components/ConditionalNav";
 import Providers from "@/components/Providers";
@@ -33,6 +33,13 @@ export const metadata: Metadata = {
     description: 'Something has to change. 香港政府批復註冊的全球首個AI原生國際電影節',
     images: ['/icon-512x512.png'],
   },
+};
+
+/** PWA / 劉海屏：啟用 safe-area env()，底欄才能留出 Home 指示條區域（對齊 TikTok 等原生 App） */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

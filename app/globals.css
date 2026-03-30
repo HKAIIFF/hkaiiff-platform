@@ -1,6 +1,13 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
 
+/* ─── 移動端主內容底部留白：與 BottomNav（含 safe-area + 額外 14px）總高度對齊 ─── */
+@media (max-width: 767px) {
+  .pb-bottom-nav-safe {
+    padding-bottom: calc(62px + max(18px, calc(env(safe-area-inset-bottom, 0px) + 14px)));
+  }
+}
+
 /* ─── HKAIIFF Global Reset ─────────────────────────────────────────────────── */
 html,
 body {

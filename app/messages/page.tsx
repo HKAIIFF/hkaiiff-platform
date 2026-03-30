@@ -231,8 +231,8 @@ function MobileMessagesView({
 }: MobileViewProps) {
   const { t } = useI18n();
   return (
-    /* Logo 已移除（仅 /me 显示），顶部 pt-16；BottomNav=50px，pb-16 足够 */
-    <div className="min-h-screen w-full bg-[#050505] pt-16 pb-16">
+    /* 底部留白與 BottomNav（含 safe-area）對齊 */
+    <div className="min-h-screen w-full bg-[#050505] pt-16 pb-bottom-nav-safe">
 
       {/* Panel header */}
       <div className="px-4 pb-3 border-b border-[#1a1a1a]">

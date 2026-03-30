@@ -213,7 +213,7 @@ export default function CreatorPage() {
     "ANONYMOUS STUDIO";
 
   return (
-    <div className="min-h-screen bg-[#050505] flex flex-col pb-20">
+    <div className="min-h-screen bg-[#050505] flex flex-col pb-bottom-nav-safe">
 
       {/* ─── Header Banner ─────────────────────────────────────────────────── */}
       <div className="relative h-52 w-full bg-black overflow-hidden flex-shrink-0">

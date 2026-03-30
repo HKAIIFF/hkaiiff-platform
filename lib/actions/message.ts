@@ -37,6 +37,8 @@ export interface SendMessageParams {
   actionLink?: string | null;
   /** 发送者 ID（可选；NULL = 系统自动发送） */
   senderId?: string | null;
+  /** users = 用户端可见；admin_only = 仅运营侧，不得进入用户收件箱 */
+  audience?: 'users' | 'admin_only';
 }
 
 // ── 内部：创建 Admin Supabase 客户端 ──────────────────────────────────────────
@@ -59,8 +61,10 @@ export async function sendMessage({
   content,
   actionLink,
   senderId,
+  audience = 'users',
 }: SendMessageParams): Promise<void> {
   const db = getAdminClient();
+  const resolvedAudience = audience === 'admin_only' ? 'admin_only' : 'users';
   const { error } = await db.from('messages').insert({
     user_id: userId,
     type,
@@ -69,6 +73,7 @@ export async function sendMessage({
     content,
     body: content,               // 向后兼容旧 body 列
     status: 'sent',
+    audience: resolvedAudience,
     ...(actionLink != null ? { action_link: actionLink } : {}),
     ...(senderId != null ? { sender_id: senderId } : {}),
   });
@@ -84,8 +89,8 @@ export async function getUserMessages(userId: string): Promise<DbMessage[]> {
   const db = getAdminClient();
   const { data, error } = await db
     .from('messages')
-    .select('id, msg_id, user_id, type, msg_type, title, content, body, is_read, status, sender_id, action_link, created_at, deleted_at')
-    .or(`user_id.is.null,user_id.eq.${userId}`)
+    .select('id, msg_id, user_id, type, msg_type, title, content, body, is_read, status, sender_id, action_link, created_at, deleted_at, audience')
+    .or(`user_id.eq.${userId},and(user_id.is.null,audience.eq.users)`)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
 

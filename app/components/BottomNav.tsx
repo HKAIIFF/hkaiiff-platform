@@ -43,18 +43,25 @@ export default function BottomNav() {
       onClose={() => setShowConsent(false)}
     />
 
-    {/* 高度 62px，适配 iPhone 安全区域 */}
-    <div className="md:hidden fixed bottom-0 left-0 w-full z-[999] bg-black/98 backdrop-blur-xl border-t border-[#1e1e1e] px-1 flex justify-between items-center" style={{ height: 'calc(62px + env(safe-area-inset-bottom))', paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}>
+    {/* 移動端底欄：頂部內邊距 + 圖標列 + 底部 safe-area + 額外留白（參考 TikTok，避免貼齊 Home 條難點） */}
+    <div
+      className="md:hidden fixed bottom-0 left-0 w-full z-[999] bg-black/98 backdrop-blur-xl border-t border-[#1e1e1e] flex flex-col"
+      style={{
+        paddingTop: "10px",
+        paddingBottom: "max(18px, calc(env(safe-area-inset-bottom, 0px) + 14px))",
+      }}
+    >
+      <div className="flex justify-between items-center px-2 min-h-[54px]">
       {NAV_ITEMS.map((item, i) => {
         const isProtected = PROTECTED_HREFS.has(item.href);
 
-        /* 中央螢光綠 Upload 按鈕 — 缩小至 w-11 h-11，突出 -top-3 */
+        /* 中央 Upload 凸出略減，避免與加高底欄錯位 */
         if (i === 2) {
           return (
             <button
               key={item.href}
               onClick={() => handleProtectedNav(item.href)}
-              className="flex flex-col items-center w-1/5 relative -top-3 group cursor-pointer bg-transparent border-0 p-0 outline-none focus:outline-none [-webkit-tap-highlight-color:transparent]"
+              className="flex flex-col items-center w-1/5 relative -top-2 group cursor-pointer bg-transparent border-0 p-0 outline-none focus:outline-none [-webkit-tap-highlight-color:transparent]"
             >
               <div
                 className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl rotate-45 group-active:scale-95 transition-all border-2 shadow-[0_0_16px_rgba(204,255,0,0.3)] ${
@@ -102,6 +109,7 @@ export default function BottomNav() {
           </Link>
         );
       })}
+      </div>
     </div>
     </>
   );

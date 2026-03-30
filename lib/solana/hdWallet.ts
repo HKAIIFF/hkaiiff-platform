@@ -36,7 +36,6 @@ import {
 } from '@solana/spl-token';
 import * as bip39 from 'bip39';
 import bs58 from 'bs58';
-import { createClient } from '@supabase/supabase-js';
 
 // ── 系統常量 ───────────────────────────────────────────────────────────────────
 
@@ -114,14 +113,6 @@ function deriveFundingWallet(): Keypair {
   return deriveFundingWalletFromSeed(seedPhrase);
 }
 
-function createAdminSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false } }
-  );
-}
-
 // ── 公開工具 ───────────────────────────────────────────────────────────────────
 
 /**
@@ -197,34 +188,12 @@ export async function initUserDepositATA(depositAddress: string): Promise<InitAt
   const fundingBalance = await connection.getBalance(fundingWallet.publicKey);
 
   if (fundingBalance < FUNDING_ALARM_LAMPORTS) {
+    // 僅日誌 / 外部監控（Datadog、PagerDuty 等）；禁止寫入 messages 以免全站用戶收到運營告警
     console.error(
       `CRITICAL ALARM: Funding wallet [${fundingWallet.publicKey.toBase58()}] ` +
       `is critically low on SOL! Current: ${(fundingBalance / LAMPORTS_PER_SOL).toFixed(6)} SOL. ` +
       `Alarm threshold: ${FUNDING_ALARM_LAMPORTS / LAMPORTS_PER_SOL} SOL. Please top up immediately!`
     );
-    try {
-      const adminSupabase = createAdminSupabase();
-      await adminSupabase.from('messages').insert({
-        user_id: null,
-        type: 'system',
-        title: '⚠️ 墊付錢包 SOL 餘額緊急告警',
-        body:
-          `墊付錢包 ${fundingWallet.publicKey.toBase58()} 餘額僅剩 ` +
-          `${(fundingBalance / LAMPORTS_PER_SOL).toFixed(6)} SOL，` +
-          `已低於安全閾值 ${FUNDING_ALARM_LAMPORTS / LAMPORTS_PER_SOL} SOL，` +
-          `請立即充值，否則新用戶 ATA 初始化將失敗！`,
-        msg_type: 'system',
-        content:
-          `墊付錢包 ${fundingWallet.publicKey.toBase58()} 餘額僅剩 ` +
-          `${(fundingBalance / LAMPORTS_PER_SOL).toFixed(6)} SOL，` +
-          `已低於安全閾值 ${FUNDING_ALARM_LAMPORTS / LAMPORTS_PER_SOL} SOL，` +
-          `請立即充值，否則新用戶 ATA 初始化將失敗！`,
-        status: 'sent',
-        is_read: false,
-      });
-    } catch (dbErr: unknown) {
-      console.error('[initUserDepositATA] 系統告警寫入失敗:', dbErr);
-    }
   }
 
   if (fundingBalance < FUNDING_MIN_LAMPORTS) {

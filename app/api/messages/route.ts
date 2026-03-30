@@ -37,15 +37,18 @@ export async function GET(req: Request) {
     let query = adminSupabase
       .from('messages')
       .select(
-        'id, msg_id, type, msg_type, title, content, body, is_read, user_id, action_link, created_at, sender_id, status'
+        'id, msg_id, type, msg_type, title, content, body, is_read, user_id, action_link, created_at, sender_id, status, audience'
       )
       .is('deleted_at', null)            // 关键：排除软删除行
       .order('created_at', { ascending: false });
 
     if (userId) {
-      query = query.or(`user_id.is.null,user_id.eq.${userId}`);
+      // 個人消息 OR 僅面向用戶的廣播（排除運營/內部 audience=admin_only）
+      query = query.or(
+        `user_id.eq.${userId},and(user_id.is.null,audience.eq.users)`
+      );
     } else {
-      query = query.is('user_id', null);
+      query = query.is('user_id', null).eq('audience', 'users');
     }
 
     const { data, error } = await query;
@@ -80,9 +83,11 @@ export async function POST(req: Request) {
       content?: string;
       actionLink?: string | null;
       senderId?: string | null;
+      /** users = 用戶端可見；admin_only = 僅管理後台查詢，禁止出現在用戶收件箱 */
+      audience?: 'users' | 'admin_only';
     };
 
-    const { userId, type, msgType, title, content, actionLink, senderId } = body;
+    const { userId, type, msgType, title, content, actionLink, senderId, audience } = body;
 
     if (!title || !content || (!type && !msgType)) {
       return NextResponse.json(
@@ -92,6 +97,8 @@ export async function POST(req: Request) {
     }
 
     const resolvedMsgType = (msgType ?? type ?? 'system').toLowerCase();
+    const resolvedAudience =
+      audience === 'admin_only' ? 'admin_only' : 'users';
 
     const { error } = await adminSupabase.from('messages').insert({
       user_id: userId ?? null,
@@ -101,6 +108,7 @@ export async function POST(req: Request) {
       content,
       body: content,              // 同步写入旧 body 列，保持向后兼容
       status: 'sent',
+      audience: resolvedAudience,
       ...(actionLink != null ? { action_link: actionLink } : {}),
       ...(senderId != null ? { sender_id: senderId } : {}),
     });
