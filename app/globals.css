@@ -1,11 +1,42 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
 
-/* ─── 與 TikTok 級緊湊底欄對齊：約 44px 圖標列 + 系統安全區 ─── */
+/* PWA 全螢幕無網址列：騰出約一行網址列高度，底欄整塊操作區下移 */
+:root {
+  --bottom-nav-pwa-extra-top: 0px;
+}
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  :root {
+    --bottom-nav-pwa-extra-top: 44px;
+  }
+}
+
+/* ─── 底欄總高度 + 安全區；PWA 時含 --bottom-nav-pwa-extra-top ─── */
 @media (max-width: 767px) {
   .pb-bottom-nav-safe {
-    padding-bottom: calc(2.75rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(
+      2.75rem + var(--bottom-nav-pwa-extra-top, 0px) + env(safe-area-inset-bottom, 0px)
+    );
   }
+}
+
+/* 底欄掛到 body 時強制貼齊視窗最底（避免父層 transform / 佈局導致 fixed 錯位） */
+.mobile-bottom-nav-root {
+  position: fixed !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  z-index: 10000 !important;
+  padding-bottom: constant(safe-area-inset-bottom);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  /* 一般移動端：頂部略留；PWA 再加約網址列高度，圖標+字整體下移 */
+  padding-top: calc(8px + var(--bottom-nav-pwa-extra-top, 0px));
+  padding-left: 4px;
+  padding-right: 4px;
 }
 
 /* ─── HKAIIFF Global Reset ─────────────────────────────────────────────────── */
@@ -323,7 +354,9 @@ input[type="range"]::-webkit-slider-runnable-track {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding-bottom: calc(2.75rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(
+    2.75rem + var(--bottom-nav-pwa-extra-top, 0px) + env(safe-area-inset-bottom, 0px)
+  );
   pointer-events: none;
 }
 .ui-content {

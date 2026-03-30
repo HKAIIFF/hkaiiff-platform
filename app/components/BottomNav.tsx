@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useI18n } from "@/app/context/I18nContext";
@@ -15,6 +16,11 @@ export default function BottomNav() {
   const { t } = useI18n();
   const { ready, authenticated } = usePrivy();
   const [showConsent, setShowConsent] = useState(false);
+  const [portalEl, setPortalEl] = useState<HTMLElement | null>(null);
+
+  useLayoutEffect(() => {
+    setPortalEl(document.body);
+  }, []);
 
   const NAV_ITEMS = [
     { href: "/", icon: "fa-home", label: t("nav_feed") },
@@ -35,20 +41,11 @@ export default function BottomNav() {
     router.push(href);
   };
 
-  return (
-    <>
-    {/* 同意弹窗（受控模式） */}
-    <PrivyLoginWithConsent
-      open={showConsent}
-      onClose={() => setShowConsent(false)}
-    />
-
-    {/* 對齊 TikTok 類底欄：標籤貼近 Home 條，僅保留系統 safe-area + 1px；列用 items-end 減少標籤下方黑帶 */}
+  const bar = (
     <div
-      className="md:hidden fixed bottom-0 left-0 w-full z-[999] bg-black/98 backdrop-blur-xl border-t border-[#1e1e1e] flex justify-between items-end px-1 pt-0.5"
-      style={{
-        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1px)",
-      }}
+      className="mobile-bottom-nav-root md:hidden flex justify-between items-end bg-black/98 backdrop-blur-xl border-t border-[#1e1e1e]"
+      role="navigation"
+      aria-label="Main"
     >
       {NAV_ITEMS.map((item, i) => {
         const isProtected = PROTECTED_HREFS.has(item.href);
@@ -57,8 +54,9 @@ export default function BottomNav() {
           return (
             <button
               key={item.href}
+              type="button"
               onClick={() => handleProtectedNav(item.href)}
-              className="flex flex-col items-center w-1/5 relative -top-1.5 group cursor-pointer bg-transparent border-0 p-0 outline-none focus:outline-none [-webkit-tap-highlight-color:transparent]"
+              className="flex flex-col items-center justify-end w-1/5 min-h-[3rem] relative -top-0.5 group cursor-pointer bg-transparent border-0 p-0 outline-none focus:outline-none [-webkit-tap-highlight-color:transparent]"
             >
               <div
                 className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg rotate-45 group-active:scale-95 transition-all border-2 shadow-[0_0_14px_rgba(204,255,0,0.28)] ${
@@ -74,7 +72,7 @@ export default function BottomNav() {
         }
 
         const active = isActive(item.href);
-        const itemClass = `nav-item flex flex-col items-center gap-0 w-1/5 pb-px transition-colors cursor-pointer outline-none focus:outline-none [-webkit-tap-highlight-color:transparent] ${
+        const itemClass = `nav-item flex flex-col items-center justify-end gap-1.5 w-1/5 min-h-[3rem] pb-0.5 transition-colors cursor-pointer outline-none focus:outline-none [-webkit-tap-highlight-color:transparent] ${
           active ? "text-signal" : "text-gray-500 hover:text-white"
         }`;
 
@@ -82,11 +80,12 @@ export default function BottomNav() {
           return (
             <button
               key={item.href}
+              type="button"
               onClick={() => handleProtectedNav(item.href)}
               className={`${itemClass} bg-transparent border-0 p-0`}
             >
-              <i className={`fas ${item.icon} text-base`} />
-              <span className="text-[7px] font-mono tracking-wider leading-tight">
+              <i className={`fas ${item.icon} text-base shrink-0`} aria-hidden />
+              <span className="text-[8px] font-mono tracking-wider leading-none mt-px">
                 {item.label}
               </span>
             </button>
@@ -94,19 +93,24 @@ export default function BottomNav() {
         }
 
         return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={itemClass}
-          >
-            <i className={`fas ${item.icon} text-base`} />
-            <span className="text-[8px] font-mono tracking-wider leading-none">
+          <Link key={item.href} href={item.href} className={itemClass}>
+            <i className={`fas ${item.icon} text-base shrink-0`} aria-hidden />
+            <span className="text-[8px] font-mono tracking-wider leading-none mt-px">
               {item.label}
             </span>
           </Link>
         );
       })}
     </div>
+  );
+
+  return (
+    <>
+      <PrivyLoginWithConsent
+        open={showConsent}
+        onClose={() => setShowConsent(false)}
+      />
+      {portalEl ? createPortal(bar, portalEl) : null}
     </>
   );
 }
