@@ -1,18 +1,9 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
 
-/*
- * 主內容底部留白：瀏覽器移動端 2.75rem + safe-area。
- * PWA：與瀏覽器同款底欄樣式，另整欄下移「一整個底欄內容高度」(padding-top +2.75rem)，
- *      主內容同步加高留白（5.5rem + safe-area），避免遮擋。
- */
+/* 移動端底欄與主內容底部留白：PWA 與手機瀏覽器同一套，無 display-mode 分支 */
 :root {
   --pb-nav-stack: 2.75rem;
-}
-@media (display-mode: standalone), (display-mode: fullscreen) {
-  :root {
-    --pb-nav-stack: calc(2.75rem + 2.75rem);
-  }
 }
 
 @media (max-width: 767px) {
@@ -21,7 +12,6 @@
   }
 }
 
-/* 移動端瀏覽器 + PWA 共用底欄盒模型（與 BottomNav Tailwind 一致：items-end、圖標字間距） */
 .mobile-bottom-nav-root {
   position: fixed !important;
   left: 0 !important;
@@ -37,13 +27,6 @@
   padding-top: 8px;
   padding-left: 4px;
   padding-right: 4px;
-}
-
-/* 僅 PWA：在「同款樣式」基礎上，頂部再加一整欄高度，把圖標列整體下移到貼近螢幕底 */
-@media (display-mode: standalone), (display-mode: fullscreen) {
-  .mobile-bottom-nav-root {
-    padding-top: calc(8px + 2.75rem) !important;
-  }
 }
 
 /* ─── HKAIIFF Global Reset ─────────────────────────────────────────────────── */
