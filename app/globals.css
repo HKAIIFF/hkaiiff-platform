@@ -1,26 +1,26 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
 
-/* PWA 全螢幕無網址列：騰出約一行網址列高度，底欄整塊操作區下移 */
+/*
+ * 主內容底部留白：僅 PWA（standalone/fullscreen）用 4rem，與最初 pb-16 時代一致；
+ * 移動端瀏覽器維持 2.75rem（不改行為）。
+ */
 :root {
-  --bottom-nav-pwa-extra-top: 0px;
+  --pb-nav-stack: 2.75rem;
 }
 @media (display-mode: standalone), (display-mode: fullscreen) {
   :root {
-    --bottom-nav-pwa-extra-top: 44px;
+    --pb-nav-stack: 4rem;
   }
 }
 
-/* ─── 底欄總高度 + 安全區；PWA 時含 --bottom-nav-pwa-extra-top ─── */
 @media (max-width: 767px) {
   .pb-bottom-nav-safe {
-    padding-bottom: calc(
-      2.75rem + var(--bottom-nav-pwa-extra-top, 0px) + env(safe-area-inset-bottom, 0px)
-    );
+    padding-bottom: calc(var(--pb-nav-stack) + env(safe-area-inset-bottom, 0px));
   }
 }
 
-/* 底欄掛到 body 時強制貼齊視窗最底（避免父層 transform / 佈局導致 fixed 錯位） */
+/* 移動端瀏覽器底欄（維持現狀）：貼底 + 安全區 + 頂部 8px */
 .mobile-bottom-nav-root {
   position: fixed !important;
   left: 0 !important;
@@ -33,10 +33,42 @@
   z-index: 10000 !important;
   padding-bottom: constant(safe-area-inset-bottom);
   padding-bottom: env(safe-area-inset-bottom, 0px);
-  /* 一般移動端：頂部略留；PWA 再加約網址列高度，圖標+字整體下移 */
-  padding-top: calc(8px + var(--bottom-nav-pwa-extra-top, 0px));
+  padding-top: 8px;
   padding-left: 4px;
   padding-right: 4px;
+}
+
+/* 僅 PWA：底欄高度還原至首輪修改前 BottomNav，!important 覆寫 Tailwind */
+@media (display-mode: standalone), (display-mode: fullscreen) {
+  .mobile-bottom-nav-root {
+    height: calc(62px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-top: 0 !important;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 20px) !important;
+    align-items: center !important;
+  }
+  .mobile-bottom-nav-root .nav-item {
+    gap: 0.125rem !important;
+    min-height: 0 !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding-bottom: 0 !important;
+  }
+  .mobile-bottom-nav-root .nav-item span {
+    margin-top: 0 !important;
+  }
+  .mobile-bottom-nav-root .nav-item i {
+    font-size: 1.125rem !important;
+  }
+  .mobile-bottom-nav-root .bottom-nav-upload {
+    min-height: 0 !important;
+    justify-content: center !important;
+    top: -0.75rem !important;
+    position: relative !important;
+  }
+  .mobile-bottom-nav-root .bottom-nav-upload > div {
+    width: 2.75rem !important;
+    height: 2.75rem !important;
+  }
 }
 
 /* ─── HKAIIFF Global Reset ─────────────────────────────────────────────────── */
@@ -354,9 +386,7 @@ input[type="range"]::-webkit-slider-runnable-track {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding-bottom: calc(
-    2.75rem + var(--bottom-nav-pwa-extra-top, 0px) + env(safe-area-inset-bottom, 0px)
-  );
+  padding-bottom: calc(var(--pb-nav-stack) + env(safe-area-inset-bottom, 0px));
   pointer-events: none;
 }
 .ui-content {
