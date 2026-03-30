@@ -95,7 +95,9 @@ function FeedItem({ film, timeLeft }: { film: Film; timeLeft: number }) {
         {/* ── UI Overlay ── */}
         <div
           className="absolute inset-0 z-10 flex flex-col justify-end pointer-events-none"
-          style={{ paddingBottom: "90px" }}
+          style={{
+            paddingBottom: "calc(4rem + env(safe-area-inset-bottom, 0px))",
+          }}
         >
           <div
             className="flex justify-between items-end pointer-events-none"
