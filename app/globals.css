@@ -2,15 +2,16 @@
 @config "../tailwind.config.ts";
 
 /*
- * 主內容底部留白：僅 PWA（standalone/fullscreen）用 4rem，與最初 pb-16 時代一致；
- * 移動端瀏覽器維持 2.75rem（不改行為）。
+ * 主內容底部留白：瀏覽器移動端 2.75rem + safe-area。
+ * PWA：與瀏覽器同款底欄樣式，另整欄下移「一整個底欄內容高度」(padding-top +2.75rem)，
+ *      主內容同步加高留白（5.5rem + safe-area），避免遮擋。
  */
 :root {
   --pb-nav-stack: 2.75rem;
 }
 @media (display-mode: standalone), (display-mode: fullscreen) {
   :root {
-    --pb-nav-stack: 4rem;
+    --pb-nav-stack: calc(2.75rem + 2.75rem);
   }
 }
 
@@ -20,7 +21,7 @@
   }
 }
 
-/* 移動端瀏覽器底欄（維持現狀）：貼底 + 安全區 + 頂部 8px */
+/* 移動端瀏覽器 + PWA 共用底欄盒模型（與 BottomNav Tailwind 一致：items-end、圖標字間距） */
 .mobile-bottom-nav-root {
   position: fixed !important;
   left: 0 !important;
@@ -38,36 +39,10 @@
   padding-right: 4px;
 }
 
-/* 僅 PWA：底欄高度還原至首輪修改前 BottomNav，!important 覆寫 Tailwind */
+/* 僅 PWA：在「同款樣式」基礎上，頂部再加一整欄高度，把圖標列整體下移到貼近螢幕底 */
 @media (display-mode: standalone), (display-mode: fullscreen) {
   .mobile-bottom-nav-root {
-    height: calc(62px + env(safe-area-inset-bottom, 0px)) !important;
-    padding-top: 0 !important;
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 20px) !important;
-    align-items: center !important;
-  }
-  .mobile-bottom-nav-root .nav-item {
-    gap: 0.125rem !important;
-    min-height: 0 !important;
-    justify-content: center !important;
-    align-items: center !important;
-    padding-bottom: 0 !important;
-  }
-  .mobile-bottom-nav-root .nav-item span {
-    margin-top: 0 !important;
-  }
-  .mobile-bottom-nav-root .nav-item i {
-    font-size: 1.125rem !important;
-  }
-  .mobile-bottom-nav-root .bottom-nav-upload {
-    min-height: 0 !important;
-    justify-content: center !important;
-    top: -0.75rem !important;
-    position: relative !important;
-  }
-  .mobile-bottom-nav-root .bottom-nav-upload > div {
-    width: 2.75rem !important;
-    height: 2.75rem !important;
+    padding-top: calc(8px + 2.75rem) !important;
   }
 }
 

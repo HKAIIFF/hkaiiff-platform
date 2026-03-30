@@ -56,7 +56,7 @@ export default function BottomNav() {
               key={item.href}
               type="button"
               onClick={() => handleProtectedNav(item.href)}
-              className="bottom-nav-upload flex flex-col items-center justify-end w-1/5 min-h-[3rem] relative -top-0.5 group cursor-pointer bg-transparent border-0 p-0 outline-none focus:outline-none [-webkit-tap-highlight-color:transparent]"
+              className="flex flex-col items-center justify-end w-1/5 min-h-[3rem] relative -top-0.5 group cursor-pointer bg-transparent border-0 p-0 outline-none focus:outline-none [-webkit-tap-highlight-color:transparent]"
             >
               <div
                 className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg rotate-45 group-active:scale-95 transition-all border-2 shadow-[0_0_14px_rgba(204,255,0,0.28)] ${
