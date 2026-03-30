@@ -1,10 +1,10 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
 
-/* ─── 移動端主內容底部留白：≈原 pb-16(4rem) + 安全區，避免重複疊出巨大黑帶 ─── */
+/* ─── 移動端主內容底部留白：再減半（2rem + 安全區）─── */
 @media (max-width: 767px) {
   .pb-bottom-nav-safe {
-    padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -323,15 +323,15 @@ input[type="range"]::-webkit-slider-runnable-track {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  /* 與底欄高度對齊，避免 90px + 高底欄疊成大片黑空 */
-  padding-bottom: calc(4rem + env(safe-area-inset-bottom, 0px));
+  /* 與底欄留白同比例減半 */
+  padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
   pointer-events: none;
 }
 .ui-content {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  padding: 0 16px 20px 16px;
+  padding: 0 16px 10px 16px;
   pointer-events: none;
 }
 .ui-left {

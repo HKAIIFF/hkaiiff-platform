@@ -45,9 +45,9 @@ export default function BottomNav() {
 
     {/* 移動端底欄：緊貼螢幕底；僅在 Home 指示條區加 minimal safe-area（略高於最初版，避免離譜大黑邊） */}
     <div
-      className="md:hidden fixed bottom-0 left-0 w-full z-[999] bg-black/98 backdrop-blur-xl border-t border-[#1e1e1e] flex justify-between items-center px-1 pt-1.5"
+      className="md:hidden fixed bottom-0 left-0 w-full z-[999] bg-black/98 backdrop-blur-xl border-t border-[#1e1e1e] flex justify-between items-center px-1 pt-1"
       style={{
-        paddingBottom: "max(6px, calc(env(safe-area-inset-bottom, 0px) + 4px))",
+        paddingBottom: "max(3px, calc(env(safe-area-inset-bottom, 0px) + 2px))",
       }}
     >
       {NAV_ITEMS.map((item, i) => {

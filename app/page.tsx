@@ -366,7 +366,7 @@ function MobileFeedItem({
           </div>
         </div>
         <div
-          className="layer-user flex flex-col justify-end pb-24 px-4 bg-cover bg-center"
+          className="layer-user flex flex-col justify-end pb-12 px-4 bg-cover bg-center"
           style={{ backgroundImage: `linear-gradient(to top, #000 0%, transparent 50%), url('${posterSrc ?? ""}')` }}
         >
           <div className="user-frame" />
