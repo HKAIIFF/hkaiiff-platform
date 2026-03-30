@@ -43,11 +43,11 @@ export default function BottomNav() {
       onClose={() => setShowConsent(false)}
     />
 
-    {/* 移動端底欄：緊貼螢幕底；僅在 Home 指示條區加 minimal safe-area（略高於最初版，避免離譜大黑邊） */}
+    {/* 對齊 TikTok 類底欄：標籤貼近 Home 條，僅保留系統 safe-area + 1px；列用 items-end 減少標籤下方黑帶 */}
     <div
-      className="md:hidden fixed bottom-0 left-0 w-full z-[999] bg-black/98 backdrop-blur-xl border-t border-[#1e1e1e] flex justify-between items-center px-1 pt-1"
+      className="md:hidden fixed bottom-0 left-0 w-full z-[999] bg-black/98 backdrop-blur-xl border-t border-[#1e1e1e] flex justify-between items-end px-1 pt-0.5"
       style={{
-        paddingBottom: "max(3px, calc(env(safe-area-inset-bottom, 0px) + 2px))",
+        paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1px)",
       }}
     >
       {NAV_ITEMS.map((item, i) => {
@@ -58,23 +58,23 @@ export default function BottomNav() {
             <button
               key={item.href}
               onClick={() => handleProtectedNav(item.href)}
-              className="flex flex-col items-center w-1/5 relative -top-2.5 group cursor-pointer bg-transparent border-0 p-0 outline-none focus:outline-none [-webkit-tap-highlight-color:transparent]"
+              className="flex flex-col items-center w-1/5 relative -top-1.5 group cursor-pointer bg-transparent border-0 p-0 outline-none focus:outline-none [-webkit-tap-highlight-color:transparent]"
             >
               <div
-                className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl rotate-45 group-active:scale-95 transition-all border-2 shadow-[0_0_16px_rgba(204,255,0,0.3)] ${
+                className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg rotate-45 group-active:scale-95 transition-all border-2 shadow-[0_0_14px_rgba(204,255,0,0.28)] ${
                   isActive(item.href)
                     ? "bg-white border-white"
                     : "bg-signal border-black"
                 }`}
               >
-                <i className="fas fa-plus -rotate-45 text-black text-base" />
+                <i className="fas fa-plus -rotate-45 text-black text-sm" />
               </div>
             </button>
           );
         }
 
         const active = isActive(item.href);
-        const itemClass = `nav-item flex flex-col items-center gap-0.5 w-1/5 transition-colors cursor-pointer outline-none focus:outline-none [-webkit-tap-highlight-color:transparent] ${
+        const itemClass = `nav-item flex flex-col items-center gap-0 w-1/5 pb-px transition-colors cursor-pointer outline-none focus:outline-none [-webkit-tap-highlight-color:transparent] ${
           active ? "text-signal" : "text-gray-500 hover:text-white"
         }`;
 
@@ -85,8 +85,8 @@ export default function BottomNav() {
               onClick={() => handleProtectedNav(item.href)}
               className={`${itemClass} bg-transparent border-0 p-0`}
             >
-              <i className={`fas ${item.icon} text-lg`} />
-              <span className="text-[8px] font-mono tracking-wider leading-none">
+              <i className={`fas ${item.icon} text-base`} />
+              <span className="text-[7px] font-mono tracking-wider leading-tight">
                 {item.label}
               </span>
             </button>
@@ -99,7 +99,7 @@ export default function BottomNav() {
             href={item.href}
             className={itemClass}
           >
-            <i className={`fas ${item.icon} text-lg`} />
+            <i className={`fas ${item.icon} text-base`} />
             <span className="text-[8px] font-mono tracking-wider leading-none">
               {item.label}
             </span>

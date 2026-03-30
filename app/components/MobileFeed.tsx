@@ -96,7 +96,7 @@ function FeedItem({ film, timeLeft }: { film: Film; timeLeft: number }) {
         <div
           className="absolute inset-0 z-10 flex flex-col justify-end pointer-events-none"
           style={{
-            paddingBottom: "calc(2rem + env(safe-area-inset-bottom, 0px))",
+            paddingBottom: "calc(2.75rem + env(safe-area-inset-bottom, 0px))",
           }}
         >
           <div
@@ -263,7 +263,7 @@ function FeedItem({ film, timeLeft }: { film: Film; timeLeft: number }) {
             display: "flex",
             flexDirection: "column",
             justifyContent: "flex-end",
-            paddingBottom: "3rem",
+            paddingBottom: "2.75rem",
             paddingLeft: "16px",
             paddingRight: "16px",
           }}

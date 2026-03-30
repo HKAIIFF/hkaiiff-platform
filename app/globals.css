@@ -1,10 +1,10 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
 
-/* ─── 移動端主內容底部留白：再減半（2rem + 安全區）─── */
+/* ─── 與 TikTok 級緊湊底欄對齊：約 44px 圖標列 + 系統安全區 ─── */
 @media (max-width: 767px) {
   .pb-bottom-nav-safe {
-    padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(2.75rem + env(safe-area-inset-bottom, 0px));
   }
 }
 
@@ -323,15 +323,14 @@ input[type="range"]::-webkit-slider-runnable-track {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  /* 與底欄留白同比例減半 */
-  padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(2.75rem + env(safe-area-inset-bottom, 0px));
   pointer-events: none;
 }
 .ui-content {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  padding: 0 16px 10px 16px;
+  padding: 0 16px 6px 16px;
   pointer-events: none;
 }
 .ui-left {
