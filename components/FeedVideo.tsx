@@ -26,6 +26,10 @@ export interface FeedVideoProps {
   src?: string;
   /** 封面图 URL，视频加载前展示，节省首屏流量 */
   poster?: string;
+  /**
+   * 畫面填充：contain = 保持比例、黑邊補齊（Feed 預設）；cover = 鋪滿裁切（舊版 TikTok 風格）
+   */
+  objectFit?: "contain" | "cover";
   /** className 透传给 <video> 标签 */
   className?: string;
   /** style 透传给 <video> 标签 */
@@ -53,6 +57,7 @@ function isHlsUrl(url: string): boolean {
 export default function FeedVideo({
   src,
   poster,
+  objectFit = "contain",
   className,
   style,
   muted = true,
@@ -96,9 +101,12 @@ export default function FeedVideo({
       // ── HLS 分支 ────────────────────────────────────────────────────────────
       if (Hls.isSupported()) {
         const hls = new Hls({
-          startLevel: -1,       // 自动选择起始画质
-          maxBufferLength: 10,  // 最大缓冲 10s，节省内存与带宽
-          maxMaxBufferLength: 20,
+          startLevel: -1,
+          /* 略增緩衝，減少 ABR 過早鎖低碼率；仍低於長視頻頁以控制 Feed 流量 */
+          maxBufferLength: 25,
+          maxMaxBufferLength: 50,
+          /* 依播放器像素尺寸上限選檔，避免浪費也避免無謂拉超高頻寬 */
+          capLevelToPlayerSize: true,
         });
         hlsRef.current = hls;
 
@@ -177,10 +185,12 @@ export default function FeedVideo({
     };
   }, [init, teardown, visibilityThreshold]);
 
+  const fitClass = objectFit === "cover" ? "object-cover" : "object-contain";
+
   return (
     <video
       ref={videoRef}
-      className={className}
+      className={[fitClass, className].filter(Boolean).join(" ")}
       style={style}
       poster={poster}
       muted={muted}

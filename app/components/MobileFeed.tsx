@@ -71,8 +71,7 @@ function FeedItem({ film, timeLeft }: { film: Film; timeLeft: number }) {
         <FeedVideo
           src={film.videoUrl}
           poster={film.video}
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ opacity: 0.75 }}
+          className="absolute inset-0 w-full h-full bg-black"
           visibilityThreshold={0.7}
         />
 
