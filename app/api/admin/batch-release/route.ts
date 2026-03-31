@@ -19,6 +19,32 @@ function getAdminClient() {
   );
 }
 
+type AdminDb = ReturnType<typeof getAdminClient>;
+
+/**
+ * 與遷移 SQL `generate_batch_job_number()` 一致：BR-YYYYMMDD-NNN（按 UTC 當日已存在批次數 +1）。
+ * 不依賴 PostgREST 暴露的 RPC，避免「schema cache 找不到函數」導致 init 失敗。
+ */
+async function generateBatchJobNumber(db: AdminDb): Promise<string> {
+  const now = new Date();
+  const y = now.getUTCFullYear();
+  const mo = now.getUTCMonth();
+  const d = now.getUTCDate();
+  const startIso = new Date(Date.UTC(y, mo, d, 0, 0, 0, 0)).toISOString();
+  const endIso = new Date(Date.UTC(y, mo, d, 23, 59, 59, 999)).toISOString();
+  const dateStr = `${y}${String(mo + 1).padStart(2, '0')}${String(d).padStart(2, '0')}`;
+
+  const { count, error } = await db
+    .from('batch_releases')
+    .select('id', { count: 'exact', head: true })
+    .gte('created_at', startIso)
+    .lte('created_at', endIso);
+
+  if (error) throw new Error(error.message);
+  const seq = (count ?? 0) + 1;
+  return `BR-${dateStr}-${String(seq).padStart(3, '0')}`;
+}
+
 // ── GET：列出所有批次（含條目） ──────────────────────────────────────────────
 export async function GET(req: Request) {
   try {
@@ -56,9 +82,13 @@ export async function POST(req: NextRequest) {
         notes?: string;
       };
 
-      // 生成業務流水號
-      const { data: jobNumber, error: jnErr } = await db.rpc('generate_batch_job_number');
-      if (jnErr) return NextResponse.json({ error: jnErr.message }, { status: 500 });
+      let jobNumber: string;
+      try {
+        jobNumber = await generateBatchJobNumber(db);
+      } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        return NextResponse.json({ error: msg }, { status: 500 });
+      }
 
       // 建立批次主記錄
       const { data: batch, error: batchErr } = await db
