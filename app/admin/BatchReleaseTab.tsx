@@ -1,7 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { parseSpreadsheet } from "@/lib/utils/parse-csv";
+
+async function parseJsonBody(res: Response): Promise<Record<string, unknown>> {
+  const text = await res.text();
+  if (!text.trim()) return {};
+  try {
+    return JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    throw new Error(`服務器回應不是有效 JSON（HTTP ${res.status}）`);
+  }
+}
 
 // ─── 類型定義 ─────────────────────────────────────────────────────────────────
 interface UserRow {
@@ -250,7 +261,15 @@ function StepIcon({ status }: { status: StepStatus }) {
 }
 
 // ─── 批片發行 Tab 組件（嵌入 Admin 主佈局，無獨立頁殼）────────────────────────
-export function BatchReleaseTab({ adminFetch }: { adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
+export function BatchReleaseTab({
+  adminFetch,
+  getAccessToken,
+  pushToast,
+}: {
+  adminFetch: (url: string, options?: RequestInit) => Promise<Response>;
+  getAccessToken: () => Promise<string | undefined | null>;
+  pushToast: (text: string, ok?: boolean) => void;
+}) {
   const [activeTab, setActiveTab] = useState<"new" | "history">("new");
   const [step, setStep] = useState(1);
   const [usersData, setUsersData] = useState<UserRow[]>([]);
@@ -266,6 +285,8 @@ export function BatchReleaseTab({ adminFetch }: { adminFetch: (url: string, opti
   const [historyLoading, setHistoryLoading] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<BatchRelease | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** init 等致命錯誤：覆蓋層保持打開以便閱讀，避免「一閃即關」 */
+  const [publishFatalError, setPublishFatalError] = useState<string | null>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
 
   // ── 歷史記錄加載 ────────────────────────────────────────────────────────────
@@ -280,7 +301,7 @@ export function BatchReleaseTab({ adminFetch }: { adminFetch: (url: string, opti
     } finally {
       setHistoryLoading(false);
     }
-  }, []);
+  }, [adminFetch]);
 
   useEffect(() => {
     if (activeTab === "history") loadHistory();
@@ -337,6 +358,36 @@ export function BatchReleaseTab({ adminFetch }: { adminFetch: (url: string, opti
   // ── 發行 ─────────────────────────────────────────────────────────────────────
   async function handlePublish() {
     if (matchedCount < filmsData.length) return;
+
+    let token: string | null | undefined;
+    try {
+      token = await getAccessToken();
+    } catch {
+      pushToast("取得登入憑證時發生錯誤，請刷新頁面後重試", false);
+      return;
+    }
+    if (!token?.trim()) {
+      pushToast("無法取得登入憑證，請刷新頁面或重新登入後再試", false);
+      return;
+    }
+
+    for (let i = 0; i < filmsData.length; i++) {
+      const f = filmsData[i];
+      if (!String(f.email ?? "").trim()) {
+        pushToast(`第 ${i + 1} 行影片缺少 email，請檢查表格`, false);
+        return;
+      }
+      if (!String(f.project_title ?? "").trim()) {
+        pushToast(`第 ${i + 1} 行影片缺少標題 project_title`, false);
+        return;
+      }
+      if (!videoFiles[i]) {
+        pushToast(`第 ${i + 1} 行未匹配到預告片文件，請按順序上傳與表格行數相同的影片`, false);
+        return;
+      }
+    }
+
+    setPublishFatalError(null);
     setIsPublishing(true);
     setPublishedCount(0);
     setPublishDone(false);
@@ -350,17 +401,18 @@ export function BatchReleaseTab({ adminFetch }: { adminFetch: (url: string, opti
     }));
     setPublishItems(initial);
 
-    const apiItems = filmsData.map((film) => {
-      const user = usersData.find((u) => u.email === film.email)!;
+    const apiItems = filmsData.map((film, idx) => {
+      const user = usersData.find((u) => u.email === film.email);
+      const email = String(film.email).trim();
       return {
-        user_email: film.email,
+        user_email: email,
         user_password: user?.password ?? "HKaiiff2026!@",
         role: user?.role ?? "creator",
-        verification_name: user?.verification_name ?? film.email,
+        verification_name: (user?.verification_name ?? email).trim() || email,
         bio: user?.bio ?? null,
         about_studio: user?.about_studio ?? null,
         profile_tech_stack: user?.tech_stack ?? null,
-        project_title: film.project_title,
+        project_title: String(film.project_title).trim(),
         conductor_studio: film.conductor_studio ?? null,
         film_tech_stack: film.tech_stack ?? null,
         ai_contribution_ratio: Number(film.ai_contribution_ratio) || 75,
@@ -368,8 +420,8 @@ export function BatchReleaseTab({ adminFetch }: { adminFetch: (url: string, opti
         core_cast: film.core_cast ?? null,
         region: film.region ?? null,
         lbs_festival_royalty: Number(film.lbs_festival_royalty) || 5,
-        contact_email: film.contact_email ?? film.email,
-        video_filename: film.video_filename ?? null,
+        contact_email: (film.contact_email ?? email).trim(),
+        video_filename: film.video_filename ?? videoFiles[idx]?.name ?? null,
       };
     });
 
@@ -378,110 +430,133 @@ export function BatchReleaseTab({ adminFetch }: { adminFetch: (url: string, opti
     try {
       const initRes = await adminFetch("/api/admin/batch-release", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "init", items: apiItems }),
       });
-      const initJson = await initRes.json();
-      if (!initRes.ok || !initJson.batch) throw new Error(initJson.error ?? "初始化批次失敗");
-      batchId = initJson.batch.id;
-      itemIds = (initJson.items as { id: string }[]).map((it) => it.id);
+      const initJson = await parseJsonBody(initRes);
+      const batch = initJson.batch as { id: string } | undefined;
+      if (!initRes.ok || !batch?.id) {
+        const errMsg = typeof initJson.error === "string" ? initJson.error : "初始化批次失敗";
+        throw new Error(errMsg);
+      }
+      batchId = batch.id;
+      const rawItems = initJson.items as { id: string }[] | undefined;
+      if (!rawItems?.length) throw new Error("服務器未返回批次條目 ID");
+      itemIds = rawItems.map((it) => it.id);
       setPublishBatchId(batchId);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
+      setPublishFatalError(msg);
       setError(msg);
-      setIsPublishing(false);
+      pushToast(`批次初始化失敗：${msg}`, false);
       return;
     }
 
     let completedCount = 0;
-    for (let i = 0; i < filmsData.length; i++) {
-      const film = filmsData[i];
-      const user = usersData.find((u) => u.email === film.email)!;
-      const videoFile = videoFiles[i];
-      const itemId = itemIds[i];
+    try {
+      for (let i = 0; i < filmsData.length; i++) {
+        const film = filmsData[i];
+        const user = usersData.find((u) => u.email === film.email);
+        const videoFile = videoFiles[i]!;
+        const itemId = itemIds[i]!;
 
-      const updateStep = (stepKey: keyof ItemProgress["steps"], status: StepStatus) => {
-        setPublishItems((prev) =>
-          prev.map((it) =>
-            it.index === i ? { ...it, steps: { ...it.steps, [stepKey]: status } } : it,
-          ),
-        );
-      };
-
-      try {
-        updateStep("uploadPoster", "running");
-        const posterBlob = await extractPoster(videoFile);
-        const posterFilename = `poster_${videoFile.name.replace(/\.[^.]+$/, "")}.jpg`;
-        const posterUrl = await uploadFile(posterBlob, posterFilename);
-        updateStep("uploadPoster", "done");
-
-        updateStep("uploadVideo", "running");
-        const videoUrl = await uploadTrailerViaBunny(videoFile, film.project_title);
-        updateStep("uploadVideo", "done");
-
-        updateStep("createUser", "running");
-        updateStep("createFilm", "running");
-        const procRes = await adminFetch("/api/admin/batch-release", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            action: "process-item",
-            itemId,
-            batchId,
-            userInfo: {
-              email: user?.email ?? film.email,
-              verification_name: user?.verification_name ?? film.email,
-              role: user?.role ?? "creator",
-              bio: user?.bio,
-            },
-            filmInfo: {
-              project_title: film.project_title,
-              conductor_studio: film.conductor_studio,
-              film_tech_stack: film.tech_stack,
-              ai_contribution_ratio: Number(film.ai_contribution_ratio) || 75,
-              synopsis: film.synopsis,
-              core_cast: film.core_cast,
-              region: film.region,
-              lbs_festival_royalty: Number(film.lbs_festival_royalty) || 5,
-              contact_email: film.contact_email ?? film.email,
-              poster_url: posterUrl,
-              trailer_url: videoUrl,
-            },
-          }),
-        });
-        const procJson = await procRes.json();
-        if (!procRes.ok) throw new Error(procJson.error ?? "記錄創建失敗");
-
-        updateStep("createUser", "done");
-        updateStep("createFilm", "done");
-        completedCount++;
-        setPublishedCount(completedCount);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : String(err);
-        setPublishItems((prev) =>
-          prev.map((it) => (it.index === i ? { ...it, error: msg } : it)),
-        );
-        ["createUser", "uploadPoster", "uploadVideo", "createFilm"].forEach((k) => {
+        const updateStep = (stepKey: keyof ItemProgress["steps"], status: StepStatus) => {
           setPublishItems((prev) =>
-            prev.map((it) => {
-              if (it.index !== i) return it;
-              const s = it.steps[k as keyof ItemProgress["steps"]];
-              return s === "running" || s === "pending"
-                ? { ...it, steps: { ...it.steps, [k]: "error" as StepStatus } }
-                : it;
-            }),
+            prev.map((it) =>
+              it.index === i ? { ...it, steps: { ...it.steps, [stepKey]: status } } : it,
+            ),
           );
-        });
+        };
+
+        try {
+          updateStep("uploadPoster", "running");
+          const posterBlob = await extractPoster(videoFile);
+          const posterFilename = `poster_${videoFile.name.replace(/\.[^.]+$/, "")}.jpg`;
+          const posterUrl = await uploadFile(posterBlob, posterFilename);
+          updateStep("uploadPoster", "done");
+
+          updateStep("uploadVideo", "running");
+          const videoUrl = await uploadTrailerViaBunny(videoFile, film.project_title);
+          updateStep("uploadVideo", "done");
+
+          updateStep("createUser", "running");
+          updateStep("createFilm", "running");
+          const procRes = await adminFetch("/api/admin/batch-release", {
+            method: "POST",
+            body: JSON.stringify({
+              action: "process-item",
+              itemId,
+              batchId,
+              userInfo: {
+                email: String(film.email).trim(),
+                verification_name: (user?.verification_name ?? film.email).trim(),
+                role: user?.role ?? "creator",
+                bio: user?.bio,
+              },
+              filmInfo: {
+                project_title: film.project_title,
+                conductor_studio: film.conductor_studio,
+                film_tech_stack: film.tech_stack,
+                ai_contribution_ratio: Number(film.ai_contribution_ratio) || 75,
+                synopsis: film.synopsis,
+                core_cast: film.core_cast,
+                region: film.region,
+                lbs_festival_royalty: Number(film.lbs_festival_royalty) || 5,
+                contact_email: film.contact_email ?? film.email,
+                poster_url: posterUrl,
+                trailer_url: videoUrl,
+              },
+            }),
+          });
+          const procJson = await parseJsonBody(procRes);
+          if (!procRes.ok) {
+            throw new Error(typeof procJson.error === "string" ? procJson.error : "記錄創建失敗");
+          }
+
+          updateStep("createUser", "done");
+          updateStep("createFilm", "done");
+          completedCount++;
+          setPublishedCount(completedCount);
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          setPublishItems((prev) =>
+            prev.map((it) => (it.index === i ? { ...it, error: msg } : it)),
+          );
+          ["createUser", "uploadPoster", "uploadVideo", "createFilm"].forEach((k) => {
+            setPublishItems((prev) =>
+              prev.map((it) => {
+                if (it.index !== i) return it;
+                const s = it.steps[k as keyof ItemProgress["steps"]];
+                return s === "running" || s === "pending"
+                  ? { ...it, steps: { ...it.steps, [k]: "error" as StepStatus } }
+                  : it;
+              }),
+            );
+          });
+        }
       }
+
+      const doneRes = await adminFetch("/api/admin/batch-release", {
+        method: "POST",
+        body: JSON.stringify({ action: "complete-batch", batchId }),
+      });
+      if (!doneRes.ok) {
+        const j = await parseJsonBody(doneRes);
+        pushToast(typeof j.error === "string" ? j.error : "完成批次狀態更新失敗", false);
+      }
+      setPublishDone(true);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      pushToast(`發行中斷：${msg}`, false);
+      setPublishFatalError(msg);
     }
+  }
 
-    await adminFetch("/api/admin/batch-release", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "complete-batch", batchId }),
-    });
-
-    setPublishDone(true);
+  function closePublishOverlay() {
+    setIsPublishing(false);
+    setPublishFatalError(null);
+    setPublishDone(false);
+    setPublishItems([]);
+    setPublishedCount(0);
   }
 
   // ── STEP 1：用戶信息上傳 ─────────────────────────────────────────────────────
@@ -741,7 +816,8 @@ export function BatchReleaseTab({ adminFetch }: { adminFetch: (url: string, opti
         )}
 
         <button
-          onClick={handlePublish}
+          type="button"
+          onClick={() => void handlePublish()}
           disabled={matchedCount < filmsData.length || filmsData.length === 0}
           className={`w-full py-4 text-xl font-bold rounded-xl transition-colors ${
             matchedCount === filmsData.length && filmsData.length > 0
@@ -759,17 +835,26 @@ export function BatchReleaseTab({ adminFetch }: { adminFetch: (url: string, opti
     );
   }
 
-  // ── 發行進度覆蓋層 ───────────────────────────────────────────────────────────
+  // ── 發行進度覆蓋層（Portal → body，避免 main overflow 裁剪 / z-index 被側欄壓住）──
   function renderPublishOverlay() {
     const totalItems = publishItems.length;
     const pct = totalItems > 0 ? Math.round((publishedCount / totalItems) * 100) : 0;
 
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/80 backdrop-blur-sm p-4">
-        <div className={`${CARD} w-full max-w-2xl max-h-[90vh] flex flex-col`}>
+    const node = (
+      <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-neutral-900/80 backdrop-blur-sm p-4">
+        <div className={`${CARD} w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl`}>
+          {publishFatalError && (
+            <div className="border-b border-red-200 bg-red-50 px-6 py-4 shrink-0">
+              <p className="text-sm font-black text-red-900">發行已中斷</p>
+              <p className="text-xs text-red-800 mt-1.5 whitespace-pre-wrap break-words">{publishFatalError}</p>
+              <button type="button" className={`${BTN_PRIMARY} mt-3`} onClick={closePublishOverlay}>
+                關閉
+              </button>
+            </div>
+          )}
           <div className="border-b border-neutral-100 px-6 py-5">
             <p className="text-lg font-black text-neutral-900">
-              {publishDone ? "✅ 發行完成" : "正在發行 · Processing..."}
+              {publishDone ? "✅ 發行完成" : publishFatalError ? "發行失敗" : "正在發行 · Processing..."}
             </p>
             <div className="mt-3">
               <div className="flex justify-between text-xs text-neutral-500 mb-1.5">
@@ -819,24 +904,23 @@ export function BatchReleaseTab({ adminFetch }: { adminFetch: (url: string, opti
           {publishDone && (
             <div className="border-t border-neutral-100 px-6 py-4 flex gap-3 justify-end">
               <button
+                type="button"
                 className={BTN_GHOST}
                 onClick={() => {
-                  setIsPublishing(false);
+                  closePublishOverlay();
                   setStep(1);
                   setUsersData([]);
                   setFilmsData([]);
                   setVideoFiles([]);
-                  setPublishItems([]);
-                  setPublishedCount(0);
-                  setPublishDone(false);
                 }}
               >
                 新建批次
               </button>
               <button
+                type="button"
                 className={BTN_PRIMARY}
                 onClick={() => {
-                  setIsPublishing(false);
+                  closePublishOverlay();
                   setActiveTab("history");
                 }}
               >
@@ -847,21 +931,23 @@ export function BatchReleaseTab({ adminFetch }: { adminFetch: (url: string, opti
         </div>
       </div>
     );
+    return typeof document !== "undefined" ? createPortal(node, document.body) : null;
   }
 
   // ── 批次詳情 Modal ───────────────────────────────────────────────────────────
   function renderDetailModal() {
     if (!selectedBatch) return null;
     const items = selectedBatch.batch_release_items ?? [];
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/40 backdrop-blur-sm p-4">
-        <div className={`${CARD} w-full max-w-3xl max-h-[90vh] flex flex-col`}>
+    const node = (
+      <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-neutral-900/40 backdrop-blur-sm p-4">
+        <div className={`${CARD} w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl`}>
           <div className="border-b border-neutral-100 px-6 py-4 flex items-start justify-between">
             <div>
               <p className="font-black text-neutral-900">批次詳情 {selectedBatch.job_number}</p>
               <p className="text-xs text-neutral-400 mt-0.5">{formatDate(selectedBatch.created_at)}</p>
             </div>
             <button
+              type="button"
               onClick={() => setSelectedBatch(null)}
               className="text-neutral-400 hover:text-neutral-700 text-xl leading-none"
             >
@@ -934,6 +1020,7 @@ export function BatchReleaseTab({ adminFetch }: { adminFetch: (url: string, opti
         </div>
       </div>
     );
+    return typeof document !== "undefined" ? createPortal(node, document.body) : null;
   }
 
   // ── 歷史記錄 Tab ─────────────────────────────────────────────────────────────

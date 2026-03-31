@@ -7,16 +7,15 @@ import { supabase } from "@/lib/supabase";
 import { revalidateFeed } from "@/app/actions/revalidate";
 import { BatchReleaseTab } from "./BatchReleaseTab";
 
-// 模块级 adminFetch，接收 token 参数供子组件使用
+// 模块级 adminFetch，接收 token 参数供子组件使用（Headers 正規合併，避免物件展開失效）
 async function adminFetch(url: string, options: RequestInit = {}, token?: string | null) {
-  return fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers as Record<string, string> ?? {}),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-  });
+  const headers = new Headers(options.headers as HeadersInit | undefined);
+  const body = options.body;
+  if (typeof body === "string" && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  return fetch(url, { ...options, headers });
 }
 
 // ─── 類型定義 ───────────────────────────────────────────────────────────────
@@ -5710,7 +5709,13 @@ export default function AdminPage() {
       case "dist:lbs": return <DistLbsTab t={t} pushToast={pushToast} adminFetch={boundAdminFetch} />;
       case "dist:online": return <DistOnlineTab t={t} />;
       case "dist:official": return <DistOfficialTab pushToast={pushToast} adminFetch={boundAdminFetch} />;
-      case "dist:batch": return <BatchReleaseTab adminFetch={boundAdminFetch} />;
+      case "dist:batch": return (
+        <BatchReleaseTab
+          adminFetch={boundAdminFetch}
+          getAccessToken={getAccessToken}
+          pushToast={pushToast}
+        />
+      );
       case "eco:human": return <EcoHumanTab t={t} pushToast={pushToast} askConfirm={askConfirm} adminFetch={boundAdminFetch} />;
       case "eco:bot": return <EcoBotTab t={t} pushToast={pushToast} askConfirm={askConfirm} />;
       case "ai:models": return <div className="flex flex-col items-center justify-center h-64 gap-4"><div className="text-4xl">🚧</div><p className="text-lg font-semibold text-neutral-600">功能開發中</p><p className="text-sm text-neutral-400">敬請期待，即將上線</p></div>;
