@@ -128,6 +128,53 @@ async function uploadFile(file: File | Blob, filename: string, title?: string): 
   return json.url as string;
 }
 
+function uploadTrailerViaBunny(file: File, title?: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    (async () => {
+      const credRes = await fetch("/api/upload/video-credential", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: title?.trim() || file.name }),
+      });
+      const ct = credRes.headers.get("content-type") ?? "";
+      if (!ct.includes("application/json")) {
+        const raw = await credRes.text();
+        throw new Error(`獲取上傳憑證失敗（HTTP ${credRes.status}）：${raw.slice(0, 300)}`);
+      }
+      const cred = (await credRes.json()) as {
+        success?: boolean;
+        error?: string;
+        videoId?: string;
+        uploadUrl?: string;
+        accessKey?: string;
+        cdnHostname?: string;
+      };
+      if (!credRes.ok || !cred.success) {
+        throw new Error(cred.error ?? `獲取上傳憑證失敗（HTTP ${credRes.status}）`);
+      }
+      if (!cred.videoId || !cred.uploadUrl || !cred.accessKey || !cred.cdnHostname) {
+        throw new Error("上傳憑證字段不完整，請檢查 Bunny 環境變量");
+      }
+      const { videoId, uploadUrl, accessKey, cdnHostname } = cred;
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", uploadUrl);
+      xhr.setRequestHeader("AccessKey", accessKey);
+      xhr.setRequestHeader("Content-Type", "application/octet-stream");
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(`https://${cdnHostname}/${videoId}/playlist.m3u8`);
+        } else {
+          reject(new Error(`影片上傳失敗（HTTP ${xhr.status}）：${xhr.responseText.slice(0, 200)}`));
+        }
+      };
+      xhr.onerror = () => reject(new Error("影片上傳網絡錯誤"));
+      xhr.ontimeout = () => reject(new Error("影片上傳超時"));
+      xhr.timeout = 0;
+      xhr.send(file);
+    })().catch(reject);
+  });
+}
+
 // ─── 樣式常量 ─────────────────────────────────────────────────────────────────
 const CARD = "bg-white border border-neutral-200 rounded-2xl";
 const BTN_PRIMARY = "rounded-full px-5 py-2 text-sm font-semibold bg-[#1a73e8] text-white hover:opacity-90 transition-opacity active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed";
@@ -376,7 +423,7 @@ export default function BatchReleasePage() {
 
         // c. 上傳視頻
         updateStep("uploadVideo", "running");
-        const videoUrl = await uploadFile(videoFile, videoFile.name, film.project_title);
+        const videoUrl = await uploadTrailerViaBunny(videoFile, film.project_title);
         updateStep("uploadVideo", "done");
 
         // d. 建立用戶 + 影片記錄

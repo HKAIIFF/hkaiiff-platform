@@ -111,9 +111,6 @@ export async function POST(req: NextRequest) {
       // 標記條目為處理中
       await db.from('batch_release_items').update({ status: 'processing' }).eq('id', itemId);
 
-      // 生成用戶 ID（batch 前綴以便日後識別）
-      const userId = `batch-${crypto.randomUUID()}`;
-
       // 映射 role → verification_type
       const roleMap: Record<string, string> = {
         creator: 'creator',
@@ -122,27 +119,39 @@ export async function POST(req: NextRequest) {
       };
       const verificationType = roleMap[userInfo.role ?? 'creator'] ?? 'creator';
 
-      // 建立用戶記錄
-      const { error: userErr } = await db.from('users').insert({
-        id: userId,
-        email: userInfo.email,
-        name: userInfo.verification_name,
-        display_name: userInfo.verification_name ?? null,
-        avatar_seed: userInfo.verification_name ?? userId,
-        bio: userInfo.bio ?? null,
-        portfolio: null,
-        tech_stack: null,
-        verified_identities: [],
-        last_sign_in_at: new Date().toISOString(),
-        verification_status: 'approved',
-        verification_type: verificationType,
-      });
+      // 同一郵箱已存在則重用（同一批次多部片或重跑時避免唯一約束失敗）
+      const { data: existingByEmail } = await db
+        .from('users')
+        .select('id')
+        .eq('email', userInfo.email)
+        .maybeSingle();
 
-      if (userErr) {
-        const msg = `建立用戶失敗: ${userErr.message}`;
-        await db.from('batch_release_items').update({ status: 'failed', error_message: msg }).eq('id', itemId);
-        await incrementBatchCounter(db, batchId, 'failed');
-        return NextResponse.json({ error: msg }, { status: 500 });
+      let userId: string;
+      if (existingByEmail?.id) {
+        userId = existingByEmail.id;
+      } else {
+        userId = `batch-${crypto.randomUUID()}`;
+        const { error: userErr } = await db.from('users').insert({
+          id: userId,
+          email: userInfo.email,
+          name: userInfo.verification_name,
+          display_name: userInfo.verification_name ?? null,
+          avatar_seed: userInfo.verification_name ?? userId,
+          bio: userInfo.bio ?? null,
+          portfolio: null,
+          tech_stack: null,
+          verified_identities: [],
+          last_sign_in_at: new Date().toISOString(),
+          verification_status: 'approved',
+          verification_type: verificationType,
+        });
+
+        if (userErr) {
+          const msg = `建立用戶失敗: ${userErr.message}`;
+          await db.from('batch_release_items').update({ status: 'failed', error_message: msg }).eq('id', itemId);
+          await incrementBatchCounter(db, batchId, 'failed');
+          return NextResponse.json({ error: msg }, { status: 500 });
+        }
       }
 
       // 建立影片記錄
@@ -154,12 +163,13 @@ export async function POST(req: NextRequest) {
           studio: filmInfo.conductor_studio ?? null,
           tech_stack: filmInfo.film_tech_stack ?? null,
           ai_ratio: filmInfo.ai_contribution_ratio ?? 75,
-          description: filmInfo.synopsis ?? null,
+          synopsis: filmInfo.synopsis ?? null,
           core_cast: filmInfo.core_cast ?? null,
           region: filmInfo.region ?? null,
           lbs_royalty: filmInfo.lbs_festival_royalty ?? 5,
           poster_url: filmInfo.poster_url,
           trailer_url: filmInfo.trailer_url,
+          video_url: filmInfo.trailer_url,
           contact_email: filmInfo.contact_email ?? userInfo.email,
           status: 'approved',
           is_feed_published: false,
