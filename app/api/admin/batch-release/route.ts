@@ -45,6 +45,84 @@ async function generateBatchJobNumber(db: AdminDb): Promise<string> {
   return `BR-${dateStr}-${String(seq).padStart(3, '0')}`;
 }
 
+/** PostgREST：某欄位在 schema cache 中不存在（線上庫遷移未跑齊時常見） */
+function isPostgrestMissingColumnError(message: string): boolean {
+  return /could not find the '[^']+' column/i.test(message) && /schema cache/i.test(message);
+}
+
+/**
+ * 批片建立的 users 行：由「欄位最多」逐層降級插入，適配未含 verification_type 等欄位的舊庫。
+ */
+async function insertBatchCreatedUser(
+  db: AdminDb,
+  userId: string,
+  userInfo: { email: string; verification_name: string; role?: string; bio?: string | null },
+): Promise<{ error: { message: string } | null }> {
+  const roleMap: Record<string, string> = {
+    creator: 'creator',
+    institution: 'institution',
+    curator: 'curator',
+  };
+  const verificationType = roleMap[userInfo.role ?? 'creator'] ?? 'creator';
+  const now = new Date().toISOString();
+  const name = userInfo.verification_name;
+
+  const tiers: Record<string, unknown>[] = [
+    {
+      id: userId,
+      email: userInfo.email,
+      name,
+      display_name: name ?? null,
+      avatar_seed: name ?? userId,
+      bio: userInfo.bio ?? null,
+      portfolio: null,
+      tech_stack: null,
+      verified_identities: [],
+      last_sign_in_at: now,
+      verification_status: 'approved',
+      verification_type: verificationType,
+    },
+    {
+      id: userId,
+      email: userInfo.email,
+      name,
+      display_name: name ?? null,
+      avatar_seed: name ?? userId,
+      bio: userInfo.bio ?? null,
+      portfolio: null,
+      tech_stack: null,
+      verified_identities: [],
+      last_sign_in_at: now,
+      verification_status: 'approved',
+    },
+    {
+      id: userId,
+      email: userInfo.email,
+      name,
+      display_name: name ?? null,
+      avatar_seed: name ?? userId,
+      bio: userInfo.bio ?? null,
+      last_sign_in_at: now,
+    },
+    {
+      id: userId,
+      email: userInfo.email,
+      name,
+      last_sign_in_at: now,
+    },
+  ];
+
+  let lastMessage = '';
+  for (const payload of tiers) {
+    const { error } = await db.from('users').insert(payload);
+    if (!error) return { error: null };
+    lastMessage = error.message;
+    if (isPostgrestMissingColumnError(error.message)) continue;
+    return { error };
+  }
+  return { error: { message: lastMessage || '建立用戶失敗：users 表欄位與預期不符' } };
+}
+
 // ── GET：列出所有批次（含條目） ──────────────────────────────────────────────
 export async function GET(req: Request) {
   try {
@@ -141,14 +219,6 @@ export async function POST(req: NextRequest) {
       // 標記條目為處理中
       await db.from('batch_release_items').update({ status: 'processing' }).eq('id', itemId);
 
-      // 映射 role → verification_type
-      const roleMap: Record<string, string> = {
-        creator: 'creator',
-        institution: 'institution',
-        curator: 'curator',
-      };
-      const verificationType = roleMap[userInfo.role ?? 'creator'] ?? 'creator';
-
       // 同一郵箱已存在則重用（同一批次多部片或重跑時避免唯一約束失敗）
       const { data: existingByEmail } = await db
         .from('users')
@@ -161,20 +231,7 @@ export async function POST(req: NextRequest) {
         userId = existingByEmail.id;
       } else {
         userId = `batch-${crypto.randomUUID()}`;
-        const { error: userErr } = await db.from('users').insert({
-          id: userId,
-          email: userInfo.email,
-          name: userInfo.verification_name,
-          display_name: userInfo.verification_name ?? null,
-          avatar_seed: userInfo.verification_name ?? userId,
-          bio: userInfo.bio ?? null,
-          portfolio: null,
-          tech_stack: null,
-          verified_identities: [],
-          last_sign_in_at: new Date().toISOString(),
-          verification_status: 'approved',
-          verification_type: verificationType,
-        });
+        const { error: userErr } = await insertBatchCreatedUser(db, userId, userInfo);
 
         if (userErr) {
           const msg = `建立用戶失敗: ${userErr.message}`;
