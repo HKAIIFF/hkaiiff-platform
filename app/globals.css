@@ -38,6 +38,11 @@
   top: 3rem;
 }
 
+/* 全屏 Info 模態頂欄：與 .mobile-top-bar-root 同一垂直基線（含 safe-area），PWA 與手機瀏覽器對齊 */
+.info-modal-top-bar {
+  padding-top: 3rem;
+}
+
 /* 移動端（含手機瀏覽器與 PWA）：頂部 safe-area、底欄貼底、主內容留白與 Feed 等與先前 PWA 修復一致 */
 @media (max-width: 767px) {
   :root {
@@ -75,6 +80,10 @@
 
   .creator-pwa-header-y {
     top: calc(3rem + env(safe-area-inset-top, 0px));
+  }
+
+  .info-modal-top-bar {
+    padding-top: calc(3rem + env(safe-area-inset-top, 0px));
   }
 
   .pwa-festival-modal-header {

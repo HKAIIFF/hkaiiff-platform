@@ -195,7 +195,7 @@ export default function UserPage() {
   const verifiedIds = profile.verified_identities ?? [];
 
   return (
-    <div className="min-h-screen bg-[#050505] flex flex-col pb-28">
+    <div className="min-h-screen bg-[#050505] flex flex-col pb-bottom-nav-safe">
 
       {/* ─── Header Banner ─────────────────────────────────────────────────── */}
       <div className="relative h-52 w-full bg-black overflow-hidden flex-shrink-0">
@@ -211,12 +211,12 @@ export default function UserPage() {
 
         <button
           onClick={() => router.back()}
-          className="absolute top-12 left-4 w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform z-20 outline-none"
+          className="fixed md:absolute creator-pwa-header-y left-4 w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform z-40 md:z-20 outline-none"
         >
           <i className="fas fa-arrow-left" />
         </button>
 
-        <div className="absolute top-12 left-1/2 -translate-x-1/2 font-mono text-[10px] text-signal tracking-widest bg-black/50 px-3 py-1.5 rounded-full backdrop-blur border border-[#333] z-20 whitespace-nowrap">
+        <div className="absolute creator-pwa-header-y left-1/2 -translate-x-1/2 font-mono text-[10px] text-signal tracking-widest bg-black/50 px-3 py-1.5 rounded-full backdrop-blur border border-[#333] z-20 whitespace-nowrap">
           CREATOR PROFILE
         </div>
       </div>

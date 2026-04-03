@@ -371,8 +371,8 @@ export default function GlobalModals() {
           isInfo ? "translate-y-0" : "translate-y-full"
         }`}
       >
-        {/* 顶部导航栏（渐变遮罩，绝对定位浮在海报上） */}
-        <div className="absolute top-0 left-0 w-full z-30 flex justify-between items-center p-4 pt-12 bg-gradient-to-b from-black to-transparent">
+        {/* 顶部导航栏（渐变遮罩，绝对定位浮在海报上；padding 与 MobileTopBar / 手機瀏覽器一致） */}
+        <div className="absolute top-0 left-0 w-full z-30 flex justify-between items-center px-4 pb-2 info-modal-top-bar bg-gradient-to-b from-black to-transparent">
           <button
             onClick={close}
             className="w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform"
@@ -835,12 +835,12 @@ export default function GlobalModals() {
 
       {/* ─── Creator Profile Modal (全屏上推) ────────────────────────────────── */}
       <div
-        className={`fixed inset-0 z-[200] bg-[#050505] flex flex-col transition-transform duration-300 overflow-y-auto ${
+        className={`fixed inset-0 z-[200] bg-[#050505] flex flex-col transition-transform duration-300 ${
           isCreator ? "translate-y-0" : "translate-y-full"
         }`}
       >
-        {/* 顶部导航栏 */}
-        <div className="absolute top-0 left-0 w-full z-30 flex justify-between items-center p-4 pt-12 bg-gradient-to-b from-black to-transparent">
+        {/* 顶部导航栏（與 MobileTopBar 垂直基線一致；僅下方內容區捲動） */}
+        <div className="absolute top-0 left-0 w-full z-30 flex justify-between items-center px-4 pb-2 info-modal-top-bar bg-gradient-to-b from-black to-transparent">
           <button
             onClick={close}
             className="w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform"
@@ -853,6 +853,7 @@ export default function GlobalModals() {
           <div className="w-10" />
         </div>
 
+        <div className="overflow-y-auto flex-1 min-h-0 pb-32">
         {/* 加載中骨架屏 */}
         {isCreatorLoading && (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 pt-24">
@@ -1054,6 +1055,7 @@ export default function GlobalModals() {
             </div>
           </>
         )}
+        </div>
       </div>
     </>
   );

@@ -227,10 +227,10 @@ export default function CreatorPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#111] to-[#050505]" />
         <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/70 to-transparent" />
 
-        {/* Back button */}
+        {/* Back button：移動端 fixed 不隨內容捲動；桌面維持在 banner 內 absolute */}
         <button
           onClick={() => router.back()}
-          className="absolute creator-pwa-header-y left-4 w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform z-20 outline-none focus:outline-none"
+          className="fixed md:absolute creator-pwa-header-y left-4 w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform z-40 md:z-20 outline-none focus:outline-none"
         >
           <i className="fas fa-arrow-left" />
         </button>
