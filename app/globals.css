@@ -1,14 +1,23 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
 
-/* 移動端底欄與主內容底部留白：PWA 與手機瀏覽器同一套，無 display-mode 分支 */
+/* 移動端底欄與主內容底部留白；手機瀏覽器保留 safe-area，PWA standalone 底欄貼齊螢幕下緣 */
 :root {
   --pb-nav-stack: 2.75rem;
+  --pb-bottom-nav-total: calc(var(--pb-nav-stack) + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 767px) {
+  @media (display-mode: standalone), (display-mode: fullscreen) {
+    :root {
+      --pb-bottom-nav-total: var(--pb-nav-stack);
+    }
+  }
 }
 
 @media (max-width: 767px) {
   .pb-bottom-nav-safe {
-    padding-bottom: calc(var(--pb-nav-stack) + env(safe-area-inset-bottom, 0px));
+    padding-bottom: var(--pb-bottom-nav-total);
   }
 }
 
@@ -27,6 +36,14 @@
   padding-top: 8px;
   padding-left: 4px;
   padding-right: 4px;
+}
+
+@media (max-width: 767px) {
+  @media (display-mode: standalone), (display-mode: fullscreen) {
+    .mobile-bottom-nav-root {
+      padding-bottom: 0;
+    }
+  }
 }
 
 /* ─── HKAIIFF Global Reset ─────────────────────────────────────────────────── */
@@ -347,7 +364,7 @@ input[type="range"]::-webkit-slider-runnable-track {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding-bottom: calc(var(--pb-nav-stack) + env(safe-area-inset-bottom, 0px));
+  padding-bottom: var(--pb-bottom-nav-total);
   pointer-events: none;
 }
 .ui-content {
