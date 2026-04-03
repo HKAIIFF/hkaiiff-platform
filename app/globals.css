@@ -1,16 +1,10 @@
 @import "tailwindcss";
 @config "../tailwind.config.ts";
 
-/* 移動端底欄與主內容底部留白；手機瀏覽器保留 safe-area，PWA standalone 底欄貼齊螢幕下緣 */
+/* 桌面：主內容底部留白含底欄區 safe-area */
 :root {
   --pb-nav-stack: 2.75rem;
   --pb-bottom-nav-total: calc(var(--pb-nav-stack) + env(safe-area-inset-bottom, 0px));
-}
-
-@media (max-width: 767px) {
-  .pb-bottom-nav-safe {
-    padding-bottom: var(--pb-bottom-nav-total);
-  }
 }
 
 .mobile-bottom-nav-root {
@@ -30,12 +24,12 @@
   padding-right: 4px;
 }
 
-/* 固定頂欄：手機瀏覽器維持原樣；PWA 另見下方 standalone 區塊 */
+/* 固定頂欄：桌面預設；<md 見下方與手機瀏覽器／PWA 統一 */
 .mobile-top-bar-root {
   padding-top: 3rem;
 }
 
-/* 與 pt-16 / pt-28 對齊的預設值，僅在 PWA 時覆寫 */
+/* 類名沿用 pwa-* 歷史；實際在 max-width:767px 與手機 Safari 等同步生效 */
 .pwa-mobile-content-pt {
   padding-top: 4rem;
 }
@@ -44,58 +38,60 @@
   top: 3rem;
 }
 
-/* PWA standalone / fullscreen：頂部 safe-area、右側避讓小地球、底部留白對齊實際底欄＋按鈕標籤（不改底欄元件高度） */
+/* 移動端（含手機瀏覽器與 PWA）：頂部 safe-area、底欄貼底、主內容留白與 Feed 等與先前 PWA 修復一致 */
 @media (max-width: 767px) {
-  @media (display-mode: standalone), (display-mode: fullscreen) {
-    :root {
-      --pb-bottom-nav-total: calc(var(--pb-nav-stack) + 1.125rem);
-    }
+  :root {
+    --pb-bottom-nav-total: calc(var(--pb-nav-stack) + 1.125rem);
+  }
 
-    .mobile-bottom-nav-root {
-      padding-bottom: 0;
-    }
+  .pb-bottom-nav-safe {
+    padding-bottom: var(--pb-bottom-nav-total);
+  }
 
-    .mobile-top-bar-root {
-      padding-top: calc(3rem + env(safe-area-inset-top, 0px));
-    }
+  .mobile-bottom-nav-root {
+    padding-bottom: 0;
+  }
 
-    /* 獎項頁：與頁內固定返回鈕（top: 1rem + safe）同一基線，小地球與返回同高 */
-    .mobile-top-bar-root.mobile-top-bar-root--awards-pwa {
-      padding-top: calc(1rem + env(safe-area-inset-top, 0px));
-    }
+  .mobile-top-bar-root {
+    padding-top: calc(3rem + env(safe-area-inset-top, 0px));
+  }
 
-    .pwa-mobile-content-pt {
-      padding-top: calc(3rem + 2.5rem + env(safe-area-inset-top, 0px));
-    }
+  /* 獎項頁：與頁內固定返回鈕（top: 1rem + safe）同一基線 */
+  .mobile-top-bar-root.mobile-top-bar-root--awards {
+    padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+  }
 
-    .pwa-me-main-scroll-pt {
-      padding-top: calc(7rem + env(safe-area-inset-top, 0px)) !important;
-    }
+  .pwa-mobile-content-pt {
+    padding-top: calc(3rem + 2.5rem + env(safe-area-inset-top, 0px));
+  }
 
-    .pwa-clear-globe-r {
-      padding-right: 2.75rem;
-    }
+  .pwa-me-main-scroll-pt {
+    padding-top: calc(7rem + env(safe-area-inset-top, 0px)) !important;
+  }
 
-    .creator-pwa-header-y {
-      top: calc(3rem + env(safe-area-inset-top, 0px));
-    }
+  .pwa-clear-globe-r {
+    padding-right: 2.75rem;
+  }
 
-    .pwa-festival-modal-header {
-      padding-top: calc(1rem + env(safe-area-inset-top, 0px));
-    }
+  .creator-pwa-header-y {
+    top: calc(3rem + env(safe-area-inset-top, 0px));
+  }
 
-    .awards-pwa-back-top {
-      top: calc(1rem + env(safe-area-inset-top, 0px)) !important;
-    }
+  .pwa-festival-modal-header {
+    padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+  }
 
-    .awards-pwa-hero-spacer {
-      padding-top: calc(6rem + env(safe-area-inset-top, 0px)) !important;
-      padding-bottom: 6rem;
-    }
+  .awards-mobile-back-top {
+    top: calc(1rem + env(safe-area-inset-top, 0px)) !important;
+  }
 
-    .ui-content {
-      padding-bottom: 0.75rem;
-    }
+  .awards-mobile-hero-spacer {
+    padding-top: calc(6rem + env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: 6rem;
+  }
+
+  .ui-content {
+    padding-bottom: 0.75rem;
   }
 }
 
