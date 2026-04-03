@@ -8,14 +8,6 @@
 }
 
 @media (max-width: 767px) {
-  @media (display-mode: standalone), (display-mode: fullscreen) {
-    :root {
-      --pb-bottom-nav-total: var(--pb-nav-stack);
-    }
-  }
-}
-
-@media (max-width: 767px) {
   .pb-bottom-nav-safe {
     padding-bottom: var(--pb-bottom-nav-total);
   }
@@ -38,10 +30,66 @@
   padding-right: 4px;
 }
 
+/* 固定頂欄：手機瀏覽器維持原樣；PWA 另見下方 standalone 區塊 */
+.mobile-top-bar-root {
+  padding-top: 3rem;
+}
+
+/* 與 pt-16 / pt-28 對齊的預設值，僅在 PWA 時覆寫 */
+.pwa-mobile-content-pt {
+  padding-top: 4rem;
+}
+
+.creator-pwa-header-y {
+  top: 3rem;
+}
+
+/* PWA standalone / fullscreen：頂部 safe-area、右側避讓小地球、底部留白對齊實際底欄＋按鈕標籤（不改底欄元件高度） */
 @media (max-width: 767px) {
   @media (display-mode: standalone), (display-mode: fullscreen) {
+    :root {
+      --pb-bottom-nav-total: calc(var(--pb-nav-stack) + 1.125rem);
+    }
+
     .mobile-bottom-nav-root {
       padding-bottom: 0;
+    }
+
+    .mobile-top-bar-root {
+      padding-top: calc(3rem + env(safe-area-inset-top, 0px));
+    }
+
+    .pwa-mobile-content-pt {
+      padding-top: calc(3rem + 2.5rem + env(safe-area-inset-top, 0px));
+    }
+
+    .pwa-me-main-scroll-pt {
+      padding-top: calc(7rem + env(safe-area-inset-top, 0px)) !important;
+    }
+
+    .pwa-clear-globe-r {
+      padding-right: 2.75rem;
+    }
+
+    .creator-pwa-header-y {
+      top: calc(3rem + env(safe-area-inset-top, 0px));
+    }
+
+    .pwa-festival-modal-header {
+      padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+    }
+
+    .awards-pwa-back-top {
+      top: calc(1rem + env(safe-area-inset-top, 0px)) !important;
+    }
+
+    .awards-pwa-hero-spacer {
+      padding-top: calc(6rem + env(safe-area-inset-top, 0px)) !important;
+      padding-bottom: 6rem;
+    }
+
+    .ui-content {
+      padding-bottom: 0.75rem;
     }
   }
 }

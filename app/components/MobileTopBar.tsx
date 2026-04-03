@@ -10,7 +10,7 @@ export default function MobileTopBar() {
   const showLogo = pathname === "/me";
 
   return (
-    <div className="md:hidden fixed top-0 left-0 w-full z-30 px-4 pt-12 flex justify-between items-start pointer-events-none">
+    <div className="md:hidden mobile-top-bar-root fixed top-0 left-0 w-full z-30 px-4 flex justify-between items-start pointer-events-none">
       {/* Logo — 仅在 /me 页面显示 */}
       {showLogo ? (
         <Link

@@ -936,7 +936,7 @@ function MePageContent() {
 
   /* ─── AUTHENTICATED VIEW ──────────────────────────────────────────────────── */
   return (
-    <div className="flex-1 h-full w-full bg-void flex flex-col relative overflow-y-auto md:overflow-hidden pt-28 md:pt-0 pb-bottom-nav-safe md:pb-0 min-h-screen md:min-h-0">
+    <div className="flex-1 h-full w-full bg-void flex flex-col relative overflow-y-auto md:overflow-hidden pt-28 md:pt-0 pwa-me-main-scroll-pt pb-bottom-nav-safe md:pb-0 min-h-screen md:min-h-0">
       {isHistoryLoading && <CyberLoading text="LOADING PARALLEL UNIVERSE..." />}
 
       {/* ── Desktop Page Header (full-width banner) ──────────────────── */}

@@ -33,7 +33,7 @@ export default function AwardsPage() {
   return (
     <main className="min-h-screen bg-[#050505] text-white overflow-x-hidden">
       {/* ── BACK BUTTON ─────────────────────────────────────────── */}
-      <div className="fixed top-4 left-4 sm:top-6 sm:left-6 z-50">
+      <div className="fixed top-4 left-4 sm:top-6 sm:left-6 z-50 awards-pwa-back-top">
         <BackButton />
       </div>
       {/* ── HERO ────────────────────────────────────────────────── */}
@@ -64,7 +64,7 @@ export default function AwardsPage() {
         {/* Hero content */}
         <motion.div
           style={{ opacity: heroOpacity }}
-          className="relative z-10 w-full max-w-7xl mx-auto px-6 md:px-12 py-24 flex flex-col md:flex-row md:items-center gap-12"
+          className="relative z-10 w-full max-w-7xl mx-auto px-6 md:px-12 py-24 awards-pwa-hero-spacer flex flex-col md:flex-row md:items-center gap-12"
         >
           {/* Left — text */}
           <div className="flex-1 flex flex-col gap-6">

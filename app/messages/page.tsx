@@ -232,11 +232,11 @@ function MobileMessagesView({
   const { t } = useI18n();
   return (
     /* 底部留白與 BottomNav（含 safe-area）對齊 */
-    <div className="min-h-screen w-full bg-[#050505] pt-16 pb-bottom-nav-safe">
+    <div className="min-h-screen w-full bg-[#050505] pwa-mobile-content-pt pb-bottom-nav-safe">
 
       {/* Panel header */}
       <div className="px-4 pb-3 border-b border-[#1a1a1a]">
-        <div className="flex items-end justify-between mb-3">
+        <div className="flex items-end justify-between mb-3 pwa-clear-globe-r">
           <div>
             <h1 className="font-heavy text-2xl text-white tracking-wide leading-none">MESSAGES</h1>
             {unreadCount > 0 && (
@@ -323,7 +323,7 @@ function MobileMessagesView({
         dir={lang === 'ar' ? 'rtl' : 'ltr'}
       >
         {/* Sticky header */}
-        <div className="sticky top-0 z-10 bg-[#050505]/95 backdrop-blur-md border-b border-[#1a1a1a] flex items-center justify-between px-4 py-4">
+        <div className="sticky top-0 z-10 bg-[#050505]/95 backdrop-blur-md border-b border-[#1a1a1a] flex items-center justify-between px-4 py-4 pwa-festival-modal-header">
           <div>
             <div className="text-lg md:text-xl font-bold text-white leading-tight">香港AI國際電影節</div>
             <div className="font-heavy text-base text-white/70 tracking-wider leading-none mt-0.5">HKAIIFF 2026</div>

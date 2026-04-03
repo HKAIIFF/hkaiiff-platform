@@ -155,10 +155,10 @@ function MobileDiscover({
 
   return (
     /* 底部留白與 BottomNav（含 safe-area）對齊 */
-    <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pt-16 pb-bottom-nav-safe relative">
+    <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pwa-mobile-content-pt pb-bottom-nav-safe relative">
 
       {/* Header */}
-      <div className="flex justify-between items-end mb-2">
+      <div className="flex justify-between items-end mb-2 pwa-clear-globe-r">
         <h1 className="font-heavy text-4xl text-white">DISCOVER</h1>
         <div className="flex items-center gap-2 mb-2 bg-[#111] px-2 py-1 rounded border border-[#333]">
           <div className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-honey animate-pulse' : 'bg-signal animate-pulse'}`} />
