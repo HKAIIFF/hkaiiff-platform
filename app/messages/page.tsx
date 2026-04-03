@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { useToast } from '@/app/context/ToastContext';
 import { useI18n } from '@/app/context/I18nContext';
 import Link from 'next/link';
-import DynamicLogoWall from '@/components/DynamicLogoWall';
+import AssociationCopyrightFooter from '@/components/AssociationCopyrightFooter';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -266,21 +266,7 @@ function UnicornAwardsEntryBanner() {
   );
 }
 
-/** 動態 Logo 牆 + 協會／版權（與電影節全屏底部一致，置於消息列表下方） */
-function MessagesAssociationFooter() {
-  return (
-    <div className="w-full px-2 sm:px-3 mt-4 pt-4 border-t border-white/[0.06]">
-      <DynamicLogoWall />
-      <footer className="w-full flex flex-col items-center justify-center py-8 px-2 gap-1.5">
-        <p className="text-[10px] text-gray-500 tracking-widest uppercase text-center">© 2026 All Rights Reserved.</p>
-        <p className="text-[11px] text-gray-400 font-medium tracking-widest mt-1 text-center">香港人工智能國際電影節協會</p>
-        <p className="text-[9px] text-gray-600 tracking-widest uppercase text-center">Hong Kong AI International Film Festival Association</p>
-      </footer>
-    </div>
-  );
-}
-
-/** 電影節介紹全屏（已移除底部獎項 Banner / Logo 牆 / Footer，改置於消息主列表） */
+/** 電影節介紹全屏（底部含 Logo 牆與協會／版權） */
 function FestivalGuideModal({
   open,
   onClose,
@@ -461,6 +447,8 @@ function FestivalGuideModal({
           >
             {t('mobileAbout.joinBtn')}
           </button>
+
+          <AssociationCopyrightFooter />
         </div>
       </div>
     </div>
@@ -486,28 +474,21 @@ interface MobileViewProps {
 function MobileMessagesView({
   loading, activeTab, setActiveTab, filtered, unreadCount, selectedMsg,
   readGlobalMsgs, setIsFestivalOpen, mobileDetailOpen,
-  onSelectMsg, onMarkAllRead, onRead, onDelete, onMobileBack,
+  onSelectMsg, onMarkAllRead: _onMarkAllRead, onRead, onDelete, onMobileBack,
 }: MobileViewProps) {
   return (
     /* 底部留白與 BottomNav（含 safe-area）對齊 */
     <div className="min-h-screen w-full bg-[#050505] pwa-mobile-content-pt pb-bottom-nav-safe">
 
-      {/* Panel header */}
+      {/* Panel header（移動端不顯示 ALL READ，僅在未讀時顯示提示） */}
       <div className="px-4 pb-3 border-b border-[#1a1a1a]">
-        <div className="flex items-center justify-between gap-2 mb-3 pwa-clear-globe-r">
-          <div className="min-h-[1.5rem] flex items-center min-w-0">
-            {unreadCount > 0 ? (
-              <p className="text-[9px] font-mono text-signal tracking-widest">{unreadCount} UNREAD</p>
-            ) : null}
+        {unreadCount > 0 ? (
+          <div className="mb-3 pwa-clear-globe-r">
+            <p className="text-[9px] font-mono text-signal tracking-widest">{unreadCount} UNREAD</p>
           </div>
-          <button
-            type="button"
-            onClick={onMarkAllRead}
-            className="flex shrink-0 items-center gap-1 px-2.5 py-1.5 text-[9px] font-mono text-[#555] border border-[#222] rounded-lg hover:text-signal hover:border-signal/30 transition-all active:scale-90"
-          >
-            <i className="fas fa-check-double text-[8px]" /> ALL READ
-          </button>
-        </div>
+        ) : (
+          <div className="mb-2" />
+        )}
         {/* Tabs */}
         <div className="flex gap-4 border-b border-[#111] -mb-3 pb-0">
           {TABS.map((tab) => (
@@ -559,8 +540,6 @@ function MobileMessagesView({
         )}
       </div>
 
-      <MessagesAssociationFooter />
-
       {/* ── Mobile full-screen detail overlay ──
           z 高於底欄；safe-area 避免與劉海/狀態欄重疊 */}
       <div
@@ -593,12 +572,11 @@ interface DesktopViewProps {
   readGlobalMsgs: string[]; onSelectMsg: (msg: DbMessage) => void;
   onMarkAllRead: () => void; onRead: (id: string, isGlobal: boolean) => void;
   onDelete: (id: string, isGlobal: boolean) => void;
-  setIsFestivalOpen: (v: boolean) => void;
 }
 
 function DesktopMessagesView({
   loading, activeTab, setActiveTab, filtered, unreadCount, selectedMsg,
-  readGlobalMsgs, onSelectMsg, onMarkAllRead, onRead, onDelete, setIsFestivalOpen,
+  readGlobalMsgs, onSelectMsg, onMarkAllRead, onRead, onDelete,
 }: DesktopViewProps) {
   return (
     /* 桌面端：左 w-80 消息列表 + 右 flex-1 消息详情 */
@@ -637,39 +615,30 @@ function DesktopMessagesView({
           </div>
         </div>
 
-        {/* 左欄單一捲動：電影節 + 獎項 Banner、列表、Logo 牆與版權 */}
-        <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
-          <div className="px-2 pt-2 pb-2 space-y-2 border-b border-[#1a1a1a]/50">
-            <FestivalBanner onOpen={() => setIsFestivalOpen(true)} />
-            <UnicornAwardsEntryBanner />
-          </div>
-          <div className="px-2 pt-1 pb-2 space-y-0.5 flex-1">
-            {loading ? (
-              <div className="px-2 space-y-2 pt-2"><MsgSkeleton /><MsgSkeleton /><MsgSkeleton /></div>
-            ) : filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 opacity-40">
-                <i className="fas fa-inbox text-3xl mb-3 text-[#444]" />
-                <div className="font-heavy text-sm text-[#555] tracking-widest">NO MESSAGES</div>
-              </div>
-            ) : (
-              filtered.map((msg) => (
-                <MsgListItem
-                  key={msg.id} msg={msg}
-                  isGlobalRead={readGlobalMsgs.includes(msg.id)}
-                  isSelected={selectedMsg?.id === msg.id}
-                  onSelect={onSelectMsg}
-                />
-              ))
-            )}
-            {!loading && filtered.length > 0 && (
-              <p className="text-center text-[8px] font-mono text-[#2a2a2a] pt-4 pb-2">
-                {filtered.length} RECORD{filtered.length !== 1 ? 'S' : ''}
-              </p>
-            )}
-          </div>
-          <div className="border-t border-[#1a1a1a]/50">
-            <MessagesAssociationFooter />
-          </div>
+        {/* Message list */}
+        <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
+          {loading ? (
+            <div className="px-2 space-y-2 pt-2"><MsgSkeleton /><MsgSkeleton /><MsgSkeleton /></div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 opacity-40">
+              <i className="fas fa-inbox text-3xl mb-3 text-[#444]" />
+              <div className="font-heavy text-sm text-[#555] tracking-widest">NO MESSAGES</div>
+            </div>
+          ) : (
+            filtered.map((msg) => (
+              <MsgListItem
+                key={msg.id} msg={msg}
+                isGlobalRead={readGlobalMsgs.includes(msg.id)}
+                isSelected={selectedMsg?.id === msg.id}
+                onSelect={onSelectMsg}
+              />
+            ))
+          )}
+          {!loading && filtered.length > 0 && (
+            <p className="text-center text-[8px] font-mono text-[#2a2a2a] pt-4 pb-2">
+              {filtered.length} RECORD{filtered.length !== 1 ? 'S' : ''}
+            </p>
+          )}
         </div>
       </div>
 
@@ -833,18 +802,17 @@ export default function MessagesPage() {
           mobileDetailOpen={mobileDetailOpen}
           onMobileBack={() => setMobileDetailOpen(false)}
         />
+        <FestivalGuideModal
+          open={isFestivalOpen}
+          onClose={() => setIsFestivalOpen(false)}
+          lang={lang}
+        />
       </div>
 
-      {/* ══ DESKTOP: 完全独立的桌面端 Discord 双栏视图 ══ */}
+      {/* ══ DESKTOP: 完全独立的桌面端 Discord 双栏视图（不與移動端共用 Banner / 電影節全屏） */}
       <div className="hidden md:block h-full">
-        <DesktopMessagesView {...sharedProps} setIsFestivalOpen={setIsFestivalOpen} />
+        <DesktopMessagesView {...sharedProps} />
       </div>
-
-      <FestivalGuideModal
-        open={isFestivalOpen}
-        onClose={() => setIsFestivalOpen(false)}
-        lang={lang}
-      />
     </>
   );
 }

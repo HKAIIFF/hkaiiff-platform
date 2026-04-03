@@ -1,6 +1,7 @@
 "use client";
 
 import BackButton from "@/components/BackButton";
+import AssociationCopyrightFooter from "@/components/AssociationCopyrightFooter";
 import { useI18n } from "@/app/context/I18nContext";
 import { motion, useScroll, useTransform } from "framer-motion";
 import Image from "next/image";
@@ -262,6 +263,11 @@ export default function AwardsPage() {
 
         {/* Bottom ambient glow */}
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] bg-[radial-gradient(ellipse,rgba(204,255,0,0.05),transparent_70%)] pointer-events-none" />
+      </section>
+
+      {/* Logo 牆 + 協會／版權（頁面最底部；移動端預留底欄） */}
+      <section className="relative z-[1] w-full max-w-7xl mx-auto px-4 md:px-12 pb-bottom-nav-safe md:pb-24">
+        <AssociationCopyrightFooter />
       </section>
     </main>
   );

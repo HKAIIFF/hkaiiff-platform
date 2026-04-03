@@ -157,16 +157,6 @@ function MobileDiscover({
     /* 底部留白與 BottomNav（含 safe-area）對齊 */
     <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pwa-mobile-content-pt pb-bottom-nav-safe relative">
 
-      {/* Header：標題已在 MobileTopBar 與小地球對齊；此處僅節點狀態膠囊 */}
-      <div className="flex justify-end items-center mb-2 pwa-clear-globe-r">
-        <div className="flex items-center gap-2 bg-[#111] px-2 py-1 rounded border border-[#333]">
-          <div className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-honey animate-pulse' : 'bg-signal animate-pulse'}`} />
-          <span className="font-mono text-[8px] text-signal tracking-widest uppercase">
-            {loading ? 'LOADING NODES...' : `${filteredNodes.length} NODES ACTIVE`}
-          </span>
-        </div>
-      </div>
-
       {/* Description */}
       <p className="font-mono text-[10px] text-gray-400 mb-5 leading-relaxed border-l-2 border-[#333] pl-2">
         由地理位置解鎖的 LBS 獨家放映活動，走近影展現場範圍即可解鎖觀看。
@@ -587,14 +577,8 @@ function DesktopDiscover({
       {/* Header + Search */}
       <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-[#1a1a1a] flex items-end gap-4">
         <div className="flex-1">
-          <div className="flex items-center gap-3 mb-1">
+          <div className="mb-1">
             <h1 className="font-heavy text-2xl text-white tracking-wider">DISCOVER</h1>
-            <div className="flex items-center gap-1.5 bg-[#111] px-2 py-1 rounded border border-[#1a1a1a]">
-              <div className={`w-1.5 h-1.5 rounded-full ${loading ? 'bg-honey animate-pulse' : 'bg-signal animate-pulse'}`} />
-              <span className="font-mono text-[8px] text-signal tracking-widest">
-                {loading ? 'LOADING...' : `${filteredNodes.length} NODES ACTIVE`}
-              </span>
-            </div>
           </div>
           <p className="font-mono text-[9px] text-[#444] leading-relaxed">
             LBS 地理位置解鎖的獨家放映活動 · 走近影展現場即可解鎖地理圍欄場館
