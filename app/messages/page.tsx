@@ -208,28 +208,286 @@ function FestivalBanner({ onOpen }: { onOpen: () => void }) {
   );
 }
 
+/** 獎項入口 Banner（原在電影節全屏內，現與電影節 Banner 在消息頁上下排列） */
+function UnicornAwardsEntryBanner() {
+  const { t } = useI18n();
+  return (
+    <Link
+      href="/awards"
+      className="group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-yellow-400/25 p-4 active:scale-[0.98] transition-transform duration-150"
+      style={{
+        background: 'linear-gradient(135deg, rgba(255,200,0,0.08) 0%, rgba(5,5,5,0.95) 55%, rgba(204,255,0,0.05) 100%)',
+        boxShadow: '0 0 30px rgba(255,200,0,0.1), 0 0 60px rgba(255,200,0,0.05), inset 0 1px 0 rgba(255,215,0,0.12)',
+      }}
+    >
+      <div className="pointer-events-none absolute -top-6 -left-6 w-32 h-32 rounded-full bg-[radial-gradient(circle,rgba(255,200,0,0.18),transparent_70%)]" />
+      <div className="pointer-events-none absolute -bottom-4 -right-4 w-24 h-24 rounded-full bg-[radial-gradient(circle,rgba(204,255,0,0.1),transparent_70%)]" />
+
+      <div className="relative z-10 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="h-px w-6 bg-[#CCFF00]/60" />
+          <p
+            className="font-mono text-[9px] tracking-[0.35em] uppercase"
+            style={{ color: '#CCFF00', textShadow: '0 0 10px rgba(204,255,0,0.5)' }}
+          >
+            {t('entry.mobileBannerTitle')}
+          </p>
+        </div>
+        <span
+          className="font-mono text-[8px] px-2 py-0.5 rounded border border-yellow-400/30 text-yellow-300/70"
+          style={{ background: 'rgba(255,200,0,0.06)' }}
+        >
+          NEW
+        </span>
+      </div>
+
+      <div className="relative z-10 flex items-end justify-between gap-3">
+        <div className="flex-1 min-w-0">
+          <h3
+            className="font-black text-lg sm:text-xl text-white leading-snug tracking-tight"
+            style={{ textShadow: '0 0 20px rgba(255,200,0,0.15)' }}
+          >
+            {t('entry.mobileBannerDates')}
+          </h3>
+        </div>
+        <span
+          className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-[10px] font-bold tracking-widest transition-all duration-200 group-hover:scale-105"
+          style={{
+            background: '#CCFF00',
+            color: '#050505',
+            boxShadow: '0 0 12px rgba(204,255,0,0.35)',
+          }}
+        >
+          {t('entry.mobileBannerClick')}
+          <i className="fas fa-arrow-right text-[8px]" />
+        </span>
+      </div>
+    </Link>
+  );
+}
+
+/** 動態 Logo 牆 + 協會／版權（與電影節全屏底部一致，置於消息列表下方） */
+function MessagesAssociationFooter() {
+  return (
+    <div className="w-full px-2 sm:px-3 mt-4 pt-4 border-t border-white/[0.06]">
+      <DynamicLogoWall />
+      <footer className="w-full flex flex-col items-center justify-center py-8 px-2 gap-1.5">
+        <p className="text-[10px] text-gray-500 tracking-widest uppercase text-center">© 2026 All Rights Reserved.</p>
+        <p className="text-[11px] text-gray-400 font-medium tracking-widest mt-1 text-center">香港人工智能國際電影節協會</p>
+        <p className="text-[9px] text-gray-600 tracking-widest uppercase text-center">Hong Kong AI International Film Festival Association</p>
+      </footer>
+    </div>
+  );
+}
+
+/** 電影節介紹全屏（已移除底部獎項 Banner / Logo 牆 / Footer，改置於消息主列表） */
+function FestivalGuideModal({
+  open,
+  onClose,
+  lang,
+}: {
+  open: boolean;
+  onClose: () => void;
+  lang: string;
+}) {
+  const { t } = useI18n();
+  return (
+    <div
+      className={`fixed inset-0 z-[13000] bg-[#050505] overflow-y-auto transition-transform duration-500 ease-out ${
+        open ? 'translate-y-0' : 'translate-y-full pointer-events-none'
+      }`}
+      style={{ WebkitOverflowScrolling: 'touch' }}
+      dir={lang === 'ar' ? 'rtl' : 'ltr'}
+    >
+      <div className="sticky top-0 z-10 bg-[#050505]/95 backdrop-blur-md border-b border-[#1a1a1a] flex items-center justify-between px-4 py-4 pwa-festival-modal-header">
+        <div>
+          <div className="text-lg md:text-xl font-bold text-white leading-tight">香港AI國際電影節</div>
+          <div className="font-heavy text-base text-white/70 tracking-wider leading-none mt-0.5">HKAIIFF 2026</div>
+          <div className="text-[9px] font-mono text-[#CCFF00] tracking-widest mt-0.5">FESTIVAL GUIDE</div>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="w-10 h-10 bg-[#111] border border-[#333] rounded-full flex items-center justify-center text-gray-400 hover:text-white active:scale-90 transition-all"
+        >
+          <i className="fas fa-times" />
+        </button>
+      </div>
+
+      <div className="pb-32 w-full">
+        <div className="relative overflow-hidden min-h-[260px] flex flex-col justify-end">
+          <img
+            src="https://images.unsplash.com/photo-1478720568477-152d9b164e26?q=80&w=800"
+            alt="HKAIIFF"
+            className="absolute inset-0 w-full h-full object-cover opacity-30"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent" />
+          <div className="relative z-10 px-5 pb-8 pt-16">
+            <p className="font-mono text-[9px] text-[#CCFF00] tracking-[0.35em] mb-2 uppercase">
+              {t('mobileAbout.heroSub')}
+            </p>
+            <h1 className="font-heavy text-4xl text-white leading-none tracking-tight mb-3">
+              {t('mobileAbout.heroSlogan')}
+            </h1>
+            <div className="inline-flex flex-col items-center justify-center gap-2 mt-3 px-6 py-4 rounded-2xl border border-[#CCFF00]/60 bg-[#CCFF00]/5 text-[#CCFF00] text-base font-bold tracking-widest text-center shadow-[0_0_15px_rgba(204,255,0,0.1)]">
+              {t('mobileAbout.heroDates').split(/｜|\|/).map((part, index) => (
+                <span key={index}>{part.trim()}</span>
+              ))}
+            </div>
+            <p className="mt-6 font-mono text-base text-gray-300 leading-relaxed max-w-sm">
+              {t('mobileAbout.heroDesc')}
+            </p>
+          </div>
+        </div>
+
+        <div className="px-4 mt-6 space-y-7">
+          <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl overflow-hidden backdrop-blur-sm">
+            <div className="h-0.5 w-full bg-gradient-to-r from-[#CCFF00]/60 via-[#CCFF00]/20 to-transparent" />
+            <div className="p-6">
+              <h2 className="font-heavy text-2xl text-white mb-4 tracking-wide">
+                {t('mobileAbout.eraTitle')}
+              </h2>
+              <p className="font-mono text-base text-gray-300 leading-relaxed">
+                {t('mobileAbout.eraDesc')}
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl overflow-hidden backdrop-blur-sm">
+            <div className="h-0.5 w-full bg-gradient-to-r from-[#00F0FF]/60 via-[#00F0FF]/20 to-transparent" />
+            <div className="p-6">
+              <p className="font-mono text-[9px] text-[#00F0FF] tracking-[0.3em] mb-2 uppercase">
+                {t('mobileAbout.hkSection')}
+              </p>
+              <h2 className="font-heavy text-2xl text-white mb-4 tracking-wide">
+                {t('mobileAbout.hkTitle')}
+              </h2>
+              <p className="font-mono text-base text-gray-300 leading-relaxed mb-5">
+                {t('mobileAbout.hkDesc')}
+              </p>
+              <div className="flex flex-col gap-3">
+                {[
+                  { name: t('mobileAbout.hkPillar1Name'), desc: t('mobileAbout.hkPillar1Desc'), color: '#CCFF00' },
+                  { name: t('mobileAbout.hkPillar2Name'), desc: t('mobileAbout.hkPillar2Desc'), color: '#00F0FF' },
+                  { name: t('mobileAbout.hkPillar3Name'), desc: t('mobileAbout.hkPillar3Desc'), color: '#9D00FF' },
+                  { name: t('mobileAbout.hkPillar4Name'), desc: t('mobileAbout.hkPillar4Desc'), color: '#FFC107' },
+                ].map((p) => (
+                  <div
+                    key={p.name}
+                    className="bg-white/[0.02] border border-white/[0.05] hover:border-[#CCFF00]/50 rounded-xl p-4 transition-colors duration-200"
+                  >
+                    <div className="font-mono text-sm font-bold mb-2 tracking-wider" style={{ color: p.color }}>
+                      {p.name}
+                    </div>
+                    <p className="font-mono text-base text-gray-300 leading-relaxed">{p.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h2 className="font-heavy text-2xl text-white mb-4 tracking-wide">
+              {t('mobileAbout.ecoTitle')}
+            </h2>
+            <div className="space-y-4">
+              {[
+                { title: t('mobileAbout.ecoCard1Title'), desc: t('mobileAbout.ecoCard1Desc'), icon: 'fa-shield-alt', accent: '#CCFF00' },
+                { title: t('mobileAbout.ecoCard2Title'), desc: t('mobileAbout.ecoCard2Desc'), icon: 'fa-globe', accent: '#00F0FF' },
+                { title: t('mobileAbout.ecoCard3Title'), desc: t('mobileAbout.ecoCard3Desc'), icon: 'fa-map-marker-alt', accent: '#9D00FF' },
+              ].map((card) => (
+                <div
+                  key={card.title}
+                  className="bg-white/[0.02] border border-white/[0.05] hover:border-[#CCFF00]/50 rounded-2xl p-6 flex gap-4 transition-colors duration-200 backdrop-blur-sm"
+                >
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                    style={{ backgroundColor: `${card.accent}15`, border: `1px solid ${card.accent}30` }}
+                  >
+                    <i className={`fas ${card.icon} text-sm`} style={{ color: card.accent }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-heavy text-lg text-white mb-2">{card.title}</h3>
+                    <p className="font-mono text-base text-gray-300 leading-relaxed">{card.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl overflow-hidden backdrop-blur-sm">
+            <div className="h-0.5 w-full bg-gradient-to-r from-[#9D00FF]/60 via-[#9D00FF]/20 to-transparent" />
+            <div className="p-6">
+              <h2 className="font-heavy text-2xl text-white mb-5 tracking-wide">
+                {t('mobileAbout.advTitle')}
+              </h2>
+              <div className="space-y-5">
+                {[
+                  { title: t('mobileAbout.adv1Title'), desc: t('mobileAbout.adv1Desc'), num: '01' },
+                  { title: t('mobileAbout.adv2Title'), desc: t('mobileAbout.adv2Desc'), num: '02' },
+                  { title: t('mobileAbout.adv3Title'), desc: t('mobileAbout.adv3Desc'), num: '03' },
+                ].map((adv) => (
+                  <div key={adv.num} className="flex gap-4">
+                    <div className="font-heavy text-2xl text-[#CCFF00]/20 leading-none w-8 flex-shrink-0 pt-0.5">
+                      {adv.num}
+                    </div>
+                    <div className="flex-1 border-b border-white/[0.04] pb-5 last:border-0 last:pb-0">
+                      <h3 className="font-heavy text-lg text-white mb-2">{adv.title}</h3>
+                      <p className="font-mono text-base text-gray-300 leading-relaxed">{adv.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div
+            className="relative overflow-hidden rounded-2xl border border-[#CCFF00]/10 bg-[#CCFF00]/[0.02] p-6"
+            style={{ boxShadow: '0 0 40px rgba(204,255,0,0.04)' }}
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-[#CCFF00]/[0.03] blur-3xl" />
+            <h2 className="font-heavy text-2xl text-white mb-4 tracking-wide relative z-10">
+              {t('mobileAbout.futureTitle')}
+            </h2>
+            <p className="font-mono text-base text-gray-300 leading-relaxed relative z-10">
+              {t('mobileAbout.futureDesc')}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-full bg-[#CCFF00] text-black font-heavy text-base py-4 rounded-xl tracking-[0.15em] active:scale-95 transition-transform hover:bg-white"
+          >
+            {t('mobileAbout.joinBtn')}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // MOBILE VIEW — 100% 纯净移动端原生布局，零 md: 污染
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface MobileViewProps {
-  messages: DbMessage[]; loading: boolean; activeTab: TabType;
+  loading: boolean; activeTab: TabType;
   setActiveTab: (t: TabType) => void; filtered: DbMessage[];
   unreadCount: number; selectedMsg: DbMessage | null;
-  readGlobalMsgs: string[]; isFestivalOpen: boolean;
+  readGlobalMsgs: string[];
   setIsFestivalOpen: (v: boolean) => void; mobileDetailOpen: boolean;
   onSelectMsg: (msg: DbMessage) => void; onMarkAllRead: () => void;
   onRead: (id: string, isGlobal: boolean) => void;
   onDelete: (id: string, isGlobal: boolean) => void;
-  onMobileBack: () => void; lang: string;
+  onMobileBack: () => void;
 }
 
 function MobileMessagesView({
   loading, activeTab, setActiveTab, filtered, unreadCount, selectedMsg,
-  readGlobalMsgs, isFestivalOpen, setIsFestivalOpen, mobileDetailOpen,
-  onSelectMsg, onMarkAllRead, onRead, onDelete, onMobileBack, lang,
+  readGlobalMsgs, setIsFestivalOpen, mobileDetailOpen,
+  onSelectMsg, onMarkAllRead, onRead, onDelete, onMobileBack,
 }: MobileViewProps) {
-  const { t } = useI18n();
   return (
     /* 底部留白與 BottomNav（含 safe-area）對齊 */
     <div className="min-h-screen w-full bg-[#050505] pwa-mobile-content-pt pb-bottom-nav-safe">
@@ -266,9 +524,10 @@ function MobileMessagesView({
         </div>
       </div>
 
-      {/* Festival Banner — 仅移动端有此横幅 */}
-      <div className="px-3 pt-3 pb-2">
+      {/* Festival Banner + 獎項入口 — 上下排列 */}
+      <div className="px-3 pt-3 pb-2 space-y-2">
         <FestivalBanner onOpen={() => setIsFestivalOpen(true)} />
+        <UnicornAwardsEntryBanner />
       </div>
 
       {/* Message list — 自然流式布局，无内部滚动 */}
@@ -300,6 +559,8 @@ function MobileMessagesView({
         )}
       </div>
 
+      <MessagesAssociationFooter />
+
       {/* ── Mobile full-screen detail overlay ──
           z 高於底欄；safe-area 避免與劉海/狀態欄重疊 */}
       <div
@@ -318,266 +579,6 @@ function MobileMessagesView({
         />
       </div>
 
-      {/* ── Festival full-screen modal ── z 高於詳情遮罩 */}
-      <div
-        className={`fixed inset-0 z-[13000] bg-[#050505] overflow-y-auto transition-transform duration-500 ease-out ${
-          isFestivalOpen ? 'translate-y-0' : 'translate-y-full pointer-events-none'
-        }`}
-        style={{ WebkitOverflowScrolling: 'touch' }}
-        dir={lang === 'ar' ? 'rtl' : 'ltr'}
-      >
-        {/* Sticky header */}
-        <div className="sticky top-0 z-10 bg-[#050505]/95 backdrop-blur-md border-b border-[#1a1a1a] flex items-center justify-between px-4 py-4 pwa-festival-modal-header">
-          <div>
-            <div className="text-lg md:text-xl font-bold text-white leading-tight">香港AI國際電影節</div>
-            <div className="font-heavy text-base text-white/70 tracking-wider leading-none mt-0.5">HKAIIFF 2026</div>
-            <div className="text-[9px] font-mono text-[#CCFF00] tracking-widest mt-0.5">FESTIVAL GUIDE</div>
-          </div>
-          <button
-            onClick={() => setIsFestivalOpen(false)}
-            className="w-10 h-10 bg-[#111] border border-[#333] rounded-full flex items-center justify-center text-gray-400 hover:text-white active:scale-90 transition-all"
-          >
-            <i className="fas fa-times" />
-          </button>
-        </div>
-
-        {/* ── Full content ── */}
-        <div className="pb-32 w-full">
-
-          {/* ① Hero 首屏 */}
-          <div className="relative overflow-hidden min-h-[260px] flex flex-col justify-end">
-            <img
-              src="https://images.unsplash.com/photo-1478720568477-152d9b164e26?q=80&w=800"
-              alt="HKAIIFF"
-              className="absolute inset-0 w-full h-full object-cover opacity-30"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-[#050505] via-[#050505]/60 to-transparent" />
-            <div className="relative z-10 px-5 pb-8 pt-16">
-              <p className="font-mono text-[9px] text-[#CCFF00] tracking-[0.35em] mb-2 uppercase">
-                {t('mobileAbout.heroSub')}
-              </p>
-              <h1 className="font-heavy text-4xl text-white leading-none tracking-tight mb-3">
-                {t('mobileAbout.heroSlogan')}
-              </h1>
-              <div className="inline-flex flex-col items-center justify-center gap-2 mt-3 px-6 py-4 rounded-2xl border border-[#CCFF00]/60 bg-[#CCFF00]/5 text-[#CCFF00] text-base font-bold tracking-widest text-center shadow-[0_0_15px_rgba(204,255,0,0.1)]">
-                {t('mobileAbout.heroDates').split(/｜|\|/).map((part, index) => (
-                  <span key={index}>{part.trim()}</span>
-                ))}
-              </div>
-              <p className="mt-6 font-mono text-base text-gray-300 leading-relaxed max-w-sm">
-                {t('mobileAbout.heroDesc')}
-              </p>
-            </div>
-          </div>
-
-          <div className="px-4 mt-6 space-y-7">
-
-            {/* ② 時代背景 */}
-            <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl overflow-hidden backdrop-blur-sm">
-              <div className="h-0.5 w-full bg-gradient-to-r from-[#CCFF00]/60 via-[#CCFF00]/20 to-transparent" />
-              <div className="p-6">
-                <h2 className="font-heavy text-2xl text-white mb-4 tracking-wide">
-                  {t('mobileAbout.eraTitle')}
-                </h2>
-                <p className="font-mono text-base text-gray-300 leading-relaxed">
-                  {t('mobileAbout.eraDesc')}
-                </p>
-              </div>
-            </div>
-
-            {/* ③ 香港戰略樞紐 */}
-            <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl overflow-hidden backdrop-blur-sm">
-              <div className="h-0.5 w-full bg-gradient-to-r from-[#00F0FF]/60 via-[#00F0FF]/20 to-transparent" />
-              <div className="p-6">
-                <p className="font-mono text-[9px] text-[#00F0FF] tracking-[0.3em] mb-2 uppercase">
-                  {t('mobileAbout.hkSection')}
-                </p>
-                <h2 className="font-heavy text-2xl text-white mb-4 tracking-wide">
-                  {t('mobileAbout.hkTitle')}
-                </h2>
-                <p className="font-mono text-base text-gray-300 leading-relaxed mb-5">
-                  {t('mobileAbout.hkDesc')}
-                </p>
-                {/* 4 pillars grid */}
-                <div className="flex flex-col gap-3">
-                  {[
-                    { name: t('mobileAbout.hkPillar1Name'), desc: t('mobileAbout.hkPillar1Desc'), color: '#CCFF00' },
-                    { name: t('mobileAbout.hkPillar2Name'), desc: t('mobileAbout.hkPillar2Desc'), color: '#00F0FF' },
-                    { name: t('mobileAbout.hkPillar3Name'), desc: t('mobileAbout.hkPillar3Desc'), color: '#9D00FF' },
-                    { name: t('mobileAbout.hkPillar4Name'), desc: t('mobileAbout.hkPillar4Desc'), color: '#FFC107' },
-                  ].map((p) => (
-                    <div
-                      key={p.name}
-                      className="bg-white/[0.02] border border-white/[0.05] hover:border-[#CCFF00]/50 rounded-xl p-4 transition-colors duration-200"
-                    >
-                      <div
-                        className="font-mono text-sm font-bold mb-2 tracking-wider"
-                        style={{ color: p.color }}
-                      >
-                        {p.name}
-                      </div>
-                      <p className="font-mono text-base text-gray-300 leading-relaxed">
-                        {p.desc}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* ④ 生態價值 — 3 張垂直卡片 */}
-            <div>
-              <h2 className="font-heavy text-2xl text-white mb-4 tracking-wide">
-                {t('mobileAbout.ecoTitle')}
-              </h2>
-              <div className="space-y-4">
-                {[
-                  { title: t('mobileAbout.ecoCard1Title'), desc: t('mobileAbout.ecoCard1Desc'), icon: 'fa-shield-alt',  accent: '#CCFF00' },
-                  { title: t('mobileAbout.ecoCard2Title'), desc: t('mobileAbout.ecoCard2Desc'), icon: 'fa-globe',       accent: '#00F0FF' },
-                  { title: t('mobileAbout.ecoCard3Title'), desc: t('mobileAbout.ecoCard3Desc'), icon: 'fa-map-marker-alt', accent: '#9D00FF' },
-                ].map((card) => (
-                  <div
-                    key={card.title}
-                    className="bg-white/[0.02] border border-white/[0.05] hover:border-[#CCFF00]/50 rounded-2xl p-6 flex gap-4 transition-colors duration-200 backdrop-blur-sm"
-                  >
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ backgroundColor: `${card.accent}15`, border: `1px solid ${card.accent}30` }}
-                    >
-                      <i className={`fas ${card.icon} text-sm`} style={{ color: card.accent }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-heavy text-lg text-white mb-2">{card.title}</h3>
-                      <p className="font-mono text-base text-gray-300 leading-relaxed">{card.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* ⑤ 核心優勢 — 列表 */}
-            <div className="bg-white/[0.02] border border-white/[0.05] rounded-2xl overflow-hidden backdrop-blur-sm">
-              <div className="h-0.5 w-full bg-gradient-to-r from-[#9D00FF]/60 via-[#9D00FF]/20 to-transparent" />
-              <div className="p-6">
-                <h2 className="font-heavy text-2xl text-white mb-5 tracking-wide">
-                  {t('mobileAbout.advTitle')}
-                </h2>
-                <div className="space-y-5">
-                  {[
-                    { title: t('mobileAbout.adv1Title'), desc: t('mobileAbout.adv1Desc'), num: '01' },
-                    { title: t('mobileAbout.adv2Title'), desc: t('mobileAbout.adv2Desc'), num: '02' },
-                    { title: t('mobileAbout.adv3Title'), desc: t('mobileAbout.adv3Desc'), num: '03' },
-                  ].map((adv) => (
-                    <div key={adv.num} className="flex gap-4">
-                      <div className="font-heavy text-2xl text-[#CCFF00]/20 leading-none w-8 flex-shrink-0 pt-0.5">
-                        {adv.num}
-                      </div>
-                      <div className="flex-1 border-b border-white/[0.04] pb-5 last:border-0 last:pb-0">
-                        <h3 className="font-heavy text-lg text-white mb-2">{adv.title}</h3>
-                        <p className="font-mono text-base text-gray-300 leading-relaxed">{adv.desc}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* ⑥ 未來願景 */}
-            <div className="relative overflow-hidden rounded-2xl border border-[#CCFF00]/10 bg-[#CCFF00]/[0.02] p-6"
-              style={{ boxShadow: '0 0 40px rgba(204,255,0,0.04)' }}
-            >
-              <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-[#CCFF00]/[0.03] blur-3xl" />
-              <h2 className="font-heavy text-2xl text-white mb-4 tracking-wide relative z-10">
-                {t('mobileAbout.futureTitle')}
-              </h2>
-              <p className="font-mono text-base text-gray-300 leading-relaxed relative z-10">
-                {t('mobileAbout.futureDesc')}
-              </p>
-            </div>
-
-            {/* ⑦ 底部 CTA */}
-            <button
-              onClick={() => setIsFestivalOpen(false)}
-              className="w-full bg-[#CCFF00] text-black font-heavy text-base py-4 rounded-xl tracking-[0.15em] active:scale-95 transition-transform hover:bg-white"
-            >
-              {t('mobileAbout.joinBtn')}
-            </button>
-
-          </div>
-
-          {/* ⑧ Unicorn Awards 入口 Banner */}
-          <div className="px-4 mt-6">
-            <Link
-              href="/awards"
-              className="group relative flex flex-col gap-3 overflow-hidden rounded-2xl border border-yellow-400/25 p-5 active:scale-[0.98] transition-transform duration-150"
-              style={{
-                background: 'linear-gradient(135deg, rgba(255,200,0,0.08) 0%, rgba(5,5,5,0.95) 55%, rgba(204,255,0,0.05) 100%)',
-                boxShadow: '0 0 30px rgba(255,200,0,0.1), 0 0 60px rgba(255,200,0,0.05), inset 0 1px 0 rgba(255,215,0,0.12)',
-              }}
-            >
-              {/* corner glow */}
-              <div className="pointer-events-none absolute -top-6 -left-6 w-32 h-32 rounded-full bg-[radial-gradient(circle,rgba(255,200,0,0.18),transparent_70%)]" />
-              <div className="pointer-events-none absolute -bottom-4 -right-4 w-24 h-24 rounded-full bg-[radial-gradient(circle,rgba(204,255,0,0.1),transparent_70%)]" />
-
-              {/* top label row */}
-              <div className="relative z-10 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="h-px w-6 bg-[#CCFF00]/60" />
-                  <p
-                    className="font-mono text-[9px] tracking-[0.35em] uppercase"
-                    style={{ color: '#CCFF00', textShadow: '0 0 10px rgba(204,255,0,0.5)' }}
-                  >
-                    {t('entry.mobileBannerTitle')}
-                  </p>
-                </div>
-                <span
-                  className="font-mono text-[8px] px-2 py-0.5 rounded border border-yellow-400/30 text-yellow-300/70"
-                  style={{ background: 'rgba(255,200,0,0.06)' }}
-                >
-                  NEW
-                </span>
-              </div>
-
-              {/* main content */}
-              <div className="relative z-10 flex items-end justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <h3
-                    className="font-black text-xl text-white leading-snug tracking-tight mb-1"
-                    style={{ textShadow: '0 0 20px rgba(255,200,0,0.15)' }}
-                  >
-                    {t('entry.mobileBannerDates')}
-                  </h3>
-                </div>
-                {/* CTA button */}
-                <span
-                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-xl font-mono text-[10px] font-bold tracking-widest transition-all duration-200 group-hover:scale-105"
-                  style={{
-                    background: '#CCFF00',
-                    color: '#050505',
-                    boxShadow: '0 0 12px rgba(204,255,0,0.35)',
-                  }}
-                >
-                  {t('entry.mobileBannerClick')}
-                  <i className="fas fa-arrow-right text-[8px]" />
-                </span>
-              </div>
-            </Link>
-          </div>
-
-          {/* ⑨ DynamicLogoWall — 3軌跨界戰略夥伴 Logo 牆 */}
-          <div className="mt-6">
-            <DynamicLogoWall />
-          </div>
-
-          {/* ⑩ 中英雙語版權 Footer */}
-          <footer className="w-full flex flex-col items-center justify-center py-10 px-4 mt-2 border-t border-white/[0.04] gap-1.5">
-            <p className="text-[10px] text-gray-500 tracking-widest uppercase">© 2026 All Rights Reserved.</p>
-            <p className="text-[11px] text-gray-400 font-medium tracking-widest mt-1">香港人工智能國際電影節協會</p>
-            <p className="text-[9px] text-gray-600 tracking-widest uppercase">Hong Kong AI International Film Festival Association</p>
-          </footer>
-
-        </div>
-      </div>
     </div>
   );
 }
@@ -592,11 +593,12 @@ interface DesktopViewProps {
   readGlobalMsgs: string[]; onSelectMsg: (msg: DbMessage) => void;
   onMarkAllRead: () => void; onRead: (id: string, isGlobal: boolean) => void;
   onDelete: (id: string, isGlobal: boolean) => void;
+  setIsFestivalOpen: (v: boolean) => void;
 }
 
 function DesktopMessagesView({
   loading, activeTab, setActiveTab, filtered, unreadCount, selectedMsg,
-  readGlobalMsgs, onSelectMsg, onMarkAllRead, onRead, onDelete,
+  readGlobalMsgs, onSelectMsg, onMarkAllRead, onRead, onDelete, setIsFestivalOpen,
 }: DesktopViewProps) {
   return (
     /* 桌面端：左 w-80 消息列表 + 右 flex-1 消息详情 */
@@ -635,30 +637,39 @@ function DesktopMessagesView({
           </div>
         </div>
 
-        {/* Message list */}
-        <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-0.5">
-          {loading ? (
-            <div className="px-2 space-y-2 pt-2"><MsgSkeleton /><MsgSkeleton /><MsgSkeleton /></div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 opacity-40">
-              <i className="fas fa-inbox text-3xl mb-3 text-[#444]" />
-              <div className="font-heavy text-sm text-[#555] tracking-widest">NO MESSAGES</div>
-            </div>
-          ) : (
-            filtered.map((msg) => (
-              <MsgListItem
-                key={msg.id} msg={msg}
-                isGlobalRead={readGlobalMsgs.includes(msg.id)}
-                isSelected={selectedMsg?.id === msg.id}
-                onSelect={onSelectMsg}
-              />
-            ))
-          )}
-          {!loading && filtered.length > 0 && (
-            <p className="text-center text-[8px] font-mono text-[#2a2a2a] pt-4 pb-2">
-              {filtered.length} RECORD{filtered.length !== 1 ? 'S' : ''}
-            </p>
-          )}
+        {/* 左欄單一捲動：電影節 + 獎項 Banner、列表、Logo 牆與版權 */}
+        <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
+          <div className="px-2 pt-2 pb-2 space-y-2 border-b border-[#1a1a1a]/50">
+            <FestivalBanner onOpen={() => setIsFestivalOpen(true)} />
+            <UnicornAwardsEntryBanner />
+          </div>
+          <div className="px-2 pt-1 pb-2 space-y-0.5 flex-1">
+            {loading ? (
+              <div className="px-2 space-y-2 pt-2"><MsgSkeleton /><MsgSkeleton /><MsgSkeleton /></div>
+            ) : filtered.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 opacity-40">
+                <i className="fas fa-inbox text-3xl mb-3 text-[#444]" />
+                <div className="font-heavy text-sm text-[#555] tracking-widest">NO MESSAGES</div>
+              </div>
+            ) : (
+              filtered.map((msg) => (
+                <MsgListItem
+                  key={msg.id} msg={msg}
+                  isGlobalRead={readGlobalMsgs.includes(msg.id)}
+                  isSelected={selectedMsg?.id === msg.id}
+                  onSelect={onSelectMsg}
+                />
+              ))
+            )}
+            {!loading && filtered.length > 0 && (
+              <p className="text-center text-[8px] font-mono text-[#2a2a2a] pt-4 pb-2">
+                {filtered.length} RECORD{filtered.length !== 1 ? 'S' : ''}
+              </p>
+            )}
+          </div>
+          <div className="border-t border-[#1a1a1a]/50">
+            <MessagesAssociationFooter />
+          </div>
         </div>
       </div>
 
@@ -818,19 +829,22 @@ export default function MessagesPage() {
       <div className="block md:hidden h-full">
         <MobileMessagesView
           {...sharedProps}
-          messages={messages}
-          isFestivalOpen={isFestivalOpen}
           setIsFestivalOpen={setIsFestivalOpen}
           mobileDetailOpen={mobileDetailOpen}
           onMobileBack={() => setMobileDetailOpen(false)}
-          lang={lang}
         />
       </div>
 
       {/* ══ DESKTOP: 完全独立的桌面端 Discord 双栏视图 ══ */}
       <div className="hidden md:block h-full">
-        <DesktopMessagesView {...sharedProps} />
+        <DesktopMessagesView {...sharedProps} setIsFestivalOpen={setIsFestivalOpen} />
       </div>
+
+      <FestivalGuideModal
+        open={isFestivalOpen}
+        onClose={() => setIsFestivalOpen(false)}
+        lang={lang}
+      />
     </>
   );
 }
