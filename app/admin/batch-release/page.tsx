@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { usePrivy } from "@privy-io/react-auth";
 import { parseSpreadsheet } from "@/lib/utils/parse-csv";
 
 // ─── 類型定義 ─────────────────────────────────────────────────────────────────
@@ -250,6 +251,22 @@ function StepIcon({ status }: { status: StepStatus }) {
 
 // ─── 主頁面組件 ───────────────────────────────────────────────────────────────
 export default function BatchReleasePage() {
+  const { getAccessToken } = usePrivy();
+
+  const adminApiFetch = useCallback(
+    async (url: string, options: RequestInit = {}) => {
+      const token = await getAccessToken();
+      const headers = new Headers(options.headers as HeadersInit | undefined);
+      const body = options.body;
+      if (typeof body === "string" && !headers.has("Content-Type")) {
+        headers.set("Content-Type", "application/json");
+      }
+      if (token) headers.set("Authorization", `Bearer ${token}`);
+      return fetch(url, { ...options, headers });
+    },
+    [getAccessToken],
+  );
+
   const [activeTab, setActiveTab] = useState<"new" | "history">("new");
   const [step, setStep] = useState(1);
   const [usersData, setUsersData] = useState<UserRow[]>([]);
@@ -271,7 +288,7 @@ export default function BatchReleasePage() {
   const loadHistory = useCallback(async () => {
     setHistoryLoading(true);
     try {
-      const res = await fetch("/api/admin/batch-release");
+      const res = await adminApiFetch("/api/admin/batch-release");
       const json = await res.json();
       if (json.batches) setBatches(json.batches);
     } catch {
@@ -279,7 +296,7 @@ export default function BatchReleasePage() {
     } finally {
       setHistoryLoading(false);
     }
-  }, []);
+  }, [adminApiFetch]);
 
   useEffect(() => {
     if (activeTab === "history") loadHistory();
@@ -336,6 +353,11 @@ export default function BatchReleasePage() {
   // ── 發行 ─────────────────────────────────────────────────────────────────────
   async function handlePublish() {
     if (matchedCount < filmsData.length) return;
+    const token = await getAccessToken();
+    if (!token?.trim()) {
+      setError("無法取得登入憑證，請重新登入後再試");
+      return;
+    }
     setIsPublishing(true);
     setPublishedCount(0);
     setPublishDone(false);
@@ -355,7 +377,6 @@ export default function BatchReleasePage() {
       const user = usersData.find((u) => u.email === film.email)!;
       return {
         user_email: film.email,
-        user_password: user?.password ?? "HKaiiff2026!@",
         role: user?.role ?? "creator",
         verification_name: user?.verification_name ?? film.email,
         bio: user?.bio ?? null,
@@ -378,9 +399,8 @@ export default function BatchReleasePage() {
     let batchId: string;
     let itemIds: string[];
     try {
-      const initRes = await fetch("/api/admin/batch-release", {
+      const initRes = await adminApiFetch("/api/admin/batch-release", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "init", items: apiItems }),
       });
       const initJson = await initRes.json();
@@ -429,9 +449,8 @@ export default function BatchReleasePage() {
         // d. 建立用戶 + 影片記錄
         updateStep("createUser", "running");
         updateStep("createFilm", "running");
-        const procRes = await fetch("/api/admin/batch-release", {
+        const procRes = await adminApiFetch("/api/admin/batch-release", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             action: "process-item",
             itemId,
@@ -441,6 +460,8 @@ export default function BatchReleasePage() {
               verification_name: user?.verification_name ?? film.email,
               role: user?.role ?? "creator",
               bio: user?.bio,
+              about_studio: user?.about_studio,
+              tech_stack: user?.tech_stack,
             },
             filmInfo: {
               project_title: film.project_title,
@@ -450,6 +471,9 @@ export default function BatchReleasePage() {
               synopsis: film.synopsis,
               core_cast: film.core_cast,
               region: film.region,
+              country: film.country,
+              language: film.language,
+              year: film.year != null && film.year !== "" ? Number(film.year) : undefined,
               lbs_festival_royalty: Number(film.lbs_festival_royalty) || 5,
               contact_email: film.contact_email ?? film.email,
               poster_url: posterUrl,
@@ -484,9 +508,8 @@ export default function BatchReleasePage() {
     }
 
     // 完成批次
-    await fetch("/api/admin/batch-release", {
+    await adminApiFetch("/api/admin/batch-release", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "complete-batch", batchId }),
     });
 

@@ -326,11 +326,15 @@ function MePageContent() {
   const [editCoreTeam, setEditCoreTeam] = useState<TeamMember[]>([]);
 
   function openProfileModal() {
-    // display_name 优先，其次 name（非默认值），再用 agent_id 兜底
-    const nameValue = dbProfile?.display_name
-      || (dbProfile?.name && dbProfile.name !== 'New Agent' ? dbProfile.name : '')
-      || dbProfile?.agent_id
-      || '';
+    // display_name 優先；若老數據把 email 存在 display_name 則回退到真實 name
+    const dn = (dbProfile?.display_name ?? '').trim();
+    const nm = dbProfile?.name && dbProfile.name !== 'New Agent' ? dbProfile.name.trim() : '';
+    const looksLikeEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s);
+    const nameValue =
+      (dn && (!looksLikeEmail(dn) || !nm) ? dn : '') ||
+      nm ||
+      dbProfile?.agent_id ||
+      '';
     setEditName(nameValue);
     setEditAvatarSeed(dbProfile?.avatar_seed || user?.id || 'default');
     setEditAboutStudio(dbProfile?.bio || '');
@@ -392,8 +396,9 @@ function MePageContent() {
         ? editCoreTeam.filter((m) => m.name.trim())
         : [];
 
-      // 已認證或審核中時，嚴禁覆寫 display_name（後端由 verification_name 管理）
+      // 已認證、審核中或批片鎖名時，嚴禁覆寫 display_name
       const isNameLocked =
+        dbProfile?.username_locked === true ||
         (dbProfile?.verified_identities?.length ?? 0) > 0 ||
         identityApplications.some(
           (a) => a.status === 'pending' || a.status === 'awaiting_payment'
@@ -488,9 +493,13 @@ function MePageContent() {
       // 因此直接用客戶端讀 users 表會因 RLS 失敗。sync-user 用 Service Role 繞過此限制。
       let syncedProfile: Record<string, any> | null = null;
       try {
+        const accessToken = await getAccessToken();
         const syncRes = await fetch('/api/sync-user', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
           body: JSON.stringify({ user }),
           cache: 'no-store',
         });
@@ -634,7 +643,11 @@ function MePageContent() {
       }
 
       try {
-        const filmsRes = await fetch(`/api/user-films?userId=${userId}`, { cache: 'no-store' });
+        const filmsToken = await getAccessToken();
+        const filmsRes = await fetch(`/api/user-films?userId=${userId}`, {
+          cache: 'no-store',
+          headers: filmsToken ? { Authorization: `Bearer ${filmsToken}` } : undefined,
+        });
         const filmsData = await filmsRes.json();
         if (!filmsData.error && Array.isArray(filmsData.films)) {
           setMySubmissions(filmsData.films);
@@ -845,9 +858,13 @@ function MePageContent() {
   const refreshBalance = async () => {
     if (!user?.id) return;
     try {
+      const balToken = await getAccessToken();
       const syncRes = await fetch('/api/sync-user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(balToken ? { Authorization: `Bearer ${balToken}` } : {}),
+        },
         body: JSON.stringify({ user }),
         cache: 'no-store',
       });

@@ -3,14 +3,16 @@
  *
  * 消息总线 CRUD API — 使用 Service Role Key 绕过 RLS
  *
- * GET    ?userId=xxx  → 查询用户消息（个人 + 广播），排除软删除
- * POST              → 插入消息（服务端内部调用）
- * PATCH             → 标记已读（单条 id 或批量 userId）
- * DELETE ?id=&userId= → 软删除（设置 deleted_at = now()，不物理删除）
+ * GET    ?userId=xxx  → 查詢指定用戶消息（需 Bearer，且僅本人或管理員）
+ * GET    無 userId   → 僅廣播（訪客可讀）
+ * POST              → 僅管理員（運營廣播等）
+ * PATCH / DELETE    → 需 Bearer，且僅本人或管理員
  */
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getPrivyServerClient } from '@/lib/privy-server';
+import { checkAdminAuth, privyUserIdIsAdmin } from '@/lib/auth/adminAuth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -26,6 +28,26 @@ function getAdminClient() {
   });
 }
 
+async function assertCanActAsUser(
+  req: Request,
+  targetUserId: string,
+): Promise<NextResponse | null> {
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  let tokenUserId: string;
+  try {
+    const claims = await getPrivyServerClient().verifyAuthToken(authHeader.slice(7));
+    tokenUserId = claims.userId;
+  } catch {
+    return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+  }
+  if (targetUserId === tokenUserId) return null;
+  if (await privyUserIdIsAdmin(tokenUserId)) return null;
+  return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+}
+
 // ── GET: 获取消息列表（自动排除软删除行）──────────────────────────────────────
 
 export async function GET(req: Request) {
@@ -37,15 +59,16 @@ export async function GET(req: Request) {
     let query = adminSupabase
       .from('messages')
       .select(
-        'id, msg_id, type, msg_type, title, content, body, is_read, user_id, action_link, created_at, sender_id, status, audience'
+        'id, msg_id, type, msg_type, title, content, body, is_read, user_id, action_link, created_at, sender_id, status, audience',
       )
-      .is('deleted_at', null)            // 关键：排除软删除行
+      .is('deleted_at', null)
       .order('created_at', { ascending: false });
 
     if (userId) {
-      // 個人消息 OR 僅面向用戶的廣播（排除運營/內部 audience=admin_only）
+      const denied = await assertCanActAsUser(req, userId.trim());
+      if (denied) return denied;
       query = query.or(
-        `user_id.eq.${userId},and(user_id.is.null,audience.eq.users)`
+        `user_id.eq.${userId},and(user_id.is.null,audience.eq.users)`,
       );
     } else {
       query = query.is('user_id', null).eq('audience', 'users');
@@ -57,7 +80,6 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    // 兼容旧 body 字段：若 content 为空则回退到 body
     const normalized = (data ?? []).map((m) => ({
       ...m,
       content: m.content ?? m.body ?? '',
@@ -70,10 +92,13 @@ export async function GET(req: Request) {
   }
 }
 
-// ── POST: 插入单条消息（供服务端内部调用）─────────────────────────────────────
+// ── POST: 插入单条消息（僅管理員）─────────────────────────────────────────────
 
 export async function POST(req: Request) {
   try {
+    const authResult = await checkAdminAuth(req);
+    if (authResult instanceof NextResponse) return authResult;
+
     const adminSupabase = getAdminClient();
     const body = await req.json() as {
       userId?: string | null;
@@ -83,7 +108,6 @@ export async function POST(req: Request) {
       content?: string;
       actionLink?: string | null;
       senderId?: string | null;
-      /** users = 用戶端可見；admin_only = 僅管理後台查詢，禁止出現在用戶收件箱 */
       audience?: 'users' | 'admin_only';
     };
 
@@ -92,7 +116,7 @@ export async function POST(req: Request) {
     if (!title || !content || (!type && !msgType)) {
       return NextResponse.json(
         { error: 'Missing required fields: title, content, and type or msgType' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -106,7 +130,7 @@ export async function POST(req: Request) {
       msg_type: resolvedMsgType,
       title,
       content,
-      body: content,              // 同步写入旧 body 列，保持向后兼容
+      body: content,
       status: 'sent',
       audience: resolvedAudience,
       ...(actionLink != null ? { action_link: actionLink } : {}),
@@ -129,7 +153,6 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    const adminSupabase = getAdminClient();
     const body = await req.json();
     const { id, userId } = body as { id?: string; userId?: string };
 
@@ -137,8 +160,12 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: 'Missing userId' }, { status: 400 });
     }
 
+    const denied = await assertCanActAsUser(req, userId);
+    if (denied) return denied;
+
+    const adminSupabase = getAdminClient();
+
     if (id) {
-      // 单条标记已读
       const { error } = await adminSupabase
         .from('messages')
         .update({ is_read: true })
@@ -147,7 +174,6 @@ export async function PATCH(req: Request) {
         .is('deleted_at', null);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     } else {
-      // 批量标记该用户所有未读消息
       const { error } = await adminSupabase
         .from('messages')
         .update({ is_read: true })
@@ -168,7 +194,6 @@ export async function PATCH(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const adminSupabase = getAdminClient();
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     const userId = searchParams.get('userId');
@@ -177,13 +202,17 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: 'Missing id or userId' }, { status: 400 });
     }
 
-    // 软删除：仅设置 deleted_at，绝不物理删除；双重守卫确保用户只能删自己的消息
+    const denied = await assertCanActAsUser(req, userId);
+    if (denied) return denied;
+
+    const adminSupabase = getAdminClient();
+
     const { error } = await adminSupabase
       .from('messages')
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', id)
       .eq('user_id', userId)
-      .is('deleted_at', null);  // 防止重复软删除
+      .is('deleted_at', null);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

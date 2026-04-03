@@ -9,10 +9,26 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { checkAdminAuth } from '@/lib/auth/adminAuth';
 
+const OTP_WINDOW_MS = 60_000;
+const OTP_MAX_PER_WINDOW = 10;
+const otpHitsByUser = new Map<string, number[]>();
+
+function otpRateLimitAllow(userId: string): boolean {
+  const now = Date.now();
+  const arr = (otpHitsByUser.get(userId) ?? []).filter((t) => now - t < OTP_WINDOW_MS);
+  if (arr.length >= OTP_MAX_PER_WINDOW) return false;
+  arr.push(now);
+  otpHitsByUser.set(userId, arr);
+  return true;
+}
+
 export async function POST(req: Request) {
   try {
     const authResult = await checkAdminAuth(req);
     if (authResult instanceof NextResponse) return authResult;
+    if (!otpRateLimitAllow(authResult.userId)) {
+      return NextResponse.json({ error: '請求過於頻繁，請稍後再試' }, { status: 429 });
+    }
 
     const { email } = await req.json() as { email: string };
 

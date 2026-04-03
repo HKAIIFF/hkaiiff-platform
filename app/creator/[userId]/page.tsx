@@ -250,7 +250,7 @@ export default function CreatorPage() {
             <img
               src={avatarUrl}
               alt={displayName}
-              className={`w-24 h-24 border-4 border-[#050505] rounded-full bg-black shadow-[0_0_20px_rgba(204,255,0,0.2)] p-1 relative z-20
+              className={`w-14 h-14 md:w-16 md:h-16 border-4 border-[#050505] rounded-full bg-black shadow-[0_0_20px_rgba(204,255,0,0.2)] p-1 relative z-20
                 ${(profile.verified_identities ?? []).includes("institution") ? "ring-2 ring-[#9D00FF]"
                   : (profile.verified_identities ?? []).includes("creator") ? "ring-2 ring-signal"
                   : (profile.verified_identities ?? []).includes("curator") ? "ring-2 ring-[#FFC107]"
@@ -260,8 +260,8 @@ export default function CreatorPage() {
         </div>
 
         {/* Name + verified badges */}
-        <div className="flex flex-wrap items-center gap-2 mb-1">
-          <h1 className="font-bold text-2xl text-white uppercase tracking-wide leading-none">
+        <div className="flex flex-wrap items-center gap-2 mb-1 min-w-0">
+          <h1 className="font-bold text-2xl text-white uppercase tracking-wide leading-none truncate min-w-0 max-w-full">
             {displayName}
           </h1>
           <IdentityBadges

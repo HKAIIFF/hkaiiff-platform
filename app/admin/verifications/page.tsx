@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
+import { usePrivy } from "@privy-io/react-auth";
 
 interface VRecord {
   id: string;
@@ -68,16 +69,31 @@ function shortId(id: string) {
 
 // ─── Detail Modal ─────────────────────────────────────────────────────────────
 function DetailModal({ record, onClose }: { record: VRecord; onClose: () => void }) {
+  const { getAccessToken } = usePrivy();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
   useEffect(() => {
-    fetch(`/api/admin/user-profile?userId=${record.user_id}`)
-      .then(r => r.json())
-      .then(d => setProfile(d.user ?? null))
-      .catch(() => setProfile(null))
-      .finally(() => setLoadingProfile(false));
-  }, [record.user_id]);
+    let cancelled = false;
+    (async () => {
+      setLoadingProfile(true);
+      try {
+        const token = await getAccessToken();
+        const r = await fetch(`/api/admin/user-profile?userId=${record.user_id}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        const d = await r.json();
+        if (!cancelled) setProfile(d.user ?? null);
+      } catch {
+        if (!cancelled) setProfile(null);
+      } finally {
+        if (!cancelled) setLoadingProfile(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [record.user_id, getAccessToken]);
 
   const typeCfg = TYPE_MAP[record.identity_type ?? ""];
   const payCfg  = PAY_MAP[record.verification_payment_method ?? ""];
@@ -190,6 +206,7 @@ function DetailModal({ record, onClose }: { record: VRecord; onClose: () => void
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AdminVerificationsPage() {
+  const { getAccessToken } = usePrivy();
   const [records,      setRecords]      = useState<VRecord[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [tab,          setTab]          = useState<Tab>("pending");
@@ -208,7 +225,10 @@ export default function AdminVerificationsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res  = await fetch("/api/admin/verifications?status=all");
+      const token = await getAccessToken();
+      const res = await fetch("/api/admin/verifications?status=all", {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       const data = await res.json();
       setRecords(data.verifications ?? []);
     } catch {
@@ -216,7 +236,7 @@ export default function AdminVerificationsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getAccessToken]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -235,10 +255,14 @@ export default function AdminVerificationsPage() {
   async function approve(id: string) {
     setProcessing(id);
     try {
+      const token = await getAccessToken();
       const res = await fetch("/api/admin/verifications/review", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ applicationId: id, action: "approve" }),
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ applicationId: id, action: "approve" }),
       });
       const d = await res.json();
       if (res.ok) {
@@ -258,10 +282,14 @@ export default function AdminVerificationsPage() {
     const currentId = rejectId;
     setProcessing(currentId);
     try {
+      const token = await getAccessToken();
       const res = await fetch("/api/admin/verifications/review", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ applicationId: currentId, action: "reject", rejectionReason: rejectReason }),
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ applicationId: currentId, action: "reject", rejectionReason: rejectReason }),
       });
       const d = await res.json();
       if (res.ok) {

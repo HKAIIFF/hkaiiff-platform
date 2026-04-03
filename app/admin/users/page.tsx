@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { usePrivy } from "@privy-io/react-auth";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface UserRecord {
@@ -80,6 +81,7 @@ const MIN_WIDTH = "1140px";
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function UsersPage() {
+  const { getAccessToken } = usePrivy();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -95,7 +97,10 @@ export default function UsersPage() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/users");
+      const token = await getAccessToken();
+      const res = await fetch("/api/admin/users", {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Unknown error" }));
         showToast(`載入失敗: ${err.error ?? res.statusText}`, "error");
@@ -109,7 +114,7 @@ export default function UsersPage() {
     } finally {
       setLoading(false);
     }
-  }, [showToast]);
+  }, [showToast, getAccessToken]);
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 

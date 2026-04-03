@@ -199,7 +199,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 export default function ScreeningsPage() {
   const { nodeId } = useParams<{ nodeId: string }>();
-  const { user, ready, authenticated } = usePrivy();
+  const { user, ready, authenticated, getAccessToken } = usePrivy();
   const router = useRouter();
   const { showToast } = useToast();
 
@@ -307,10 +307,14 @@ export default function ScreeningsPage() {
 
     try {
       const method = isSelected ? 'DELETE' : 'POST';
+      const token = await getAccessToken();
       const res = await fetch('/api/lbs/screenings', {
         method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nodeId, filmId, userId: user?.id }),
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ nodeId, filmId }),
       });
       const json = await res.json() as { error?: string };
       if (!res.ok) throw new Error(json.error ?? '操作失败');
@@ -324,7 +328,7 @@ export default function ScreeningsPage() {
       });
       showToast(err instanceof Error ? err.message : '操作失败', 'error');
     }
-  }, [isReadonly, selectedIds, nodeId, user?.id, showToast]);
+  }, [isReadonly, selectedIds, nodeId, showToast, getAccessToken]);
 
   // ── AIF 支付成功回调：仅清除 sessionStorage，导航交给 UniversalCheckout 的 successUrl
   // successUrl 指向 complete 页面，complete 页面负责显示 Toast 并 router.replace 到审核中页面

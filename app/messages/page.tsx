@@ -659,7 +659,7 @@ function DesktopMessagesView({
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function MessagesPage() {
-  const { user, ready } = usePrivy();
+  const { user, ready, getAccessToken } = usePrivy();
   const { showToast } = useToast();
   const { t, lang } = useI18n();
 
@@ -681,12 +681,16 @@ export default function MessagesPage() {
     setLoading(true);
     try {
       const url = user?.id ? `/api/messages?userId=${encodeURIComponent(user.id)}` : '/api/messages';
-      const res = await fetch(url, { cache: 'no-store' });
+      const token = user?.id ? await getAccessToken() : null;
+      const res = await fetch(url, {
+        cache: 'no-store',
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       if (!res.ok) { setMessages([]); return; }
       const json = await res.json();
       setMessages((json.messages as DbMessage[]) ?? []);
     } catch { setMessages([]); } finally { setLoading(false); }
-  }, [user?.id]);
+  }, [user?.id, getAccessToken]);
 
   useEffect(() => { if (ready) fetchMessages(); }, [ready, fetchMessages]);
 
@@ -720,7 +724,15 @@ export default function MessagesPage() {
     const globalIds   = messages.filter((m) => m.user_id === null && !readGlobalMsgs.includes(m.id)).map((m) => m.id);
     if (personalIds.length === 0 && globalIds.length === 0) { showToast('No unread messages', 'info'); return; }
     if (personalIds.length > 0 && user?.id) {
-      const res = await fetch('/api/messages', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: user.id }) });
+      const token = await getAccessToken();
+      const res = await fetch('/api/messages', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ userId: user.id }),
+      });
       if (!res.ok) { showToast('Failed to mark messages as read', 'error'); return; }
       setMessages((prev) => prev.map((m) => (m.user_id !== null ? { ...m, is_read: true } : m)));
     }
@@ -741,7 +753,15 @@ export default function MessagesPage() {
     } else {
       const msg = messages.find((m) => m.id === id);
       if (!msg || msg.is_read) return;
-      await fetch('/api/messages', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, userId: user?.id }) });
+      const token = await getAccessToken();
+      await fetch('/api/messages', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ id, userId: user?.id }),
+      });
       setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, is_read: true } : m)));
       if (selectedMsg?.id === id) setSelectedMsg((prev) => prev ? { ...prev, is_read: true } : null);
     }
@@ -755,7 +775,11 @@ export default function MessagesPage() {
       showToast('MESSAGE HIDDEN', 'info');
     } else {
       if (!user?.id) return;
-      const res = await fetch(`/api/messages?id=${id}&userId=${encodeURIComponent(user.id)}`, { method: 'DELETE' });
+      const delToken = await getAccessToken();
+      const res = await fetch(`/api/messages?id=${id}&userId=${encodeURIComponent(user.id)}`, {
+        method: 'DELETE',
+        headers: delToken ? { Authorization: `Bearer ${delToken}` } : undefined,
+      });
       if (!res.ok) { showToast('Failed to delete message', 'error'); return; }
       setMessages((prev) => prev.filter((m) => m.id !== id));
       showToast('MESSAGE DELETED', 'success');

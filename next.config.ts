@@ -16,7 +16,7 @@ const nextConfig: NextConfig = {
   // 增大 Server Actions 及 API Route 的请求体上限（支持大视频文件上传）
   experimental: {
     serverActions: {
-      bodySizeLimit: '500mb',
+      bodySizeLimit: '50mb',
     },
   },
   // Fix: @ducanh2912/next-pwa 依賴已棄用的 rollup-plugin-terser，

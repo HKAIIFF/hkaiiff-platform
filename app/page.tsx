@@ -471,7 +471,7 @@ function DesktopGridCard({ film }: { film: SupabaseFilm }) {
                 </span>
               )}
             </div>
-            <span className="text-[10px] font-mono text-gray-300 truncate flex-1">{film.user_display_name ?? film.studio ?? "ANONYMOUS"}</span>
+            <span className="text-[10px] font-mono text-gray-300 truncate flex-1">{film.user_display_name ?? film.studio ?? "Unknown Creator"}</span>
             {(film.user_verified_identities ?? []).length > 0 && (
               <IdentityBadges
                 verifiedIdentities={film.user_verified_identities ?? []}
@@ -494,7 +494,7 @@ function DesktopGridCard({ film }: { film: SupabaseFilm }) {
                 className="w-6 h-6 rounded-full border bg-black border-white/20"
               />
             </div>
-            <span className="text-[10px] font-mono text-gray-300 truncate flex-1">{film.studio ?? "ANONYMOUS"}</span>
+            <span className="text-[10px] font-mono text-gray-300 truncate flex-1">{film.studio ?? "Unknown Creator"}</span>
             {aiRatioPct && (
               <span className="text-[7px] font-mono bg-signal/15 border border-signal/40 text-signal px-1.5 py-0.5 rounded shrink-0 tracking-wider">
                 AIF {aiRatioPct}

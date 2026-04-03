@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { usePrivy } from "@privy-io/react-auth";
 import { supabase } from "@/lib/supabase";
 import { revalidateFeed } from "@/app/actions/revalidate";
 import { adminUpdateFilmStatus, adminToggleFilmField } from "@/app/actions/adminFilms";
@@ -20,6 +21,8 @@ interface Film {
   synopsis: string | null;
   poster_url: string | null;
   video_url: string | null;            // 預告片
+  trailer_url?: string | null;
+  feature_url?: string | null;
   main_video_url: string | null;       // 正片
   copyright_doc_url: string | null;    // 版權文件
   order_number: string | null;
@@ -182,6 +185,7 @@ const HEADERS = [
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function FilmsReviewPage() {
+  const { getAccessToken } = usePrivy();
   const [films, setFilms] = useState<Film[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
@@ -258,11 +262,18 @@ export default function FilmsReviewPage() {
               content: `您的影片《${targetFilm.title ?? id}》未通過本次審核，如有疑問請聯繫 support@hkaiiff.org。`,
             };
 
-      fetch("/api/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(msgPayload),
-      }).catch((err) => console.error("[films] sendMessage failed:", err));
+      getAccessToken()
+        .then((token) =>
+          fetch("/api/messages", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify(msgPayload),
+          }),
+        )
+        .catch((err) => console.error("[films] sendMessage failed:", err));
     }
 
     setProcessing(null);
@@ -272,7 +283,11 @@ export default function FilmsReviewPage() {
   async function fixFeed() {
     setFixingFeed(true);
     try {
-      const res = await fetch("/api/admin/fix-feed", { method: "POST" });
+      const token = await getAccessToken();
+      const res = await fetch("/api/admin/fix-feed", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       const json = await res.json();
       if (!res.ok || json.error) {
         showToast(`修復失敗: ${json.error ?? "未知錯誤"}`, "error");

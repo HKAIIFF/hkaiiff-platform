@@ -4988,7 +4988,7 @@ function OpsTowerTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: string
     } finally {
       setHistLoading(false);
     }
-  }, [histFrom, histTo, pushToast]);
+  }, [histFrom, histTo, pushToast, adminFetch]);
 
   useEffect(() => { loadHistory(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -4999,9 +4999,8 @@ function OpsTowerTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: string
     }
     setSending(true);
     try {
-      const res = await fetch("/api/messages", {
+      const res = await adminFetch("/api/messages", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: null,
           type: msg.channel,

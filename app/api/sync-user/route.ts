@@ -1,14 +1,9 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { PrivyClient } from '@privy-io/server-auth';
+import { getPrivyServerClient } from '@/lib/privy-server';
 
 /** PostgreSQL unique_violation error code */
 const PG_UNIQUE_VIOLATION = '23505';
-
-const privyClient = new PrivyClient(
-  process.env.NEXT_PUBLIC_PRIVY_APP_ID!,
-  process.env.PRIVY_APP_SECRET!
-);
 
 // 使用 Service Role Key 繞過 RLS，確保伺服器端能讀寫所有欄位（含 aif_balance）
 const supabase = createClient(
@@ -21,26 +16,22 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const { user } = body;
-    // 验证调用方身份，确保 Token 中的 userId 与请求体一致
     const authHeader = req.headers.get('authorization');
-    if (authHeader?.startsWith('Bearer ')) {
-      try {
-        const claims = await privyClient.verifyAuthToken(authHeader.slice(7));
-        if (user && claims.userId !== user.id) {
-          return NextResponse.json(
-            { error: 'Unauthorized: userId mismatch' },
-            { status: 403 }
-          );
-        }
-      } catch {
-        return NextResponse.json(
-          { error: 'Invalid auth token' },
-          { status: 401 }
-        );
-      }
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    let verifiedUserId: string;
+    try {
+      const claims = await getPrivyServerClient().verifyAuthToken(authHeader.slice(7));
+      verifiedUserId = claims.userId;
+    } catch {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
     if (!user || !user.id) {
       return NextResponse.json({ error: 'No user data' }, { status: 400 });
+    }
+    if (user.id !== verifiedUserId) {
+      return NextResponse.json({ error: 'Cannot sync other user data' }, { status: 403 });
     }
 
     const email: string | null = user.email?.address || null;

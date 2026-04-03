@@ -391,6 +391,7 @@ function DashboardModule({ t }: { t: Dict }) {
 }
 
 function VerificationsPanel() {
+  const { getAccessToken } = usePrivy();
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"pending"|"approved"|"rejected"|"all">("pending");
@@ -405,12 +406,15 @@ function VerificationsPanel() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/verifications?status=all`);
+      const token = await getAccessToken();
+      const res = await fetch(`/api/admin/verifications?status=all`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       const data = await res.json();
       setRecords(data.verifications ?? []);
     } catch { showToast("載入失敗", false); }
     finally { setLoading(false); }
-  }, []);
+  }, [getAccessToken]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -440,9 +444,14 @@ function VerificationsPanel() {
   async function approve(id:string) {
     setProcessing(id);
     try {
+      const token = await getAccessToken();
       const res = await fetch("/api/admin/verifications/review", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({applicationId:id, action:"approve"}),
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ applicationId: id, action: "approve" }),
       });
       const d = await res.json();
       if (res.ok) { showToast("✓ 已通過審核", true); load(); }
@@ -454,9 +463,14 @@ function VerificationsPanel() {
     if (!rejectId||!rejectReason) return;
     setProcessing(rejectId);
     try {
+      const token = await getAccessToken();
       const res = await fetch("/api/admin/verifications/review", {
-        method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({applicationId:rejectId, action:"reject", rejectionReason:rejectReason}),
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ applicationId: rejectId, action: "reject", rejectionReason: rejectReason }),
       });
       const d = await res.json();
       if (res.ok) { showToast("已退回", true); setRejectId(null); setRejectReason(""); load(); }
@@ -1527,6 +1541,7 @@ const TX_TYPE_LABEL: Record<string, string> = {
 };
 
 function FinanceModule({ t, pushToast }: SharedProps) {
+  const { getAccessToken } = usePrivy();
   const [sub, setSub] = useState<"ledger" | "treasury" | "settlement">("ledger");
   const [ledgerLoading, setLedgerLoading] = useState(false);
   const [ledgerData, setLedgerData] = useState<LedgerRow[]>([]);
@@ -1549,21 +1564,26 @@ function FinanceModule({ t, pushToast }: SharedProps) {
     if (sub !== "ledger") return;
     setLedgerLoading(true);
     setLedgerError(null);
-    fetch("/api/admin/finance/ledger")
-      .then(async (res) => {
+    (async () => {
+      try {
+        const token = await getAccessToken();
+        const res = await fetch("/api/admin/finance/ledger", {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
         const json: LedgerApiResponse = await res.json();
         if (json.error) {
           setLedgerError(`DB Error: ${json.error}`);
         }
         setLedgerSummary(json.summary ?? { total_usd: 0, total_aif: 0, total_tx: 0 });
         setLedgerData(json.data ?? []);
-      })
-      .catch((err: unknown) => {
+      } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "網絡請求失敗";
         setLedgerError(msg);
-      })
-      .finally(() => setLedgerLoading(false));
-  }, [sub]);
+      } finally {
+        setLedgerLoading(false);
+      }
+    })();
+  }, [sub, getAccessToken]);
 
   const copyToClipboard = (value: string, key: string) => {
     navigator.clipboard.writeText(value).then(() => {
@@ -1695,15 +1715,22 @@ function FinanceModule({ t, pushToast }: SharedProps) {
                 if (ledgerEndDate) params.set('endDate', ledgerEndDate);
                 if (ledgerTxTypeFilter) params.set('txType', ledgerTxTypeFilter);
                 if (ledgerCurrencyFilter) params.set('currency', ledgerCurrencyFilter);
-                fetch(`/api/admin/finance/ledger?${params.toString()}`)
-                  .then(async res => {
+                (async () => {
+                  try {
+                    const token = await getAccessToken();
+                    const res = await fetch(`/api/admin/finance/ledger?${params.toString()}`, {
+                      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+                    });
                     const json = await res.json();
                     if (json.error) setLedgerError(`DB Error: ${json.error}`);
                     setLedgerSummary(json.summary ?? { total_usd: 0, total_aif: 0, total_tx: 0 });
                     setLedgerData(json.data ?? []);
-                  })
-                  .catch(err => setLedgerError((err as Error).message))
-                  .finally(() => setLedgerLoading(false));
+                  } catch (err) {
+                    setLedgerError((err as Error).message);
+                  } finally {
+                    setLedgerLoading(false);
+                  }
+                })();
               }}
               className="px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
             >

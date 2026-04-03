@@ -8,15 +8,20 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { checkAdminAuth } from '@/lib/auth/adminAuth';
+import { getSupabaseAdmin } from '@/lib/supabase-admin';
+
+type BatchUserInsertInfo = {
+  email: string;
+  verification_name: string;
+  role?: string;
+  bio?: string | null;
+  about_studio?: string | null;
+  tech_stack?: string | null;
+};
 
 function getAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false } },
-  );
+  return getSupabaseAdmin();
 }
 
 type AdminDb = ReturnType<typeof getAdminClient>;
@@ -56,7 +61,7 @@ function isPostgrestMissingColumnError(message: string): boolean {
 async function insertBatchCreatedUser(
   db: AdminDb,
   userId: string,
-  userInfo: { email: string; verification_name: string; role?: string; bio?: string | null },
+  userInfo: BatchUserInsertInfo,
 ): Promise<{ error: { message: string } | null }> {
   const roleMap: Record<string, string> = {
     creator: 'creator',
@@ -66,6 +71,9 @@ async function insertBatchCreatedUser(
   const verificationType = roleMap[userInfo.role ?? 'creator'] ?? 'creator';
   const now = new Date().toISOString();
   const name = userInfo.verification_name;
+  const bio = userInfo.bio ?? null;
+  const aboutStudio = userInfo.about_studio ?? null;
+  const techStack = userInfo.tech_stack ?? null;
 
   const tiers: Record<string, unknown>[] = [
     {
@@ -74,10 +82,12 @@ async function insertBatchCreatedUser(
       name,
       display_name: name ?? null,
       avatar_seed: name ?? userId,
-      bio: userInfo.bio ?? null,
-      portfolio: null,
-      tech_stack: null,
-      verified_identities: [],
+      bio,
+      portfolio: bio,
+      about_studio: aboutStudio,
+      tech_stack: techStack,
+      verified_identities: [verificationType],
+      username_locked: true,
       last_sign_in_at: now,
       verification_status: 'approved',
       verification_type: verificationType,
@@ -88,10 +98,10 @@ async function insertBatchCreatedUser(
       name,
       display_name: name ?? null,
       avatar_seed: name ?? userId,
-      bio: userInfo.bio ?? null,
-      portfolio: null,
-      tech_stack: null,
-      verified_identities: [],
+      bio,
+      portfolio: bio,
+      tech_stack: techStack,
+      verified_identities: [verificationType],
       last_sign_in_at: now,
       verification_status: 'approved',
     },
@@ -101,7 +111,14 @@ async function insertBatchCreatedUser(
       name,
       display_name: name ?? null,
       avatar_seed: name ?? userId,
-      bio: userInfo.bio ?? null,
+      bio,
+      last_sign_in_at: now,
+    },
+    {
+      id: userId,
+      email: userInfo.email,
+      name,
+      display_name: name ?? null,
       last_sign_in_at: now,
     },
     {
@@ -195,12 +212,7 @@ export async function POST(req: NextRequest) {
       const { itemId, batchId, userInfo, filmInfo } = body as {
         itemId: string;
         batchId: string;
-        userInfo: {
-          email: string;
-          verification_name: string;
-          role?: string;
-          bio?: string;
-        };
+        userInfo: BatchUserInsertInfo;
         filmInfo: {
           project_title: string;
           conductor_studio?: string;
@@ -209,6 +221,9 @@ export async function POST(req: NextRequest) {
           synopsis?: string;
           core_cast?: string;
           region?: string;
+          country?: string;
+          language?: string;
+          year?: number;
           lbs_festival_royalty?: number;
           contact_email?: string;
           poster_url: string;
@@ -250,16 +265,23 @@ export async function POST(req: NextRequest) {
           studio: filmInfo.conductor_studio ?? null,
           tech_stack: filmInfo.film_tech_stack ?? null,
           ai_ratio: filmInfo.ai_contribution_ratio ?? 75,
+          description: filmInfo.synopsis ?? null,
           synopsis: filmInfo.synopsis ?? null,
           core_cast: filmInfo.core_cast ?? null,
           region: filmInfo.region ?? null,
+          country: filmInfo.country ?? null,
+          language: filmInfo.language ?? null,
+          year: filmInfo.year ?? null,
           lbs_royalty: filmInfo.lbs_festival_royalty ?? 5,
           poster_url: filmInfo.poster_url,
           trailer_url: filmInfo.trailer_url,
           video_url: filmInfo.trailer_url,
           contact_email: filmInfo.contact_email ?? userInfo.email,
           status: 'approved',
-          is_feed_published: false,
+          is_feed_published: true,
+          is_main_published: true,
+          payment_status: 'paid',
+          payment_method: 'official',
         })
         .select()
         .single();

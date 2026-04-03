@@ -15,31 +15,25 @@ async function parseJsonBody(res: Response): Promise<Record<string, unknown>> {
 }
 
 // ─── 類型定義 ─────────────────────────────────────────────────────────────────
-interface UserRow {
-  email: string;
-  password?: string;
-  role?: string;
+interface BatchItemRow {
   verification_name: string;
+  email: string;
+  role?: string;
   bio?: string;
   about_studio?: string;
   tech_stack?: string;
-}
-
-interface FilmRow {
-  email: string;
   project_title: string;
   conductor_studio?: string;
-  tech_stack?: string;
+  film_tech_stack?: string;
   ai_contribution_ratio?: string | number;
   synopsis?: string;
   core_cast?: string;
   region?: string;
-  lbs_festival_royalty?: string | number;
-  contact_email?: string;
   country?: string;
   language?: string;
   year?: string | number;
-  video_filename?: string;
+  lbs_festival_royalty?: string | number;
+  contact_email?: string;
 }
 
 type StepStatus = "pending" | "running" | "done" | "error";
@@ -196,7 +190,7 @@ const TD = "px-3 py-3 text-sm text-neutral-700";
 
 // ─── 步驟指示器 ───────────────────────────────────────────────────────────────
 function StepIndicator({ step }: { step: number }) {
-  const steps = ["用戶信息", "影片信息", "上傳預告片"];
+  const steps = ["信息表格", "上傳影片"];
   return (
     <div className="flex items-center gap-0 mb-8">
       {steps.map((label, i) => {
@@ -272,8 +266,7 @@ export function BatchReleaseTab({
 }) {
   const [activeTab, setActiveTab] = useState<"new" | "history">("new");
   const [step, setStep] = useState(1);
-  const [usersData, setUsersData] = useState<UserRow[]>([]);
-  const [filmsData, setFilmsData] = useState<FilmRow[]>([]);
+  const [items, setItems] = useState<BatchItemRow[]>([]);
   const [videoFiles, setVideoFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
@@ -307,29 +300,44 @@ export function BatchReleaseTab({
     if (activeTab === "history") loadHistory();
   }, [activeTab, loadHistory]);
 
-  // ── 文件解析 ────────────────────────────────────────────────────────────────
-  async function handleUsersFile(e: React.ChangeEvent<HTMLInputElement>) {
+  // ── 合併表格解析 ────────────────────────────────────────────────────────────
+  function handleSpreadsheetFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    try {
-      const rows = await parseSpreadsheet<UserRow>(file);
-      setUsersData(rows);
-      setError(null);
-    } catch {
-      setError("用戶信息文件解析失敗，請確認格式正確");
-    }
-  }
-
-  async function handleFilmsFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const rows = await parseSpreadsheet<FilmRow>(file);
-      setFilmsData(rows);
-      setError(null);
-    } catch {
-      setError("影片信息文件解析失敗，請確認格式正確");
-    }
+    setError("");
+    parseSpreadsheet(file)
+      .then((rows) => {
+        const valid = (rows as Record<string, string>[]).filter(
+          (r) => r.verification_name && r.email && r.project_title,
+        );
+        if (valid.length === 0) {
+          setError("表格中無有效數據，請確認包含 verification_name、email、project_title 列");
+          return;
+        }
+        setItems(
+          valid.map((r: Record<string, string>) => ({
+            verification_name: r.verification_name?.trim() || "",
+            email: r.email?.trim() || "",
+            role: r.role?.trim() || "creator",
+            bio: r.bio?.trim() || "",
+            about_studio: r.about_studio?.trim() || "",
+            tech_stack: r.tech_stack?.trim() || "",
+            project_title: r.project_title?.trim() || "",
+            conductor_studio: r.conductor_studio?.trim() || "",
+            film_tech_stack: r.film_tech_stack?.trim() || "",
+            ai_contribution_ratio: r.ai_contribution_ratio || "75",
+            synopsis: r.synopsis?.trim() || "",
+            core_cast: r.core_cast?.trim() || "",
+            region: r.region?.trim() || "",
+            country: r.country?.trim() || "",
+            language: r.language?.trim() || "",
+            year: r.year || "2026",
+            lbs_festival_royalty: r.lbs_festival_royalty || "5",
+            contact_email: r.contact_email?.trim() || r.email?.trim() || "",
+          })),
+        );
+      })
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
   }
 
   // ── 視頻文件處理 ─────────────────────────────────────────────────────────────
@@ -349,15 +357,11 @@ export function BatchReleaseTab({
   }
 
   // ── 計算匹配（按順序索引） ──────────────────────────────────────────────────
-  const matchedCount = Math.min(videoFiles.length, filmsData.length);
-
-  // ── 驗證用戶-影片關聯 ─────────────────────────────────────────────────────────
-  const userEmails = new Set(usersData.map((u) => u.email));
-  const unlinkedFilms = filmsData.filter((f) => !userEmails.has(f.email));
+  const matchedCount = Math.min(videoFiles.length, items.length);
 
   // ── 發行 ─────────────────────────────────────────────────────────────────────
   async function handlePublish() {
-    if (matchedCount < filmsData.length) return;
+    if (matchedCount < items.length) return;
 
     let token: string | null | undefined;
     try {
@@ -371,14 +375,14 @@ export function BatchReleaseTab({
       return;
     }
 
-    for (let i = 0; i < filmsData.length; i++) {
-      const f = filmsData[i];
-      if (!String(f.email ?? "").trim()) {
-        pushToast(`第 ${i + 1} 行影片缺少 email，請檢查表格`, false);
+    for (let i = 0; i < items.length; i++) {
+      const row = items[i]!;
+      if (!String(row.email ?? "").trim()) {
+        pushToast(`第 ${i + 1} 行缺少 email，請檢查表格`, false);
         return;
       }
-      if (!String(f.project_title ?? "").trim()) {
-        pushToast(`第 ${i + 1} 行影片缺少標題 project_title`, false);
+      if (!String(row.project_title ?? "").trim()) {
+        pushToast(`第 ${i + 1} 行缺少標題 project_title`, false);
         return;
       }
       if (!videoFiles[i]) {
@@ -393,37 +397,35 @@ export function BatchReleaseTab({
     setPublishDone(false);
     setPublishBatchId(null);
 
-    const initial: ItemProgress[] = filmsData.map((film, i) => ({
+    const initial: ItemProgress[] = items.map((item, i) => ({
       index: i,
-      title: film.project_title,
-      name: usersData.find((u) => u.email === film.email)?.verification_name ?? film.email,
+      title: item.project_title,
+      name: item.verification_name,
       steps: { createUser: "pending", uploadPoster: "pending", uploadVideo: "pending", createFilm: "pending" },
     }));
     setPublishItems(initial);
 
-    const apiItems = filmsData.map((film, idx) => {
-      const user = usersData.find((u) => u.email === film.email);
-      const email = String(film.email).trim();
-      return {
-        user_email: email,
-        user_password: user?.password ?? "HKaiiff2026!@",
-        role: user?.role ?? "creator",
-        verification_name: (user?.verification_name ?? email).trim() || email,
-        bio: user?.bio ?? null,
-        about_studio: user?.about_studio ?? null,
-        profile_tech_stack: user?.tech_stack ?? null,
-        project_title: String(film.project_title).trim(),
-        conductor_studio: film.conductor_studio ?? null,
-        film_tech_stack: film.tech_stack ?? null,
-        ai_contribution_ratio: Number(film.ai_contribution_ratio) || 75,
-        synopsis: film.synopsis ?? null,
-        core_cast: film.core_cast ?? null,
-        region: film.region ?? null,
-        lbs_festival_royalty: Number(film.lbs_festival_royalty) || 5,
-        contact_email: (film.contact_email ?? email).trim(),
-        video_filename: film.video_filename ?? videoFiles[idx]?.name ?? null,
-      };
-    });
+    const apiItems = items.map((item, idx) => ({
+      user_email: item.email.trim(),
+      role: item.role ?? "creator",
+      verification_name: item.verification_name.trim() || item.email.trim(),
+      bio: item.bio ?? null,
+      about_studio: item.about_studio ?? null,
+      profile_tech_stack: item.tech_stack ?? null,
+      project_title: item.project_title.trim(),
+      conductor_studio: item.conductor_studio ?? null,
+      film_tech_stack: item.film_tech_stack ?? null,
+      ai_contribution_ratio: Number(item.ai_contribution_ratio) || 75,
+      synopsis: item.synopsis ?? null,
+      core_cast: item.core_cast ?? null,
+      region: item.region ?? null,
+      country: item.country ?? null,
+      language: item.language ?? null,
+      year: Number(item.year) || 2026,
+      lbs_festival_royalty: Number(item.lbs_festival_royalty) || 5,
+      contact_email: item.contact_email ?? item.email,
+      video_filename: videoFiles[idx]?.name ?? null,
+    }));
 
     let batchId: string;
     let itemIds: string[];
@@ -453,9 +455,8 @@ export function BatchReleaseTab({
 
     let completedCount = 0;
     try {
-      for (let i = 0; i < filmsData.length; i++) {
-        const film = filmsData[i];
-        const user = usersData.find((u) => u.email === film.email);
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i]!;
         const videoFile = videoFiles[i]!;
         const itemId = itemIds[i]!;
 
@@ -475,7 +476,7 @@ export function BatchReleaseTab({
           updateStep("uploadPoster", "done");
 
           updateStep("uploadVideo", "running");
-          const videoUrl = await uploadTrailerViaBunny(videoFile, film.project_title);
+          const videoUrl = await uploadTrailerViaBunny(videoFile, item.project_title);
           updateStep("uploadVideo", "done");
 
           updateStep("createUser", "running");
@@ -487,21 +488,26 @@ export function BatchReleaseTab({
               itemId,
               batchId,
               userInfo: {
-                email: String(film.email).trim(),
-                verification_name: (user?.verification_name ?? film.email).trim(),
-                role: user?.role ?? "creator",
-                bio: user?.bio,
+                email: item.email.trim(),
+                verification_name: item.verification_name.trim(),
+                role: item.role ?? "creator",
+                bio: item.bio,
+                about_studio: item.about_studio,
+                tech_stack: item.tech_stack,
               },
               filmInfo: {
-                project_title: film.project_title,
-                conductor_studio: film.conductor_studio,
-                film_tech_stack: film.tech_stack,
-                ai_contribution_ratio: Number(film.ai_contribution_ratio) || 75,
-                synopsis: film.synopsis,
-                core_cast: film.core_cast,
-                region: film.region,
-                lbs_festival_royalty: Number(film.lbs_festival_royalty) || 5,
-                contact_email: film.contact_email ?? film.email,
+                project_title: item.project_title,
+                conductor_studio: item.conductor_studio,
+                film_tech_stack: item.film_tech_stack,
+                ai_contribution_ratio: Number(item.ai_contribution_ratio) || 75,
+                synopsis: item.synopsis,
+                core_cast: item.core_cast,
+                region: item.region,
+                country: item.country,
+                language: item.language,
+                year: item.year != null && item.year !== "" ? Number(item.year) : undefined,
+                lbs_festival_royalty: Number(item.lbs_festival_royalty) || 5,
+                contact_email: item.contact_email ?? item.email,
                 poster_url: posterUrl,
                 trailer_url: videoUrl,
               },
@@ -559,59 +565,64 @@ export function BatchReleaseTab({
     setPublishedCount(0);
   }
 
-  // ── STEP 1：用戶信息上傳 ─────────────────────────────────────────────────────
+  // ── STEP 1：合併信息表格 ─────────────────────────────────────────────────────
   function renderStep1() {
     return (
       <div className="space-y-5">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="font-bold text-neutral-900">① 上傳用戶信息表格（可選）</h3>
-            <p className="text-sm text-neutral-500 mt-0.5">可選步驟，如無用戶信息可直接跳過，影片 email 將自動建立帳號</p>
+            <h3 className="font-bold text-neutral-900">① 上傳合併信息表格</h3>
+            <p className="text-sm text-neutral-500 mt-0.5">
+              單表包含創作者與影片欄位；亦兼容舊版 users / films 分表流程時，請改用獨立頁面或分別導出後手動合併
+            </p>
           </div>
           <a
-            href="/templates/users-template.csv"
+            href="/templates/batch-release-template.csv"
             download
             className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold border border-neutral-300 text-neutral-600 hover:bg-neutral-50 transition-colors"
           >
-            📥 下載用戶信息模板 (CSV)
+            📥 下載批片發行模板 (CSV)
           </a>
         </div>
 
         <label className="block cursor-pointer border-2 border-dashed border-neutral-200 rounded-xl p-10 text-center hover:border-[#1a73e8]/40 hover:bg-blue-50/20 transition-colors">
-          <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleUsersFile} />
+          <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleSpreadsheetFile} />
           <div className="text-4xl mb-3">📋</div>
-          <p className="font-semibold text-neutral-700">拖入或點擊上傳用戶信息表格</p>
-          <p className="text-xs text-neutral-400 mt-1">支持 .csv 或 .xlsx 格式</p>
+          <p className="font-semibold text-neutral-700">拖入或點擊上傳合併表格</p>
+          <p className="text-xs text-neutral-400 mt-1">支持 .csv 或 .xlsx · 需含 verification_name、email、project_title</p>
         </label>
 
-        {usersData.length > 0 && (
+        {items.length > 0 && (
           <div className={`${CARD} overflow-hidden`}>
             <div className="px-4 py-3 border-b border-neutral-100">
               <p className="text-sm font-semibold text-neutral-700">
-                已解析 <span className="text-[#1a73e8]">{usersData.length}</span> 條用戶記錄
+                已解析 <span className="text-[#1a73e8]">{items.length}</span> 條記錄
               </p>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-neutral-50">
                   <tr>
-                    {["#", "姓名", "郵箱", "角色", "Bio 預覽"].map((h) => (
+                    {["#", "姓名", "郵箱", "角色", "影片標題", "Studio", "AI比例", "地區"].map((h) => (
                       <th key={h} className={TH}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100">
-                  {usersData.map((u, i) => (
+                  {items.map((row, i) => (
                     <tr key={i} className="hover:bg-neutral-50/50">
                       <td className={`${TD} w-10 text-neutral-400`}>{i + 1}</td>
-                      <td className={`${TD} font-medium`}>{u.verification_name}</td>
-                      <td className={`${TD} text-neutral-500`}>{u.email}</td>
+                      <td className={`${TD} font-medium`}>{row.verification_name}</td>
+                      <td className={`${TD} text-neutral-500`}>{row.email}</td>
                       <td className={TD}>
                         <span className="rounded-full bg-neutral-100 text-neutral-600 px-2 py-0.5 text-xs font-medium">
-                          {u.role ?? "creator"}
+                          {row.role ?? "creator"}
                         </span>
                       </td>
-                      <td className={`${TD} max-w-xs truncate text-neutral-500`}>{u.bio}</td>
+                      <td className={`${TD} font-medium`}>{row.project_title}</td>
+                      <td className={`${TD} text-neutral-500`}>{row.conductor_studio}</td>
+                      <td className={TD}>{row.ai_contribution_ratio}%</td>
+                      <td className={TD}>{row.region}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -623,10 +634,7 @@ export function BatchReleaseTab({
         {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3">{error}</p>}
 
         <div className="flex justify-end">
-          <button
-            className={BTN_PRIMARY}
-            onClick={() => setStep(2)}
-          >
+          <button className={BTN_PRIMARY} disabled={items.length === 0} onClick={() => setStep(2)}>
             下一步 →
           </button>
         </div>
@@ -634,103 +642,12 @@ export function BatchReleaseTab({
     );
   }
 
-  // ── STEP 2：影片信息上傳 ─────────────────────────────────────────────────────
+  // ── STEP 2：上傳預告片 ───────────────────────────────────────────────────────
   function renderStep2() {
     return (
       <div className="space-y-5">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-bold text-neutral-900">② 上傳影片信息表格</h3>
-            <p className="text-sm text-neutral-500 mt-0.5">每行 email 將作為創作者標識，無需與用戶表格完全匹配</p>
-          </div>
-          <a
-            href="/templates/films-template.csv"
-            download
-            className="inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-semibold border border-neutral-300 text-neutral-600 hover:bg-neutral-50 transition-colors"
-          >
-            📥 下載影片信息模板 (CSV)
-          </a>
-        </div>
-
-        <label className="block cursor-pointer border-2 border-dashed border-neutral-200 rounded-xl p-10 text-center hover:border-[#1a73e8]/40 hover:bg-blue-50/20 transition-colors">
-          <input type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFilmsFile} />
-          <div className="text-4xl mb-3">🎬</div>
-          <p className="font-semibold text-neutral-700">拖入或點擊上傳影片信息表格</p>
-          <p className="text-xs text-neutral-400 mt-1">支持 .csv 或 .xlsx 格式</p>
-        </label>
-
-        {usersData.length > 0 && unlinkedFilms.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-sm text-blue-800">
-            ℹ️ {unlinkedFilms.length} 部影片的 email 未在用戶表格中找到匹配，將自動建立新帳號：{" "}
-            {unlinkedFilms.map((f) => f.email).join("、")}
-          </div>
-        )}
-
-        {filmsData.length > 0 && (
-          <div className={`${CARD} overflow-hidden`}>
-            <div className="px-4 py-3 border-b border-neutral-100">
-              <p className="text-sm font-semibold text-neutral-700">
-                已解析 <span className="text-[#1a73e8]">{filmsData.length}</span> 部影片
-              </p>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-neutral-50">
-                  <tr>
-                    {["#", "影片標題", "導演/Studio", "AI比例", "地區", "關聯用戶", "視頻文件名"].map((h) => (
-                      <th key={h} className={TH}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-neutral-100">
-                  {filmsData.map((f, i) => {
-                    const linked = userEmails.has(f.email);
-                    return (
-                      <tr key={i} className="hover:bg-neutral-50/50">
-                        <td className={`${TD} w-10 text-neutral-400`}>{i + 1}</td>
-                        <td className={`${TD} font-medium`}>{f.project_title}</td>
-                        <td className={`${TD} text-neutral-500`}>{f.conductor_studio}</td>
-                        <td className={TD}>{f.ai_contribution_ratio}%</td>
-                        <td className={TD}>{f.region}</td>
-                        <td className={TD}>
-                          {linked ? (
-                            <span className="text-green-600 text-xs font-medium">✓ {f.email}</span>
-                          ) : (
-                            <span className="text-neutral-500 text-xs font-medium">→ {f.email}</span>
-                          )}
-                        </td>
-                        <td className={`${TD} font-mono text-xs text-neutral-400`}>{f.video_filename}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3">{error}</p>}
-
-        <div className="flex justify-between">
-          <button className={BTN_GHOST} onClick={() => setStep(1)}>← 上一步</button>
-          <button
-            className={BTN_PRIMARY}
-            disabled={filmsData.length === 0}
-            onClick={() => setStep(3)}
-          >
-            下一步 →
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── STEP 3：上傳預告片 ───────────────────────────────────────────────────────
-  function renderStep3() {
-    return (
-      <div className="space-y-5">
         <div>
-          <h3 className="font-bold text-neutral-900">③ 上傳預告片</h3>
+          <h3 className="font-bold text-neutral-900">② 上傳預告片</h3>
           <p className="text-sm text-neutral-500 mt-0.5">
             按順序匹配：第 1 個影片對應表格第 1 行，第 2 個對應第 2 行，以此類推
           </p>
@@ -765,16 +682,16 @@ export function BatchReleaseTab({
           )}
         </div>
 
-        {filmsData.length > 0 && (
+        {items.length > 0 && (
           <div className={`${CARD} overflow-hidden`}>
             <div className="px-4 py-3 border-b border-neutral-100 flex items-center justify-between">
               <p className="text-sm font-semibold text-neutral-700">影片匹配狀態</p>
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
-                matchedCount === filmsData.length
+                matchedCount === items.length
                   ? "bg-green-50 text-green-700"
                   : "bg-amber-50 text-amber-700"
               }`}>
-                {matchedCount}/{filmsData.length} 已匹配
+                {matchedCount}/{items.length} 已匹配
               </span>
             </div>
             <div className="overflow-x-auto">
@@ -787,12 +704,12 @@ export function BatchReleaseTab({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-neutral-100">
-                  {filmsData.map((film, i) => {
+                  {items.map((row, i) => {
                     const matched = videoFiles[i];
                     return (
                       <tr key={i} className="hover:bg-neutral-50/50">
                         <td className={`${TD} w-10 text-neutral-400`}>{i + 1}</td>
-                        <td className={`${TD} font-medium`}>{film.project_title}</td>
+                        <td className={`${TD} font-medium`}>{row.project_title}</td>
                         <td className={`${TD} font-mono text-xs text-neutral-500`}>
                           {matched ? matched.name : <span className="text-neutral-300">—</span>}
                         </td>
@@ -818,9 +735,9 @@ export function BatchReleaseTab({
         <button
           type="button"
           onClick={() => void handlePublish()}
-          disabled={matchedCount < filmsData.length || filmsData.length === 0}
+          disabled={matchedCount < items.length || items.length === 0}
           className={`w-full py-4 text-xl font-bold rounded-xl transition-colors ${
-            matchedCount === filmsData.length && filmsData.length > 0
+            matchedCount === items.length && items.length > 0
               ? "bg-green-500 hover:bg-green-400 text-white cursor-pointer"
               : "bg-neutral-200 text-neutral-400 cursor-not-allowed"
           }`}
@@ -829,7 +746,7 @@ export function BatchReleaseTab({
         </button>
 
         <div className="flex justify-between">
-          <button className={BTN_GHOST} onClick={() => setStep(2)}>← 上一步</button>
+          <button className={BTN_GHOST} onClick={() => setStep(1)}>← 上一步</button>
         </div>
       </div>
     );
@@ -909,8 +826,7 @@ export function BatchReleaseTab({
                 onClick={() => {
                   closePublishOverlay();
                   setStep(1);
-                  setUsersData([]);
-                  setFilmsData([]);
+                  setItems([]);
                   setVideoFiles([]);
                 }}
               >
@@ -1094,7 +1010,7 @@ export function BatchReleaseTab({
         <div>
           <p className="font-black text-neutral-900 text-sm tracking-wide">批片發行 · Batch Release</p>
           <p className="text-xs text-neutral-500 mt-0.5 leading-relaxed">
-            三步向導批量導入創作者帳號與影片資料，支持 CSV / Excel 格式。上傳預告片後自動提取海報並寫入資料庫。
+            兩步向導：合併表格導入創作者與影片資料（CSV / Excel），再上傳預告片；上傳後自動提取海報並寫入資料庫。
           </p>
         </div>
       </div>
@@ -1124,7 +1040,6 @@ export function BatchReleaseTab({
           <StepIndicator step={step} />
           {step === 1 && renderStep1()}
           {step === 2 && renderStep2()}
-          {step === 3 && renderStep3()}
         </div>
       ) : (
         renderHistory()
