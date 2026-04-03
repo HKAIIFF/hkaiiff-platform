@@ -301,11 +301,15 @@ function MobileMessagesView({
       </div>
 
       {/* ── Mobile full-screen detail overlay ──
-          z-[1001] sits above BottomNav (z-[999]) */}
+          z 高於底欄；safe-area 避免與劉海/狀態欄重疊 */}
       <div
-        className={`fixed inset-0 z-[1001] bg-[#050505] flex flex-col transition-transform duration-300 ease-out ${
+        className={`fixed inset-0 z-[12000] bg-[#050505] flex flex-col transition-transform duration-300 ease-out ${
           mobileDetailOpen && selectedMsg ? 'translate-x-0' : 'translate-x-full'
         }`}
+        style={{
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        }}
       >
         <MsgDetail
           msg={selectedMsg}
@@ -314,9 +318,9 @@ function MobileMessagesView({
         />
       </div>
 
-      {/* ── Festival full-screen modal ── z-[1002] above detail overlay */}
+      {/* ── Festival full-screen modal ── z 高於詳情遮罩 */}
       <div
-        className={`fixed inset-0 z-[1002] bg-[#050505] overflow-y-auto transition-transform duration-500 ease-out ${
+        className={`fixed inset-0 z-[13000] bg-[#050505] overflow-y-auto transition-transform duration-500 ease-out ${
           isFestivalOpen ? 'translate-y-0' : 'translate-y-full pointer-events-none'
         }`}
         style={{ WebkitOverflowScrolling: 'touch' }}

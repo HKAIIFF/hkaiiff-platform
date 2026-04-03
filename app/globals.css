@@ -59,6 +59,11 @@
       padding-top: calc(3rem + env(safe-area-inset-top, 0px));
     }
 
+    /* 獎項頁：與頁內固定返回鈕（top: 1rem + safe）同一基線，小地球與返回同高 */
+    .mobile-top-bar-root.mobile-top-bar-root--awards-pwa {
+      padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+    }
+
     .pwa-mobile-content-pt {
       padding-top: calc(3rem + 2.5rem + env(safe-area-inset-top, 0px));
     }
