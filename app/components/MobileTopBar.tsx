@@ -8,10 +8,12 @@ export default function MobileTopBar() {
   const { setActiveModal } = useModal();
   const pathname = usePathname();
   const showLogo = pathname === "/me";
+  const showDiscoverTitle = pathname === "/discover";
+  const showMessagesTitle = pathname === "/messages";
 
   return (
-    <div className="md:hidden mobile-top-bar-root fixed top-0 left-0 w-full z-30 px-4 flex justify-between items-start pointer-events-none">
-      {/* Logo — 仅在 /me 页面显示 */}
+    <div className="md:hidden mobile-top-bar-root fixed top-0 left-0 w-full z-30 px-4 flex justify-between items-center pointer-events-none">
+      {/* 左側：/me Logo；/discover、/messages 大標（與右側小地球同一行垂直居中，與 PWA 排版統一） */}
       {showLogo ? (
         <Link
           href="/"
@@ -24,6 +26,14 @@ export default function MobileTopBar() {
             Something has to change
           </div>
         </Link>
+      ) : showDiscoverTitle ? (
+        <h1 className="pointer-events-none font-heavy text-4xl text-white leading-none drop-shadow-md pr-2 min-w-0 truncate">
+          DISCOVER
+        </h1>
+      ) : showMessagesTitle ? (
+        <h1 className="pointer-events-none font-heavy text-2xl text-white tracking-wide leading-none drop-shadow-md pr-2">
+          MESSAGES
+        </h1>
       ) : (
         <div />
       )}

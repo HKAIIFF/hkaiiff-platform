@@ -236,16 +236,16 @@ function MobileMessagesView({
 
       {/* Panel header */}
       <div className="px-4 pb-3 border-b border-[#1a1a1a]">
-        <div className="flex items-end justify-between mb-3 pwa-clear-globe-r">
-          <div>
-            <h1 className="font-heavy text-2xl text-white tracking-wide leading-none">MESSAGES</h1>
-            {unreadCount > 0 && (
-              <p className="text-[9px] font-mono text-signal mt-1 tracking-widest">{unreadCount} UNREAD</p>
-            )}
+        <div className="flex items-center justify-between gap-2 mb-3 pwa-clear-globe-r">
+          <div className="min-h-[1.5rem] flex items-center min-w-0">
+            {unreadCount > 0 ? (
+              <p className="text-[9px] font-mono text-signal tracking-widest">{unreadCount} UNREAD</p>
+            ) : null}
           </div>
           <button
+            type="button"
             onClick={onMarkAllRead}
-            className="flex items-center gap-1 px-2.5 py-1.5 text-[9px] font-mono text-[#555] border border-[#222] rounded-lg hover:text-signal hover:border-signal/30 transition-all active:scale-90"
+            className="flex shrink-0 items-center gap-1 px-2.5 py-1.5 text-[9px] font-mono text-[#555] border border-[#222] rounded-lg hover:text-signal hover:border-signal/30 transition-all active:scale-90"
           >
             <i className="fas fa-check-double text-[8px]" /> ALL READ
           </button>
