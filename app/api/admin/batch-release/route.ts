@@ -72,8 +72,8 @@ async function insertBatchCreatedUser(
   const now = new Date().toISOString();
   const name = userInfo.verification_name;
   const bio = userInfo.bio ?? null;
-  const aboutStudio = userInfo.about_studio ?? null;
-  const techStack = userInfo.tech_stack ?? null;
+  const aboutStudio = userInfo.about_studio?.trim() || null;
+  const techStack = userInfo.tech_stack?.trim() || null;
 
   const tiers: Record<string, unknown>[] = [
     {
@@ -84,8 +84,8 @@ async function insertBatchCreatedUser(
       avatar_seed: name ?? userId,
       bio,
       portfolio: bio,
-      about_studio: aboutStudio,
-      tech_stack: techStack,
+      ...(aboutStudio ? { about_studio: aboutStudio } : {}),
+      ...(techStack ? { tech_stack: techStack } : {}),
       verified_identities: [verificationType],
       username_locked: true,
       last_sign_in_at: now,
@@ -100,7 +100,7 @@ async function insertBatchCreatedUser(
       avatar_seed: name ?? userId,
       bio,
       portfolio: bio,
-      tech_stack: techStack,
+      ...(techStack ? { tech_stack: techStack } : {}),
       verified_identities: [verificationType],
       last_sign_in_at: now,
       verification_status: 'approved',
@@ -256,33 +256,36 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // 建立影片記錄
+      // 構建影片插入 payload — 可選欄位僅在有值時寫入，防止資料庫列不存在導致報錯
+      const filmPayload: Record<string, unknown> = {
+        user_id: userId,
+        title: filmInfo.project_title,
+        studio: filmInfo.conductor_studio ?? null,
+        tech_stack: filmInfo.film_tech_stack ?? null,
+        ai_ratio: filmInfo.ai_contribution_ratio ?? 75,
+        description: filmInfo.synopsis ?? null,
+        synopsis: filmInfo.synopsis ?? null,
+        core_cast: filmInfo.core_cast ?? null,
+        region: filmInfo.region ?? null,
+        lbs_royalty: filmInfo.lbs_festival_royalty ?? 5,
+        poster_url: filmInfo.poster_url,
+        trailer_url: filmInfo.trailer_url,
+        video_url: filmInfo.trailer_url,
+        contact_email: filmInfo.contact_email ?? userInfo.email,
+        status: 'approved',
+        is_feed_published: true,
+        is_main_published: true,
+        payment_status: 'paid',
+        payment_method: 'official',
+      };
+
+      if (filmInfo.country) filmPayload.country = filmInfo.country;
+      if (filmInfo.language) filmPayload.language = filmInfo.language;
+      if (filmInfo.year) filmPayload.year = filmInfo.year;
+
       const { data: film, error: filmErr } = await db
         .from('films')
-        .insert({
-          user_id: userId,
-          title: filmInfo.project_title,
-          studio: filmInfo.conductor_studio ?? null,
-          tech_stack: filmInfo.film_tech_stack ?? null,
-          ai_ratio: filmInfo.ai_contribution_ratio ?? 75,
-          description: filmInfo.synopsis ?? null,
-          synopsis: filmInfo.synopsis ?? null,
-          core_cast: filmInfo.core_cast ?? null,
-          region: filmInfo.region ?? null,
-          country: filmInfo.country ?? null,
-          language: filmInfo.language ?? null,
-          year: filmInfo.year ?? null,
-          lbs_royalty: filmInfo.lbs_festival_royalty ?? 5,
-          poster_url: filmInfo.poster_url,
-          trailer_url: filmInfo.trailer_url,
-          video_url: filmInfo.trailer_url,
-          contact_email: filmInfo.contact_email ?? userInfo.email,
-          status: 'approved',
-          is_feed_published: true,
-          is_main_published: true,
-          payment_status: 'paid',
-          payment_method: 'official',
-        })
+        .insert(filmPayload)
         .select()
         .single();
 
