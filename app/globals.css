@@ -66,12 +66,17 @@
     padding-top: calc(1rem + env(safe-area-inset-top, 0px));
   }
 
+  /* Feed / Me / Discover / Messages / Upload / Creator / User：與節慶指南彈層（.pwa-festival-modal-header）同一上沿基線 */
+  .mobile-top-bar-root.mobile-top-bar-root--compact {
+    padding-top: calc(1rem + env(safe-area-inset-top, 0px));
+  }
+
   .pwa-mobile-content-pt {
-    padding-top: calc(3rem + 2.5rem + env(safe-area-inset-top, 0px));
+    padding-top: calc(1rem + 2.5rem + env(safe-area-inset-top, 0px));
   }
 
   .pwa-me-main-scroll-pt {
-    padding-top: calc(7rem + env(safe-area-inset-top, 0px)) !important;
+    padding-top: calc(5rem + env(safe-area-inset-top, 0px)) !important;
   }
 
   .pwa-clear-globe-r {
@@ -79,11 +84,15 @@
   }
 
   .creator-pwa-header-y {
-    top: calc(3rem + env(safe-area-inset-top, 0px));
+    top: calc(1rem + env(safe-area-inset-top, 0px));
   }
 
   .info-modal-top-bar {
     padding-top: calc(3rem + env(safe-area-inset-top, 0px));
+  }
+
+  .info-modal-top-bar.info-modal-top-bar--compact {
+    padding-top: calc(1rem + env(safe-area-inset-top, 0px));
   }
 
   .pwa-festival-modal-header {

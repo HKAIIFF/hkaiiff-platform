@@ -1,8 +1,10 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import Hls from "hls.js";
 import { useModal } from "@/app/context/ModalContext";
+import { isPwaTopBarCompactPath } from "@/lib/pwaTopBarCompact";
 import { useI18n, LangCode } from "@/app/context/I18nContext";
 import { usePrivy } from "@privy-io/react-auth";
 import { useToast } from "@/app/context/ToastContext";
@@ -41,6 +43,8 @@ interface DbFilm {
 
 
 export default function GlobalModals() {
+  const pathname = usePathname();
+  const infoModalTopCompact = isPwaTopBarCompactPath(pathname);
   const { activeModal, setActiveModal, selectedFilm, interactTab, setInteractTab, selectedCreator, selectedCreatorUserId, lbsVideoUrl, setLbsVideoUrl } = useModal();
   const { t, lang, setLang, langs } = useI18n();
   const { user } = usePrivy();
@@ -372,7 +376,9 @@ export default function GlobalModals() {
         }`}
       >
         {/* 顶部导航栏（渐变遮罩，绝对定位浮在海报上；padding 与 MobileTopBar / 手機瀏覽器一致） */}
-        <div className="absolute top-0 left-0 w-full z-30 flex justify-between items-center px-4 pb-2 info-modal-top-bar bg-gradient-to-b from-black to-transparent">
+        <div
+          className={`absolute top-0 left-0 w-full z-30 flex justify-between items-center px-4 pb-2 info-modal-top-bar bg-gradient-to-b from-black to-transparent${infoModalTopCompact ? " info-modal-top-bar--compact" : ""}`}
+        >
           <button
             onClick={close}
             className="w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform"
@@ -840,7 +846,9 @@ export default function GlobalModals() {
         }`}
       >
         {/* 顶部导航栏（與 MobileTopBar 垂直基線一致；僅下方內容區捲動） */}
-        <div className="absolute top-0 left-0 w-full z-30 flex justify-between items-center px-4 pb-2 info-modal-top-bar bg-gradient-to-b from-black to-transparent">
+        <div
+          className={`absolute top-0 left-0 w-full z-30 flex justify-between items-center px-4 pb-2 info-modal-top-bar bg-gradient-to-b from-black to-transparent${infoModalTopCompact ? " info-modal-top-bar--compact" : ""}`}
+        >
           <button
             onClick={close}
             className="w-10 h-10 bg-black/50 backdrop-blur rounded-full text-white flex items-center justify-center border border-white/20 active:scale-90 transition-transform"

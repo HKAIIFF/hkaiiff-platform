@@ -563,7 +563,7 @@ function UploadContent() {
   if (!authenticated) return null;
 
   return (
-    <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen pt-28 md:pt-0 pb-32 md:pb-8">
+    <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen pwa-mobile-content-pt md:pt-0 pb-32 md:pb-8">
       {/* ── Desktop Page Header ── */}
       <div className="hidden md:flex z-10 bg-[#030303]/95 backdrop-blur border-b border-[#1a1a1a] px-6 py-4 items-center justify-between flex-shrink-0">
         <div>

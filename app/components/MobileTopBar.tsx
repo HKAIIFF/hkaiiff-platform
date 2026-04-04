@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useModal } from "@/app/context/ModalContext";
 import { usePathname } from "next/navigation";
+import { isPwaTopBarCompactPath } from "@/lib/pwaTopBarCompact";
 
 export default function MobileTopBar() {
   const { setActiveModal } = useModal();
@@ -11,10 +12,11 @@ export default function MobileTopBar() {
   const showDiscoverTitle = pathname === "/discover";
   const showMessagesTitle = pathname === "/messages";
   const awardsTopAlign = pathname === "/awards";
+  const compactTopBar = !awardsTopAlign && isPwaTopBarCompactPath(pathname);
 
   return (
     <div
-      className={`md:hidden mobile-top-bar-root fixed top-0 left-0 w-full z-30 px-4 flex justify-between items-center pointer-events-none${awardsTopAlign ? " mobile-top-bar-root--awards" : ""}`}
+      className={`md:hidden mobile-top-bar-root fixed top-0 left-0 w-full z-30 px-4 flex justify-between items-center pointer-events-none${awardsTopAlign ? " mobile-top-bar-root--awards" : ""}${compactTopBar ? " mobile-top-bar-root--compact" : ""}`}
     >
       {/* 左側：/me Logo；/discover、/messages 大標（與右側小地球同一行垂直居中，與 PWA 排版統一） */}
       {showLogo ? (
