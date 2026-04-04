@@ -158,7 +158,7 @@ function MobileDiscover({
     <div className="flex-1 h-full w-full overflow-y-auto bg-void flex flex-col min-h-screen px-4 pwa-mobile-content-pt pb-bottom-nav-safe relative">
 
       {/* Description */}
-      <p className="font-mono text-[10px] text-gray-400 mb-5 leading-relaxed border-l-2 border-[#333] pl-2">
+      <p className="font-mono text-[10px] text-void-hint mb-5 leading-relaxed border-l-2 border-[#333] pl-2">
         由地理位置解鎖的 LBS 獨家放映活動，走近影展現場範圍即可解鎖觀看。
       </p>
 
@@ -226,10 +226,10 @@ function MobileDiscover({
                       </div>
                     )}
                     <div className="flex flex-col items-end gap-1">
-                      <div className="text-[10px] font-mono text-gray-300 bg-black/50 px-2 py-1 rounded backdrop-blur border border-[#333] max-w-[160px] text-right">
+                      <div className="text-[10px] font-mono text-void-muted bg-black/50 px-2 py-1 rounded backdrop-blur border border-[#333] max-w-[160px] text-right">
                         📍 {[node.country, node.city, node.venue].filter(Boolean).join(' ') || node.location}
                       </div>
-                      <div className="text-[9px] font-mono text-gray-500 bg-black/50 px-2 py-0.5 rounded backdrop-blur border border-[#333]">
+                      <div className="text-[9px] font-mono text-void-hint bg-black/50 px-2 py-0.5 rounded backdrop-blur border border-[#333]">
                         🎬 放映影片：{node.filmIds?.length || 0} 部
                       </div>
                     </div>
@@ -238,7 +238,7 @@ function MobileDiscover({
                   {/* Bottom row */}
                   <div>
                     <h3 className="font-heavy text-white text-2xl mb-1 tracking-wide drop-shadow-md">{node.title}</h3>
-                    {node.desc && <p className="line-clamp-2 text-xs text-gray-400 mt-1 mb-2">{node.desc}</p>}
+                    {node.desc && <p className="line-clamp-2 text-xs text-void-hint mt-1 mb-2">{node.desc}</p>}
                     {node.dateRange && (
                       <div className={`text-[10px] font-mono border-l-2 ${node.borderColor} pl-2 leading-snug bg-black/40 py-1 pr-1 backdrop-blur rounded-r mb-3 ${node.textColor}`}>
                         {node.dateRange}
@@ -246,7 +246,7 @@ function MobileDiscover({
                     )}
                     <div className="flex items-center gap-2">
                       <img src={node.curator.avatar} alt="AIF.SHOW" className="w-5 h-5 rounded-full border border-[#444] object-cover shrink-0" />
-                      <span className="text-[10px] font-mono text-gray-300 font-bold">AIF.SHOW</span>
+                      <span className="text-[10px] font-mono text-void-muted font-bold">AIF.SHOW</span>
                       <i className="fas fa-check-circle text-blue-400 text-[10px]" />
                     </div>
                   </div>
@@ -300,7 +300,7 @@ function MobileDiscover({
                   <i className={`fas ${selectedNode.icon} mr-1`} />{selectedNode.stateLabel}
                 </div>
                 <h2 className="font-heavy text-4xl text-white leading-none drop-shadow-md mb-2">{selectedNode.title}</h2>
-                <div className="flex items-center gap-1.5 text-xs text-gray-300 mb-1">
+                <div className="flex items-center gap-1.5 text-xs text-void-muted mb-1">
                   <i className="fas fa-map-marker-alt text-[#CCFF00] text-[10px]" />
                   <span>{[selectedNode.country, selectedNode.city, selectedNode.venue].filter(Boolean).join(' · ') || selectedNode.location}</span>
                 </div>
@@ -314,7 +314,7 @@ function MobileDiscover({
             <div className="px-6 mt-6 relative z-10 space-y-6">
 
               {/* Curator */}
-              <div className="flex items-center gap-2 text-sm font-mono text-gray-400">
+              <div className="flex items-center gap-2 text-sm font-mono text-void-hint">
                 <img src={selectedNode.curator.avatar} alt={selectedNode.curator.name} className="w-6 h-6 rounded-full border border-[#444] object-cover" />
                 <span>策展人：</span>
                 <span className="text-white font-bold">{selectedNode.curator.name}</span>
@@ -325,7 +325,7 @@ function MobileDiscover({
               {selectedNode.desc && (
                 <section>
                   <h3 className="font-heavy text-lg text-white mb-2">EVENT DESCRIPTION</h3>
-                  <p className="text-xs text-gray-300 font-mono leading-relaxed text-justify">{selectedNode.desc}</p>
+                  <p className="text-xs text-void-muted font-mono leading-relaxed text-justify">{selectedNode.desc}</p>
                 </section>
               )}
 
@@ -379,11 +379,11 @@ function MobileDiscover({
                             <h4 className="text-base font-black text-white leading-tight mb-1 line-clamp-2">{film.title}</h4>
                             <p className="text-xs text-emerald-400 truncate mb-2">{film.studio}</p>
                             {film.synopsis && (
-                              <p className="text-[11px] text-gray-400 line-clamp-3 leading-snug">{film.synopsis}</p>
+                              <p className="text-[11px] text-void-hint line-clamp-3 leading-snug">{film.synopsis}</p>
                             )}
                           </div>
                           <div className="flex items-center gap-2 mt-2">
-                            <span className="text-[10px] text-white/40 font-mono flex items-center gap-1">
+                            <span className="text-[10px] text-white/68 font-mono flex items-center gap-1">
                               <i className="fas fa-play text-[8px]" /> 查看詳情
                             </span>
                           </div>
@@ -448,7 +448,7 @@ function MobileDiscover({
                 <p className="text-emerald-400 text-sm font-mono">{selectedFilmForDetail.studio}</p>
 
                 {selectedFilmForDetail.synopsis && (
-                  <p className="text-sm text-gray-300 leading-relaxed border-l-2 border-[#333] pl-3">{selectedFilmForDetail.synopsis}</p>
+                  <p className="text-sm text-void-muted leading-relaxed border-l-2 border-[#333] pl-3">{selectedFilmForDetail.synopsis}</p>
                 )}
 
                 {/* ▶ 播放正片 按鈕 */}
@@ -519,12 +519,12 @@ function DesktopNodeCard({ node, isUnlocked, dist, onClick }: DesktopCardProps) 
             </span>
           )}
         </div>
-        <div className="absolute top-2.5 right-2.5 text-[8px] font-mono text-gray-400 bg-black/60 backdrop-blur px-1.5 py-0.5 rounded border border-[#333]">
+        <div className="absolute top-2.5 right-2.5 text-[8px] font-mono text-void-hint bg-black/60 backdrop-blur px-1.5 py-0.5 rounded border border-[#333]">
           🎬 {node.filmIds?.length ?? 0}
         </div>
         <div className="absolute bottom-0 left-0 right-0 p-3">
           <h3 className="font-heavy text-white text-base leading-tight mb-1 line-clamp-2">{node.title}</h3>
-          <p className="text-[9px] font-mono text-gray-400 flex items-center gap-1 mb-2">
+          <p className="text-[9px] font-mono text-void-hint flex items-center gap-1 mb-2">
             <i className={`fas fa-map-marker-alt ${node.textColor} text-[8px]`} />
             <span className="truncate">{[node.country, node.city, node.venue].filter(Boolean).join(' · ') || node.location}</span>
           </p>

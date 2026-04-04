@@ -67,7 +67,7 @@ function getEventStatus(state: string | null, startDate?: string | null, endDate
     if (now < start) {
       return { label: 'UPCOMING', color: 'text-yellow-400', border: 'border-yellow-500', bg: 'bg-yellow-500/10', pulse: false };
     }
-    return { label: 'ENDED', color: 'text-gray-500', border: 'border-gray-600', bg: 'bg-gray-600/10', pulse: false };
+    return { label: 'ENDED', color: 'text-void-hint', border: 'border-gray-600', bg: 'bg-gray-600/10', pulse: false };
   }
   if (state === 'unlocked') {
     return { label: 'OPEN', color: 'text-[#CCFF00]', border: 'border-[#CCFF00]', bg: 'bg-[#CCFF00]/10', pulse: true };
@@ -252,8 +252,8 @@ export default function EventDetailPage() {
   if (!event) {
     return (
       <div className="min-h-screen bg-[#050505] flex flex-col items-center justify-center gap-4">
-        <i className="fas fa-exclamation-triangle text-2xl text-gray-600" />
-        <div className="text-gray-500 font-mono text-sm">Event not found</div>
+        <i className="fas fa-exclamation-triangle text-2xl text-void-subtle" />
+        <div className="text-void-hint font-mono text-sm">Event not found</div>
         <button
           onClick={() => router.push('/discover')}
           className="text-[#CCFF00] border border-[#CCFF00] px-4 py-2 rounded-full font-mono text-xs active:scale-95 transition-transform"
@@ -320,7 +320,7 @@ export default function EventDetailPage() {
           <h1 className="font-heavy text-4xl text-white leading-none drop-shadow-md mb-2">
             {event.title ?? 'UNNAMED EVENT'}
           </h1>
-          <div className="text-[10px] font-mono text-gray-400 flex items-center gap-1.5 flex-wrap">
+          <div className="text-[10px] font-mono text-void-hint flex items-center gap-1.5 flex-wrap">
             <i className="fas fa-crosshairs text-signal text-[9px]" />
             <span className="ltr-force">{coordStr}</span>
             {event.city && (
@@ -351,7 +351,7 @@ export default function EventDetailPage() {
                 <i className="fas fa-certificate text-[#CCFF00] text-xs shrink-0" />
               )}
             </div>
-            <div className="text-[9px] font-mono text-gray-500 uppercase tracking-widest mt-0.5">
+            <div className="text-[9px] font-mono text-void-hint uppercase tracking-widest mt-0.5">
               策展人 · Curator
             </div>
           </div>
@@ -359,7 +359,7 @@ export default function EventDetailPage() {
 
         {/* Description (海報移除後，直接顯示文字) */}
         {event.description && (
-          <p className="text-xs text-gray-300 font-mono leading-relaxed border-l-2 border-[#333] pl-3">
+          <p className="text-xs text-void-muted font-mono leading-relaxed border-l-2 border-[#333] pl-3">
             {event.description}
           </p>
         )}
@@ -367,11 +367,11 @@ export default function EventDetailPage() {
         {/* Venue + Schedule */}
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-[#111] p-4 rounded-xl border border-[#222]">
-            <div className="text-[9px] text-gray-500 font-mono mb-1.5 tracking-widest">VENUE</div>
+            <div className="text-[9px] text-void-hint font-mono mb-1.5 tracking-widest">VENUE</div>
             <div className="text-sm text-white font-bold leading-snug">{location}</div>
           </div>
           <div className="bg-[#111] p-4 rounded-xl border border-[#222]">
-            <div className="text-[9px] text-gray-500 font-mono mb-1.5 tracking-widest">SCHEDULE</div>
+            <div className="text-[9px] text-void-hint font-mono mb-1.5 tracking-widest">SCHEDULE</div>
             <div className="text-sm text-white font-bold ltr-force leading-snug">{schedule}</div>
           </div>
         </div>
@@ -382,7 +382,7 @@ export default function EventDetailPage() {
             <i className="fas fa-film text-[#CCFF00]" />
             OFFICIAL SELECTION
             {films.length > 0 && (
-              <span className="text-[10px] font-mono text-gray-500 ml-1">({films.length})</span>
+              <span className="text-[10px] font-mono text-void-hint ml-1">({films.length})</span>
             )}
           </h3>
 
@@ -442,7 +442,7 @@ export default function EventDetailPage() {
                     </h4>
                     <p className="text-xs text-emerald-400 truncate">{film.studio}</p>
                     {film.synopsis && (
-                      <p className="text-[10px] text-gray-400 line-clamp-2 leading-snug">
+                      <p className="text-[10px] text-void-hint line-clamp-2 leading-snug">
                         {film.synopsis}
                       </p>
                     )}
@@ -458,7 +458,7 @@ export default function EventDetailPage() {
           <section className="bg-gradient-to-br from-[#111] to-[#0a0a0a] border border-[#333] p-4 rounded-xl relative overflow-hidden">
             <div className="absolute left-0 top-0 w-1 h-full bg-signal" />
             <h3 className="font-heavy text-base text-white mb-2 pl-1">SMART CONTRACT REQ</h3>
-            <p className="text-[10px] font-mono text-gray-400 pl-1 leading-relaxed">
+            <p className="text-[10px] font-mono text-void-hint pl-1 leading-relaxed">
               {event.smart_contract_req}
             </p>
           </section>

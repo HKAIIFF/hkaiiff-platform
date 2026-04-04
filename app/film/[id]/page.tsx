@@ -106,7 +106,7 @@ function CreatorCard({ creator }: { creator: CreatorProfile }) {
           )}
         </div>
         {creator.bio && (
-          <p className="text-xs text-gray-500 font-mono line-clamp-2 leading-relaxed">{creator.bio}</p>
+          <p className="text-xs text-void-hint font-mono line-clamp-2 leading-relaxed">{creator.bio}</p>
         )}
         <div className="flex items-center gap-1 mt-1.5 text-[10px] font-mono text-[#555] group-hover:text-signal transition-colors">
           <span>查看創作者主頁</span>
@@ -178,7 +178,7 @@ function FilmDetailInner() {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-4 px-6">
         <i className="fas fa-exclamation-triangle text-3xl text-[#333]" />
-        <p className="text-gray-500 font-mono text-sm text-center">影片不存在或已下架</p>
+        <p className="text-void-hint font-mono text-sm text-center">影片不存在或已下架</p>
         <button
           onClick={() => router.back()}
           className="text-signal font-mono text-xs border border-signal px-5 py-2 rounded-full active:scale-95 transition-transform"
@@ -245,12 +245,12 @@ function FilmDetailInner() {
             </span>
           )}
           {film.studio && (
-            <span className="text-[10px] font-mono bg-white/5 border border-white/10 text-gray-400 px-2.5 py-1 rounded-full">
+            <span className="text-[10px] font-mono bg-white/5 border border-white/10 text-void-hint px-2.5 py-1 rounded-full">
               {film.studio}
             </span>
           )}
           {film.tech_stack && (
-            <span className="text-[10px] font-mono bg-[#111] border border-[#222] text-gray-500 px-2.5 py-1 rounded-full">
+            <span className="text-[10px] font-mono bg-[#111] border border-[#222] text-void-hint px-2.5 py-1 rounded-full">
               {film.tech_stack}
             </span>
           )}
@@ -263,7 +263,7 @@ function FilmDetailInner() {
         {(film.synopsis?.trim() || film.description?.trim()) && (
           <section>
             <h2 className="font-heavy text-sm text-[#555] tracking-widest uppercase mb-3">SYNOPSIS</h2>
-            <p className="text-sm md:text-base text-gray-300 leading-relaxed border-l-2 border-[#333] pl-4">
+            <p className="text-sm md:text-base text-void-muted leading-relaxed border-l-2 border-[#333] pl-4">
               {film.synopsis?.trim() || film.description?.trim()}
             </p>
           </section>

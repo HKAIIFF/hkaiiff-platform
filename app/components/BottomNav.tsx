@@ -73,7 +73,7 @@ export default function BottomNav() {
 
         const active = isActive(item.href);
         const itemClass = `nav-item flex flex-col items-center justify-end gap-1.5 w-1/5 min-h-[3rem] pb-0.5 transition-colors cursor-pointer outline-none focus:outline-none [-webkit-tap-highlight-color:transparent] ${
-          active ? "text-signal" : "text-gray-500 hover:text-white"
+          active ? "text-signal" : "text-void-hint hover:text-white"
         }`;
 
         if (isProtected) {

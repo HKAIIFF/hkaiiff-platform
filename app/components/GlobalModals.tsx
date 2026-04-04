@@ -289,25 +289,25 @@ export default function GlobalModals() {
               <div className="w-14 h-14 bg-black border border-[#333] group-hover:border-signal group-hover:text-signal transition-colors rounded-full flex items-center justify-center text-2xl text-white">
                 <i className="fab fa-twitter" />
               </div>
-              <span className="text-[10px] font-mono text-gray-400">X</span>
+              <span className="text-[10px] font-mono text-void-hint">X</span>
             </div>
             <div className="flex flex-col items-center gap-3 cursor-pointer group">
               <div className="w-14 h-14 bg-black border border-[#333] group-hover:border-signal group-hover:text-signal transition-colors rounded-full flex items-center justify-center text-2xl text-white">
                 <i className="fab fa-instagram" />
               </div>
-              <span className="text-[10px] font-mono text-gray-400">IG</span>
+              <span className="text-[10px] font-mono text-void-hint">IG</span>
             </div>
             <div className="flex flex-col items-center gap-3 cursor-pointer group">
               <div className="w-14 h-14 bg-white text-black group-hover:bg-signal transition-colors rounded-full flex items-center justify-center text-2xl">
                 <i className="fas fa-download" />
               </div>
-              <span className="text-[10px] font-mono text-gray-400">POSTER</span>
+              <span className="text-[10px] font-mono text-void-hint">POSTER</span>
             </div>
             <div className="flex flex-col items-center gap-3 cursor-pointer group">
               <div className="w-14 h-14 bg-black border border-[#333] group-hover:border-signal group-hover:text-signal transition-colors rounded-full flex items-center justify-center text-2xl text-white">
                 <i className="fas fa-link" />
               </div>
-              <span className="text-[10px] font-mono text-gray-400">LINK</span>
+              <span className="text-[10px] font-mono text-void-hint">LINK</span>
             </div>
           </div>
 
@@ -340,7 +340,7 @@ export default function GlobalModals() {
           <div className="px-6 pb-2 pt-2 border-b border-[#222] flex justify-between items-center">
             <h3 className="font-heavy text-xl text-white">{t("sel_lang")}</h3>
             <button
-              className="text-gray-500 hover:text-white active:scale-90 transition-transform"
+              className="text-void-hint hover:text-white active:scale-90 transition-transform"
               onClick={close}
             >
               <i className="fas fa-times text-lg" />
@@ -414,10 +414,10 @@ export default function GlobalModals() {
                 <div className="bg-signal text-black text-[10px] font-bold px-2 py-0.5 rounded-sm shadow-[0_0_10px_rgba(204,255,0,0.5)]">
                   {film?.creator ?? "STUDIO"}
                 </div>
-                <div className="border border-[#444] text-gray-300 text-[9px] font-mono px-2 py-0.5 rounded-sm backdrop-blur">
+                <div className="border border-[#444] text-void-muted text-[9px] font-mono px-2 py-0.5 rounded-sm backdrop-blur">
                   4K 60FPS
                 </div>
-                <div className="border border-[#444] text-gray-300 text-[9px] font-mono px-2 py-0.5 rounded-sm backdrop-blur">
+                <div className="border border-[#444] text-void-muted text-[9px] font-mono px-2 py-0.5 rounded-sm backdrop-blur">
                   AI-NATIVE
                 </div>
               </div>
@@ -445,7 +445,7 @@ export default function GlobalModals() {
               </h3>
               <div className="bg-[#111] border border-[#222] p-5 rounded-xl shadow-inner relative overflow-hidden">
                 <i className="fas fa-quote-right text-[#222] text-6xl absolute -top-2 -right-2" />
-                <p className="font-mono text-xs text-gray-300 leading-relaxed text-justify relative z-10">
+                <p className="font-mono text-xs text-void-muted leading-relaxed text-justify relative z-10">
                   {film?.synopsis?.trim() ||
                     film?.description?.trim() ||
                     film?.fullDescription?.trim() ||
@@ -457,23 +457,23 @@ export default function GlobalModals() {
             {/* Cast / Director / Tech / Region 四宫格 */}
             <section className="grid grid-cols-2 gap-3">
               <div className="bg-gradient-to-b from-[#111] to-[#0a0a0a] p-4 rounded-xl border border-[#222] shadow-md">
-                <div className="text-[9px] text-gray-500 font-mono mb-1.5 flex items-center gap-1.5">
-                  <i className="fas fa-users text-gray-400" /> CORE CAST
+                <div className="text-[9px] text-void-hint font-mono mb-1.5 flex items-center gap-1.5">
+                  <i className="fas fa-users text-void-hint" /> CORE CAST
                 </div>
                 <div className="text-sm text-white font-bold leading-snug">
                   {film?.core_cast?.trim() || film?.info?.cast || "..."}
                 </div>
               </div>
               <div className="bg-gradient-to-b from-[#111] to-[#0a0a0a] p-4 rounded-xl border border-[#222] shadow-md">
-                <div className="text-[9px] text-gray-500 font-mono mb-1.5 flex items-center gap-1.5">
-                  <i className="fas fa-user-astronaut text-gray-400" /> CONDUCTOR
+                <div className="text-[9px] text-void-hint font-mono mb-1.5 flex items-center gap-1.5">
+                  <i className="fas fa-user-astronaut text-void-hint" /> CONDUCTOR
                 </div>
                 <div className="text-sm text-white font-bold leading-snug">
                   {film?.studio?.trim() || film?.info?.dir || "..."}
                 </div>
               </div>
               <div className="bg-gradient-to-b from-[#111] to-[#0a0a0a] p-4 rounded-xl border border-[#222] shadow-md">
-                <div className="text-[9px] text-gray-500 font-mono mb-1.5 flex items-center gap-1.5">
+                <div className="text-[9px] text-void-hint font-mono mb-1.5 flex items-center gap-1.5">
                   <i className="fas fa-microchip text-yellow-400" /> TECH PROVIDERS
                 </div>
                 <div className="text-xs text-yellow-400 font-bold leading-snug">
@@ -481,7 +481,7 @@ export default function GlobalModals() {
                 </div>
               </div>
               <div className="bg-gradient-to-b from-[#111] to-[#0a0a0a] p-4 rounded-xl border border-[#222] shadow-md">
-                <div className="text-[9px] text-gray-500 font-mono mb-1.5 flex items-center gap-1.5">
+                <div className="text-[9px] text-void-hint font-mono mb-1.5 flex items-center gap-1.5">
                   <i className="fas fa-globe-asia text-blue-400" /> REGION
                 </div>
                 <div className="text-sm text-white font-bold leading-snug">
@@ -498,13 +498,13 @@ export default function GlobalModals() {
               <div className="bg-[#111] border border-[#333] rounded-xl overflow-hidden shadow-[0_0_20px_rgba(0,229,153,0.05)]">
                 <div className="p-4 space-y-4">
                   <div className="flex justify-between items-center border-b border-[#222] pb-3">
-                    <div className="text-[10px] font-mono text-gray-500">NETWORK</div>
+                    <div className="text-[10px] font-mono text-void-hint">NETWORK</div>
                     <div className="text-xs font-bold text-white flex items-center gap-1.5 bg-black px-2 py-1 rounded border border-[#333]">
                       <i className="text-[#00E599]">◎</i> Solana
                     </div>
                   </div>
                   <div className="flex justify-between items-center border-b border-[#222] pb-3">
-                    <div className="text-[10px] font-mono text-gray-500">CONTRACT</div>
+                    <div className="text-[10px] font-mono text-void-hint">CONTRACT</div>
                     <div
                       className="text-[10px] font-mono text-signal bg-signal/10 px-2 py-1 rounded border border-signal/30 flex items-center gap-2 cursor-pointer active:scale-95 transition-transform"
                       onClick={() => {
@@ -517,14 +517,14 @@ export default function GlobalModals() {
                     </div>
                   </div>
                   <div className="flex justify-between items-center border-b border-[#222] pb-3">
-                    <div className="text-[10px] font-mono text-gray-500">STORAGE</div>
-                    <div className="text-xs font-bold text-gray-300 flex items-center gap-1.5">
-                      <i className="fas fa-database text-gray-500" />
+                    <div className="text-[10px] font-mono text-void-hint">STORAGE</div>
+                    <div className="text-xs font-bold text-void-muted flex items-center gap-1.5">
+                      <i className="fas fa-database text-void-hint" />
                       Arweave
                     </div>
                   </div>
                   <div className="flex justify-between items-center">
-                    <div className="text-[10px] font-mono text-gray-500">LBS ROYALTY</div>
+                    <div className="text-[10px] font-mono text-void-hint">LBS ROYALTY</div>
                     <div className="text-sm font-heavy text-signal">
                       {film?.lbs_royalty != null
                         ? `${film.lbs_royalty}%`
@@ -544,7 +544,7 @@ export default function GlobalModals() {
               <h3 className="font-heavy text-lg text-white mb-3 flex items-center gap-2">
                 <i className="fas fa-lock text-red-500" /> 🔒 PLAYBACK RESTRICTIONS
               </h3>
-              <ul className="text-xs font-mono text-gray-400 space-y-2.5 list-none">
+              <ul className="text-xs font-mono text-void-hint space-y-2.5 list-none">
                 <li className="flex items-start gap-2">
                   <i className="fas fa-chevron-right text-red-500 mt-0.5 shrink-0" />
                   Location-Based Screening Only. Valid LBS node verification required.
@@ -578,7 +578,7 @@ export default function GlobalModals() {
             </div>
             <button
               onClick={close}
-              className="w-8 h-8 bg-[#111] rounded-full text-gray-500 border border-[#333] active:scale-90 flex items-center justify-center"
+              className="w-8 h-8 bg-[#111] rounded-full text-void-hint border border-[#333] active:scale-90 flex items-center justify-center"
             >
               <i className="fas fa-times" />
             </button>
@@ -600,7 +600,7 @@ export default function GlobalModals() {
                 className={`flex-1 py-3 text-[10px] font-mono border-b-2 transition-colors ${
                   interactTab === key
                     ? "border-signal text-signal"
-                    : "border-transparent text-gray-500"
+                    : "border-transparent text-void-hint"
                 }`}
               >
                 <i className={`fas ${icon} mr-1`} /> {label}
@@ -614,7 +614,7 @@ export default function GlobalModals() {
             {/* LOGIC — 文本输入 */}
             {interactTab === "text" && (
               <div className="h-full flex flex-col">
-                <div className="text-[10px] font-mono text-gray-400 mb-2">
+                <div className="text-[10px] font-mono text-void-hint mb-2">
                   INJECT NARRATIVE LOGIC
                 </div>
                 <textarea
@@ -649,7 +649,7 @@ export default function GlobalModals() {
                   onChange={(e) => setAudioFile(e.target.files?.[0] ?? null)}
                 />
                 <button
-                  className="mt-8 text-[10px] text-gray-500 underline"
+                  className="mt-8 text-[10px] text-void-hint underline"
                   onClick={() => audioInputRef.current?.click()}
                 >
                   OR UPLOAD FILE
@@ -668,7 +668,7 @@ export default function GlobalModals() {
                   onChange={(e) => setVisionFile(e.target.files?.[0] ?? null)}
                 />
                 <div
-                  className="w-full aspect-video bg-[#111] border-2 border-dashed border-[#444] rounded-xl flex flex-col items-center justify-center text-gray-500 cursor-pointer hover:border-signal hover:text-signal transition-colors shadow-inner"
+                  className="w-full aspect-video bg-[#111] border-2 border-dashed border-[#444] rounded-xl flex flex-col items-center justify-center text-void-hint cursor-pointer hover:border-signal hover:text-signal transition-colors shadow-inner"
                   onClick={() => visionInputRef.current?.click()}
                 >
                   {visionFile ? (
@@ -708,7 +708,7 @@ export default function GlobalModals() {
                 <div className="text-xs font-mono text-signal tracking-widest text-center">
                   {bioSeed ? "BIO-SEED CAPTURED" : "SYNCING BIO-METRICS & LBS..."}
                 </div>
-                <div className="text-[9px] text-gray-500 font-mono mt-2 text-center w-4/5">
+                <div className="text-[9px] text-void-hint font-mono mt-2 text-center w-4/5">
                   {bioSeed
                     ? `SEED: 0x${bioSeed}`
                     : "Uses device sensors to generate a unique entropy seed for parallel universe rendering."}
@@ -812,7 +812,7 @@ export default function GlobalModals() {
                 <span>FULL FEATURE PLAYING</span>
               </div>
               <div className="flex gap-2">
-                <span className="bg-black/50 border border-[#333] px-2 py-1 rounded text-[8px] font-mono text-gray-400 backdrop-blur-sm">
+                <span className="bg-black/50 border border-[#333] px-2 py-1 rounded text-[8px] font-mono text-void-hint backdrop-blur-sm">
                   <i className="fas fa-satellite-dish text-[#CCFF00] mr-1" /> LBS EXCLUSIVE
                 </span>
               </div>
@@ -876,8 +876,8 @@ export default function GlobalModals() {
         {/* 無數據兜底 */}
         {!isCreatorLoading && !creatorProfile && isCreator && (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 pt-24">
-            <i className="fas fa-user-slash text-3xl text-gray-700" />
-            <span className="text-gray-500 font-mono text-xs tracking-widest">PROFILE DATA NOT FOUND</span>
+            <i className="fas fa-user-slash text-3xl text-void-subtle" />
+            <span className="text-void-hint font-mono text-xs tracking-widest">PROFILE DATA NOT FOUND</span>
           </div>
         )}
 
@@ -921,8 +921,8 @@ export default function GlobalModals() {
               </h1>
 
               {/* 作品數指標行 */}
-              <div className="flex flex-wrap gap-4 text-[11px] font-mono text-gray-400 mb-6 border-b border-[#222] pb-6">
-                <span className="flex items-center gap-1 text-gray-300">
+              <div className="flex flex-wrap gap-4 text-[11px] font-mono text-void-hint mb-6 border-b border-[#222] pb-6">
+                <span className="flex items-center gap-1 text-void-muted">
                   <i className="fas fa-film text-sm" /> {creatorFilms.length} Film{creatorFilms.length !== 1 ? "s" : ""}
                 </span>
                 <span className="flex items-center gap-1 text-signal">
@@ -938,7 +938,7 @@ export default function GlobalModals() {
                     ABOUT STUDIO
                   </h3>
                   <div className="bg-[#111] p-5 rounded-xl border border-[#222]">
-                    <p className="text-xs text-gray-300 font-mono leading-relaxed text-justify">
+                    <p className="text-xs text-void-muted font-mono leading-relaxed text-justify">
                       {creatorProfile.bio && creatorProfile.bio.trim()
                         ? creatorProfile.bio
                         : "No studio information provided. This node operates in stealth mode — its rendering pipeline and creative philosophy remain undisclosed."}
@@ -960,7 +960,7 @@ export default function GlobalModals() {
                         .map((tech) => (
                           <span
                             key={tech}
-                            className="border border-[#333] px-3 py-1 rounded-full text-xs text-gray-300 font-mono bg-[#111] hover:border-signal hover:text-signal transition-colors"
+                            className="border border-[#333] px-3 py-1 rounded-full text-xs text-void-muted font-mono bg-[#111] hover:border-signal hover:text-signal transition-colors"
                           >
                             {tech}
                           </span>
@@ -988,7 +988,7 @@ export default function GlobalModals() {
                           />
                           <div>
                             <div className="text-sm font-bold text-white">{member.name || "—"}</div>
-                            <div className="text-[10px] text-gray-500 font-mono">{member.role || "—"}</div>
+                            <div className="text-[10px] text-void-hint font-mono">{member.role || "—"}</div>
                           </div>
                         </div>
                       ))}
@@ -1003,7 +1003,7 @@ export default function GlobalModals() {
                       {t("verify_portfolio")}
                     </h3>
                     <div className="bg-[#111] p-5 rounded-xl border border-[#222]">
-                      <p className="text-xs text-gray-300 font-mono leading-relaxed text-justify">
+                      <p className="text-xs text-void-muted font-mono leading-relaxed text-justify">
                         {creatorProfile.portfolio}
                       </p>
                     </div>
@@ -1017,8 +1017,8 @@ export default function GlobalModals() {
                   </h3>
                   {creatorFilms.length === 0 ? (
                     <div className="border border-dashed border-[#222] rounded-xl py-8 text-center">
-                      <i className="fas fa-film text-2xl text-gray-700 mb-3 block" />
-                      <span className="text-[11px] font-mono text-gray-600 tracking-widest">
+                      <i className="fas fa-film text-2xl text-void-subtle mb-3 block" />
+                      <span className="text-[11px] font-mono text-void-subtle tracking-widest">
                         No films submitted yet.
                       </span>
                     </div>
@@ -1042,18 +1042,18 @@ export default function GlobalModals() {
                             />
                           ) : (
                             <div className="w-12 h-16 bg-[#0a0a0a] border border-[#333] rounded flex items-center justify-center shrink-0">
-                              <i className="fas fa-film text-gray-700 text-sm" />
+                              <i className="fas fa-film text-void-subtle text-sm" />
                             </div>
                           )}
                           <div className="flex-1 min-w-0 relative z-10">
                             <div className="text-sm font-heavy text-white group-hover:text-signal transition-colors mb-1 truncate">
                               {film.title || "UNTITLED"}
                             </div>
-                            <div className="text-[10px] text-gray-400 leading-snug line-clamp-2">
+                            <div className="text-[10px] text-void-hint leading-snug line-clamp-2">
                               {film.description || film.synopsis || "No description available."}
                             </div>
                           </div>
-                          <div className="text-xs font-mono text-gray-600 relative z-10 shrink-0 pt-0.5">
+                          <div className="text-xs font-mono text-void-subtle relative z-10 shrink-0 pt-0.5">
                             {new Date(film.created_at).getFullYear()}
                           </div>
                         </div>

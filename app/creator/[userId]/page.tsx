@@ -81,11 +81,11 @@ function FilmCard({ film }: { film: ApprovedFilm }) {
             {film.title}
           </h3>
           {film.tech_stack && (
-            <p className="text-gray-500 text-[10px] font-mono truncate">
+            <p className="text-void-hint text-[10px] font-mono truncate">
               {film.tech_stack.split(",")[0]?.trim()}
             </p>
           )}
-          <div className="text-[9px] font-mono text-gray-700 mt-1.5">
+          <div className="text-[9px] font-mono text-void-subtle mt-1.5">
             {new Date(film.created_at).toLocaleDateString("en-GB", { year: "numeric", month: "short" })}
           </div>
         </div>
@@ -192,9 +192,9 @@ export default function CreatorPage() {
   if (notFound || !profile) {
     return (
       <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-4 px-6 text-center">
-        <i className="fas fa-user-slash text-4xl text-gray-700" />
-        <h1 className="font-bold text-xl text-gray-400 tracking-widest uppercase">Creator Not Found</h1>
-        <p className="text-gray-600 text-sm font-mono max-w-xs">
+        <i className="fas fa-user-slash text-4xl text-void-subtle" />
+        <h1 className="font-bold text-xl text-void-hint tracking-widest uppercase">Creator Not Found</h1>
+        <p className="text-void-subtle text-sm font-mono max-w-xs">
           This creator profile does not exist.
         </p>
         <button
@@ -271,8 +271,8 @@ export default function CreatorPage() {
         </div>
 
         {/* Stats row */}
-        <div className="flex flex-wrap gap-3 text-[10px] font-mono text-gray-500 mb-5 border-b border-[#1a1a1a] pb-4 mt-2">
-          <span className="flex items-center gap-1.5 text-gray-400">
+        <div className="flex flex-wrap gap-3 text-[10px] font-mono text-void-hint mb-5 border-b border-[#1a1a1a] pb-4 mt-2">
+          <span className="flex items-center gap-1.5 text-void-hint">
             <i className="fas fa-film text-signal text-xs" />
             {approvedFilms.length} Official Selection{approvedFilms.length !== 1 ? "s" : ""}
           </span>
@@ -296,7 +296,7 @@ export default function CreatorPage() {
               About Studio
             </h2>
             <div className="bg-[#0a0a0a] border border-[#1e1e1e] rounded-xl p-4">
-              <p className="text-xs text-gray-300 font-mono leading-relaxed">
+              <p className="text-xs text-void-muted font-mono leading-relaxed">
                 {profile.bio?.trim()
                   ? profile.bio
                   : "No studio information provided. This node operates in stealth mode — its rendering pipeline and creative philosophy remain undisclosed."}
@@ -330,7 +330,7 @@ export default function CreatorPage() {
                 Portfolio
               </h2>
               <div className="bg-[#0a0a0a] border border-[#1e1e1e] rounded-xl p-4">
-                <p className="text-xs text-gray-300 font-mono leading-relaxed">{profile.portfolio}</p>
+                <p className="text-xs text-void-muted font-mono leading-relaxed">{profile.portfolio}</p>
               </div>
             </section>
           )}
@@ -354,7 +354,7 @@ export default function CreatorPage() {
                     />
                     <div>
                       <div className="text-sm font-bold text-white">{member.name}</div>
-                      <div className="text-[10px] font-mono text-gray-500 uppercase tracking-wider">
+                      <div className="text-[10px] font-mono text-void-hint uppercase tracking-wider">
                         {member.role}
                       </div>
                     </div>
@@ -370,13 +370,13 @@ export default function CreatorPage() {
               Official Selections
               <span className="text-[#D4AF37] text-xs font-mono">({approvedFilms.length})</span>
             </h2>
-            <p className="text-[10px] font-mono text-gray-600 mb-3 pl-3">
+            <p className="text-[10px] font-mono text-void-subtle mb-3 pl-3">
               Films approved by the HKAIIFF Jury
             </p>
             {approvedFilms.length === 0 ? (
               <div className="bg-[#0a0a0a] border border-dashed border-[#222] rounded-xl py-10 flex flex-col items-center gap-3">
                 <i className="fas fa-film text-2xl text-[#2a2a2a]" />
-                <span className="text-[11px] font-mono text-gray-600 tracking-widest">NO OFFICIAL SELECTIONS YET</span>
+                <span className="text-[11px] font-mono text-void-subtle tracking-widest">NO OFFICIAL SELECTIONS YET</span>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">

@@ -102,7 +102,7 @@ export default function PwaInstallPrompt() {
             <p className="text-white text-[13px] font-bold leading-tight tracking-wide">
               HKAIIFF 2026
             </p>
-            <p className="text-white/50 text-[11px] leading-tight mt-0.5">
+            <p className="text-white/76 text-[11px] leading-tight mt-0.5">
               添加至主畫面，體驗原生 App 級影展
             </p>
           </div>
@@ -118,7 +118,7 @@ export default function PwaInstallPrompt() {
           {/* 關閉按鈕 */}
           <button
             onClick={dismiss}
-            className="flex-shrink-0 -mr-1 w-7 h-7 flex items-center justify-center text-white/30 hover:text-white/70 transition-colors rounded-full"
+            className="flex-shrink-0 -mr-1 w-7 h-7 flex items-center justify-center text-white/54 hover:text-white/88 transition-colors rounded-full"
             aria-label="關閉"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
@@ -130,7 +130,7 @@ export default function PwaInstallPrompt() {
         {/* iOS 展開說明 */}
         {iosExpanded && (
           <div className="border-t border-[#CCFF00]/10 px-4 py-3 bg-[#CCFF00]/5">
-            <p className="text-white/70 text-[12px] leading-relaxed text-center">
+            <p className="text-white/86 text-[12px] leading-relaxed text-center">
               點擊底部{' '}
               <span className="inline-block bg-white/10 rounded px-1 py-0.5 text-white font-bold">
                 📤 分享

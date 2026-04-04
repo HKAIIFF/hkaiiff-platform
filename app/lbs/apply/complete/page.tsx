@@ -130,7 +130,7 @@ function CompleteContent() {
           <i className="fas fa-exclamation-triangle text-red-500 text-2xl" />
         </div>
         <h1 className="text-3xl font-black text-white mb-3">ERROR</h1>
-        <p className="text-gray-400 text-sm font-mono mb-6 max-w-sm">{errorMsg || 'An error occurred. Please contact support.'}</p>
+        <p className="text-void-hint text-sm font-mono mb-6 max-w-sm">{errorMsg || 'An error occurred. Please contact support.'}</p>
         <button
           onClick={() => router.push('/me')}
           className="font-mono text-[10px] tracking-[0.4em] text-[#444] hover:text-white transition-colors"
@@ -153,7 +153,7 @@ function CompleteContent() {
         PAYMENT CONFIRMED
       </div>
       <h1 className="text-4xl font-black text-white tracking-wider mb-4">支付成功！</h1>
-      <p className="text-gray-400 text-sm font-mono max-w-sm leading-relaxed mb-4">
+      <p className="text-void-hint text-sm font-mono max-w-sm leading-relaxed mb-4">
         您的 LBS 影展申请已提交，正在跳转至审核状态页面...
       </p>
       <div className="flex items-center gap-2 text-[#FFC107]/40 font-mono text-[10px]">

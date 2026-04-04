@@ -42,7 +42,7 @@ function MarqueeRow({
         {doubled.map((name, i) => (
           <span
             key={`${direction}-${i}`}
-            className="inline-flex items-center px-3 py-1.5 rounded-lg bg-white/[0.02] border border-white/[0.05] hover:border-[#CCFF00]/50 font-mono text-[11px] text-gray-500 hover:text-white transition-all duration-200 shrink-0 cursor-default select-none"
+            className="inline-flex items-center px-3 py-1.5 rounded-lg bg-white/[0.02] border border-white/[0.05] hover:border-[#CCFF00]/50 font-mono text-[11px] text-void-hint hover:text-white transition-all duration-200 shrink-0 cursor-default select-none"
           >
             {name}
           </span>

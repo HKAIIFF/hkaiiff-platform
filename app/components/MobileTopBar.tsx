@@ -48,7 +48,7 @@ export default function MobileTopBar() {
           className="pointer-events-auto cursor-pointer"
           onClick={() => setActiveModal("lang")}
         >
-          <div className="w-9 h-9 rounded-full bg-black/60 backdrop-blur border border-[#444] flex items-center justify-center text-gray-300 hover:text-signal hover:border-signal transition-all shadow-lg">
+          <div className="w-9 h-9 rounded-full bg-black/60 backdrop-blur border border-[#444] flex items-center justify-center text-void-muted hover:text-signal hover:border-signal transition-all shadow-lg">
             <i className="fas fa-globe text-sm" />
           </div>
         </div>

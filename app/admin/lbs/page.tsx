@@ -713,7 +713,7 @@ export default function LBSNodesPage() {
             }`}
           >
             {label}
-            <span className={`ml-1.5 text-[10px] ${activeTab === key ? "text-white/70" : "text-neutral-400"}`}>
+            <span className={`ml-1.5 text-[10px] ${activeTab === key ? "text-white/86" : "text-neutral-400"}`}>
               {counts[key]}
             </span>
           </button>

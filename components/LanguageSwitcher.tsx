@@ -44,7 +44,7 @@ export default function LanguageSwitcher() {
               className={`w-full flex items-center justify-between px-4 py-2.5 text-sm font-mono transition-colors ${
                 lang === l.code
                   ? "text-[#CCFF00] bg-white/5"
-                  : "text-white/60 hover:text-white hover:bg-white/5"
+                  : "text-white/83 hover:text-white hover:bg-white/5"
               }`}
             >
               <span>{l.name}</span>

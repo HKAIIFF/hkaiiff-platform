@@ -122,7 +122,7 @@ function FeedItem({ film, timeLeft }: { film: Film; timeLeft: number }) {
               <h2 className="font-heavy text-4xl text-white drop-shadow-lg mb-2 leading-none">
                 {film.title}
               </h2>
-              <p className="font-mono text-xs text-gray-300 drop-shadow line-clamp-2 w-full">
+              <p className="font-mono text-xs text-void-muted drop-shadow line-clamp-2 w-full">
                 {film.synopsis}
               </p>
             </div>
@@ -167,10 +167,10 @@ function FeedItem({ film, timeLeft }: { film: Film; timeLeft: number }) {
                   {isExpired ? (
                     /* Expired state */
                     <div className="flex flex-col items-center gap-1">
-                      <div className="w-10 h-10 bg-[#111] border border-[#333] flex items-center justify-center text-gray-600 rounded-full shadow-inner">
+                      <div className="w-10 h-10 bg-[#111] border border-[#333] flex items-center justify-center text-void-subtle rounded-full shadow-inner">
                         <i className="fas fa-ban text-sm" />
                       </div>
-                      <div className="text-[9px] font-mono text-gray-600 mt-1 text-center">
+                      <div className="text-[9px] font-mono text-void-subtle mt-1 text-center">
                         EXPIRED
                       </div>
                     </div>
@@ -304,7 +304,7 @@ function FeedItem({ film, timeLeft }: { film: Film; timeLeft: number }) {
           <h2 className="font-heavy text-4xl text-white mb-1 drop-shadow-md flex items-center gap-2 relative z-10">
             YOUR PARALLEL UNIVERSE
           </h2>
-          <p className="font-mono text-xs text-gray-300 mb-4 w-4/5 relative z-10">
+          <p className="font-mono text-xs text-void-muted mb-4 w-4/5 relative z-10">
             Rendered based on your specific hash:{" "}
             <span className="text-signal">{film.userHash}</span>
           </p>

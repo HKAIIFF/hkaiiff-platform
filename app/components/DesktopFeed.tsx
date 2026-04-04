@@ -67,7 +67,7 @@ export default function DesktopFeed() {
               <h2 className="font-heavy text-2xl text-white leading-tight mb-1 drop-shadow-md">
                 {film.title}
               </h2>
-              <p className="font-mono text-[10px] text-gray-300 line-clamp-2 leading-relaxed drop-shadow">
+              <p className="font-mono text-[10px] text-void-muted line-clamp-2 leading-relaxed drop-shadow">
                 {film.synopsis}
               </p>
             </div>

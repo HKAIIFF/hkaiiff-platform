@@ -30,14 +30,14 @@ function Hero() {
         <h1 className="font-black text-6xl md:text-7xl lg:text-9xl text-white leading-none tracking-tighter mb-6">
           {t('webAbout.heroSlogan')}
         </h1>
-        <p className="font-mono text-sm md:text-base text-gray-300 tracking-widest uppercase mb-2">
+        <p className="font-mono text-sm md:text-base text-void-muted tracking-widest uppercase mb-2">
           {t('webAbout.heroSub')}
         </p>
         {/* Dates capsule */}
         <div className="inline-block px-6 py-2 rounded-full border border-[#CCFF00] text-[#CCFF00] font-bold tracking-widest text-[10px] md:text-xs my-8">
           {t('webAbout.heroDates')}
         </div>
-        <p className="font-mono text-xs md:text-sm text-gray-400 leading-relaxed max-w-2xl mx-auto">
+        <p className="font-mono text-xs md:text-sm text-void-hint leading-relaxed max-w-2xl mx-auto">
           {t('webAbout.heroDesc')}
         </p>
       </div>
@@ -67,7 +67,7 @@ function EraSection() {
           </h2>
         </div>
         <div>
-          <p className="font-mono text-sm md:text-base text-gray-400 leading-relaxed">
+          <p className="font-mono text-sm md:text-base text-void-hint leading-relaxed">
             {t('webAbout.eraDesc')}
           </p>
         </div>
@@ -98,7 +98,7 @@ function HKNexusSection() {
             <h2 className="font-black text-3xl md:text-4xl lg:text-5xl text-white leading-tight tracking-tight mb-6">
               {t('webAbout.hkTitle')}
             </h2>
-            <p className="font-mono text-sm text-gray-400 leading-relaxed">
+            <p className="font-mono text-sm text-void-hint leading-relaxed">
               {t('webAbout.hkDesc')}
             </p>
           </div>
@@ -115,7 +115,7 @@ function HKNexusSection() {
                 <h3 className="font-black text-white text-sm md:text-base tracking-widest mb-3">
                   {t(p.nameKey)}
                 </h3>
-                <p className="font-mono text-[11px] text-gray-500 leading-relaxed">
+                <p className="font-mono text-[11px] text-void-hint leading-relaxed">
                   {t(p.descKey)}
                 </p>
               </div>
@@ -156,7 +156,7 @@ function EcoSection() {
               <h3 className="font-black text-white text-lg md:text-xl mb-4 leading-tight">
                 {t(c.titleKey)}
               </h3>
-              <p className="font-mono text-xs text-gray-500 leading-relaxed">
+              <p className="font-mono text-xs text-void-hint leading-relaxed">
                 {t(c.descKey)}
               </p>
             </div>
@@ -214,7 +214,7 @@ function AdvantagesSection() {
               <h3 className="font-black text-2xl md:text-3xl lg:text-4xl text-white leading-tight mb-5">
                 {t(adv.titleKey)}
               </h3>
-              <p className="font-mono text-xs md:text-sm text-gray-400 leading-relaxed max-w-md">
+              <p className="font-mono text-xs md:text-sm text-void-hint leading-relaxed max-w-md">
                 {t(adv.descKey)}
               </p>
             </div>
@@ -241,7 +241,7 @@ function FutureCTA() {
         <h2 className="font-black text-4xl md:text-5xl lg:text-6xl text-white leading-tight tracking-tight mb-6">
           {t('webAbout.futureTitle')}
         </h2>
-        <p className="font-mono text-sm md:text-base text-gray-400 leading-relaxed mb-12 max-w-2xl mx-auto">
+        <p className="font-mono text-sm md:text-base text-void-hint leading-relaxed mb-12 max-w-2xl mx-auto">
           {t('webAbout.futureDesc')}
         </p>
         <Link
@@ -260,9 +260,9 @@ function CopyrightFooter() {
   const { t } = useI18n();
   return (
     <footer className="w-full flex flex-col items-center justify-center py-10 bg-[#020202] border-t border-white/5 gap-1.5">
-      <p className="text-[10px] text-gray-500 tracking-widest uppercase">© 2026 All Rights Reserved.</p>
-      <p className="text-[11px] text-gray-400 font-medium tracking-widest mt-1">香港人工智能國際電影節協會</p>
-      <p className="text-[9px] text-gray-600 tracking-widest uppercase">Hong Kong AI International Film Festival Association</p>
+      <p className="text-[10px] text-void-hint tracking-widest uppercase">© 2026 All Rights Reserved.</p>
+      <p className="text-[11px] text-void-hint font-medium tracking-widest mt-1">香港人工智能國際電影節協會</p>
+      <p className="text-[9px] text-void-subtle tracking-widest uppercase">Hong Kong AI International Film Festival Association</p>
       <p className="font-mono text-[8px] text-[#1e1e1e] tracking-widest mt-2 text-center px-4">
         {t('msg_copyright')}
       </p>

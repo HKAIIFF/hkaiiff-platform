@@ -575,7 +575,7 @@ function UploadContent() {
             HKAIIFF 2026 · MAY 1 LAUNCH · JULY 11–15 CEREMONY · AI-NATIVE
           </div>
         </div>
-        <div className="font-mono text-[9px] text-gray-300 bg-[#111] px-3 py-1.5 rounded border border-[#333]">
+        <div className="font-mono text-[9px] text-void-muted bg-[#111] px-3 py-1.5 rounded border border-[#333]">
           {filmEntryProduct
             ? `ENTRY FEE: $${Number(filmEntryProduct.price_usd).toLocaleString('en-US', { minimumFractionDigits: 2 })} USD / ${Number(filmEntryProduct.price_aif).toLocaleString()} AIF`
             : 'ENTRY FEE: LOADING…'
@@ -628,7 +628,7 @@ function UploadContent() {
                     <div className="w-5 h-5 rounded bg-signal/10 border border-signal/20 flex items-center justify-center shrink-0 mt-0.5">
                       <i className={`fas ${req.icon} text-signal text-[8px]`} />
                     </div>
-                    <span className="font-mono text-[10px] text-gray-200 leading-relaxed">{req.text}</span>
+                    <span className="font-mono text-[10px] text-void-fg leading-relaxed">{req.text}</span>
                   </div>
                 ))}
               </div>
@@ -639,7 +639,7 @@ function UploadContent() {
                   <i className="fas fa-shield-alt text-signal text-xs" />
                   <span className="font-mono text-[9px] text-signal tracking-wider uppercase">Copyright & IP</span>
                 </div>
-                <p className="font-mono text-[10px] text-gray-300 leading-relaxed">
+                <p className="font-mono text-[10px] text-void-muted leading-relaxed">
                   You retain full copyright ownership. By submitting, you grant HKAIIFF a non-exclusive license to screen
                   your film during the festival period. AI-generated content must comply with the tools&apos; usage policies.
                 </p>
@@ -651,7 +651,7 @@ function UploadContent() {
                   <div className="w-2 h-2 rounded-full bg-signal animate-pulse" />
                   <span className="font-mono text-[9px] text-signal tracking-wider uppercase">AIF Purity Score™</span>
                 </div>
-                <p className="font-mono text-[10px] text-gray-300 leading-relaxed">
+                <p className="font-mono text-[10px] text-void-muted leading-relaxed">
                   The AIF.BOT protocol verifies and records your AI contribution ratio on the Solana blockchain.
                   Films with higher purity scores receive priority in the official selection process.
                 </p>
@@ -666,7 +666,7 @@ function UploadContent() {
                 ].map((s) => (
                   <div key={s.sub} className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-lg p-3 text-center">
                     <div className="font-heavy text-xl text-signal">{s.val}</div>
-                    <div className="font-mono text-[7px] text-gray-600 mt-0.5 tracking-wider">{s.sub}</div>
+                    <div className="font-mono text-[7px] text-void-subtle mt-0.5 tracking-wider">{s.sub}</div>
                   </div>
                 ))}
               </div>
@@ -677,7 +677,7 @@ function UploadContent() {
               {/* Mobile notice banner */}
               <div className="md:hidden bg-[#111] border-l-4 border-[#CCFF00] p-4 rounded-xl mb-6">
                 <h3 className="font-heavy text-lg text-white mb-1 tracking-wide">HKAIIFF 2026</h3>
-                <p className="text-[10px] font-mono text-gray-200 leading-relaxed">{t('up_notice')}</p>
+                <p className="text-[10px] font-mono text-void-fg leading-relaxed">{t('up_notice')}</p>
               </div>
 
             {/* Notice Banner */}
@@ -687,7 +687,7 @@ function UploadContent() {
 
               {/* Project Title */}
               <div>
-                <div className="font-mono text-[10px] text-gray-300 mb-2 flex justify-between">
+                <div className="font-mono text-[10px] text-void-muted mb-2 flex justify-between">
                   <span>{t('up_form_title')}</span>
                   <span className="text-danger">*</span>
                 </div>
@@ -702,7 +702,7 @@ function UploadContent() {
 
               {/* Conductor / Studio */}
               <div>
-                <div className="font-mono text-[10px] text-gray-300 mb-2">{t('up_form_studio')}</div>
+                <div className="font-mono text-[10px] text-void-muted mb-2">{t('up_form_studio')}</div>
                 <input
                   type="text"
                   value={formData.studio}
@@ -714,7 +714,7 @@ function UploadContent() {
 
               {/* Tech Stack */}
               <div>
-                <div className="font-mono text-[10px] text-gray-300 mb-2">{t('up_form_tech_hint')}</div>
+                <div className="font-mono text-[10px] text-void-muted mb-2">{t('up_form_tech_hint')}</div>
                 <input
                   type="text"
                   value={formData.techStack}
@@ -727,7 +727,7 @@ function UploadContent() {
               {/* AI Contribution Ratio Slider */}
               <div className="bg-[#111] border border-[#222] p-4 rounded-xl">
                 <div className="flex justify-between items-end mb-4">
-                  <div className="font-mono text-[10px] text-gray-200">{t('up_form_ai_ratio')}</div>
+                  <div className="font-mono text-[10px] text-void-fg">{t('up_form_ai_ratio')}</div>
                   <div
                     className="font-heavy text-3xl transition-colors duration-300"
                     style={{ color: isSignal ? '#CCFF00' : '#ffffff' }}
@@ -754,7 +754,7 @@ function UploadContent() {
 
               {/* Synopsis */}
               <div>
-                <div className="font-mono text-[10px] text-gray-300 mb-2">{t('up_form_synopsis')}</div>
+                <div className="font-mono text-[10px] text-void-muted mb-2">{t('up_form_synopsis')}</div>
                 <textarea
                   value={formData.synopsis}
                   onChange={e => setFormData(f => ({ ...f, synopsis: e.target.value }))}
@@ -765,7 +765,7 @@ function UploadContent() {
 
               {/* Core Cast */}
               <div>
-                <div className="font-mono text-[10px] text-gray-300 mb-2">{t('up_core_cast')}</div>
+                <div className="font-mono text-[10px] text-void-muted mb-2">{t('up_core_cast')}</div>
                 <input
                   type="text"
                   value={formData.coreCast}
@@ -777,7 +777,7 @@ function UploadContent() {
 
               {/* Region */}
               <div>
-                <div className="font-mono text-[10px] text-gray-300 mb-2">{t('up_region')}</div>
+                <div className="font-mono text-[10px] text-void-muted mb-2">{t('up_region')}</div>
                 <input
                   type="text"
                   value={formData.region}
@@ -790,7 +790,7 @@ function UploadContent() {
               {/* LBS Festival Royalty */}
               <div className="bg-[#111] border border-[#222] p-4 rounded-xl">
                 <div className="flex justify-between items-end mb-3">
-                  <div className="font-mono text-[10px] text-gray-200">{t('up_lbs_royalty')}</div>
+                  <div className="font-mono text-[10px] text-void-fg">{t('up_lbs_royalty')}</div>
                   <div className="font-heavy text-2xl text-signal">{formData.lbsRoyalty}%</div>
                 </div>
                 <input
@@ -802,7 +802,7 @@ function UploadContent() {
                   className="w-full bg-[#0a0a0a] border border-[#333] p-3 rounded-lg text-sm text-white focus:border-signal outline-none transition-colors"
                   placeholder={t('ph_lbs_royalty')}
                 />
-                <div className="text-[9px] font-mono text-gray-300 mt-2 flex items-center gap-1.5">
+                <div className="text-[9px] font-mono text-void-muted mt-2 flex items-center gap-1.5">
                   <i className="fas fa-info-circle text-signal" />
                   {t('up_lbs_hint')}
                 </div>
@@ -823,13 +823,13 @@ function UploadContent() {
                   </p>
                   <div className="flex items-start gap-1.5">
                     <span className="text-[11px] leading-none mt-px">🔒</span>
-                    <p className="font-mono text-[9px] text-gray-200 leading-relaxed">
+                    <p className="font-mono text-[9px] text-void-fg leading-relaxed">
                       {t('contactEmail.privacyNote')}
                     </p>
                   </div>
                 </div>
                 {/* Label */}
-                <div className="font-mono text-[10px] text-gray-300 mb-2 flex justify-between">
+                <div className="font-mono text-[10px] text-void-muted mb-2 flex justify-between">
                   <span>{t('contactEmail.label')}</span>
                   <span className="text-danger">*</span>
                 </div>
@@ -845,7 +845,7 @@ function UploadContent() {
 
               {/* Assets Upload */}
               <div>
-                <div className="font-mono text-[10px] text-gray-300 mb-2 flex items-center gap-1.5">
+                <div className="font-mono text-[10px] text-void-muted mb-2 flex items-center gap-1.5">
                   {t('up_assets_label')}
                   <span className="text-danger">*</span>
                 </div>
@@ -856,7 +856,7 @@ function UploadContent() {
                     <label className={`relative border border-dashed rounded-lg cursor-pointer transition-colors h-28 overflow-hidden flex flex-col items-center justify-center ${
                       posterFile
                         ? 'border-signal bg-signal/5'
-                        : 'border-[#444] bg-[#0a0a0a] hover:border-signal text-gray-300'
+                        : 'border-[#444] bg-[#0a0a0a] hover:border-signal text-void-muted'
                     }`}>
                       <input
                         type="file"
@@ -883,7 +883,7 @@ function UploadContent() {
                         </div>
                       )}
                     </label>
-                    <div className="text-[8px] font-mono text-gray-600 mt-1.5 text-center leading-tight px-1">
+                    <div className="text-[8px] font-mono text-void-subtle mt-1.5 text-center leading-tight px-1">
                       {t('up_poster_spec')}
                     </div>
                   </div>
@@ -893,7 +893,7 @@ function UploadContent() {
                     <label className={`border border-dashed p-4 text-center rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors h-28 ${
                       trailerFile
                         ? 'border-signal bg-signal/5 text-signal'
-                        : 'border-[#444] bg-[#0a0a0a] hover:border-signal hover:text-signal text-gray-300'
+                        : 'border-[#444] bg-[#0a0a0a] hover:border-signal hover:text-signal text-void-muted'
                     }`}>
                       <input
                         type="file"
@@ -906,7 +906,7 @@ function UploadContent() {
                           <i className="fas fa-check-circle mb-1 text-xl" />
                           <span className="text-[8px] font-mono leading-tight break-all line-clamp-2 text-center mt-0.5">{trailerFile.name}</span>
                           {trailerDuration && (
-                            <span className="text-[7px] font-mono text-signal/60 mt-0.5">
+                            <span className="text-[7px] font-mono text-signal/78 mt-0.5">
                               <i className="fas fa-clock mr-0.5" />{trailerDuration}
                             </span>
                           )}
@@ -918,7 +918,7 @@ function UploadContent() {
                         </>
                       )}
                     </label>
-                    <div className="text-[8px] font-mono text-gray-600 mt-1.5 text-center leading-tight px-1">
+                    <div className="text-[8px] font-mono text-void-subtle mt-1.5 text-center leading-tight px-1">
                       {t('up_trailer_spec')}
                     </div>
                   </div>
@@ -928,7 +928,7 @@ function UploadContent() {
                     <label className={`border border-dashed p-4 text-center rounded-lg flex flex-col items-center justify-center cursor-pointer transition-colors h-28 ${
                       filmFile
                         ? 'border-signal bg-signal/5 text-signal'
-                        : 'border-[#444] bg-[#0a0a0a] hover:border-signal hover:text-signal text-gray-300'
+                        : 'border-[#444] bg-[#0a0a0a] hover:border-signal hover:text-signal text-void-muted'
                     }`}>
                       <input
                         type="file"
@@ -941,7 +941,7 @@ function UploadContent() {
                           <i className="fas fa-check-circle mb-1 text-xl" />
                           <span className="text-[8px] font-mono leading-tight break-all line-clamp-2 text-center mt-0.5">{filmFile.name}</span>
                           {filmDuration && (
-                            <span className="text-[7px] font-mono text-signal/60 mt-0.5">
+                            <span className="text-[7px] font-mono text-signal/78 mt-0.5">
                               <i className="fas fa-clock mr-0.5" />{filmDuration}
                             </span>
                           )}
@@ -953,7 +953,7 @@ function UploadContent() {
                         </>
                       )}
                     </label>
-                    <div className="text-[8px] font-mono text-gray-600 mt-1.5 text-center leading-tight px-1">
+                    <div className="text-[8px] font-mono text-void-subtle mt-1.5 text-center leading-tight px-1">
                       {t('up_film_spec')}
                     </div>
                   </div>
@@ -1112,7 +1112,7 @@ function UploadContent() {
                         <div className="text-[8px] font-mono text-[#444] tracking-widest">{label}</div>
                         <div className="text-[9px] font-mono text-white truncate">{file?.name ?? '—'}</div>
                         {isVideo && duration && (
-                          <div className="text-[8px] font-mono text-signal/40">
+                          <div className="text-[8px] font-mono text-signal/58">
                             <i className="fas fa-clock mr-0.5" />{duration}
                           </div>
                         )}
@@ -1205,7 +1205,7 @@ function UploadContent() {
         {/* ── Step: Processing (Terminal Log) ────────────────── */}
         {step === 'processing' && (
           <div className="animate-fade-in pt-12">
-            <div className="w-full h-64 bg-[#050505] border border-[#333] rounded-lg p-4 font-mono text-[10px] text-gray-200 overflow-hidden shadow-inner relative flex flex-col justify-end">
+            <div className="w-full h-64 bg-[#050505] border border-[#333] rounded-lg p-4 font-mono text-[10px] text-void-fg overflow-hidden shadow-inner relative flex flex-col justify-end">
               {/* macOS-style traffic light dots */}
               <div className="absolute top-0 left-0 w-full h-6 bg-[#111] border-b border-[#333] flex items-center px-3 gap-1.5">
                 <div className="w-2 h-2 rounded-full bg-danger" />

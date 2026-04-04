@@ -204,7 +204,7 @@ export default function PlayPage() {
       <div className="fixed inset-0 bg-black flex flex-col items-center justify-center gap-3">
         <div className="w-8 h-8 border-2 border-[#CCFF00] border-t-transparent rounded-full animate-spin" />
         {urlLoading && (
-          <span className="font-mono text-[10px] text-gray-500 tracking-widest animate-pulse">
+          <span className="font-mono text-[10px] text-void-hint tracking-widest animate-pulse">
             VERIFYING ACCESS…
           </span>
         )}
@@ -215,8 +215,8 @@ export default function PlayPage() {
   if (!film || !playUrl) {
     return (
       <div className="fixed inset-0 z-[9999] bg-black w-screen h-screen flex flex-col items-center justify-center gap-4 px-6">
-        <i className="fas fa-exclamation-triangle text-3xl text-gray-600" />
-        <div className="text-gray-400 font-mono text-sm text-center">
+        <i className="fas fa-exclamation-triangle text-3xl text-void-subtle" />
+        <div className="text-void-hint font-mono text-sm text-center">
           {film ? '此影片暫無可播放的連結' : '影片不存在'}
         </div>
         <button
@@ -260,7 +260,7 @@ export default function PlayPage() {
           <div className="absolute inset-0 flex items-center justify-center bg-black/60 pointer-events-none">
             <div className="flex flex-col items-center gap-3">
               <div className="w-10 h-10 border-2 border-[#CCFF00] border-t-transparent rounded-full animate-spin" />
-              <span className="font-mono text-[10px] text-gray-400 tracking-widest">
+              <span className="font-mono text-[10px] text-void-hint tracking-widest">
                 LOADING STREAM…
               </span>
             </div>

@@ -112,7 +112,7 @@ export default function ProfileCompletionGuard({ children }: { children: React.R
                 <div className="font-heavy text-xl text-white tracking-wide leading-tight mb-2">
                   🎉 作品已通过审核！
                 </div>
-                <p className="text-gray-400 text-sm font-mono leading-relaxed">
+                <p className="text-void-hint text-sm font-mono leading-relaxed">
                   {status?.displayName ? (
                     <>恭喜 <span className="text-signal font-bold">{status.displayName}</span>！</>
                   ) : "恭喜！"}
@@ -122,17 +122,17 @@ export default function ProfileCompletionGuard({ children }: { children: React.R
 
               {/* 说明 */}
               <div className="w-full bg-[#111] border border-[#2a2a2a] rounded-xl p-4 text-left space-y-2">
-                <div className="text-[11px] font-mono text-gray-400 leading-relaxed">
+                <div className="text-[11px] font-mono text-void-hint leading-relaxed">
                   请先完善您的<span className="text-white font-bold">创作者公开主页资料</span>，以便观众更好地认识您。
                 </div>
                 <div className="space-y-1.5 mt-2">
                   <div className="flex items-center gap-2 text-[11px] font-mono">
                     <i className="fas fa-circle text-[6px] text-signal" />
-                    <span className="text-gray-400">个人简介 (Bio) — 必填</span>
+                    <span className="text-void-hint">个人简介 (Bio) — 必填</span>
                   </div>
                   <div className="flex items-center gap-2 text-[11px] font-mono">
                     <i className="fas fa-circle text-[6px] text-signal" />
-                    <span className="text-gray-400">创作者头像 — 必填</span>
+                    <span className="text-void-hint">创作者头像 — 必填</span>
                   </div>
                 </div>
               </div>
@@ -151,7 +151,7 @@ export default function ProfileCompletionGuard({ children }: { children: React.R
                 </button>
                 <button
                   onClick={() => setDismissed(true)}
-                  className="w-full flex items-center justify-center gap-1 py-2 text-[11px] font-mono text-gray-600 hover:text-gray-400 transition-colors"
+                  className="w-full flex items-center justify-center gap-1 py-2 text-[11px] font-mono text-void-subtle hover:text-void-hint transition-colors"
                 >
                   稍后再说（将在下次登录时再次提示）
                 </button>
