@@ -23,23 +23,6 @@ function formatDateTime(dateStr: string): string {
   return `${year}${month}${day} ${hours}:${mins}`;
 }
 
-type AppLockRow = { status: string; expires_at?: string | null };
-
-function computeVerifyLocked(
-  apps: AppLockRow[] | null | undefined,
-  userVerificationStatus?: string | null,
-): boolean {
-  const nowTs = new Date().toISOString();
-  const lockedFromApps = (apps ?? []).some(
-    (a) =>
-      a.status === 'pending' ||
-      a.status === 'awaiting_payment' ||
-      (a.status === 'approved' && (!a.expires_at || a.expires_at > nowTs))
-  );
-  const lockedFromUser = userVerificationStatus === 'pending';
-  return lockedFromApps || lockedFromUser;
-}
-
 const getStatusUI = (status: string) => {
   switch (status) {
     case 'approved':
@@ -116,8 +99,6 @@ function MePageContent() {
     verification_name: string | null;
   }>>([]);
 
-  /** 認證按鈕鎖定：有任何 pending 或 approved 未過期的記錄即鎖定 */
-  const [isVerifyLocked, setIsVerifyLocked] = useState(false);
   /** 強制重拉 creator_applications（支付回來 / 頁面可見 / Realtime / ?verified=1 / ?payment=） */
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -594,10 +575,6 @@ function MePageContent() {
         }
         setIdentityApplications(apps);
 
-        setIsVerifyLocked(
-          computeVerifyLocked(apps, profileData?.verification_status)
-        );
-
         // Step 2b: 鏈上地址分配（基於 Step 1 取得的 profileData）
         if (profileData) {
           if (profileData.deposit_address) {
@@ -781,9 +758,6 @@ function MePageContent() {
             const { applications: apps } = await verifyRes.json();
             setIdentityApplications(apps ?? []);
             // 讀取當前 profile 的 verification_status 用於兜底（優先本次 refresh 拉取的行，避免 setState 異步導致 dbProfile 滯後）
-            const currentVerificationStatus =
-              profileVerificationStatus ?? dbProfile?.verification_status;
-            setIsVerifyLocked(computeVerifyLocked(apps ?? [], currentVerificationStatus));
           } else {
             console.error('[me] verification-status API error:', verifyRes.status);
           }
@@ -909,9 +883,6 @@ function MePageContent() {
               if (verifyRes.ok) {
                 const { applications: freshApps } = await verifyRes.json();
                 setIdentityApplications(freshApps ?? []);
-                setIsVerifyLocked(
-                  computeVerifyLocked(freshApps ?? [], newData.verification_status)
-                );
               }
             }
           }
@@ -1240,26 +1211,53 @@ function MePageContent() {
                 );
               });
 
+              const nowIso = new Date().toISOString();
+              const hasPending = identityApplications.some(
+                (a) => a.status === 'pending' || a.status === 'awaiting_payment'
+              );
+              const hasApprovedFromApps = identityApplications.some(
+                (a) =>
+                  a.status === 'approved' &&
+                  (!a.expires_at || a.expires_at > nowIso)
+              );
+              /** 申請列表未返回時：主檔已通過且有身份徽章則視為已認證 */
+              const hasApprovedFromProfile =
+                dbProfile.verification_status === 'approved' &&
+                !hasPending &&
+                (dbProfile.verified_identities?.length ?? 0) > 0;
+              const hasApproved = hasApprovedFromApps || hasApprovedFromProfile;
+
+              let verifyAction: React.ReactNode = null;
+              if (hasApproved && !hasPending) {
+                verifyAction = null;
+              } else if (hasPending) {
+                verifyAction = (
+                  <button
+                    type="button"
+                    disabled
+                    className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-neutral-800/60 text-gray-500 border border-gray-700/40 rounded-full px-4 py-1.5 opacity-50 cursor-not-allowed whitespace-nowrap"
+                  >
+                    <i className="fas fa-lock text-[8px]" />
+                    {lang === 'zh' ? '認證中' : 'In Review'}
+                  </button>
+                );
+              } else {
+                verifyAction = (
+                  <button
+                    type="button"
+                    onClick={() => router.push('/verification')}
+                    className="inline-flex items-center gap-1.5 text-[10px] font-bold bg-white text-black rounded-full px-4 py-1.5 hover:scale-105 transition-transform uppercase tracking-wider whitespace-nowrap shadow-[0_0_10px_rgba(255,255,255,0.15)]"
+                  >
+                    <i className="fas fa-shield-alt text-[9px]" />
+                    {lang === 'zh' ? '立即認證' : t('verify_inline_verify')}
+                  </button>
+                );
+              }
+
               return (
                 <>
                   {pendingPills}
-                  {isVerifyLocked ? (
-                    <button
-                      disabled
-                      className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-neutral-800/60 text-gray-300 border border-gray-700/40 rounded-full px-4 py-1.5 opacity-50 cursor-not-allowed whitespace-nowrap"
-                    >
-                      <i className="fas fa-lock text-[8px]" />
-                      {lang === 'zh' ? '認證中' : 'In Review'}
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => router.push('/verification')}
-                      className="inline-flex items-center gap-1.5 text-[10px] font-bold bg-white text-black rounded-full px-4 py-1.5 hover:scale-105 transition-transform uppercase tracking-wider whitespace-nowrap shadow-[0_0_10px_rgba(255,255,255,0.15)]"
-                    >
-                      <i className="fas fa-shield-alt text-[9px]" />
-                      {lang === 'zh' ? '立即認證' : t('verify_inline_verify')}
-                    </button>
-                  )}
+                  {verifyAction}
                 </>
               );
             })()}
