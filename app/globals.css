@@ -438,6 +438,12 @@ input[type="range"]::-webkit-slider-runnable-track {
   transition: transform 0.3s;
   background-color: #000;
 }
+/* 移動端：在維持 contain 前提下將畫面略上移（僅縱向錨點微調，不影響桌面與其它佈局） */
+@media (max-width: 767px) {
+  .bg-media {
+    object-position: center 44%;
+  }
+}
 .ui-layer {
   position: absolute;
   inset: 0;
