@@ -288,13 +288,13 @@ function FestivalGuideModal({
       <div className="sticky top-0 z-10 bg-[#050505]/95 backdrop-blur-md border-b border-[#1a1a1a] flex items-center justify-between px-4 py-4 pwa-festival-modal-header">
         <div>
           <div className="text-lg md:text-xl font-bold text-white leading-tight">香港AI國際電影節</div>
-          <div className="font-heavy text-base text-white/70 tracking-wider leading-none mt-0.5">HKAIIFF 2026</div>
+          <div className="font-heavy text-base text-white/86 tracking-wider leading-none mt-0.5">HKAIIFF 2026</div>
           <div className="text-[9px] font-mono text-[#CCFF00] tracking-widest mt-0.5">FESTIVAL GUIDE</div>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="w-10 h-10 bg-[#111] border border-[#333] rounded-full flex items-center justify-center text-gray-400 hover:text-white active:scale-90 transition-all"
+          className="w-10 h-10 bg-[#111] border border-[#333] rounded-full flex items-center justify-center text-void-hint hover:text-white active:scale-90 transition-all"
         >
           <i className="fas fa-times" />
         </button>
@@ -320,7 +320,7 @@ function FestivalGuideModal({
                 <span key={index}>{part.trim()}</span>
               ))}
             </div>
-            <p className="mt-6 font-mono text-base text-gray-300 leading-relaxed max-w-sm">
+            <p className="mt-6 font-mono text-base text-void-muted leading-relaxed max-w-sm">
               {t('mobileAbout.heroDesc')}
             </p>
           </div>
@@ -333,7 +333,7 @@ function FestivalGuideModal({
               <h2 className="font-heavy text-2xl text-white mb-4 tracking-wide">
                 {t('mobileAbout.eraTitle')}
               </h2>
-              <p className="font-mono text-base text-gray-300 leading-relaxed">
+              <p className="font-mono text-base text-void-muted leading-relaxed">
                 {t('mobileAbout.eraDesc')}
               </p>
             </div>
@@ -348,7 +348,7 @@ function FestivalGuideModal({
               <h2 className="font-heavy text-2xl text-white mb-4 tracking-wide">
                 {t('mobileAbout.hkTitle')}
               </h2>
-              <p className="font-mono text-base text-gray-300 leading-relaxed mb-5">
+              <p className="font-mono text-base text-void-muted leading-relaxed mb-5">
                 {t('mobileAbout.hkDesc')}
               </p>
               <div className="flex flex-col gap-3">
@@ -365,7 +365,7 @@ function FestivalGuideModal({
                     <div className="font-mono text-sm font-bold mb-2 tracking-wider" style={{ color: p.color }}>
                       {p.name}
                     </div>
-                    <p className="font-mono text-base text-gray-300 leading-relaxed">{p.desc}</p>
+                    <p className="font-mono text-base text-void-muted leading-relaxed">{p.desc}</p>
                   </div>
                 ))}
               </div>
@@ -394,7 +394,7 @@ function FestivalGuideModal({
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-heavy text-lg text-white mb-2">{card.title}</h3>
-                    <p className="font-mono text-base text-gray-300 leading-relaxed">{card.desc}</p>
+                    <p className="font-mono text-base text-void-muted leading-relaxed">{card.desc}</p>
                   </div>
                 </div>
               ))}
@@ -414,12 +414,12 @@ function FestivalGuideModal({
                   { title: t('mobileAbout.adv3Title'), desc: t('mobileAbout.adv3Desc'), num: '03' },
                 ].map((adv) => (
                   <div key={adv.num} className="flex gap-4">
-                    <div className="font-heavy text-2xl text-[#CCFF00]/20 leading-none w-8 flex-shrink-0 pt-0.5">
+                    <div className="font-heavy text-2xl text-[#CCFF00]/38 leading-none w-8 flex-shrink-0 pt-0.5">
                       {adv.num}
                     </div>
                     <div className="flex-1 border-b border-white/[0.04] pb-5 last:border-0 last:pb-0">
                       <h3 className="font-heavy text-lg text-white mb-2">{adv.title}</h3>
-                      <p className="font-mono text-base text-gray-300 leading-relaxed">{adv.desc}</p>
+                      <p className="font-mono text-base text-void-muted leading-relaxed">{adv.desc}</p>
                     </div>
                   </div>
                 ))}
@@ -435,7 +435,7 @@ function FestivalGuideModal({
             <h2 className="font-heavy text-2xl text-white mb-4 tracking-wide relative z-10">
               {t('mobileAbout.futureTitle')}
             </h2>
-            <p className="font-mono text-base text-gray-300 leading-relaxed relative z-10">
+            <p className="font-mono text-base text-void-muted leading-relaxed relative z-10">
               {t('mobileAbout.futureDesc')}
             </p>
           </div>
@@ -496,7 +496,7 @@ function MobileMessagesView({
               key={tab.value}
               onClick={() => setActiveTab(tab.value)}
               className={`pb-2.5 text-[10px] font-mono tracking-wider border-b-2 transition-all duration-150 ${
-                activeTab === tab.value ? 'border-signal text-white' : 'border-transparent text-[#555] hover:text-[#888]'
+                activeTab === tab.value ? 'border-signal text-white' : 'border-transparent text-void-subtle hover:text-void-hint'
               }`}
             >
               {tab.label}
@@ -606,7 +606,7 @@ function DesktopMessagesView({
                 key={tab.value}
                 onClick={() => setActiveTab(tab.value)}
                 className={`pb-2.5 text-[10px] font-mono tracking-wider border-b-2 transition-all duration-150 ${
-                  activeTab === tab.value ? 'border-signal text-white' : 'border-transparent text-[#555] hover:text-[#888]'
+                  activeTab === tab.value ? 'border-signal text-white' : 'border-transparent text-void-subtle hover:text-void-hint'
                 }`}
               >
                 {tab.label}

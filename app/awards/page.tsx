@@ -104,7 +104,7 @@ export default function AwardsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.55 }}
-              className="text-white/60 text-base md:text-lg leading-relaxed max-w-xl"
+              className="text-white/83 text-base md:text-lg leading-relaxed max-w-xl"
             >
               {t("awards.pageDesc")}
             </motion.p>
@@ -136,7 +136,7 @@ export default function AwardsPage() {
           transition={{ delay: 1.2 }}
           className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2"
         >
-          <span className="text-white/30 font-mono text-xs tracking-widest">SCROLL</span>
+          <span className="text-white/54 font-mono text-xs tracking-widest">SCROLL</span>
           <motion.div
             animate={{ y: [0, 8, 0] }}
             transition={{ repeat: Infinity, duration: 1.5 }}
@@ -191,7 +191,7 @@ export default function AwardsPage() {
                 <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-white leading-tight mb-6">
                   {t("awards.goldPrizeName")}
                 </h2>
-                <p className="text-white/55 text-base md:text-lg leading-relaxed max-w-2xl">
+                <p className="text-white/79 text-base md:text-lg leading-relaxed max-w-2xl">
                   {t("awards.goldPrizeDesc")}
                 </p>
               </div>
@@ -311,7 +311,7 @@ function PrizeCard({
           {t(`awards.prize${index}.amount`)}
         </span>
         {/* Index number */}
-        <span className="text-white/15 font-mono text-xs mt-1">
+        <span className="text-white/64 font-mono text-xs mt-1">
           {String(index + 1).padStart(2, "0")}
         </span>
       </div>
@@ -325,12 +325,12 @@ function PrizeCard({
       <div className="h-px bg-gradient-to-r from-[#CCFF00]/20 via-white/5 to-transparent" />
 
       {/* Standard */}
-      <p className="text-[#CCFF00]/60 font-mono text-xs tracking-wide uppercase leading-snug">
+      <p className="text-[#CCFF00]/78 font-mono text-xs tracking-wide uppercase leading-snug">
         {t(`awards.prize${index}.standard`)}
       </p>
 
       {/* Description */}
-      <p className="text-white/45 text-sm leading-relaxed flex-1">
+      <p className="text-white/72 text-sm leading-relaxed flex-1">
         {t(`awards.prize${index}.desc`)}
       </p>
     </motion.div>

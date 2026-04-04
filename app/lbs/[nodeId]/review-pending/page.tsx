@@ -154,7 +154,7 @@ export default function ReviewPendingPage() {
     draft: {
       bannerBg: 'bg-[#333]/30',
       bannerBorder: 'border-[#444]/30',
-      bannerText: 'text-[#888]',
+      bannerText: 'text-void-hint',
       bannerContent: '草稿',
       title: '申请草稿',
       subtitle: '请完成排片和支付流程后提交审核',
@@ -211,7 +211,7 @@ export default function ReviewPendingPage() {
       </h1>
 
       {/* 副标题 */}
-      <p className="text-gray-400 text-sm font-mono max-w-sm leading-relaxed mb-6">
+      <p className="text-void-hint text-sm font-mono max-w-sm leading-relaxed mb-6">
         {cfg.subtitle}
       </p>
 

@@ -5,6 +5,11 @@
 :root {
   --pb-nav-stack: 2.75rem;
   --pb-bottom-nav-total: calc(var(--pb-nav-stack) + env(safe-area-inset-bottom, 0px));
+  /* 與 tailwind `void-*` 對齊，供純 CSS 元件使用 */
+  --void-fg: #f0f0f0;
+  --void-muted: #d0d0d0;
+  --void-hint: #b8b8b8;
+  --void-subtle: #949494;
 }
 
 .mobile-bottom-nav-root {
@@ -121,10 +126,13 @@ body {
   width: 100%;
   height: 100%;
   background: #050505;
-  color: #fff;
+  color: var(--void-fg);
   font-family: "Noto Sans TC", sans-serif;
   -webkit-tap-highlight-color: transparent;
   overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* ─── Scrollbar ─────────────────────────────────────────────────────────────── */
@@ -185,7 +193,7 @@ body[data-lang="ar"] .ltr-force { direction: ltr; }
   padding: 0.75rem 1.25rem;
   margin: 0.25rem 1rem;
   border-radius: 0.5rem;
-  color: #888;
+  color: var(--void-hint);
   font-weight: 500;
   font-size: 0.9rem;
   transition: all 0.2s;
@@ -195,7 +203,7 @@ body[data-lang="ar"] .ltr-force { direction: ltr; }
   width: calc(100% - 2rem);
   text-align: left;
 }
-.sidebar-item:hover  { color: #fff; background: rgba(255, 255, 255, 0.05); }
+.sidebar-item:hover  { color: var(--void-fg); background: rgba(255, 255, 255, 0.05); }
 .sidebar-item.active { background: rgba(204, 255, 0, 0.1); color: #ccff00; font-weight: 700; }
 
 /* ─── Masonry layout ────────────────────────────────────────────────────────── */
@@ -300,7 +308,7 @@ body[data-lang="ar"] .ltr-force { direction: ltr; }
   right: 1rem;
   background: rgba(0, 0, 0, 0.6);
   border: 1px solid #555;
-  color: #888;
+  color: var(--void-subtle);
   font-family: "Space Mono", monospace;
   font-size: 0.65rem;
   font-weight: bold;

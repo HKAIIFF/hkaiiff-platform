@@ -83,7 +83,7 @@ function StripeTrustBadge() {
         <svg viewBox="0 0 24 24" className="w-3 h-3 text-[#635BFF]/70 shrink-0" fill="none" stroke="currentColor" strokeWidth={2}>
           <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" />
         </svg>
-        <span className="text-[10px] text-neutral-600 font-mono tracking-wide">
+        <span className="text-[10px] text-void-subtle font-mono tracking-wide">
           Powered by <span className="text-[#635BFF]/80">Stripe</span> · SSL Encrypted · PCI DSS Compliant
         </span>
       </div>
@@ -351,25 +351,25 @@ export default function UniversalCheckout({
             {/* ── Header：產品名 + 關閉 ── */}
             <div className="px-6 pt-5 pb-4 flex items-start justify-between">
               <div className="flex-1 min-w-0">
-                <p className="text-[9px] font-mono text-[#CCFF00]/60 tracking-[0.4em] uppercase mb-1">
+                <p className="text-[9px] font-mono text-[#CCFF00]/78 tracking-[0.4em] uppercase mb-1">
                   SECURE CHECKOUT
                 </p>
                 <h2 className="text-xl font-black text-white leading-tight truncate" style={{ fontFamily: 'Oswald, sans-serif' }}>
                   {product?.name_zh ?? productCode}
                 </h2>
                 {product?.name_en && (
-                  <p className="text-xs text-neutral-500 mt-0.5 truncate">{product.name_en}</p>
+                  <p className="text-xs text-void-hint mt-0.5 truncate">{product.name_en}</p>
                 )}
                 {product && (
                   <div className="flex items-center gap-3 mt-2">
                     <span className="text-sm font-bold text-white font-mono">
                       ${Number(product.price_usd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      <span className="text-neutral-600 font-normal ml-1">USD</span>
+                      <span className="text-void-subtle font-normal ml-1">USD</span>
                     </span>
-                    <span className="text-neutral-700 text-xs">·</span>
+                    <span className="text-void-subtle text-xs">·</span>
                     <span className="text-sm font-bold text-[#00E599] font-mono">
                       {Number(product.price_aif).toLocaleString()}
-                      <span className="text-neutral-600 font-normal ml-1">AIF</span>
+                      <span className="text-void-subtle font-normal ml-1">AIF</span>
                     </span>
                   </div>
                 )}
@@ -377,7 +377,7 @@ export default function UniversalCheckout({
               {!isProcessing && (
                 <button
                   onClick={handleClose}
-                  className="text-neutral-700 hover:text-neutral-400 transition-colors p-1 -mr-1 -mt-0.5 ml-3 shrink-0"
+                  className="text-void-subtle hover:text-void-hint transition-colors p-1 -mr-1 -mt-0.5 ml-3 shrink-0"
                   aria-label="Close"
                 >
                   <svg viewBox="0 0 24 24" className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5}>
@@ -402,7 +402,7 @@ export default function UniversalCheckout({
                     </svg>
                   </div>
                   <p className="text-white font-black text-xl mb-1" style={{ fontFamily: 'Oswald, sans-serif' }}>支付成功</p>
-                  <p className="text-neutral-500 text-sm">
+                  <p className="text-void-hint text-sm">
                     {product?.name_zh} 已解鎖<br />
                     <span className="text-[#00E599]/80">已扣除 {Number(product?.price_aif).toLocaleString()} AIF</span>
                   </p>
@@ -424,10 +424,10 @@ export default function UniversalCheckout({
                     </svg>
                   </div>
                   <p className="text-red-400 font-bold mb-1">支付失敗</p>
-                  <p className="text-neutral-600 text-xs mb-5 max-w-xs mx-auto">{errorMsg}</p>
+                  <p className="text-void-subtle text-xs mb-5 max-w-xs mx-auto">{errorMsg}</p>
                   <button
                     onClick={() => setModalState('selecting')}
-                    className="px-6 py-2 rounded-xl border border-neutral-700 text-neutral-300 text-sm hover:border-neutral-500 transition-colors"
+                    className="px-6 py-2 rounded-xl border border-neutral-700 text-void-muted text-sm hover:border-neutral-500 transition-colors"
                   >
                     重新選擇
                   </button>
@@ -437,14 +437,14 @@ export default function UniversalCheckout({
               {/* 未登入提示 */}
               {(modalState === 'selecting' || isProcessing) && !authenticated && (
                 <div className="text-center py-8">
-                  <p className="text-neutral-500 text-sm">請先登入後再進行購買</p>
+                  <p className="text-void-hint text-sm">請先登入後再進行購買</p>
                 </div>
               )}
 
               {/* 支付方式選擇 */}
               {(modalState === 'selecting' || isProcessing) && authenticated && product && (
                 <div className="space-y-3">
-                  <p className="text-[10px] text-neutral-600 uppercase tracking-[0.3em] font-mono mb-3">
+                  <p className="text-[10px] text-void-subtle uppercase tracking-[0.3em] font-mono mb-3">
                     選擇支付方式
                   </p>
 
@@ -465,19 +465,19 @@ export default function UniversalCheckout({
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors
                           ${selectedMethod === 'stripe' ? 'bg-[#635BFF]/20' : 'bg-white/5'}`}>
-                          <svg viewBox="0 0 24 24" className={`w-5 h-5 ${selectedMethod === 'stripe' ? 'text-[#635BFF]' : 'text-neutral-500'}`} fill="currentColor">
+                          <svg viewBox="0 0 24 24" className={`w-5 h-5 ${selectedMethod === 'stripe' ? 'text-[#635BFF]' : 'text-void-hint'}`} fill="currentColor">
                             <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z" />
                           </svg>
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-white text-sm font-semibold">信用卡 / Stripe</p>
-                          <p className="text-neutral-500 text-[11px] mt-0.5">Visa · Mastercard · Amex · Apple/Google Pay</p>
+                          <p className="text-void-hint text-[11px] mt-0.5">Visa · Mastercard · Amex · Apple/Google Pay</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className={`font-black font-mono text-lg ${selectedMethod === 'stripe' ? 'text-white' : 'text-neutral-300'}`}>
+                          <p className={`font-black font-mono text-lg ${selectedMethod === 'stripe' ? 'text-white' : 'text-void-muted'}`}>
                             ${Number(product.price_usd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </p>
-                          <p className="text-neutral-600 text-[10px]">USD</p>
+                          <p className="text-void-subtle text-[10px]">USD</p>
                         </div>
                         <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors
                           ${selectedMethod === 'stripe' ? 'border-[#635BFF] bg-[#635BFF]' : 'border-neutral-700'}`}>
@@ -507,7 +507,7 @@ export default function UniversalCheckout({
                       <div className="flex items-center gap-3">
                         <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors
                           ${selectedMethod === 'aif' ? 'bg-[#00E599]/15' : 'bg-white/5'}`}>
-                          <SolanaIcon className={`w-5 h-5 ${selectedMethod === 'aif' ? 'text-[#00E599]' : 'text-neutral-500'}`} />
+                          <SolanaIcon className={`w-5 h-5 ${selectedMethod === 'aif' ? 'text-[#00E599]' : 'text-void-hint'}`} />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -516,13 +516,13 @@ export default function UniversalCheckout({
                               50% OFF
                             </span>
                           </div>
-                          <p className="text-neutral-500 text-[11px] mt-0.5">從帳戶餘額即時扣款</p>
+                          <p className="text-void-hint text-[11px] mt-0.5">從帳戶餘額即時扣款</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className={`font-black font-mono text-lg ${selectedMethod === 'aif' ? 'text-[#00E599]' : 'text-neutral-300'}`}>
+                          <p className={`font-black font-mono text-lg ${selectedMethod === 'aif' ? 'text-[#00E599]' : 'text-void-muted'}`}>
                             {Number(product.price_aif).toLocaleString()}
                           </p>
-                          <p className="text-neutral-600 text-[10px]">AIF</p>
+                          <p className="text-void-subtle text-[10px]">AIF</p>
                         </div>
                         <div className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center transition-colors
                           ${selectedMethod === 'aif' ? 'border-[#00E599] bg-[#00E599]' : 'border-neutral-700'}`}>
@@ -536,21 +536,21 @@ export default function UniversalCheckout({
                       {selectedMethod === 'aif' && (
                         <div className="mt-3 rounded-lg bg-black/30 border border-white/5 px-3 py-2.5 space-y-1.5">
                           <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-neutral-500 font-mono">當前餘額</span>
-                            <span className={`font-mono font-semibold ${balanceLoading ? 'text-neutral-600' : hasEnoughAif ? 'text-[#00E599]' : 'text-red-400'}`}>
+                            <span className="text-void-hint font-mono">當前餘額</span>
+                            <span className={`font-mono font-semibold ${balanceLoading ? 'text-void-subtle' : hasEnoughAif ? 'text-[#00E599]' : 'text-red-400'}`}>
                               {balanceLoading ? '...' : `${(aifBalance ?? 0).toLocaleString()} AIF`}
                             </span>
                           </div>
                           <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-neutral-500 font-mono">本次扣款</span>
+                            <span className="text-void-hint font-mono">本次扣款</span>
                             <span className="text-white font-mono font-semibold">
                               − {priceAif.toLocaleString()} AIF
                             </span>
                           </div>
                           <div className="h-px bg-white/5" />
                           <div className="flex items-center justify-between text-[11px]">
-                            <span className="text-neutral-500 font-mono">支付後餘額</span>
-                            <span className={`font-mono font-semibold ${!balanceLoading && aifAfterPay !== null && aifAfterPay >= 0 ? 'text-neutral-300' : 'text-red-400'}`}>
+                            <span className="text-void-hint font-mono">支付後餘額</span>
+                            <span className={`font-mono font-semibold ${!balanceLoading && aifAfterPay !== null && aifAfterPay >= 0 ? 'text-void-muted' : 'text-red-400'}`}>
                               {balanceLoading ? '...' : aifAfterPay !== null ? `${aifAfterPay.toLocaleString()} AIF` : '—'}
                             </span>
                           </div>
@@ -605,7 +605,7 @@ export default function UniversalCheckout({
                         : `確認支付 ${priceAif.toLocaleString()} AIF`
                   }
                 </button>
-                <p className="text-[9px] text-neutral-700 text-center font-mono tracking-wide">
+                <p className="text-[9px] text-void-subtle text-center font-mono tracking-wide">
                   點擊支付即表示您同意平台服務條款 · 費用不予退還
                 </p>
               </div>

@@ -131,7 +131,7 @@ function BlockchainBadge() {
       <span className="text-[#CCFF00] text-[9px] font-mono tracking-[0.22em] font-bold">
         BLOCKCHAIN VERIFIED
       </span>
-      <span className="text-[#CCFF00]/40 text-[8px] font-mono tracking-wider">· SOLANA</span>
+      <span className="text-[#CCFF00]/58 text-[8px] font-mono tracking-wider">· SOLANA</span>
     </div>
   );
 }
@@ -197,13 +197,13 @@ export default function CertificatePage() {
     return (
       <div className="min-h-screen bg-[#080808] flex flex-col items-center justify-center gap-5 px-6 text-center">
         <div className="w-16 h-16 border border-[#D4AF37]/20 rounded-full flex items-center justify-center">
-          <i className="fas fa-certificate text-2xl text-gray-700" />
+          <i className="fas fa-certificate text-2xl text-void-subtle" />
         </div>
-        <h1 className="text-2xl text-gray-400 tracking-widest"
+        <h1 className="text-2xl text-void-hint tracking-widest"
           style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
           CERTIFICATE NOT FOUND
         </h1>
-        <p className="text-gray-600 text-sm font-mono max-w-xs leading-relaxed">
+        <p className="text-void-subtle text-sm font-mono max-w-xs leading-relaxed">
           This certificate is either invalid or the film has not been officially selected.
         </p>
         <Link
@@ -307,7 +307,7 @@ export default function CertificatePage() {
 
             {/* ── BODY TEXT ────────────────────────────────────────────── */}
             <div className="text-center mb-8" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
-              <p className="text-gray-500 text-sm tracking-wider leading-relaxed">
+              <p className="text-void-hint text-sm tracking-wider leading-relaxed">
                 This is to certify that the AI-Native Film
               </p>
 
@@ -319,7 +319,7 @@ export default function CertificatePage() {
                 {film.title}
               </div>
 
-              <p className="text-gray-500 text-sm tracking-wider">
+              <p className="text-void-hint text-sm tracking-wider">
                 directed &amp; submitted by
               </p>
               <p className="text-[#D4AF37]/85 text-lg font-medium tracking-[0.06em] mt-2">
@@ -333,7 +333,7 @@ export default function CertificatePage() {
                 <div className="flex-1 h-px bg-gradient-to-l from-transparent to-[#D4AF37]/25" />
               </div>
 
-              <p className="text-gray-500 text-xs tracking-wider mt-5 leading-relaxed">
+              <p className="text-void-hint text-xs tracking-wider mt-5 leading-relaxed">
                 has been officially selected and approved by the
               </p>
               <p className="text-white text-sm font-semibold tracking-wider mt-1.5">
@@ -360,7 +360,7 @@ export default function CertificatePage() {
               ].map(({ label, value }) => (
                 <div key={label}
                   className="bg-black/35 border border-[#D4AF37]/14 rounded-xl p-3.5 text-center">
-                  <div className="text-[8px] font-mono text-gray-600 tracking-widest mb-2">{label}</div>
+                  <div className="text-[8px] font-mono text-void-subtle tracking-widest mb-2">{label}</div>
                   {value}
                 </div>
               ))}
@@ -395,13 +395,13 @@ export default function CertificatePage() {
 
                   {/* Tx details */}
                   <div className="flex flex-col gap-1.5 pt-1">
-                    <div className="text-[8px] font-mono text-gray-700 tracking-widest uppercase">
+                    <div className="text-[8px] font-mono text-void-subtle tracking-widest uppercase">
                       On-Chain TX Hash
                     </div>
                     <div className="font-mono text-[13px] text-[#CCFF00]/80 tracking-wider font-medium">
                       {txDisplay}
                     </div>
-                    <div className="text-[8px] font-mono text-gray-700 leading-snug">
+                    <div className="text-[8px] font-mono text-void-subtle leading-snug">
                       Scan QR to verify on-chain
                     </div>
                     <a
@@ -423,7 +423,7 @@ export default function CertificatePage() {
         </div>
 
         {/* ── Footer ───────────────────────────────────────────────────── */}
-        <div className="mt-6 text-center font-mono text-[8px] text-gray-700 tracking-[0.28em] space-y-1.5">
+        <div className="mt-6 text-center font-mono text-[8px] text-void-subtle tracking-[0.28em] space-y-1.5">
           <div>CERTIFICATE ID: {film.id.toUpperCase()}</div>
           <div>VERIFIED BY HKAIIFF · AIF.SHOW · {new Date(film.created_at).getFullYear()}</div>
         </div>

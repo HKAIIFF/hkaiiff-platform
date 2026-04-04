@@ -317,13 +317,13 @@ function SubsectionCol({ sub }: { sub: Subsection }) {
     <div className="mb-3">
       <p className="text-xs font-bold text-[#CCFF00]/80 font-mono mb-1.5">{sub.title}</p>
       {sub.content && (
-        <p className="text-sm text-[#aaa] leading-relaxed whitespace-pre-line">{sub.content}</p>
+        <p className="text-sm text-void-muted leading-relaxed whitespace-pre-line">{sub.content}</p>
       )}
       {sub.items && sub.items.length > 0 && (
         <ul className="space-y-1 mt-1">
           {sub.items.map((item, i) => (
-            <li key={i} className="flex gap-2 text-sm text-[#aaa] leading-relaxed">
-              <span className="text-[#CCFF00]/50 font-mono text-xs mt-0.5 shrink-0">▸</span>
+            <li key={i} className="flex gap-2 text-sm text-void-muted leading-relaxed">
+              <span className="text-[#CCFF00]/68 font-mono text-xs mt-0.5 shrink-0">▸</span>
               <span>{item}</span>
             </li>
           ))}
@@ -337,8 +337,8 @@ function ItemList({ items, muted }: { items: string[]; muted?: boolean }) {
   return (
     <ul className="space-y-1">
       {items.map((item, i) => (
-        <li key={i} className={`flex gap-2 text-sm leading-relaxed ${muted ? "text-[#666]" : "text-[#aaa]"}`}>
-          <span className="text-[#CCFF00]/50 font-mono text-xs mt-0.5 shrink-0">▸</span>
+        <li key={i} className={`flex gap-2 text-sm leading-relaxed ${muted ? "text-void-subtle" : "text-void-muted"}`}>
+          <span className="text-[#CCFF00]/68 font-mono text-xs mt-0.5 shrink-0">▸</span>
           <span>{item}</span>
         </li>
       ))}
@@ -352,14 +352,14 @@ function BilingualSectionRow({ section }: { section: Section }) {
       <h2 className="text-base font-heavy text-white tracking-tight mb-5">
         <span className="text-[#CCFF00]">{section.titleZh}</span>
         <span className="text-[#444] mx-2">/</span>
-        <span className="text-[#888] font-mono font-normal text-sm">{section.titleEn}</span>
+        <span className="text-void-hint font-mono font-normal text-sm">{section.titleEn}</span>
       </h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Chinese column */}
         <div className="space-y-2">
           {section.contentZh && (
-            <p className="text-sm text-[#aaa] leading-relaxed whitespace-pre-line">{section.contentZh}</p>
+            <p className="text-sm text-void-muted leading-relaxed whitespace-pre-line">{section.contentZh}</p>
           )}
           {section.itemsZh && <ItemList items={section.itemsZh} />}
           {section.subsectionsZh?.map((sub, i) => (
@@ -370,7 +370,7 @@ function BilingualSectionRow({ section }: { section: Section }) {
         {/* English column */}
         <div className="space-y-2 md:border-l md:border-[#1a1a1a] md:pl-6">
           {section.contentEn && (
-            <p className="text-sm text-[#666] leading-relaxed whitespace-pre-line">{section.contentEn}</p>
+            <p className="text-sm text-void-subtle leading-relaxed whitespace-pre-line">{section.contentEn}</p>
           )}
           {section.itemsEn && <ItemList items={section.itemsEn} muted />}
           {section.subsectionsEn?.map((sub, i) => (
@@ -393,7 +393,7 @@ export default function PrivacyPage() {
         <div className="mb-8">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-[#555] hover:text-[#CCFF00] transition-colors text-xs font-mono tracking-wider"
+            className="inline-flex items-center gap-2 text-void-subtle hover:text-[#CCFF00] transition-colors text-xs font-mono tracking-wider"
           >
             <i className="fas fa-arrow-left text-[10px]" />
             BACK TO HKAIIFF
@@ -407,7 +407,7 @@ export default function PrivacyPage() {
           </div>
           <h1 className="text-4xl font-heavy text-white tracking-tighter leading-tight">
             私隱保護政策
-            <span className="block text-xl font-mono font-normal text-[#555] mt-1">
+            <span className="block text-xl font-mono font-normal text-void-subtle mt-1">
               Privacy Protection Policy
             </span>
           </h1>
@@ -423,18 +423,18 @@ export default function PrivacyPage() {
 
         {/* Preamble */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10 p-4 bg-[#0e0e0e] border border-[#1e1e1e] rounded-xl">
-          <p className="text-sm text-[#888] leading-relaxed">
+          <p className="text-sm text-void-hint leading-relaxed">
             香港AI國際電影節重視並尊重閣下的私隱權。本政策說明我們如何收集、使用、儲存、分享及保護閣下的個人資料，符合香港《個人資料（私隱）條例》（第486章）的要求。
           </p>
-          <p className="text-sm text-[#666] leading-relaxed md:border-l md:border-[#1a1a1a] md:pl-6">
+          <p className="text-sm text-void-subtle leading-relaxed md:border-l md:border-[#1a1a1a] md:pl-6">
             HKAIFF values and respects your right to privacy. This Policy explains how we collect, use, store, share and protect your personal data, in compliance with the Hong Kong Personal Data (Privacy) Ordinance (Cap. 486).
           </p>
         </div>
 
         {/* Column labels */}
         <div className="hidden md:grid grid-cols-2 gap-6 mb-6 pb-3 border-b border-[#1a1a1a]">
-          <p className="text-[10px] font-mono text-[#CCFF00]/60 tracking-widest uppercase">中文版本 Chinese</p>
-          <p className="text-[10px] font-mono text-[#555] tracking-widest uppercase pl-6">English Version</p>
+          <p className="text-[10px] font-mono text-[#CCFF00]/78 tracking-widest uppercase">中文版本 Chinese</p>
+          <p className="text-[10px] font-mono text-void-subtle tracking-widest uppercase pl-6">English Version</p>
         </div>
 
         {/* Bilingual sections */}
@@ -450,14 +450,14 @@ export default function PrivacyPage() {
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/terms"
-              className="text-xs text-[#555] underline hover:text-[#CCFF00] transition-colors font-mono"
+              className="text-xs text-void-subtle underline hover:text-[#CCFF00] transition-colors font-mono"
             >
               用戶服務協議 Terms of Service
             </Link>
             <span className="text-[#1e1e1e] hidden sm:block">|</span>
             <a
               href="mailto:privacy@hkaiiff.com"
-              className="text-xs text-[#555] underline hover:text-[#CCFF00] transition-colors font-mono"
+              className="text-xs text-void-subtle underline hover:text-[#CCFF00] transition-colors font-mono"
             >
               privacy@hkaiiff.com
             </a>

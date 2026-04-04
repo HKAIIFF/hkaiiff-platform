@@ -130,7 +130,7 @@ function DataInjectionDrawer({
             <span className="text-[#FF6B00]">⚠ </span>INVITATION-ONLY ACCESS PROTOCOL ACTIVE
           </p>
         </div>
-        <button onClick={onClose} className="mt-4 w-full rounded-lg border border-[#333] py-2.5 font-mono text-[10px] text-[#555] tracking-widest hover:border-[#555] hover:text-[#888] transition-colors">
+        <button onClick={onClose} className="mt-4 w-full rounded-lg border border-[#333] py-2.5 font-mono text-[10px] text-void-subtle tracking-widest hover:border-[#555] hover:text-void-hint transition-colors">
           [ESC] ABORT INJECTION
         </button>
       </div>
@@ -186,7 +186,7 @@ function EmptyState() {
   return (
     <div className="flex flex-col items-center justify-center h-screen bg-black">
       <i className="fas fa-film text-4xl mb-4 text-[#333]" />
-      <span className="text-gray-500 font-mono tracking-widest">NO FILMS FOUND</span>
+      <span className="text-void-hint font-mono tracking-widest">NO FILMS FOUND</span>
     </div>
   );
 }
@@ -294,7 +294,7 @@ function MobileFeedItem({
                   {film.studio ?? "ANONYMOUS"}
                 </div>
                 <h2 className="font-heavy text-4xl text-white drop-shadow-lg mb-2 leading-none">{film.title}</h2>
-                <p className="font-mono text-xs text-gray-300 drop-shadow line-clamp-2 w-full">{film.tech_stack ?? ""}</p>
+                <p className="font-mono text-xs text-void-muted drop-shadow line-clamp-2 w-full">{film.tech_stack ?? ""}</p>
               </div>
               <div className="ui-right">
                 <button
@@ -338,13 +338,13 @@ function MobileFeedItem({
                   <div className="flex flex-col items-center relative z-20">
                     {parallelState === "EXPIRED" ? (
                       <button className="flex flex-col items-center gap-1 opacity-50 cursor-not-allowed">
-                        <i className="fas fa-ban text-3xl text-gray-500" />
-                        <span className="text-[9px] text-gray-500 font-mono font-bold mt-1 tracking-wider">EXPIRED</span>
+                        <i className="fas fa-ban text-3xl text-void-hint" />
+                        <span className="text-[9px] text-void-hint font-mono font-bold mt-1 tracking-wider">EXPIRED</span>
                       </button>
                     ) : parallelState === "PENDING" ? (
                       <button onClick={handleParallelClick} className="flex flex-col items-center gap-1 active:scale-90 transition-transform">
-                        <i className="fas fa-fingerprint text-3xl text-gray-400 drop-shadow-md" />
-                        <div className="text-[9px] text-gray-400 border border-gray-600 px-1.5 rounded-sm font-mono font-bold mt-1 tracking-wider">QUEUED</div>
+                        <i className="fas fa-fingerprint text-3xl text-void-hint drop-shadow-md" />
+                        <div className="text-[9px] text-void-hint border border-gray-600 px-1.5 rounded-sm font-mono font-bold mt-1 tracking-wider">QUEUED</div>
                       </button>
                     ) : (
                       <button onClick={handleParallelClick} className="flex flex-col items-center gap-1 active:scale-90 transition-transform">
@@ -385,7 +385,7 @@ function MobileFeedItem({
           <h2 className="font-heavy text-4xl text-white mb-1 drop-shadow-md flex items-center gap-2 relative z-10">
             YOUR PARALLEL UNIVERSE
           </h2>
-          <p className="font-mono text-xs text-gray-300 mb-4 w-4/5 relative z-10">
+          <p className="font-mono text-xs text-void-muted mb-4 w-4/5 relative z-10">
             Rendered based on your specific hash: <span className="text-[#CCFF00]">{film.id.slice(0, 8)}</span>
           </p>
           <button onClick={handleMintToChain} className="brutal-btn w-full max-w-xs mt-2 text-sm relative z-10 active:scale-95">
@@ -483,7 +483,7 @@ function DesktopGridCard({ film }: { film: SupabaseFilm }) {
                 </span>
               )}
             </div>
-            <span className="text-[10px] font-mono text-gray-300 truncate flex-1">{film.user_display_name ?? film.studio ?? "Unknown Creator"}</span>
+            <span className="text-[10px] font-mono text-void-muted truncate flex-1">{film.user_display_name ?? film.studio ?? "Unknown Creator"}</span>
             {(film.user_verified_identities ?? []).length > 0 && (
               <IdentityBadges
                 verifiedIdentities={film.user_verified_identities ?? []}
@@ -506,7 +506,7 @@ function DesktopGridCard({ film }: { film: SupabaseFilm }) {
                 className="w-6 h-6 rounded-full border bg-black border-white/20"
               />
             </div>
-            <span className="text-[10px] font-mono text-gray-300 truncate flex-1">{film.studio ?? "Unknown Creator"}</span>
+            <span className="text-[10px] font-mono text-void-muted truncate flex-1">{film.studio ?? "Unknown Creator"}</span>
             {aiRatioPct && (
               <span className="text-[7px] font-mono bg-signal/15 border border-signal/40 text-signal px-1.5 py-0.5 rounded shrink-0 tracking-wider">
                 AIF {aiRatioPct}
@@ -537,7 +537,7 @@ function DesktopGridCard({ film }: { film: SupabaseFilm }) {
 
       {/* Studio tag — always visible, top-left */}
       <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-sm border border-white/10 rounded px-1.5 py-0.5
-                      text-[8px] font-mono text-gray-400 truncate max-w-[70%] pointer-events-none
+                      text-[8px] font-mono text-void-hint truncate max-w-[70%] pointer-events-none
                       opacity-0 group-hover:opacity-100 transition-opacity duration-200">
         {film.studio ?? "ANON"}
       </div>

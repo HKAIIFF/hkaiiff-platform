@@ -19,6 +19,11 @@ const config: Config = {
       },
       colors: {
         void: "#050505",
+        /** 深色底（#050505）上的語義化正文色階：主文 / 次文 / 提示 / 最弱提示（仍保持可讀對比） */
+        "void-fg": "#f0f0f0",
+        "void-muted": "#d0d0d0",
+        "void-hint": "#b8b8b8",
+        "void-subtle": "#949494",
         panel: "#111111",
         signal: "#CCFF00",
         accent: "#00F0FF",

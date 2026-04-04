@@ -19,7 +19,7 @@ function InteractBadge({ film }: { film: Film }) {
 
   if (ended) {
     return (
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-1.5 bg-black/60 border border-[#555] text-[#888] font-mono text-[0.65rem] font-bold px-2.5 py-1.5 rounded-sm backdrop-blur-sm">
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-1.5 bg-black/60 border border-[#555] text-void-hint font-mono text-[0.65rem] font-bold px-2.5 py-1.5 rounded-sm backdrop-blur-sm">
         <i className="fas fa-ban" />
         <span>ENDED</span>
       </div>
@@ -84,7 +84,7 @@ export default function FilmCard({ film }: FilmCardProps) {
       {/* On-chain indicator (top-left) */}
       <div className="absolute top-4 left-4 z-10 flex items-center gap-1 bg-black/60 border border-[#333] backdrop-blur-sm px-2 py-1 rounded-sm">
         <i className="fa-brands fa-solana text-aif text-[10px]" />
-        <span className="font-mono text-[9px] text-gray-400 tracking-widest">
+        <span className="font-mono text-[9px] text-void-hint tracking-widest">
           {film.info.onChain.network.toUpperCase()}
         </span>
       </div>
@@ -110,16 +110,16 @@ export default function FilmCard({ film }: FilmCardProps) {
         </h2>
 
         {/* Synopsis */}
-        <p className="font-mono text-[10px] text-gray-300 leading-relaxed line-clamp-2 drop-shadow">
+        <p className="font-mono text-[10px] text-void-muted leading-relaxed line-clamp-2 drop-shadow">
           {film.synopsis}
         </p>
 
         {/* Footer meta */}
         <div className="flex items-center gap-3 mt-3 pt-3 border-t border-white/10">
-          <span className="font-mono text-[9px] text-gray-500 tracking-widest">
+          <span className="font-mono text-[9px] text-void-hint tracking-widest">
             {film.tech_stack?.trim() || film.info.tech}
           </span>
-          <span className="ml-auto font-mono text-[9px] text-gray-500">
+          <span className="ml-auto font-mono text-[9px] text-void-hint">
             ROY {film.info.onChain.royalty}
           </span>
         </div>
@@ -130,7 +130,7 @@ export default function FilmCard({ film }: FilmCardProps) {
         <div className="font-heavy text-sm text-white tracking-wide truncate">
           {film.title}
         </div>
-        <div className="font-mono text-[9px] text-gray-500 tracking-wider">
+        <div className="font-mono text-[9px] text-void-hint tracking-wider">
           {film.creator}
         </div>
       </div>

@@ -317,20 +317,20 @@ function SubsectionCol({ sub }: { sub: Subsection }) {
     <div className="mb-3">
       <p className="text-xs font-bold text-[#CCFF00]/80 font-mono mb-1.5">{sub.title}</p>
       {sub.content && (
-        <p className="text-sm text-[#aaa] leading-relaxed">{sub.content}</p>
+        <p className="text-sm text-void-muted leading-relaxed">{sub.content}</p>
       )}
       {sub.items && sub.items.length > 0 && (
         <ul className="space-y-1 mt-1">
           {sub.items.map((item, i) => (
-            <li key={i} className="flex gap-2 text-sm text-[#aaa] leading-relaxed">
-              <span className="text-[#CCFF00]/50 font-mono text-xs mt-0.5 shrink-0">▸</span>
+            <li key={i} className="flex gap-2 text-sm text-void-muted leading-relaxed">
+              <span className="text-[#CCFF00]/68 font-mono text-xs mt-0.5 shrink-0">▸</span>
               <span>{item}</span>
             </li>
           ))}
         </ul>
       )}
       {sub.note && (
-        <p className="mt-2 text-sm text-[#888] italic leading-relaxed border-l-2 border-[#CCFF00]/20 pl-3">
+        <p className="mt-2 text-sm text-void-hint italic leading-relaxed border-l-2 border-[#CCFF00]/20 pl-3">
           {sub.note}
         </p>
       )}
@@ -345,7 +345,7 @@ function BilingSectionRow({ section }: { section: Section }) {
       <h2 className="text-base font-heavy text-white tracking-tight mb-5">
         <span className="text-[#CCFF00]">{section.titleZh}</span>
         <span className="text-[#444] mx-2">/</span>
-        <span className="text-[#888] font-mono font-normal text-sm">{section.titleEn}</span>
+        <span className="text-void-hint font-mono font-normal text-sm">{section.titleEn}</span>
       </h2>
 
       {/* Two columns on desktop, stacked on mobile */}
@@ -353,7 +353,7 @@ function BilingSectionRow({ section }: { section: Section }) {
         {/* Chinese column */}
         <div className="space-y-2">
           {section.contentZh && (
-            <p className="text-sm text-[#aaa] leading-relaxed">{section.contentZh}</p>
+            <p className="text-sm text-void-muted leading-relaxed">{section.contentZh}</p>
           )}
           {section.subsectionsZh?.map((sub, i) => (
             <SubsectionCol key={i} sub={sub} />
@@ -363,7 +363,7 @@ function BilingSectionRow({ section }: { section: Section }) {
         {/* English column */}
         <div className="space-y-2 md:border-l md:border-[#1a1a1a] md:pl-6">
           {section.contentEn && (
-            <p className="text-sm text-[#666] leading-relaxed">{section.contentEn}</p>
+            <p className="text-sm text-void-subtle leading-relaxed">{section.contentEn}</p>
           )}
           {section.subsectionsEn?.map((sub, i) => (
             <SubsectionCol key={i} sub={{ ...sub, items: sub.items }} />
@@ -385,7 +385,7 @@ export default function TermsPage() {
         <div className="mb-8">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-[#555] hover:text-[#CCFF00] transition-colors text-xs font-mono tracking-wider"
+            className="inline-flex items-center gap-2 text-void-subtle hover:text-[#CCFF00] transition-colors text-xs font-mono tracking-wider"
           >
             <i className="fas fa-arrow-left text-[10px]" />
             BACK TO HKAIIFF
@@ -399,7 +399,7 @@ export default function TermsPage() {
           </div>
           <h1 className="text-4xl font-heavy text-white tracking-tighter leading-tight">
             用戶服務協議
-            <span className="block text-xl font-mono font-normal text-[#555] mt-1">
+            <span className="block text-xl font-mono font-normal text-void-subtle mt-1">
               Terms of Service Agreement
             </span>
           </h1>
@@ -415,8 +415,8 @@ export default function TermsPage() {
 
         {/* Column labels */}
         <div className="hidden md:grid grid-cols-2 gap-6 mb-6 pb-3 border-b border-[#1a1a1a]">
-          <p className="text-[10px] font-mono text-[#CCFF00]/60 tracking-widest uppercase">中文版本 Chinese</p>
-          <p className="text-[10px] font-mono text-[#555] tracking-widest uppercase pl-6">English Version</p>
+          <p className="text-[10px] font-mono text-[#CCFF00]/78 tracking-widest uppercase">中文版本 Chinese</p>
+          <p className="text-[10px] font-mono text-void-subtle tracking-widest uppercase pl-6">English Version</p>
         </div>
 
         {/* Bilingual sections */}
@@ -432,14 +432,14 @@ export default function TermsPage() {
           <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/privacy"
-              className="text-xs text-[#555] underline hover:text-[#CCFF00] transition-colors font-mono"
+              className="text-xs text-void-subtle underline hover:text-[#CCFF00] transition-colors font-mono"
             >
               私隱保護政策 Privacy Policy
             </Link>
             <span className="text-[#1e1e1e] hidden sm:block">|</span>
             <a
               href="mailto:legal@hkaiiff.com"
-              className="text-xs text-[#555] underline hover:text-[#CCFF00] transition-colors font-mono"
+              className="text-xs text-void-subtle underline hover:text-[#CCFF00] transition-colors font-mono"
             >
               legal@hkaiiff.com
             </a>
