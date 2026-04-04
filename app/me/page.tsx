@@ -1006,14 +1006,17 @@ function MePageContent() {
   };
   const topUpLabel = topUpLabels[lang] ?? 'TOP UP / DEPOSIT';
 
-  /** 頭像右側：已認證顯示身分膠囊（與小花徽章同一底線對齊）；未認證為「普通用戶」+ 認證按鈕；審核中為 pill + 鎖定按鈕 */
-  const profileIdentityAside = useMemo(() => {
+  /** 頭像右側：top 與小花同一水平帶（grid self-end）；below 為到期/審核中等全寬次行 */
+  const profileIdentityGrid = useMemo((): { top: React.ReactNode; below: React.ReactNode | null } => {
     if (!dbProfile) {
-      return (
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <span className="text-[9px] text-void-muted font-mono tracking-wider uppercase animate-pulse">…</span>
-        </div>
-      );
+      return {
+        top: (
+          <div className="flex flex-wrap items-center justify-end gap-2 w-full">
+            <span className="text-[9px] text-void-muted font-mono tracking-wider uppercase animate-pulse">…</span>
+          </div>
+        ),
+        below: null,
+      };
     }
     const pendingApps = identityApplications.filter(
       (a) => a.status === 'pending' || a.status === 'awaiting_payment',
@@ -1050,27 +1053,29 @@ function MePageContent() {
     const showVerifiedColumn = hasVerifiedIds || hasExpiryWarning;
 
     if (showVerifiedColumn) {
-      return (
-        <div className="flex flex-col justify-end gap-1.5 min-w-0 w-full">
-          <div className="flex flex-wrap items-center justify-start gap-x-2 gap-y-1">
-            {(dbProfile.verified_identities ?? []).map((identity) => {
-              const cfg = {
-                creator: { cls: 'bg-signal/20 text-signal border-signal/40', label: t('verify_badge_creator') },
-                institution: { cls: 'bg-[#9D00FF]/20 text-[#9D00FF] border-[#9D00FF]/40', label: t('verify_badge_institution') },
-                curator: { cls: 'bg-[#FFC107]/20 text-[#FFC107] border-[#FFC107]/40', label: t('verify_badge_curator') },
-              }[identity];
-              if (!cfg) return null;
-              return (
-                <span
-                  key={identity}
-                  className={`inline-flex items-center gap-1 text-[9px] font-heavy px-2 py-0.5 rounded-full tracking-wider shrink-0 border ${cfg.cls}`}
-                >
-                  <i className="fas fa-check-circle text-[8px]" />
-                  {cfg.label}
-                </span>
-              );
-            })}
-          </div>
+      const top = (
+        <div className="flex flex-wrap items-center justify-start gap-x-2 gap-y-1 w-full">
+          {(dbProfile.verified_identities ?? []).map((identity) => {
+            const cfg = {
+              creator: { cls: 'bg-signal/20 text-signal border-signal/40', label: t('verify_badge_creator') },
+              institution: { cls: 'bg-[#9D00FF]/20 text-[#9D00FF] border-[#9D00FF]/40', label: t('verify_badge_institution') },
+              curator: { cls: 'bg-[#FFC107]/20 text-[#FFC107] border-[#FFC107]/40', label: t('verify_badge_curator') },
+            }[identity];
+            if (!cfg) return null;
+            return (
+              <span
+                key={identity}
+                className={`inline-flex items-center gap-1 text-[9px] font-heavy px-2 py-0.5 rounded-full tracking-wider shrink-0 border ${cfg.cls}`}
+              >
+                <i className="fas fa-check-circle text-[8px]" />
+                {cfg.label}
+              </span>
+            );
+          })}
+        </div>
+      );
+      const below = (
+        <div className="flex flex-col gap-1.5 min-w-0 w-full">
           <div className="flex flex-wrap gap-x-2 gap-y-0.5">
             {identityApplications
               .filter((a) => a.status === 'approved' && a.expires_at)
@@ -1108,40 +1113,47 @@ function MePageContent() {
           ) : null}
         </div>
       );
+      return { top, below };
     }
     if (hasPending) {
-      return (
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {pendingPills}
-          <button
-            type="button"
-            disabled
-            className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-neutral-800/60 text-void-hint border border-gray-700/40 rounded-full px-4 py-1.5 opacity-50 cursor-not-allowed whitespace-nowrap"
-          >
-            <i className="fas fa-lock text-[8px]" />
-            {lang === 'zh' ? '認證中' : 'In Review'}
-          </button>
-        </div>
-      );
+      return {
+        top: (
+          <div className="flex flex-wrap items-center justify-end gap-2 w-full">
+            {pendingPills}
+            <button
+              type="button"
+              disabled
+              className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-neutral-800/60 text-void-hint border border-gray-700/40 rounded-full px-4 py-1.5 opacity-50 cursor-not-allowed whitespace-nowrap"
+            >
+              <i className="fas fa-lock text-[8px]" />
+              {lang === 'zh' ? '認證中' : 'In Review'}
+            </button>
+          </div>
+        ),
+        below: null,
+      };
     }
     if (!hasApproved) {
-      return (
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          <span className="text-[9px] text-void-fg font-mono tracking-wider uppercase">
-            {lang === 'zh' ? '普通用戶' : 'Standard user'}
-          </span>
-          <button
-            type="button"
-            onClick={() => router.push('/verification')}
-            className="inline-flex items-center gap-1.5 text-[10px] font-bold bg-white text-black rounded-full px-4 py-1.5 hover:scale-105 transition-transform uppercase tracking-wider whitespace-nowrap shadow-[0_0_10px_rgba(255,255,255,0.15)]"
-          >
-            <i className="fas fa-shield-alt text-[9px]" />
-            {lang === 'zh' ? '立即認證' : t('verify_inline_verify')}
-          </button>
-        </div>
-      );
+      return {
+        top: (
+          <div className="flex flex-wrap items-center justify-end gap-2 w-full">
+            <span className="text-[9px] text-void-fg font-mono tracking-wider uppercase">
+              {lang === 'zh' ? '普通用戶' : 'Standard user'}
+            </span>
+            <button
+              type="button"
+              onClick={() => router.push('/verification')}
+              className="inline-flex items-center gap-1.5 text-[10px] font-bold bg-white text-black rounded-full px-4 py-1.5 hover:scale-105 transition-transform uppercase tracking-wider whitespace-nowrap shadow-[0_0_10px_rgba(255,255,255,0.15)]"
+            >
+              <i className="fas fa-shield-alt text-[9px]" />
+              {lang === 'zh' ? '立即認證' : t('verify_inline_verify')}
+            </button>
+          </div>
+        ),
+        below: null,
+      };
     }
-    return null;
+    return { top: null, below: null };
   }, [dbProfile, identityApplications, lang, t, router]);
 
   /* ─── AUTH GUARD ─────────────────────────────────────────────────────────── */
@@ -1212,9 +1224,9 @@ function MePageContent() {
           </button>
         </div>
 
-        {/* 頭像 + 小花徽章；右欄底部與頭像底對齊 → 膠囊與小花同一水平視覺線（PWA / 手機瀏覽器相同） */}
-        <div className="flex flex-row items-stretch justify-center md:justify-start gap-3 shrink-0 w-full md:w-auto pr-12 md:pr-0">
-          <div className="relative shrink-0 w-20 h-20 self-start">
+        {/* 頭像 + 小花 + 身分膠囊：首行 grid self-end 與頭像底帶對齊；次行全寬（到期/審核中） */}
+        <div className="grid grid-cols-[5rem_minmax(0,1fr)] gap-x-3 gap-y-1.5 justify-center md:justify-start shrink-0 w-full md:w-auto pr-12 md:pr-0">
+          <div className="relative shrink-0 w-20 h-20 row-start-1 col-start-1 self-start">
             <img
               src={`https://api.dicebear.com/7.x/bottts/svg?seed=${dbProfile?.avatar_seed || user?.id || 'default'}`}
               alt="avatar"
@@ -1247,9 +1259,14 @@ function MePageContent() {
               </div>
             )}
           </div>
-          <div className="flex flex-col justify-end min-h-[5rem] min-w-0 flex-1 md:max-w-[260px] pb-0.5">
-            {profileIdentityAside}
+          <div className="row-start-1 col-start-2 self-end min-w-0 md:max-w-[260px] flex flex-wrap items-center content-end gap-x-2 gap-y-1">
+            {profileIdentityGrid.top}
           </div>
+          {profileIdentityGrid.below ? (
+            <div className="col-span-2 row-start-2 min-w-0 w-full">
+              {profileIdentityGrid.below}
+            </div>
+          ) : null}
         </div>
 
         {/* 用戶名、錢包與操作：置中 */}
@@ -2020,7 +2037,7 @@ function MePageContent() {
       ═══════════════════════════════════════════════════════════════════ */}
       {isProfileModalOpen && (
         <div
-          className="fixed inset-0 z-[1001] bg-black/85 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
+          className="fixed inset-0 z-[11000] bg-black/85 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4"
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
           onClick={(e) => { if (e.target === e.currentTarget) closeProfileModal(); }}
         >
@@ -2049,8 +2066,8 @@ function MePageContent() {
               </button>
             </div>
 
-            {/* Scrollable Body */}
-            <div className="overflow-y-auto flex-1 px-5 py-5 space-y-6 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch' }}>
+            {/* Scrollable Body — 底部留白避免最後一欄貼邊；頁腳按鈕在更高 z 層級，不被 BottomNav 遮擋 */}
+            <div className="overflow-y-auto flex-1 px-5 py-5 pb-8 space-y-6 overscroll-contain min-h-0" style={{ WebkitOverflowScrolling: 'touch' }}>
 
               {/* ── 死锁横幅：已認證或審核中時顯示 ─────────────────────── */}
               {(() => {
@@ -2294,9 +2311,9 @@ function MePageContent() {
               )}
             </div>
 
-            {/* Modal Footer */}
+            {/* Modal Footer — z 高於 BottomNav(10000)，確保保存鈕可見可點 */}
             <div
-              className="flex items-center gap-3 px-5 pt-4 pb-4 border-t border-[#1a1a1a] flex-shrink-0 bg-[#080808]"
+              className="relative z-10 flex items-center gap-3 px-5 pt-4 pb-4 border-t border-[#1a1a1a] flex-shrink-0 bg-[#080808]"
               style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}
             >
               <button
