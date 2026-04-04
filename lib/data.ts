@@ -22,6 +22,12 @@ export interface Film {
   id: number;
   title: string;
   creator: string;
+  /** Conductor / studio from Supabase — UI 優先於 info.dir */
+  studio?: string | null;
+  /** Tech stack from Supabase — UI 優先於 info.tech */
+  tech_stack?: string | null;
+  /** Long-form copy from Supabase（與 synopsis 擇一展示） */
+  description?: string | null;
   /** Unsplash cover image URL — used as poster / thumbnail */
   video: string;
   /** Actual video stream URL (optional; poster fallback used when absent) */

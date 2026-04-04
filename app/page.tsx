@@ -21,6 +21,10 @@ interface SupabaseFilm {
   title: string;
   studio: string | null;
   tech_stack: string | null;
+  core_cast?: string | null;
+  region?: string | null;
+  synopsis?: string | null;
+  description?: string | null;
   ai_ratio: number | null;
   poster_url: string | null;
   trailer_url: string | null;
@@ -136,23 +140,31 @@ function DataInjectionDrawer({
 
 /** 將 SupabaseFilm 適配成 ModalContext 所需的 Film 類型 */
 function toModalFilm(f: SupabaseFilm): Film {
+  const synopsisBody =
+    [f.synopsis, f.description].map((s) => (typeof s === "string" ? s.trim() : "")).find(Boolean) ?? "";
   return {
     id: 0,
     title: f.title,
     creator: f.studio ?? "ANONYMOUS",
+    studio: f.studio,
+    tech_stack: f.tech_stack,
+    description: f.description ?? null,
+    core_cast: f.core_cast ?? undefined,
+    region: f.region ?? undefined,
+    creator_id: f.user_id ?? undefined,
     video: buildOssUrl(f.poster_url),
     videoUrl: buildOssUrl(f.trailer_url ?? f.feature_url ?? f.video_url ?? null) || undefined,
-    synopsis: f.tech_stack ?? "",
-    fullDescription: f.tech_stack ?? "",
+    synopsis: synopsisBody,
+    fullDescription: synopsisBody,
     hasInteract: true,
     interactType: null,
     timeLeft: 0,
     hasUserVersion: false,
     info: {
-      cast: "",
-      dir: "",
+      cast: f.core_cast ?? "",
+      dir: f.studio ?? "",
       tech: f.tech_stack ?? "",
-      region: "",
+      region: f.region ?? "",
       limits: [],
       onChain: { network: "", contract: "", storage: "", royalty: "" },
     },

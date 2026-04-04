@@ -1138,11 +1138,11 @@
                     setTimeout(() => this.openCreator(f.creator), 300);
                 };
                 document.getElementById('infoPoster').src = f.video;
-                document.getElementById('infoSyn').innerText = f.fullDescription || f.synopsis;
-                document.getElementById('infoCast').innerText = f.info.cast;
-                document.getElementById('infoDir').innerText = f.info.dir;
-                document.getElementById('infoTech').innerText = f.info.tech;
-                document.getElementById('infoRegion').innerText = f.info.region;
+                document.getElementById('infoSyn').innerText = f.synopsis || f.description || f.fullDescription || '';
+                document.getElementById('infoCast').innerText = f.core_cast || f.info.cast;
+                document.getElementById('infoDir').innerText = f.studio || f.creator || f.info.dir;
+                document.getElementById('infoTech').innerText = f.tech_stack || f.info.tech;
+                document.getElementById('infoRegion').innerText = f.region || f.info.region;
                 if(f.info.onChain) {
                     document.getElementById('infoNetwork').innerHTML = `<i class="fa-brands fa-solana text-aif"></i> ${f.info.onChain.network}`;
                     document.getElementById('infoContract').innerText = f.info.onChain.contract;

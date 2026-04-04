@@ -19,6 +19,7 @@ interface FilmDetail {
   poster_url: string | null;
   trailer_url: string | null;
   synopsis: string | null;
+  description: string | null;
   user_id: string | null;
 }
 
@@ -136,7 +137,7 @@ function FilmDetailInner() {
       try {
         const { data, error } = await supabase
           .from('films')
-          .select('id, title, studio, tech_stack, ai_ratio, poster_url, trailer_url, synopsis, user_id')
+          .select('id, title, studio, tech_stack, ai_ratio, poster_url, trailer_url, synopsis, description, user_id')
           .eq('id', id)
           .single();
 
@@ -258,12 +259,12 @@ function FilmDetailInner() {
         {/* 標題 */}
         <h1 className="font-heavy text-3xl md:text-4xl text-white leading-tight">{film.title}</h1>
 
-        {/* 劇情簡介 */}
-        {(film.synopsis || film.tech_stack) && (
+        {/* 劇情簡介（僅 synopsis / description，不用 tech_stack） */}
+        {(film.synopsis?.trim() || film.description?.trim()) && (
           <section>
             <h2 className="font-heavy text-sm text-[#555] tracking-widest uppercase mb-3">SYNOPSIS</h2>
             <p className="text-sm md:text-base text-gray-300 leading-relaxed border-l-2 border-[#333] pl-4">
-              {film.synopsis || film.tech_stack}
+              {film.synopsis?.trim() || film.description?.trim()}
             </p>
           </section>
         )}

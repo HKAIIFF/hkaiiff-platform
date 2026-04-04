@@ -117,7 +117,7 @@ export default function FilmCard({ film }: FilmCardProps) {
         {/* Footer meta */}
         <div className="flex items-center gap-3 mt-3 pt-3 border-t border-white/10">
           <span className="font-mono text-[9px] text-gray-500 tracking-widest">
-            {film.info.tech}
+            {film.tech_stack?.trim() || film.info.tech}
           </span>
           <span className="ml-auto font-mono text-[9px] text-gray-500">
             ROY {film.info.onChain.royalty}

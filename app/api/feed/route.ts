@@ -30,6 +30,7 @@ export async function GET(req: Request) {
 
   type FilmRow = {
     id: string; title: string; studio: string | null; tech_stack: string | null;
+    core_cast: string | null; region: string | null; synopsis: string | null; description: string | null;
     ai_ratio: number | null; poster_url: string | null; trailer_url: string | null;
     feature_url: string | null; video_url: string | null; user_id: string | null;
     created_at: string; is_parallel_universe: boolean | null; parallel_start_time: string | null;
@@ -42,8 +43,8 @@ export async function GET(req: Request) {
   const { data: filmsRaw, error: filmsError } = await serviceSupabase
     .from('films')
     .select(
-      'id,title,studio,tech_stack,ai_ratio,poster_url,trailer_url,feature_url,video_url,' +
-      'user_id,created_at,is_parallel_universe,parallel_start_time'
+      'id,title,studio,tech_stack,core_cast,region,synopsis,description,ai_ratio,' +
+      'poster_url,trailer_url,feature_url,video_url,user_id,created_at,is_parallel_universe,parallel_start_time'
     )
     .eq('status', 'approved')
     .or('is_feed_published.eq.true,is_feed_published.is.null')

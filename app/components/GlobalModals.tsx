@@ -446,7 +446,10 @@ export default function GlobalModals() {
               <div className="bg-[#111] border border-[#222] p-5 rounded-xl shadow-inner relative overflow-hidden">
                 <i className="fas fa-quote-right text-[#222] text-6xl absolute -top-2 -right-2" />
                 <p className="font-mono text-xs text-gray-300 leading-relaxed text-justify relative z-10">
-                  {film?.fullDescription ?? film?.synopsis ?? "..."}
+                  {film?.synopsis?.trim() ||
+                    film?.description?.trim() ||
+                    film?.fullDescription?.trim() ||
+                    "..."}
                 </p>
               </div>
             </section>
@@ -458,7 +461,7 @@ export default function GlobalModals() {
                   <i className="fas fa-users text-gray-400" /> CORE CAST
                 </div>
                 <div className="text-sm text-white font-bold leading-snug">
-                  {film?.core_cast ?? film?.info?.cast ?? "..."}
+                  {film?.core_cast?.trim() || film?.info?.cast || "..."}
                 </div>
               </div>
               <div className="bg-gradient-to-b from-[#111] to-[#0a0a0a] p-4 rounded-xl border border-[#222] shadow-md">
@@ -466,7 +469,7 @@ export default function GlobalModals() {
                   <i className="fas fa-user-astronaut text-gray-400" /> CONDUCTOR
                 </div>
                 <div className="text-sm text-white font-bold leading-snug">
-                  {film?.info?.dir ?? "..."}
+                  {film?.studio?.trim() || film?.info?.dir || "..."}
                 </div>
               </div>
               <div className="bg-gradient-to-b from-[#111] to-[#0a0a0a] p-4 rounded-xl border border-[#222] shadow-md">
@@ -474,7 +477,7 @@ export default function GlobalModals() {
                   <i className="fas fa-microchip text-yellow-400" /> TECH PROVIDERS
                 </div>
                 <div className="text-xs text-yellow-400 font-bold leading-snug">
-                  {film?.info?.tech ?? "..."}
+                  {film?.tech_stack?.trim() || film?.info?.tech || "..."}
                 </div>
               </div>
               <div className="bg-gradient-to-b from-[#111] to-[#0a0a0a] p-4 rounded-xl border border-[#222] shadow-md">
@@ -482,7 +485,7 @@ export default function GlobalModals() {
                   <i className="fas fa-globe-asia text-blue-400" /> REGION
                 </div>
                 <div className="text-sm text-white font-bold leading-snug">
-                  {film?.region ?? film?.info?.region ?? "..."}
+                  {film?.region?.trim() || film?.info?.region || "..."}
                 </div>
               </div>
             </section>
