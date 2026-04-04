@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useModal } from '@/app/context/ModalContext';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/app/context/ToastContext';
+import { useI18n } from '@/app/context/I18nContext';
 import { supabase } from '@/lib/supabase';
 import { buildOssUrl } from '@/lib/utils/oss';
 import FeedVideo from '@/components/FeedVideo';
@@ -55,6 +56,12 @@ const STATE_CONFIG: Record<LbsState, { label: string; icon: string; border: stri
   locked_geo:  { label: 'GEO-LOCKED',  icon: 'fa-map-marker-alt', border: 'border-danger', text: 'text-danger' },
   locked_cond: { label: 'TIME-LOCKED', icon: 'fa-clock',          border: 'border-honey',  text: 'text-honey'  },
 };
+
+function lbsStateLabel(t: (key: string) => string, state: LbsState): string {
+  if (state === 'unlocked') return t('state_unlocked');
+  if (state === 'locked_cond') return t('state_locked_time');
+  return t('state_locked_geo');
+}
 
 function resolveState(raw: string | null): LbsState {
   if (raw === 'unlocked' || raw === 'locked_geo' || raw === 'locked_cond') return raw;
@@ -114,20 +121,21 @@ function NodeSkeleton() {
 }
 
 function EmptyState() {
+  const { t } = useI18n();
   return (
     <div className="flex flex-col items-center justify-center py-24 gap-5">
       <div className="w-20 h-20 rounded-full bg-[#111] border border-[#222] flex items-center justify-center">
-        <i className="fas fa-map-marked-alt text-3xl text-[#333]" />
+        <i className="fas fa-map-marked-alt text-3xl text-void-subtle" />
       </div>
       <div className="text-center">
-        <div className="font-heavy text-lg text-[#333] tracking-widest mb-2">目前尚無上線的影展</div>
-        <div className="font-mono text-[10px] text-[#2a2a2a] tracking-wider leading-relaxed max-w-xs mx-auto">
-          尚無已上線的 LBS 放映節點，請靜候影展正式開放。
+        <div className="font-heavy text-lg text-void-muted tracking-widest mb-2">{t('discover_empty_title')}</div>
+        <div className="font-mono text-[10px] text-void-hint tracking-wider leading-relaxed max-w-xs mx-auto">
+          {t('discover_empty_sub')}
         </div>
       </div>
       <div className="flex items-center gap-2 bg-[#111] px-3 py-2 rounded-full border border-[#222]">
         <div className="w-1.5 h-1.5 rounded-full bg-[#333] animate-pulse" />
-        <span className="font-mono text-[9px] text-[#444] tracking-widest">AWAITING NODE BROADCAST</span>
+        <span className="font-mono text-[9px] text-void-hint tracking-widest">{t('discover_awaiting_broadcast')}</span>
       </div>
     </div>
   );
@@ -152,6 +160,7 @@ function MobileDiscover({
   filmsLoading, onOpenDetail, onCloseDetail, onPlayFilm,
 }: MobileProps) {
   const [selectedFilmForDetail, setSelectedFilmForDetail] = useState<LbsFilmEntry | null>(null);
+  const { t } = useI18n();
 
   return (
     /* 底部留白與 BottomNav（含 safe-area）對齊 */
@@ -159,7 +168,7 @@ function MobileDiscover({
 
       {/* Description */}
       <p className="font-mono text-[10px] text-void-hint mb-5 leading-relaxed border-l-2 border-[#333] pl-2">
-        由地理位置解鎖的 LBS 獨家放映活動，走近影展現場範圍即可解鎖觀看。
+        {t('discover_intro')}
       </p>
 
       {/* Filter Toolbar */}
@@ -167,13 +176,13 @@ function MobileDiscover({
         <div className="flex gap-3 mb-6">
           <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)}
             className="bg-black border border-[#333] text-[#CCFF00] text-xs font-mono p-2 rounded flex-1 appearance-none cursor-pointer focus:outline-none focus:border-[#CCFF00]">
-            <option value="all">All Cities</option>
+            <option value="all">{t('discover_all_cities')}</option>
             {allCities.map((city) => <option key={city} value={city}>{city}</option>)}
           </select>
           <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as 'nearest' | 'latest')}
             className="bg-black border border-[#333] text-[#CCFF00] text-xs font-mono p-2 rounded flex-1 appearance-none cursor-pointer focus:outline-none focus:border-[#CCFF00]">
-            <option value="nearest">Nearest</option>
-            <option value="latest">Latest</option>
+            <option value="nearest">{t('discover_sort_nearest')}</option>
+            <option value="latest">{t('discover_sort_latest')}</option>
           </select>
         </div>
       )}
@@ -214,15 +223,15 @@ function MobileDiscover({
                   <div className="flex justify-between items-start">
                     {node.state === 'locked_cond' ? (
                       <div className="bg-black/80 border border-honey text-[9px] font-mono px-2 py-1 rounded text-honey flex items-center gap-1.5 backdrop-blur">
-                        <i className="fas fa-clock" /><span>TIME-LOCKED</span>
+                        <i className="fas fa-clock" /><span>{lbsStateLabel(t, 'locked_cond')}</span>
                       </div>
                     ) : isUnlocked ? (
                       <div className="border border-[#CCFF00] text-[#CCFF00] px-2 py-1 rounded text-[10px] font-mono flex items-center gap-1.5 bg-black/80 backdrop-blur">
-                        <i className="fas fa-unlock" /> UNLOCKED
+                        <i className="fas fa-unlock" /> {lbsStateLabel(t, 'unlocked')}
                       </div>
                     ) : (
                       <div className="border border-red-500 text-red-500 px-2 py-1 rounded text-[10px] font-mono flex items-center gap-1.5 bg-black/80 backdrop-blur">
-                        <i className="fas fa-map-marker-alt" /> GEO-LOCKED
+                        <i className="fas fa-map-marker-alt" /> {lbsStateLabel(t, 'locked_geo')}
                       </div>
                     )}
                     <div className="flex flex-col items-end gap-1">
@@ -230,7 +239,7 @@ function MobileDiscover({
                         📍 {[node.country, node.city, node.venue].filter(Boolean).join(' ') || node.location}
                       </div>
                       <div className="text-[9px] font-mono text-void-hint bg-black/50 px-2 py-0.5 rounded backdrop-blur border border-[#333]">
-                        🎬 放映影片：{node.filmIds?.length || 0} 部
+                        🎬 {t('discover_films_count').replace('{n}', String(node.filmIds?.length || 0))}
                       </div>
                     </div>
                   </div>
@@ -245,9 +254,9 @@ function MobileDiscover({
                       </div>
                     )}
                     <div className="flex items-center gap-2">
-                      <img src={node.curator.avatar} alt="AIF.SHOW" className="w-5 h-5 rounded-full border border-[#444] object-cover shrink-0" />
-                      <span className="text-[10px] font-mono text-void-muted font-bold">AIF.SHOW</span>
-                      <i className="fas fa-check-circle text-blue-400 text-[10px]" />
+                      <img src={node.curator.avatar} alt="" className="w-5 h-5 rounded-full border border-[#444] object-cover shrink-0" />
+                      <span className="text-[10px] font-mono text-void-muted font-bold">{node.curator.name}</span>
+                      {node.curator.isCertified && <i className="fas fa-check-circle text-blue-400 text-[10px]" />}
                     </div>
                   </div>
                 </div>
@@ -276,7 +285,7 @@ function MobileDiscover({
             <i className="fas fa-arrow-left" />
           </button>
           <div className="font-mono text-[10px] text-signal tracking-widest bg-black/50 px-3 py-1.5 rounded-full backdrop-blur border border-[#333]">
-            {selectedFilmForDetail ? 'FILM DETAILS' : 'EVENT DETAILS'}
+            {selectedFilmForDetail ? t('discover_film_details') : t('event_details')}
           </div>
           <div className="w-10" />
         </div>
@@ -297,7 +306,7 @@ function MobileDiscover({
               {/* 底部文字 overlay */}
               <div className="absolute bottom-0 left-0 right-0 px-6 pb-5 z-10">
                 <div className={`inline-block text-[9px] font-mono px-2 py-1 rounded mb-2 border backdrop-blur ${selectedNode.borderColor} ${selectedNode.textColor} bg-black/80`}>
-                  <i className={`fas ${selectedNode.icon} mr-1`} />{selectedNode.stateLabel}
+                  <i className={`fas ${selectedNode.icon} mr-1`} />{lbsStateLabel(t, selectedNode.state)}
                 </div>
                 <h2 className="font-heavy text-4xl text-white leading-none drop-shadow-md mb-2">{selectedNode.title}</h2>
                 <div className="flex items-center gap-1.5 text-xs text-void-muted mb-1">
@@ -316,7 +325,7 @@ function MobileDiscover({
               {/* Curator */}
               <div className="flex items-center gap-2 text-sm font-mono text-void-hint">
                 <img src={selectedNode.curator.avatar} alt={selectedNode.curator.name} className="w-6 h-6 rounded-full border border-[#444] object-cover" />
-                <span>策展人：</span>
+                <span>{t('discover_curator_label')}</span>
                 <span className="text-white font-bold">{selectedNode.curator.name}</span>
                 {selectedNode.curator.isCertified && <i className="fas fa-certificate text-[#CCFF00] text-xs" />}
               </div>
@@ -324,7 +333,7 @@ function MobileDiscover({
               {/* Event Description */}
               {selectedNode.desc && (
                 <section>
-                  <h3 className="font-heavy text-lg text-white mb-2">EVENT DESCRIPTION</h3>
+                  <h3 className="font-heavy text-lg text-white mb-2">{t('event_desc')}</h3>
                   <p className="text-xs text-void-muted font-mono leading-relaxed text-justify">{selectedNode.desc}</p>
                 </section>
               )}
@@ -332,7 +341,7 @@ function MobileDiscover({
               {/* ── Official Selection：單列圖文卡片（移動端），PC 端兩列 ── */}
               <section>
                 <h3 className="font-heavy text-lg text-white mb-3 flex items-center gap-2">
-                  <i className="fas fa-film text-[#CCFF00]" /> OFFICIAL SELECTION
+                  <i className="fas fa-film text-[#CCFF00]" /> {t('cert_title')}
                 </h3>
                 {filmsLoading ? (
                   <div className="space-y-3">
@@ -351,7 +360,7 @@ function MobileDiscover({
                 ) : detailFilms.length === 0 ? (
                   <div className="bg-[#111] border border-[#222] rounded-xl p-6 flex flex-col items-center gap-3">
                     <i className="fas fa-film text-2xl text-[#333]" />
-                    <span className="font-mono text-[10px] text-[#444] tracking-widest">NO FILMS ASSIGNED TO THIS NODE</span>
+                    <span className="font-mono text-[10px] text-void-hint tracking-widest text-center px-2">{t('discover_no_films_assigned')}</span>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -370,7 +379,7 @@ function MobileDiscover({
                           />
                           <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#111]/30" />
                           {film.filmUrl && (
-                            <div className="absolute bottom-1.5 left-1.5 bg-[#CCFF00] text-black text-[7px] font-bold px-1.5 py-0.5 rounded-sm leading-none">正片</div>
+                            <div className="absolute bottom-1.5 left-1.5 bg-[#CCFF00] text-black text-[7px] font-bold px-1.5 py-0.5 rounded-sm leading-none">{t('discover_feature_badge')}</div>
                           )}
                         </div>
                         {/* 文字資訊 */}
@@ -384,7 +393,7 @@ function MobileDiscover({
                           </div>
                           <div className="flex items-center gap-2 mt-2">
                             <span className="text-[10px] text-white/68 font-mono flex items-center gap-1">
-                              <i className="fas fa-play text-[8px]" /> 查看詳情
+                              <i className="fas fa-play text-[8px]" /> {t('discover_view_details')}
                             </span>
                           </div>
                         </div>
@@ -398,7 +407,7 @@ function MobileDiscover({
               {selectedNode.dateRange && (
                 <section className="bg-gradient-to-br from-[#111] to-[#0a0a0a] border border-[#333] p-4 rounded-xl relative overflow-hidden">
                   <div className={`absolute left-0 top-0 w-1 h-full ${selectedNode.borderColor.replace('border-', 'bg-')}`} />
-                  <h3 className="font-heavy text-lg text-white mb-2">放映時間</h3>
+                  <h3 className="font-heavy text-lg text-white mb-2">{t('discover_screening_time')}</h3>
                   <p className={`text-sm font-mono font-bold ${selectedNode.textColor}`}>{selectedNode.dateRange}</p>
                 </section>
               )}
@@ -442,7 +451,7 @@ function MobileDiscover({
               {/* 影片資訊 */}
               <div className="px-6 py-5 space-y-4">
                 {selectedFilmForDetail.filmUrl && (
-                  <span className="inline-block bg-[#CCFF00] text-black text-[9px] font-bold px-2.5 py-1 rounded-sm tracking-wider">正片可用</span>
+                  <span className="inline-block bg-[#CCFF00] text-black text-[9px] font-bold px-2.5 py-1 rounded-sm tracking-wider">{t('discover_feature_available')}</span>
                 )}
                 <h2 className="font-heavy text-3xl text-white leading-tight">{selectedFilmForDetail.title}</h2>
                 <p className="text-emerald-400 text-sm font-mono">{selectedFilmForDetail.studio}</p>
@@ -458,7 +467,7 @@ function MobileDiscover({
                     className="w-full bg-[#CCFF00] text-black font-heavy text-lg py-4 rounded-xl flex items-center justify-center gap-3 hover:bg-white transition-colors active:scale-95 shadow-[0_0_24px_rgba(204,255,0,0.25)]"
                   >
                     <i className="fas fa-play" />
-                    ▶ 播放正片
+                    ▶ {t('discover_play_feature')}
                   </button>
                 )}
 
@@ -469,7 +478,7 @@ function MobileDiscover({
                     className="w-full bg-[#111] border border-white/20 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-3 active:scale-95 transition-transform"
                   >
                     <i className="fas fa-play text-[#CCFF00]" />
-                    播放預告片
+                    {t('discover_play_trailer')}
                   </button>
                 )}
               </div>
@@ -485,8 +494,11 @@ function MobileDiscover({
 // DESKTOP VIEW — 卡片矩阵 + 搜索框，零地图
 // ─────────────────────────────────────────────────────────────────────────────
 
-interface DesktopCardProps { node: LbsNode; isUnlocked: boolean; dist: number; onClick: () => void; }
-function DesktopNodeCard({ node, isUnlocked, dist, onClick }: DesktopCardProps) {
+interface DesktopCardProps {
+  node: LbsNode; isUnlocked: boolean; dist: number; onClick: () => void;
+  t: (key: string) => string;
+}
+function DesktopNodeCard({ node, isUnlocked, dist, onClick, t }: DesktopCardProps) {
   const posterSrc = node.poster_url ?? node.img;
   return (
     <div onClick={onClick}
@@ -507,15 +519,15 @@ function DesktopNodeCard({ node, isUnlocked, dist, onClick }: DesktopCardProps) 
         <div className="absolute top-2.5 left-2.5">
           {isUnlocked ? (
             <span className="border border-signal text-signal px-2 py-0.5 rounded text-[8px] font-mono flex items-center gap-1 bg-black/70 backdrop-blur">
-              <i className="fas fa-unlock text-[7px]" /> UNLOCKED
+              <i className="fas fa-unlock text-[7px]" /> {lbsStateLabel(t, 'unlocked')}
             </span>
           ) : node.state === 'locked_cond' ? (
             <span className="border border-honey text-honey px-2 py-0.5 rounded text-[8px] font-mono flex items-center gap-1 bg-black/70 backdrop-blur">
-              <i className="fas fa-clock text-[7px]" /> TIME-LOCKED
+              <i className="fas fa-clock text-[7px]" /> {lbsStateLabel(t, 'locked_cond')}
             </span>
           ) : (
             <span className="border border-red-500 text-red-400 px-2 py-0.5 rounded text-[8px] font-mono flex items-center gap-1 bg-black/70 backdrop-blur">
-              <i className="fas fa-map-marker-alt text-[7px]" /> GEO-LOCKED
+              <i className="fas fa-map-marker-alt text-[7px]" /> {lbsStateLabel(t, 'locked_geo')}
             </span>
           )}
         </div>
@@ -539,8 +551,8 @@ function DesktopNodeCard({ node, isUnlocked, dist, onClick }: DesktopCardProps) 
         </div>
       </div>
       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-        <div className={`px-4 py-2 rounded-full text-xs font-bold font-mono tracking-wider shadow-lg ${isUnlocked ? 'bg-signal text-black' : 'bg-black/80 text-[#555] border border-[#333]'}`}>
-          {isUnlocked ? '▶ ENTER' : '🔒 LOCKED'}
+        <div className={`px-4 py-2 rounded-full text-xs font-bold font-mono tracking-wider shadow-lg ${isUnlocked ? 'bg-signal text-black' : 'bg-black/80 text-void-subtle border border-[#333]'}`}>
+          {isUnlocked ? `▶ ${t('discover_enter')}` : `🔒 ${t('discover_locked')}`}
         </div>
       </div>
     </div>
@@ -563,6 +575,7 @@ function DesktopDiscover({
   filteredNodes, loading, userLocation, cityFilter, setCityFilter,
   sortOrder, setSortOrder, allCities, searchQuery, setSearchQuery, onClickNode,
 }: DesktopProps) {
+  const { t } = useI18n();
   const getStatus = (node: LbsNode) => {
     const dist = userLocation && (node.lat !== 0 || node.lng !== 0)
       ? Math.round(haversineMeters(userLocation.lat, userLocation.lng, node.lat, node.lng))
@@ -578,17 +591,17 @@ function DesktopDiscover({
       <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-[#1a1a1a] flex items-end gap-4">
         <div className="flex-1">
           <div className="mb-1">
-            <h1 className="font-heavy text-2xl text-white tracking-wider">DISCOVER</h1>
+            <h1 className="font-heavy text-2xl text-white tracking-wider">{t('nav_discover')}</h1>
           </div>
-          <p className="font-mono text-[9px] text-[#444] leading-relaxed">
-            LBS 地理位置解鎖的獨家放映活動 · 走近影展現場即可解鎖地理圍欄場館
+          <p className="font-mono text-[9px] text-void-hint leading-relaxed">
+            {t('discover_desktop_intro')}
           </p>
         </div>
         <div className="relative w-72 shrink-0">
-          <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-[#3a3a3a] text-[11px]" />
+          <i className="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-void-subtle text-[11px]" />
           <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search venues, cities..."
-            className="w-full bg-[#0e0e0e] border border-[#1e1e1e] text-white text-xs font-mono pl-9 pr-8 py-2 rounded-lg placeholder-[#383838] focus:outline-none focus:border-signal/30 transition-all" />
+            placeholder={t('discover_search_placeholder')}
+            className="w-full bg-[#0e0e0e] border border-[#1e1e1e] text-white text-xs font-mono pl-9 pr-8 py-2 rounded-lg placeholder:text-void-subtle focus:outline-none focus:border-signal/30 transition-all" />
           {searchQuery && (
             <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#444] hover:text-white">
               <i className="fas fa-times text-[10px]" />
@@ -600,20 +613,23 @@ function DesktopDiscover({
       {/* Filter Toolbar */}
       {!loading && filteredNodes.length > 0 && (
         <div className="flex-shrink-0 flex items-center gap-3 px-6 py-2.5 border-b border-[#0e0e0e] bg-[#030303]">
-          <span className="text-[9px] font-mono text-[#444] tracking-widest uppercase shrink-0">Filter:</span>
+          <span className="text-[9px] font-mono text-void-hint tracking-widest uppercase shrink-0">{t('discover_filter_label')}</span>
           <select value={cityFilter} onChange={(e) => setCityFilter(e.target.value)}
             className="bg-black border border-[#222] text-signal text-[10px] font-mono px-2 py-1 rounded appearance-none cursor-pointer focus:outline-none focus:border-signal/40">
-            <option value="all">All Cities</option>
+            <option value="all">{t('discover_all_cities')}</option>
             {allCities.map((city) => <option key={city} value={city}>{city}</option>)}
           </select>
           <select value={sortOrder} onChange={(e) => setSortOrder(e.target.value as 'nearest' | 'latest')}
             className="bg-black border border-[#222] text-signal text-[10px] font-mono px-2 py-1 rounded appearance-none cursor-pointer focus:outline-none focus:border-signal/40">
-            <option value="nearest">Nearest First</option>
-            <option value="latest">Latest First</option>
+            <option value="nearest">{t('discover_sort_nearest_first')}</option>
+            <option value="latest">{t('discover_sort_latest_first')}</option>
           </select>
           {searchQuery && (
-            <span className="text-[9px] font-mono text-[#555] ml-auto">
-              {filteredNodes.length} result{filteredNodes.length !== 1 ? 's' : ''} for &ldquo;{searchQuery}&rdquo;
+            <span className="text-[9px] font-mono text-void-subtle ml-auto">
+              {(filteredNodes.length === 1
+                ? t('discover_search_results_one')
+                : t('discover_search_results')
+              ).replace('{n}', String(filteredNodes.length)).replace('{q}', searchQuery)}
             </span>
           )}
         </div>
@@ -634,7 +650,7 @@ function DesktopDiscover({
             {filteredNodes.map((node) => {
               const { dist, isUnlocked } = getStatus(node);
               return (
-                <DesktopNodeCard key={node.id} node={node} isUnlocked={isUnlocked} dist={dist} onClick={() => onClickNode(node)} />
+                <DesktopNodeCard key={node.id} node={node} isUnlocked={isUnlocked} dist={dist} onClick={() => onClickNode(node)} t={t} />
               );
             })}
           </div>
@@ -649,6 +665,7 @@ function DesktopDiscover({
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function DiscoverPage() {
+  const { t } = useI18n();
   const [nodes, setNodes] = useState<LbsNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedNode, setSelectedNode] = useState<LbsNode | null>(null);
@@ -717,9 +734,9 @@ export default function DiscoverPage() {
 
   // Mobile: geo-check then show detail drawer
   const openDetail = useCallback(async (node: LbsNode) => {
-    if (node.state === 'locked_cond') { showToast('🔒 此影展尚未開放，請在活動時間窗口內再試', 'error'); return; }
+    if (node.state === 'locked_cond') { showToast(`🔒 ${t('discover_toast_festival_closed')}`, 'error'); return; }
     if (node.lat !== 0 || node.lng !== 0) {
-      if (!navigator.geolocation) { showToast('🔒 您的設備不支持地理定位，無法解鎖 LBS 影展', 'error'); return; }
+      if (!navigator.geolocation) { showToast(`🔒 ${t('discover_toast_no_geolocation')}`, 'error'); return; }
       try {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
           navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 })
@@ -729,16 +746,16 @@ export default function DiscoverPage() {
         if (dist > radius) {
           showToast(
             process.env.NODE_ENV === 'development'
-              ? `🔒 DEV: ${dist}m > ${radius}m`
-              : `🔒 未在解鎖範圍內。您距離影展還有 ${dist} 米，需要進入 ${radius} 米範圍內`,
+              ? `🔒 ${t('discover_dev_distance').replace('{dist}', String(dist)).replace('{radius}', String(radius))}`
+              : `🔒 ${t('discover_toast_out_of_range').replace('{dist}', String(dist)).replace('{radius}', String(radius))}`,
             'error'
           );
           return;
         }
       } catch {
-        if (node.state !== 'unlocked') { showToast('🔒 無法獲取您的位置，請允許位置權限後重試', 'error'); return; }
+        if (node.state !== 'unlocked') { showToast(`🔒 ${t('discover_toast_location_denied')}`, 'error'); return; }
       }
-    } else if (node.state !== 'unlocked') { showToast('🔒 Location or time window requirement not met', 'error'); return; }
+    } else if (node.state !== 'unlocked') { showToast(`🔒 ${t('discover_toast_requirements_not_met')}`, 'error'); return; }
 
     setSelectedNode(node);
     setDetailFilms([]);
@@ -763,21 +780,21 @@ export default function DiscoverPage() {
       } catch (err) { console.error('[Discover] Failed to load node films:', err); }
       finally { setFilmsLoading(false); }
     }
-  }, [showToast]);
+  }, [showToast, t]);
 
   const closeDetail = useCallback(() => { setSelectedNode(null); setDetailFilms([]); }, []);
 
   const playFilm = useCallback((film: LbsFilmEntry) => {
     const playUrl = film.filmUrl ?? film.trailerUrl ?? null;
-    if (!playUrl) { showToast('⚠️ 此影片暫無可播放的正片連結', 'error'); return; }
+    if (!playUrl) { showToast(`⚠️ ${t('discover_toast_no_playback')}`, 'error'); return; }
     setLbsVideoUrl(playUrl);
     // 不關閉 selectedNode，保留抽屜狀態，關閉播放器後可直接回到詳情頁
     setActiveModal('play');
-  }, [setLbsVideoUrl, setActiveModal, showToast]);
+  }, [setLbsVideoUrl, setActiveModal, showToast, t]);
 
   // Desktop: navigate to events page
   const openNodeDesktop = useCallback(async (node: LbsNode) => {
-    if (node.state === 'locked_cond') { showToast('🔒 此影展尚未開放', 'error'); return; }
+    if (node.state === 'locked_cond') { showToast(`🔒 ${t('discover_toast_festival_closed')}`, 'error'); return; }
     if (node.lat !== 0 || node.lng !== 0) {
       try {
         const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
@@ -788,18 +805,18 @@ export default function DiscoverPage() {
         if (dist > radius) {
           showToast(
             process.env.NODE_ENV === 'development'
-              ? `🔒 DEV: ${dist}m > ${radius}m`
-              : `🔒 您距離影展還有 ${dist} 米，需要進入 ${radius} 米範圍內`,
+              ? `🔒 ${t('discover_dev_distance').replace('{dist}', String(dist)).replace('{radius}', String(radius))}`
+              : `🔒 ${t('discover_toast_out_of_range').replace('{dist}', String(dist)).replace('{radius}', String(radius))}`,
             'error'
           );
           return;
         }
       } catch {
-        if (node.state !== 'unlocked') { showToast('🔒 Location requirement not met', 'error'); return; }
+        if (node.state !== 'unlocked') { showToast(`🔒 ${t('discover_toast_requirements_not_met')}`, 'error'); return; }
       }
-    } else if (node.state !== 'unlocked') { showToast('🔒 Location requirement not met', 'error'); return; }
+    } else if (node.state !== 'unlocked') { showToast(`🔒 ${t('discover_toast_requirements_not_met')}`, 'error'); return; }
     router.push(`/events/${node.id}`);
-  }, [router, showToast]);
+  }, [router, showToast, t]);
 
   const sharedProps = { filteredNodes, loading, userLocation, cityFilter, setCityFilter, sortOrder, setSortOrder, allCities };
 

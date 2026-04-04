@@ -1019,10 +1019,6 @@ function MePageContent() {
     dbProfile?.name ||
     (user?.id ? `Agent_${user.id.replace('did:privy:', '').substring(0, 6)}` : 'Agent_SYNCING');
 
-  const showProfileVerifiedMark =
-    (dbProfile?.verified_identities?.length ?? 0) > 0 ||
-    dbProfile?.verification_status === 'approved';
-
   /* ─── AUTHENTICATED VIEW ──────────────────────────────────────────────────── */
   return (
     <div className="flex-1 h-full w-full bg-void flex flex-col relative overflow-y-auto md:overflow-hidden pt-28 md:pt-0 pwa-me-main-scroll-pt pb-bottom-nav-safe md:pb-0 min-h-screen md:min-h-0">
@@ -1119,36 +1115,11 @@ function MePageContent() {
 
         {/* Info — flex-1 min-w-0 保证名字不被挤压 */}
         <div className="flex-1 min-w-0">
-          {/* 姓名 + 藍勾緊貼文末（inline）；身份膠囊窄屏獨立一行居中、md+ 與姓名同排右側 */}
-          <div className="flex flex-col md:flex-row md:items-start md:gap-x-3 gap-y-2 mb-0.5 pr-14 md:pr-20 w-full min-w-0">
-            <div className="min-w-0 flex-1 text-center md:text-left">
-              <h2 className="inline font-heavy text-2xl text-white tracking-wide align-middle leading-snug m-0 max-w-full break-words [overflow-wrap:anywhere]">
-                {profileDisplayName}
-              </h2>
-              {showProfileVerifiedMark && (
-                <span
-                  className="inline-block align-middle ml-1.5 translate-y-[-2px]"
-                  aria-label={lang === 'zh' ? '已認證' : 'Verified'}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    className="w-5 h-5 block"
-                    aria-hidden
-                  >
-                    <circle cx="12" cy="12" r="12" fill="#1DA1F2" />
-                    <polyline
-                      points="6 12 10 16 18 8"
-                      fill="none"
-                      stroke="#fff"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </span>
-              )}
-            </div>
+          {/* 用戶名與身份認證徽章同一行（可換行）；已移除用戶名旁藍色圓形勾選圖標 */}
+          <div className="flex flex-row flex-wrap items-center justify-center md:justify-start gap-x-2 gap-y-1.5 mb-0.5 pr-14 md:pr-20 w-full min-w-0">
+            <h2 className="font-heavy text-2xl text-white tracking-wide leading-snug m-0 max-w-full break-words [overflow-wrap:anywhere] text-center md:text-left shrink min-w-0">
+              {profileDisplayName}
+            </h2>
             {((dbProfile?.verified_identities ?? []).length > 0 ||
               identityApplications.some((a) => {
                 if (a.status !== 'approved' || !a.expires_at) return false;
@@ -1157,7 +1128,7 @@ function MePageContent() {
                 );
                 return daysLeft > 0 && daysLeft <= 30;
               })) && (
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-2 gap-y-1 shrink-0 md:pt-0.5">
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-2 gap-y-1 shrink-0">
                 {(dbProfile?.verified_identities ?? []).map((identity) => {
                   const cfg = {
                     creator: { cls: 'bg-signal/20 text-signal border-signal/40', label: t('verify_badge_creator') },

@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useModal } from "@/app/context/ModalContext";
+import { useI18n } from "@/app/context/I18nContext";
 import { isPwaTopBarCompactPath } from "@/lib/pwaTopBarCompact";
 
 export default function MobileTopBar() {
   const { setActiveModal } = useModal();
+  const { t } = useI18n();
   const pathname = usePathname();
   const showLogo = pathname === "/me";
   const showDiscoverTitle = pathname === "/discover";
@@ -33,7 +35,7 @@ export default function MobileTopBar() {
         </Link>
       ) : showDiscoverTitle ? (
         <h1 className="pointer-events-none font-heavy text-4xl text-white leading-none drop-shadow-md pr-2 min-w-0 truncate">
-          DISCOVER
+          {t("nav_discover")}
         </h1>
       ) : showMessagesTitle ? (
         <h1 className="pointer-events-none font-heavy text-2xl text-white tracking-wide leading-none drop-shadow-md pr-2">
