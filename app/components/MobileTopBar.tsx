@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useModal } from "@/app/context/ModalContext";
 import { isPwaTopBarCompactPath } from "@/lib/pwaTopBarCompact";
 
 export default function MobileTopBar() {
+  const { setActiveModal } = useModal();
   const pathname = usePathname();
   const showLogo = pathname === "/me";
   const showDiscoverTitle = pathname === "/discover";
@@ -16,7 +18,7 @@ export default function MobileTopBar() {
     <div
       className={`md:hidden mobile-top-bar-root fixed top-0 left-0 w-full z-30 px-4 flex justify-between items-center pointer-events-none${awardsTopAlign ? " mobile-top-bar-root--awards" : ""}${compactTopBar ? " mobile-top-bar-root--compact" : ""}`}
     >
-      {/* 左側：/me Logo；/discover、/messages 大標 */}
+      {/* 左側：/me Logo；/discover、/messages 大標（右側小地球與 HKAIIFF 同一行垂直居中） */}
       {showLogo ? (
         <Link
           href="/"
@@ -40,6 +42,15 @@ export default function MobileTopBar() {
       ) : (
         <div />
       )}
+
+      <div
+        className="pointer-events-auto cursor-pointer"
+        onClick={() => setActiveModal("lang")}
+      >
+        <div className="w-9 h-9 rounded-full bg-black/60 backdrop-blur border border-[#444] flex items-center justify-center text-gray-300 hover:text-signal hover:border-signal transition-all shadow-lg">
+          <i className="fas fa-globe text-sm" />
+        </div>
+      </div>
     </div>
   );
 }

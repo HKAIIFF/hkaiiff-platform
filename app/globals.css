@@ -425,14 +425,14 @@ input[type="range"]::-webkit-slider-runnable-track {
     }
   }
 }
-/* 完整顯示影片比例：橫屏上下留黑、豎屏左右留黑，禁止 cover 拉伸裁切 */
+/* 完整顯示影片比例：橫屏上下留黑、豎屏左右留黑，禁止 cover 拉伸裁切；頂對齊減少上方黑邊、整體視覺上移 */
 .bg-media {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: contain;
-  object-position: center;
+  object-position: center top;
   opacity: 1;
   z-index: 0;
   transition: transform 0.3s;
