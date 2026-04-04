@@ -1010,6 +1010,19 @@ function MePageContent() {
   // Privy 尚未初始化完成時，渲染空白等待 redirect；已就緒未登錄同樣清空防閃爍
   if (!ready || !authenticated) return null;
 
+  const approvedAppName = identityApplications.find(
+    (a) => a.status === 'approved' && a.verification_name,
+  )?.verification_name;
+  const profileDisplayName =
+    approvedAppName ||
+    dbProfile?.display_name ||
+    dbProfile?.name ||
+    (user?.id ? `Agent_${user.id.replace('did:privy:', '').substring(0, 6)}` : 'Agent_SYNCING');
+
+  const showProfileVerifiedMark =
+    (dbProfile?.verified_identities?.length ?? 0) > 0 ||
+    dbProfile?.verification_status === 'approved';
+
   /* ─── AUTHENTICATED VIEW ──────────────────────────────────────────────────── */
   return (
     <div className="flex-1 h-full w-full bg-void flex flex-col relative overflow-y-auto md:overflow-hidden pt-28 md:pt-0 pwa-me-main-scroll-pt pb-bottom-nav-safe md:pb-0 min-h-screen md:min-h-0">
@@ -1106,74 +1119,84 @@ function MePageContent() {
 
         {/* Info — flex-1 min-w-0 保证名字不被挤压 */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-0.5 pr-20 md:pr-20">
-            <h2 className="font-heavy text-2xl text-white tracking-wide min-w-0 text-center md:text-left">
-              {(() => {
-                const approvedApp = identityApplications.find(
-                  (a) => a.status === 'approved' && a.verification_name
-                );
-                return (
-                  approvedApp?.verification_name ||
-                  dbProfile?.display_name ||
-                  dbProfile?.name ||
-                  (user?.id ? `Agent_${user.id.replace('did:privy:', '').substring(0, 6)}` : 'Agent_SYNCING')
-                );
-              })()}
-            </h2>
-            {/* 加V認證標識：已通過任意身份認證時顯示 */}
-            {((dbProfile?.verified_identities?.length ?? 0) > 0 || dbProfile?.verification_status === 'approved') && (
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                className="w-5 h-5 shrink-0"
-                aria-label="已認證"
-              >
-                <circle cx="12" cy="12" r="12" fill="#1DA1F2" />
-                <polyline
-                  points="6 12 10 16 18 8"
-                  fill="none"
-                  stroke="#fff"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            )}
-            {/* 多重身份認證徽章 */}
-            {(dbProfile?.verified_identities ?? []).map((identity) => {
-              const cfg = {
-                creator: { cls: 'bg-signal/20 text-signal border-signal/40', label: t('verify_badge_creator') },
-                institution: { cls: 'bg-[#9D00FF]/20 text-[#9D00FF] border-[#9D00FF]/40', label: t('verify_badge_institution') },
-                curator: { cls: 'bg-[#FFC107]/20 text-[#FFC107] border-[#FFC107]/40', label: t('verify_badge_curator') },
-              }[identity];
-              if (!cfg) return null;
-              return (
-                <span key={identity} className={`inline-flex items-center gap-1 text-[9px] font-heavy px-2 py-0.5 rounded-full tracking-wider shrink-0 border ${cfg.cls}`}>
-                  <i className="fas fa-check-circle text-[8px]" />
-                  {cfg.label}
-                </span>
-              );
-            })}
-            {identityApplications
-              .filter((a) => a.status === 'approved' && a.expires_at)
-              .map((app) => {
-                const daysLeft = Math.ceil(
-                  (new Date(app.expires_at!).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
-                );
-                if (daysLeft > 30 || daysLeft <= 0) return null;
-                const ty =
-                  ({ creator: '創作人', institution: '機構', curator: '策展人' } as const)[app.identity_type] ??
-                  app.identity_type;
-                return (
-                  <span
-                    key={`expire-${app.id}`}
-                    className="text-[8px] text-amber-400 font-mono whitespace-nowrap"
-                    title={app.expires_at ?? undefined}
+          {/* 姓名 + 藍勾緊貼文末（inline）；身份膠囊窄屏獨立一行居中、md+ 與姓名同排右側 */}
+          <div className="flex flex-col md:flex-row md:items-start md:gap-x-3 gap-y-2 mb-0.5 pr-14 md:pr-20 w-full min-w-0">
+            <div className="min-w-0 flex-1 text-center md:text-left">
+              <h2 className="inline font-heavy text-2xl text-white tracking-wide align-middle leading-snug m-0 max-w-full break-words [overflow-wrap:anywhere]">
+                {profileDisplayName}
+              </h2>
+              {showProfileVerifiedMark && (
+                <span
+                  className="inline-block align-middle ml-1.5 translate-y-[-2px]"
+                  aria-label={lang === 'zh' ? '已認證' : 'Verified'}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    className="w-5 h-5 block"
+                    aria-hidden
                   >
-                    [{ty}] {daysLeft} {lang === 'zh' ? '天後到期' : 'days left'}
-                  </span>
+                    <circle cx="12" cy="12" r="12" fill="#1DA1F2" />
+                    <polyline
+                      points="6 12 10 16 18 8"
+                      fill="none"
+                      stroke="#fff"
+                      strokeWidth="2.2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+              )}
+            </div>
+            {((dbProfile?.verified_identities ?? []).length > 0 ||
+              identityApplications.some((a) => {
+                if (a.status !== 'approved' || !a.expires_at) return false;
+                const daysLeft = Math.ceil(
+                  (new Date(a.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
                 );
-              })}
+                return daysLeft > 0 && daysLeft <= 30;
+              })) && (
+              <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-2 gap-y-1 shrink-0 md:pt-0.5">
+                {(dbProfile?.verified_identities ?? []).map((identity) => {
+                  const cfg = {
+                    creator: { cls: 'bg-signal/20 text-signal border-signal/40', label: t('verify_badge_creator') },
+                    institution: { cls: 'bg-[#9D00FF]/20 text-[#9D00FF] border-[#9D00FF]/40', label: t('verify_badge_institution') },
+                    curator: { cls: 'bg-[#FFC107]/20 text-[#FFC107] border-[#FFC107]/40', label: t('verify_badge_curator') },
+                  }[identity];
+                  if (!cfg) return null;
+                  return (
+                    <span
+                      key={identity}
+                      className={`inline-flex items-center gap-1 text-[9px] font-heavy px-2 py-0.5 rounded-full tracking-wider shrink-0 border ${cfg.cls}`}
+                    >
+                      <i className="fas fa-check-circle text-[8px]" />
+                      {cfg.label}
+                    </span>
+                  );
+                })}
+                {identityApplications
+                  .filter((a) => a.status === 'approved' && a.expires_at)
+                  .map((app) => {
+                    const daysLeft = Math.ceil(
+                      (new Date(app.expires_at!).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+                    );
+                    if (daysLeft > 30 || daysLeft <= 0) return null;
+                    const ty =
+                      ({ creator: '創作人', institution: '機構', curator: '策展人' } as const)[app.identity_type] ??
+                      app.identity_type;
+                    return (
+                      <span
+                        key={`expire-${app.id}`}
+                        className="text-[8px] text-amber-400 font-mono whitespace-nowrap"
+                        title={app.expires_at ?? undefined}
+                      >
+                        [{ty}] {daysLeft} {lang === 'zh' ? '天後到期' : 'days left'}
+                      </span>
+                    );
+                  })}
+              </div>
+            )}
           </div>
           {(dbProfile?.verified_identities?.length ?? 0) === 0 && (
             <div className="mb-2 pr-14">
