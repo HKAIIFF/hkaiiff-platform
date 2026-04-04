@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, Suspense } from "react";
+import React, { useState, useEffect, useRef, useMemo, Suspense } from "react";
 import { usePrivy, useCreateWallet } from "@privy-io/react-auth";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useI18n } from "@/app/context/I18nContext";
@@ -1006,6 +1006,144 @@ function MePageContent() {
   };
   const topUpLabel = topUpLabels[lang] ?? 'TOP UP / DEPOSIT';
 
+  /** 頭像右側：已認證顯示身分膠囊（與小花徽章同一底線對齊）；未認證為「普通用戶」+ 認證按鈕；審核中為 pill + 鎖定按鈕 */
+  const profileIdentityAside = useMemo(() => {
+    if (!dbProfile) {
+      return (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <span className="text-[9px] text-void-muted font-mono tracking-wider uppercase animate-pulse">…</span>
+        </div>
+      );
+    }
+    const pendingApps = identityApplications.filter(
+      (a) => a.status === 'pending' || a.status === 'awaiting_payment',
+    );
+    const pendingPills = pendingApps.map((app) => {
+      const label = { creator: '創作人', institution: '機構', curator: '策展人' }[app.identity_type] ?? app.identity_type;
+      return (
+        <span key={app.id} className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-neutral-800 text-yellow-400 border border-yellow-700/40 rounded-full px-3 py-1.5 whitespace-nowrap">
+          <i className="fas fa-clock text-[8px]" />
+          {label} {lang === 'zh' ? '審核中' : 'Pending'}
+        </span>
+      );
+    });
+    const nowIso = new Date().toISOString();
+    const hasPending = identityApplications.some(
+      (a) => a.status === 'pending' || a.status === 'awaiting_payment',
+    );
+    const hasApprovedFromApps = identityApplications.some(
+      (a) => a.status === 'approved' && (!a.expires_at || a.expires_at > nowIso),
+    );
+    const hasApprovedFromProfile =
+      dbProfile.verification_status === 'approved' &&
+      !hasPending &&
+      (dbProfile.verified_identities?.length ?? 0) > 0;
+    const hasApproved = hasApprovedFromApps || hasApprovedFromProfile;
+    const hasVerifiedIds = (dbProfile.verified_identities?.length ?? 0) > 0;
+    const hasExpiryWarning = identityApplications.some((a) => {
+      if (a.status !== 'approved' || !a.expires_at) return false;
+      const daysLeft = Math.ceil(
+        (new Date(a.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+      );
+      return daysLeft > 0 && daysLeft <= 30;
+    });
+    const showVerifiedColumn = hasVerifiedIds || hasExpiryWarning;
+
+    if (showVerifiedColumn) {
+      return (
+        <div className="flex flex-col justify-end gap-1.5 min-w-0 w-full">
+          <div className="flex flex-wrap items-center justify-start gap-x-2 gap-y-1">
+            {(dbProfile.verified_identities ?? []).map((identity) => {
+              const cfg = {
+                creator: { cls: 'bg-signal/20 text-signal border-signal/40', label: t('verify_badge_creator') },
+                institution: { cls: 'bg-[#9D00FF]/20 text-[#9D00FF] border-[#9D00FF]/40', label: t('verify_badge_institution') },
+                curator: { cls: 'bg-[#FFC107]/20 text-[#FFC107] border-[#FFC107]/40', label: t('verify_badge_curator') },
+              }[identity];
+              if (!cfg) return null;
+              return (
+                <span
+                  key={identity}
+                  className={`inline-flex items-center gap-1 text-[9px] font-heavy px-2 py-0.5 rounded-full tracking-wider shrink-0 border ${cfg.cls}`}
+                >
+                  <i className="fas fa-check-circle text-[8px]" />
+                  {cfg.label}
+                </span>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap gap-x-2 gap-y-0.5">
+            {identityApplications
+              .filter((a) => a.status === 'approved' && a.expires_at)
+              .map((app) => {
+                const daysLeft = Math.ceil(
+                  (new Date(app.expires_at!).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+                );
+                if (daysLeft > 30 || daysLeft <= 0) return null;
+                const ty =
+                  ({ creator: '創作人', institution: '機構', curator: '策展人' } as const)[app.identity_type] ??
+                  app.identity_type;
+                return (
+                  <span
+                    key={`expire-${app.id}`}
+                    className="text-[8px] text-amber-400 font-mono whitespace-nowrap"
+                    title={app.expires_at ?? undefined}
+                  >
+                    [{ty}] {daysLeft} {lang === 'zh' ? '天後到期' : 'days left'}
+                  </span>
+                );
+              })}
+          </div>
+          {hasPending ? (
+            <div className="flex flex-wrap items-center justify-end gap-2 pt-0.5 border-t border-[#222] mt-0.5">
+              {pendingPills}
+              <button
+                type="button"
+                disabled
+                className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-neutral-800/60 text-void-hint border border-gray-700/40 rounded-full px-4 py-1.5 opacity-50 cursor-not-allowed whitespace-nowrap"
+              >
+                <i className="fas fa-lock text-[8px]" />
+                {lang === 'zh' ? '認證中' : 'In Review'}
+              </button>
+            </div>
+          ) : null}
+        </div>
+      );
+    }
+    if (hasPending) {
+      return (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {pendingPills}
+          <button
+            type="button"
+            disabled
+            className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-neutral-800/60 text-void-hint border border-gray-700/40 rounded-full px-4 py-1.5 opacity-50 cursor-not-allowed whitespace-nowrap"
+          >
+            <i className="fas fa-lock text-[8px]" />
+            {lang === 'zh' ? '認證中' : 'In Review'}
+          </button>
+        </div>
+      );
+    }
+    if (!hasApproved) {
+      return (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <span className="text-[9px] text-void-fg font-mono tracking-wider uppercase">
+            {lang === 'zh' ? '普通用戶' : 'Standard user'}
+          </span>
+          <button
+            type="button"
+            onClick={() => router.push('/verification')}
+            className="inline-flex items-center gap-1.5 text-[10px] font-bold bg-white text-black rounded-full px-4 py-1.5 hover:scale-105 transition-transform uppercase tracking-wider whitespace-nowrap shadow-[0_0_10px_rgba(255,255,255,0.15)]"
+          >
+            <i className="fas fa-shield-alt text-[9px]" />
+            {lang === 'zh' ? '立即認證' : t('verify_inline_verify')}
+          </button>
+        </div>
+      );
+    }
+    return null;
+  }, [dbProfile, identityApplications, lang, t, router]);
+
   /* ─── AUTH GUARD ─────────────────────────────────────────────────────────── */
   // Privy 尚未初始化完成時，渲染空白等待 redirect；已就緒未登錄同樣清空防閃爍
   if (!ready || !authenticated) return null;
@@ -1051,7 +1189,7 @@ function MePageContent() {
         <div className="md:flex-1 md:border-r md:border-[#1a1a1a] md:overflow-y-auto md:h-full px-4 md:px-5 md:py-6 py-4">
 
       {/* ── Profile Card ───────────────────────────────────────────────── */}
-      {/* 頭像 + 小花徽章 + 身分膠囊同一橫排；用戶名與錢包地址區塊居中 */}
+      {/* PWA / 移動端一致：小花徽章在頭像角；身分膠囊與其同一底線；未認證處為「普通用戶」+ 認證按鈕 */}
       <div className="relative flex flex-col md:flex-row md:items-start gap-5 mb-6 bg-[#111] p-5 rounded-xl border border-[#333] shadow-[0_0_20px_rgba(0,0,0,0.5)]">
 
         {/* Edit / Logout controls — 絕對定位在右上角 */}
@@ -1074,9 +1212,9 @@ function MePageContent() {
           </button>
         </div>
 
-        {/* 頭像 + 小花徽章 + 身分類型膠囊：同一水平線（頭像與右側區域垂直居中對齊） */}
-        <div className="flex flex-row items-center justify-center md:justify-start gap-3 shrink-0 w-full md:w-auto pr-12 md:pr-0">
-          <div className="relative shrink-0">
+        {/* 頭像 + 小花徽章；右欄底部與頭像底對齊 → 膠囊與小花同一水平視覺線（PWA / 手機瀏覽器相同） */}
+        <div className="flex flex-row items-stretch justify-center md:justify-start gap-3 shrink-0 w-full md:w-auto pr-12 md:pr-0">
+          <div className="relative shrink-0 w-20 h-20 self-start">
             <img
               src={`https://api.dicebear.com/7.x/bottts/svg?seed=${dbProfile?.avatar_seed || user?.id || 'default'}`}
               alt="avatar"
@@ -1109,58 +1247,9 @@ function MePageContent() {
               </div>
             )}
           </div>
-          {((dbProfile?.verified_identities ?? []).length > 0 ||
-            identityApplications.some((a) => {
-              if (a.status !== 'approved' || !a.expires_at) return false;
-              const daysLeft = Math.ceil(
-                (new Date(a.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-              );
-              return daysLeft > 0 && daysLeft <= 30;
-            })) && (
-            <div className="flex flex-col justify-center items-start gap-1.5 min-w-0 flex-1 md:max-w-[220px]">
-              <div className="flex flex-wrap items-center justify-start gap-x-2 gap-y-1">
-                {(dbProfile?.verified_identities ?? []).map((identity) => {
-                  const cfg = {
-                    creator: { cls: 'bg-signal/20 text-signal border-signal/40', label: t('verify_badge_creator') },
-                    institution: { cls: 'bg-[#9D00FF]/20 text-[#9D00FF] border-[#9D00FF]/40', label: t('verify_badge_institution') },
-                    curator: { cls: 'bg-[#FFC107]/20 text-[#FFC107] border-[#FFC107]/40', label: t('verify_badge_curator') },
-                  }[identity];
-                  if (!cfg) return null;
-                  return (
-                    <span
-                      key={identity}
-                      className={`inline-flex items-center gap-1 text-[9px] font-heavy px-2 py-0.5 rounded-full tracking-wider shrink-0 border ${cfg.cls}`}
-                    >
-                      <i className="fas fa-check-circle text-[8px]" />
-                      {cfg.label}
-                    </span>
-                  );
-                })}
-              </div>
-              <div className="flex flex-wrap gap-x-2 gap-y-0.5">
-                {identityApplications
-                  .filter((a) => a.status === 'approved' && a.expires_at)
-                  .map((app) => {
-                    const daysLeft = Math.ceil(
-                      (new Date(app.expires_at!).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-                    );
-                    if (daysLeft > 30 || daysLeft <= 0) return null;
-                    const ty =
-                      ({ creator: '創作人', institution: '機構', curator: '策展人' } as const)[app.identity_type] ??
-                      app.identity_type;
-                    return (
-                      <span
-                        key={`expire-${app.id}`}
-                        className="text-[8px] text-amber-400 font-mono whitespace-nowrap"
-                        title={app.expires_at ?? undefined}
-                      >
-                        [{ty}] {daysLeft} {lang === 'zh' ? '天後到期' : 'days left'}
-                      </span>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
+          <div className="flex flex-col justify-end min-h-[5rem] min-w-0 flex-1 md:max-w-[260px] pb-0.5">
+            {profileIdentityAside}
+          </div>
         </div>
 
         {/* 用戶名、錢包與操作：置中 */}
@@ -1168,11 +1257,6 @@ function MePageContent() {
           <h2 className="font-heavy text-2xl text-white tracking-wide leading-snug m-0 mb-1 max-w-full break-words [overflow-wrap:anywhere] px-1">
             {profileDisplayName}
           </h2>
-          {(dbProfile?.verified_identities?.length ?? 0) === 0 && (
-            <div className="mb-2">
-              <span className="text-[9px] text-void-fg font-mono tracking-wider uppercase">普通用戶</span>
-            </div>
-          )}
           <div className="flex flex-wrap items-center justify-center gap-2 mt-1 w-full max-w-md mx-auto">
             <button
               onClick={handleCopy}
@@ -1186,73 +1270,6 @@ function MePageContent() {
               </span>
               <i className="far fa-copy"></i>
             </button>
-
-            {/* ── 多重身份狀態 Pills + 認證按鈕 ── */}
-            {dbProfile && (() => {
-              const pendingApps = identityApplications.filter(
-                (a) => a.status === 'pending' || a.status === 'awaiting_payment'
-              );
-
-              const pendingPills = pendingApps.map((app) => {
-                const label = { creator: '創作人', institution: '機構', curator: '策展人' }[app.identity_type] ?? app.identity_type;
-                return (
-                  <span key={app.id} className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-neutral-800 text-yellow-400 border border-yellow-700/40 rounded-full px-3 py-1.5 whitespace-nowrap">
-                    <i className="fas fa-clock text-[8px]" />
-                    {label} 審核中
-                  </span>
-                );
-              });
-
-              const nowIso = new Date().toISOString();
-              const hasPending = identityApplications.some(
-                (a) => a.status === 'pending' || a.status === 'awaiting_payment'
-              );
-              const hasApprovedFromApps = identityApplications.some(
-                (a) =>
-                  a.status === 'approved' &&
-                  (!a.expires_at || a.expires_at > nowIso)
-              );
-              /** 申請列表未返回時：主檔已通過且有身份徽章則視為已認證 */
-              const hasApprovedFromProfile =
-                dbProfile.verification_status === 'approved' &&
-                !hasPending &&
-                (dbProfile.verified_identities?.length ?? 0) > 0;
-              const hasApproved = hasApprovedFromApps || hasApprovedFromProfile;
-
-              let verifyAction: React.ReactNode = null;
-              if (hasApproved && !hasPending) {
-                verifyAction = null;
-              } else if (hasPending) {
-                verifyAction = (
-                  <button
-                    type="button"
-                    disabled
-                    className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-neutral-800/60 text-void-hint border border-gray-700/40 rounded-full px-4 py-1.5 opacity-50 cursor-not-allowed whitespace-nowrap"
-                  >
-                    <i className="fas fa-lock text-[8px]" />
-                    {lang === 'zh' ? '認證中' : 'In Review'}
-                  </button>
-                );
-              } else {
-                verifyAction = (
-                  <button
-                    type="button"
-                    onClick={() => router.push('/verification')}
-                    className="inline-flex items-center gap-1.5 text-[10px] font-bold bg-white text-black rounded-full px-4 py-1.5 hover:scale-105 transition-transform uppercase tracking-wider whitespace-nowrap shadow-[0_0_10px_rgba(255,255,255,0.15)]"
-                  >
-                    <i className="fas fa-shield-alt text-[9px]" />
-                    {lang === 'zh' ? '立即認證' : t('verify_inline_verify')}
-                  </button>
-                );
-              }
-
-              return (
-                <>
-                  {pendingPills}
-                  {verifyAction}
-                </>
-              );
-            })()}
           </div>
         </div>
       </div>
