@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { usePrivy } from "@privy-io/react-auth";
 import { useModal } from "@/app/context/ModalContext";
@@ -17,6 +17,7 @@ interface DesktopNavbarProps {
 
 export default function DesktopNavbar({ onSearchChange, searchValue }: DesktopNavbarProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { authenticated, user } = usePrivy();
   const { setActiveModal } = useModal();
   const { t } = useI18n();
@@ -91,13 +92,15 @@ export default function DesktopNavbar({ onSearchChange, searchValue }: DesktopNa
 
       {/* Right Controls */}
       <div className="flex items-center gap-2 px-4 shrink-0">
-        <button
-          onClick={() => setActiveModal("lang")}
-          className="w-8 h-8 rounded-full bg-[#0e0e0e] border border-[#1e1e1e] flex items-center justify-center text-[#555] hover:text-signal hover:border-signal/30 transition-all"
-          title="Language"
-        >
-          <i className="fas fa-globe text-xs" />
-        </button>
+        {pathname === "/me" && (
+          <button
+            onClick={() => setActiveModal("lang")}
+            className="w-8 h-8 rounded-full bg-[#0e0e0e] border border-[#1e1e1e] flex items-center justify-center text-[#555] hover:text-signal hover:border-signal/30 transition-all"
+            title="Language"
+          >
+            <i className="fas fa-globe text-xs" />
+          </button>
+        )}
 
         {/* About link */}
         <Link
