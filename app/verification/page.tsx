@@ -181,19 +181,25 @@ export default function VerificationPage() {
           techStack: userData?.tech_stack ?? "",
         }));
 
-        // 查詢最新申請記錄
+        // 通過 API 路由獲取認證狀態（service role key，繞過 RLS）
         const now = new Date().toISOString();
-        const { data: existingApps } = await supabase
-          .from("creator_applications")
-          .select("id, identity_type, status, verification_name, expires_at")
-          .eq("user_id", user.id)
-          .in("status", ["awaiting_payment", "pending", "approved"])
-          .order("submitted_at", { ascending: false });
-
-        const apps: IdentityApp[] = (existingApps ?? []) as IdentityApp[];
+        let apps: IdentityApp[] = [];
+        if (token) {
+          try {
+            const res = await fetch("/api/my-verification-status", {
+              headers: { Authorization: `Bearer ${token}` },
+              cache: "no-store",
+            });
+            if (res.ok) {
+              const data = await res.json();
+              apps = (data.applications ?? []) as IdentityApp[];
+            }
+          } catch (e) {
+            console.error("[verification] fetch verification status error:", e);
+          }
+        }
         setStatusApps(apps);
 
-        // 規則一：只要有任何 pending 或 approved 未過期記錄，整個頁面鎖定
         const hasAnyPending = apps.some(
           (a) => a.status === "pending" || a.status === "awaiting_payment"
         );
@@ -205,7 +211,6 @@ export default function VerificationPage() {
           setBlockedTypes(["creator", "institution", "curator"]);
         }
 
-        // 狀態判斷：C = 有已通過未過期；B = 有審核中；A = 無活躍記錄
         if (hasAnyApproved) {
           setPageState("C");
         } else if (hasAnyPending) {
@@ -998,7 +1003,11 @@ export default function VerificationPage() {
               variant="primary"
               label={lang === "zh" ? "SECURE PAY · 立即支付" : "SECURE PAY · VERIFY NOW"}
               className="w-full justify-center py-4 text-base rounded-2xl"
-              successUrl="/verification?stripe_success=1"
+              successUrl={
+                typeof window !== "undefined"
+                  ? `${window.location.origin}/verification?stripe_success=1`
+                  : "/verification?stripe_success=1"
+              }
               cancelUrl="/verification?stripe_cancelled=1"
               onSuccess={async () => {
                 localStorage.removeItem("pending_verification");

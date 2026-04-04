@@ -560,22 +560,42 @@ function MePageContent() {
       }
 
       // Step 2: 加載子數據（身份申請 + 鏈上地址分配）
-      // creator_applications 未啟用 RLS，客戶端可直接讀取
+      // creator_applications：經 /api/my-verification-status（Service Role）繞過 RLS
       // profile 數據已在 Step 1 從 sync-user 取得，此處使用 syncedProfile 變量
       try {
         const profileData = syncedProfile;
 
         // Step 2a: 加載多重身份申請記錄（含認證名稱）
-        const { data: apps } = await supabase
-          .from('creator_applications')
-          .select('id, identity_type, status, expires_at, rejection_reason, submitted_at, verification_name')
-          .eq('user_id', userId)
-          .in('status', ['pending', 'approved', 'rejected', 'awaiting_payment'])
-          .order('submitted_at', { ascending: false });
-        setIdentityApplications(apps ?? []);
+        let apps: Array<{
+          id: string;
+          identity_type: 'creator' | 'institution' | 'curator';
+          status: 'awaiting_payment' | 'pending' | 'approved' | 'rejected';
+          expires_at: string | null;
+          rejection_reason: string | null;
+          submitted_at: string;
+          verification_name: string | null;
+        }> = [];
+        try {
+          const token = await getAccessToken();
+          if (token) {
+            const verifyRes = await fetch('/api/my-verification-status', {
+              headers: { Authorization: `Bearer ${token}` },
+              cache: 'no-store',
+            });
+            if (verifyRes.ok) {
+              const { applications: appsJson } = await verifyRes.json();
+              apps = appsJson ?? [];
+            } else {
+              console.error('[me] syncData verification-status API error:', verifyRes.status);
+            }
+          }
+        } catch (err) {
+          console.error('[me] syncData apps error:', err);
+        }
+        setIdentityApplications(apps);
 
         setIsVerifyLocked(
-          computeVerifyLocked(apps ?? [], profileData?.verification_status)
+          computeVerifyLocked(apps, profileData?.verification_status)
         );
 
         // Step 2b: 鏈上地址分配（基於 Step 1 取得的 profileData）
@@ -724,7 +744,6 @@ function MePageContent() {
     const userId = user.id;
 
     const refreshUserData = async () => {
-      let profileVerificationStatus: string | null | undefined;
       try {
         const { data: profileRow } = await supabase
           .from('users')
@@ -732,7 +751,6 @@ function MePageContent() {
           .eq('id', userId)
           .single();
         if (profileRow) {
-          profileVerificationStatus = profileRow.verification_status;
           setDbProfile((prev) => ({
             ...(prev ?? {
               agent_id: '', name: 'New Agent', display_name: null, role: 'human',
@@ -751,16 +769,27 @@ function MePageContent() {
       }
 
       try {
-        const { data: apps } = await supabase
-          .from('creator_applications')
-          .select('id, identity_type, status, expires_at, rejection_reason, submitted_at, verification_name')
-          .eq('user_id', userId)
-          .in('status', ['pending', 'approved', 'rejected', 'awaiting_payment'])
-          .order('submitted_at', { ascending: false });
-        setIdentityApplications(apps ?? []);
-        setIsVerifyLocked(
-          computeVerifyLocked(apps ?? [], profileVerificationStatus)
-        );
+        const token = await getAccessToken();
+        if (token) {
+          const verifyRes = await fetch('/api/my-verification-status', {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: 'no-store',
+          });
+          if (verifyRes.ok) {
+            const { applications: apps } = await verifyRes.json();
+            setIdentityApplications(apps ?? []);
+            const nowTs = new Date().toISOString();
+            const locked = (apps ?? []).some(
+              (a: any) =>
+                a.status === 'pending' ||
+                a.status === 'awaiting_payment' ||
+                (a.status === 'approved' && (!a.expires_at || a.expires_at > nowTs))
+            );
+            setIsVerifyLocked(locked);
+          } else {
+            console.error('[me] verification-status API error:', verifyRes.status);
+          }
+        }
       } catch (err) {
         console.error('[me] refreshUserData apps error:', err);
       }
@@ -873,16 +902,20 @@ function MePageContent() {
           // 同步刷新认证申请状态
           if (payload.new.verified_identities !== payload.old.verified_identities ||
               payload.new.verification_status !== payload.old.verification_status) {
-            const { data: freshApps } = await supabase
-              .from('creator_applications')
-              .select('id, identity_type, status, expires_at, rejection_reason, submitted_at, verification_name')
-              .eq('user_id', user.id)
-              .in('status', ['pending', 'approved', 'rejected', 'awaiting_payment'])
-              .order('submitted_at', { ascending: false });
-            if (freshApps) setIdentityApplications(freshApps);
-            setIsVerifyLocked(
-              computeVerifyLocked(freshApps ?? [], newData.verification_status)
-            );
+            const rtToken = await getAccessToken();
+            if (rtToken) {
+              const verifyRes = await fetch('/api/my-verification-status', {
+                headers: { Authorization: `Bearer ${rtToken}` },
+                cache: 'no-store',
+              });
+              if (verifyRes.ok) {
+                const { applications: freshApps } = await verifyRes.json();
+                setIdentityApplications(freshApps ?? []);
+                setIsVerifyLocked(
+                  computeVerifyLocked(freshApps ?? [], newData.verification_status)
+                );
+              }
+            }
           }
         }
       )
