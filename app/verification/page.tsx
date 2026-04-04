@@ -64,38 +64,35 @@ function StepIndicator({ current, total, labels }: { current: number; total: num
 
 // ── ResubmitWarningModal ──────────────────────────────────────────────────────
 function ResubmitWarningModal({
-  lang,
   onCancel,
   onConfirm,
 }: {
-  lang: string;
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onCancel} />
       <div className="relative z-10 w-full max-w-sm bg-[#0d0d0d] border border-[#333] rounded-2xl p-6 shadow-2xl">
         <h3 className="text-base font-heavy text-white mb-3">
-          ⚠️ {lang === "zh" ? "重新提交將清除原認證" : "Resubmitting Will Clear Current Verification"}
+          ⚠️ {t("verify_resubmit_title")}
         </h3>
         <p className="text-[11px] font-mono text-void-fg leading-relaxed mb-6">
-          {lang === "zh"
-            ? "重新提交認證將導致當前認證記錄失效，認證名稱將被釋放，需重新付費審核。確認繼續？"
-            : "Resubmitting will invalidate your current verification record. Your verification name will be released and a new fee will be required. Continue?"}
+          {t("verify_resubmit_body")}
         </p>
         <div className="flex gap-3">
           <button
             onClick={onCancel}
             className="flex-1 py-2.5 border border-[#333] text-void-fg font-mono text-xs tracking-widest rounded-xl hover:border-[#555] hover:text-white transition-all"
           >
-            {lang === "zh" ? "取消" : "Cancel"}
+            {t("btn_cancel")}
           </button>
           <button
             onClick={onConfirm}
             className="flex-1 py-2.5 bg-red-500/20 border border-red-500/50 text-red-400 font-mono text-xs tracking-widest rounded-xl hover:bg-red-500/30 transition-all"
           >
-            {lang === "zh" ? "確認，重新提交" : "Confirm & Resubmit"}
+            {t("verify_resubmit_confirm")}
           </button>
         </div>
       </div>
@@ -235,7 +232,7 @@ export default function VerificationPage() {
 
   function validateStep1(): boolean {
     if (!form.verificationType) {
-      showToast(lang === "zh" ? "請選擇身份類型" : "Please select an identity type", "error");
+      showToast(t("verify_err_select_type"), "error");
       return false;
     }
     return true;
@@ -253,10 +250,7 @@ export default function VerificationPage() {
 
     const trimmedName = form.verificationName.trim();
     if (!trimmedName) {
-      showToast(
-        lang === "zh" ? "認證名稱不能為空" : "Verification name is required",
-        "error"
-      );
+      showToast(t("verify_err_name_required"), "error");
       return;
     }
 
@@ -269,12 +263,7 @@ export default function VerificationPage() {
       .maybeSingle();
 
     if (nameCheck) {
-      showToast(
-        lang === "zh"
-          ? "此認證名稱已被其他用戶使用，請更換"
-          : "This name is already taken, please choose another",
-        "error"
-      );
+      showToast(t("verify_err_name_taken"), "error");
       return;
     }
 
@@ -302,12 +291,12 @@ export default function VerificationPage() {
   async function handleDocUpload(file: File) {
     const MAX_SIZE = 5 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
-      showToast(lang === "zh" ? "文件大小不能超過 5MB" : "File must be under 5MB", "error");
+      showToast(t("verify_err_file_size"), "error");
       return;
     }
     const allowed = ["image/jpeg", "image/jpg", "image/png", "image/webp", "application/pdf"];
     if (!allowed.includes(file.type)) {
-      showToast(lang === "zh" ? "只支持圖片或 PDF 格式" : "Only images or PDF allowed", "error");
+      showToast(t("verify_err_file_type"), "error");
       return;
     }
     setIsDocUploading(true);
@@ -323,10 +312,10 @@ export default function VerificationPage() {
       if (!data.success || !data.url) throw new Error("上传未返回有效 URL");
       updateForm("docUrl", data.url as string);
       updateForm("docFileName", file.name);
-      showToast(lang === "zh" ? "文件上傳成功！" : "File uploaded!", "success");
+      showToast(t("verify_toast_upload_ok"), "success");
     } catch (err) {
       console.error("[doc upload]", err);
-      showToast(lang === "zh" ? "上傳失敗，請重試" : "Upload failed, please retry", "error");
+      showToast(t("verify_toast_upload_fail"), "error");
     } finally {
       setIsDocUploading(false);
     }
@@ -421,27 +410,18 @@ export default function VerificationPage() {
       const pending = localStorage.getItem("pending_verification");
       if (pending) {
         localStorage.removeItem("pending_verification");
-        showToast(
-          lang === "zh" ? "Stripe 支付成功！正在提交認證申請..." : "Payment successful! Submitting your application...",
-          "success"
-        );
+        showToast(t("verify_stripe_submitting"), "success");
         getAccessToken().then((token) => {
           if (token) submitVerification("fiat", token);
         });
       } else {
-        showToast(
-          lang === "zh" ? "支付成功！您的認證申請已提交。" : "Payment successful! Your verification has been submitted.",
-          "success"
-        );
+        showToast(t("verify_stripe_done"), "success");
         setPageState("B");
         scheduleRedirectToMeAfterVerify();
       }
     } else if (stripeCancelled === "1") {
       router.replace("/verification", { scroll: false });
-      showToast(
-        lang === "zh" ? "支付已取消，您可以重新選擇支付方式" : "Payment cancelled. You can try again.",
-        "error"
-      );
+      showToast(t("verify_stripe_cancelled"), "error");
     }
   }, [authenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -472,7 +452,9 @@ export default function VerificationPage() {
   ];
 
   const typeLabel = (ty: string) =>
-    ({ creator: "創作人", institution: "機構", curator: "策展人" }[ty] ?? ty);
+    ty === "creator" || ty === "institution" || ty === "curator"
+      ? t(`verify_type_${ty}`)
+      : ty;
 
   // ── 狀態 B：審核中 ────────────────────────────────────────────────────────
   if (pageState === "B" && !isLoadingBalance) {
@@ -483,7 +465,6 @@ export default function VerificationPage() {
       <>
         {showResubmitWarning && (
           <ResubmitWarningModal
-            lang={lang}
             onCancel={() => setShowResubmitWarning(false)}
             onConfirm={handleResubmitConfirm}
           />
@@ -508,17 +489,15 @@ export default function VerificationPage() {
             </div>
             <div className="space-y-3">
               <h2 className="font-heavy text-3xl text-white tracking-wider">
-                {lang === "zh" ? "審核中" : "UNDER REVIEW"}
+                {t("verify_state_b_heading")}
               </h2>
               <p className="font-mono text-[11px] text-void-fg tracking-widest leading-relaxed max-w-xs">
-                {lang === "zh"
-                  ? "您的認證申請已提交，審核團隊將在 3-5 個工作日內完成審核。"
-                  : "Your application has been submitted. Our team will review it within 3-5 business days."}
+                {t("verify_state_b_sub")}
               </p>
               <div className="flex items-center justify-center gap-2 mt-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
                 <span className="text-[9px] font-mono text-yellow-400/60 tracking-widest">
-                  {lang === "zh" ? "審核進行中" : "IN REVIEW"}
+                  {t("verify_state_b_pulse")}
                 </span>
                 <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
               </div>
@@ -539,7 +518,7 @@ export default function VerificationPage() {
                     </div>
                     <span className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 rounded-full px-3 py-1.5">
                       <i className="fas fa-clock text-[8px]" />
-                      {lang === "zh" ? "審核中" : "Pending"}
+                      {t("verify_pending_badge_short")}
                     </span>
                   </div>
                 ))}
@@ -552,7 +531,7 @@ export default function VerificationPage() {
               className="inline-flex items-center gap-2 px-6 py-2.5 border border-gray-700 text-void-muted font-mono text-xs tracking-widest rounded-xl hover:border-red-500/50 hover:text-red-400 active:scale-95 transition-all"
             >
               <i className="fas fa-redo text-[10px]" />
-              {lang === "zh" ? "重新提交認證" : "Resubmit Verification"}
+              {t("verify_resubmit_action")}
             </button>
 
             <button
@@ -560,7 +539,7 @@ export default function VerificationPage() {
               className="flex items-center gap-2 px-8 py-3 bg-signal text-black font-heavy text-sm tracking-widest rounded-xl shadow-[0_0_20px_rgba(204,255,0,0.3)] hover:shadow-[0_0_35px_rgba(204,255,0,0.5)] active:scale-95 transition-all"
             >
               <i className="fas fa-home text-xs" />
-              {lang === "zh" ? "返回個人頁" : "Back to Profile"}
+              {t("verify_back_to_profile")}
             </button>
           </div>
         </div>
@@ -574,7 +553,6 @@ export default function VerificationPage() {
       <>
         {showResubmitWarning && (
           <ResubmitWarningModal
-            lang={lang}
             onCancel={() => setShowResubmitWarning(false)}
             onConfirm={handleResubmitConfirm}
           />
@@ -598,12 +576,10 @@ export default function VerificationPage() {
             </div>
             <div className="space-y-3">
               <h2 className="font-heavy text-3xl text-white tracking-wider">
-                {lang === "zh" ? "認證已完成" : "VERIFIED"}
+                {t("verify_state_c_heading")}
               </h2>
               <p className="font-mono text-[11px] text-void-fg tracking-widest leading-relaxed max-w-xs">
-                {lang === "zh"
-                  ? "您的身份認證已通過，以下為已認證的身份資訊（只讀）。"
-                  : "Your identity verification is approved. The information below is read-only."}
+                {t("verify_state_c_sub")}
               </p>
             </div>
 
@@ -622,14 +598,16 @@ export default function VerificationPage() {
                       )}
                       {app.expires_at && (
                         <div className="text-[9px] font-mono text-void-subtle mt-0.5">
-                          {lang === "zh" ? "效期至" : "Expires"}{" "}
-                          {new Date(app.expires_at).toLocaleDateString("zh-TW")}
+                          {t("verify_expires_label")}{" "}
+                          {new Date(app.expires_at).toLocaleDateString(
+                            lang === "zh" ? "zh-TW" : lang === "ja" ? "ja-JP" : "en-US"
+                          )}
                         </div>
                       )}
                     </div>
                     <span className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-signal/10 text-signal border border-signal/30 rounded-full px-3 py-1.5">
                       <i className="fas fa-check text-[8px]" />
-                      {lang === "zh" ? "已認證" : "Verified"}
+                      {t("verify_btn_approved")}
                     </span>
                   </div>
                 ))}
@@ -641,7 +619,7 @@ export default function VerificationPage() {
               className="inline-flex items-center gap-2 px-6 py-2.5 border border-gray-700 text-void-muted font-mono text-xs tracking-widest rounded-xl hover:border-red-500/50 hover:text-red-400 active:scale-95 transition-all"
             >
               <i className="fas fa-redo text-[10px]" />
-              {lang === "zh" ? "重新提交認證" : "Resubmit Verification"}
+              {t("verify_resubmit_action")}
             </button>
 
             <button
@@ -649,7 +627,7 @@ export default function VerificationPage() {
               className="flex items-center gap-2 px-8 py-3 bg-signal text-black font-heavy text-sm tracking-widest rounded-xl shadow-[0_0_20px_rgba(204,255,0,0.3)] hover:shadow-[0_0_35px_rgba(204,255,0,0.5)] active:scale-95 transition-all"
             >
               <i className="fas fa-home text-xs" />
-              {lang === "zh" ? "返回個人頁" : "Back to Profile"}
+              {t("verify_back_to_profile")}
             </button>
           </div>
         </div>
@@ -686,7 +664,7 @@ export default function VerificationPage() {
               {t("verify_identity").toUpperCase()}
             </h1>
             <div className="text-[9px] font-mono text-signal tracking-widest mt-1">
-              HKAIIFF · CREATOR CREDENTIALING
+              {t("verify_subheader_cred")}
             </div>
           </div>
         )}
@@ -700,7 +678,7 @@ export default function VerificationPage() {
             {/* Identity Type */}
             <div>
               <label className="block text-[10px] font-mono text-void-muted tracking-widest mb-3">
-                IDENTITY TYPE *
+                {t("verify_identity_type_required")}
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {IDENTITY_TYPES.map(({ value, icon }) => {
@@ -729,10 +707,10 @@ export default function VerificationPage() {
             <div>
               <label className="block text-[10px] font-mono text-void-muted tracking-widest mb-1.5">
                 <i className="fas fa-id-badge mr-1 text-signal" />
-                {lang === "zh" ? "認證名稱 (VERIFICATION NAME)" : "VERIFICATION NAME"}
+                {t("verify_label_verification_name")}
                 <span className="text-red-500 ml-1">*</span>
                 <span className="text-void-subtle ml-2 normal-case tracking-normal text-[9px]">
-                  {lang === "zh" ? "即 Display Name，全平台唯一" : "= Display Name, globally unique"}
+                  {t("verify_hint_name_display_unique")}
                 </span>
               </label>
               <input
@@ -740,7 +718,7 @@ export default function VerificationPage() {
                 value={form.verificationName}
                 onChange={(e) => updateForm("verificationName", e.target.value)}
                 maxLength={60}
-                placeholder={lang === "zh" ? "輸入您希望顯示的認證名稱..." : "Enter the name to display on your badge..."}
+                placeholder={t("verify_ph_verification_name")}
                 className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
                            outline-none focus:border-signal focus:shadow-[0_0_10px_rgba(204,255,0,0.12)]
                            placeholder:text-void-subtle transition-all"
@@ -754,9 +732,9 @@ export default function VerificationPage() {
             <div>
               <label className="block text-[10px] font-mono text-void-muted tracking-widest mb-1.5">
                 <i className="fas fa-align-left mr-1 text-purple-400" />
-                BIO
+                {t("verify_bio")}
                 <span className="text-void-subtle ml-2 normal-case tracking-normal text-[9px]">
-                  {lang === "zh" ? "選填，最多 200 字" : "optional, max 200 chars"}
+                  {t("verify_bio_optional_max")}
                 </span>
               </label>
               <textarea
@@ -764,7 +742,7 @@ export default function VerificationPage() {
                 onChange={(e) => updateForm("bio", e.target.value)}
                 maxLength={200}
                 rows={3}
-                placeholder={lang === "zh" ? "簡短介紹自己..." : "Brief introduction..."}
+                placeholder={t("verify_ph_bio_short")}
                 className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
                            outline-none focus:border-signal focus:shadow-[0_0_10px_rgba(204,255,0,0.12)]
                            placeholder:text-void-subtle transition-all resize-none"
@@ -778,9 +756,9 @@ export default function VerificationPage() {
             <div>
               <label className="block text-[10px] font-mono text-void-muted tracking-widest mb-1.5">
                 <i className="fas fa-building mr-1 text-blue-400" />
-                ABOUT STUDIO
+                {t("about")}
                 <span className="text-void-subtle ml-2 normal-case tracking-normal text-[9px]">
-                  {lang === "zh" ? "工作室簡介，選填" : "optional"}
+                  {t("verify_about_optional")}
                 </span>
               </label>
               <textarea
@@ -788,7 +766,7 @@ export default function VerificationPage() {
                 onChange={(e) => updateForm("aboutStudio", e.target.value)}
                 maxLength={400}
                 rows={3}
-                placeholder={lang === "zh" ? "工作室或機構簡介..." : "Studio or organization description..."}
+                placeholder={t("verify_ph_about_org")}
                 className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
                            outline-none focus:border-signal focus:shadow-[0_0_10px_rgba(204,255,0,0.12)]
                            placeholder:text-void-subtle transition-all resize-none"
@@ -802,9 +780,9 @@ export default function VerificationPage() {
             <div>
               <label className="block text-[10px] font-mono text-void-muted tracking-widest mb-1.5">
                 <i className="fas fa-code mr-1 text-green-400" />
-                TECH STACK
+                {t("tech_stack")}
                 <span className="text-void-subtle ml-2 normal-case tracking-normal text-[9px]">
-                  {lang === "zh" ? "以逗號分隔，選填" : "comma-separated, optional"}
+                  {t("verify_tech_optional_comma")}
                 </span>
               </label>
               <input
@@ -812,7 +790,7 @@ export default function VerificationPage() {
                 value={form.techStack}
                 onChange={(e) => updateForm("techStack", e.target.value)}
                 maxLength={200}
-                placeholder={lang === "zh" ? "例：AI, Unity, Blender, TouchDesigner..." : "e.g. AI, Unity, Blender, TouchDesigner..."}
+                placeholder={t("verify_ph_tech_examples")}
                 className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
                            outline-none focus:border-signal focus:shadow-[0_0_10px_rgba(204,255,0,0.12)]
                            placeholder:text-void-subtle transition-all"
@@ -831,7 +809,7 @@ export default function VerificationPage() {
               {isSavingProfile ? (
                 <>
                   <i className="fas fa-circle-notch fa-spin text-sm" />
-                  {lang === "zh" ? "保存中..." : "SAVING..."}
+                  {t("verify_saving_profile")}
                 </>
               ) : (
                 t("verify_step1_submit")
@@ -854,9 +832,7 @@ export default function VerificationPage() {
               </div>
 
               <p className="text-[10px] font-mono text-void-muted leading-relaxed mb-4">
-                {lang === "zh"
-                  ? "支持格式：JPG、PNG、PDF。大小限制 5MB。可上傳機構認證書、個人簡歷等佐證材料。"
-                  : "Accepted: JPG, PNG, PDF. Max 5MB. You may upload certificates, resumes, or other supporting materials."}
+                {t("verify_doc_formats_long")}
               </p>
 
               <input
@@ -875,7 +851,7 @@ export default function VerificationPage() {
                   <i className="fas fa-file-check text-signal text-lg flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <div className="text-xs text-signal font-mono truncate">{form.docFileName}</div>
-                    <div className="text-[9px] text-signal/78 font-mono mt-0.5">Upload successful ✓</div>
+                    <div className="text-[9px] text-signal/78 font-mono mt-0.5">{t("verify_upload_ok_status")}</div>
                   </div>
                   <button
                     onClick={() => { updateForm("docUrl", ""); updateForm("docFileName", ""); }}
@@ -896,17 +872,17 @@ export default function VerificationPage() {
                     <>
                       <i className="fas fa-circle-notch fa-spin text-2xl" />
                       <span className="text-[10px] font-mono tracking-widest">
-                        {lang === "zh" ? "上傳中..." : "UPLOADING..."}
+                        {t("verify_uploading_status")}
                       </span>
                     </>
                   ) : (
                     <>
                       <i className="fas fa-cloud-upload-alt text-3xl" />
                       <span className="text-[10px] font-mono tracking-widest">
-                        {lang === "zh" ? "點擊上傳文件" : "CLICK TO UPLOAD"}
+                        {t("verify_click_to_upload")}
                       </span>
                       <span className="text-[9px] font-mono text-void-subtle">
-                        JPG / PNG / PDF · MAX 5MB
+                        {t("verify_formats_short")}
                       </span>
                     </>
                   )}
@@ -916,22 +892,22 @@ export default function VerificationPage() {
 
             {/* Application summary */}
             <div className="bg-[#0a0a0a] border border-[#1a1a1a] rounded-xl p-4 space-y-2">
-              <div className="text-[9px] font-mono text-void-subtle tracking-widest mb-2">APPLICATION SUMMARY</div>
+              <div className="text-[9px] font-mono text-void-subtle tracking-widest mb-2">{t("verify_summary_title")}</div>
               <div className="flex items-center gap-2 text-xs">
-                <span className="text-void-subtle font-mono w-24 shrink-0">TYPE</span>
+                <span className="text-void-subtle font-mono w-24 shrink-0">{t("verify_summary_type")}</span>
                 <span className="text-white font-mono">
                   {form.verificationType ? t(`verify_type_${form.verificationType}`) : "—"}
                 </span>
               </div>
               {form.verificationName && (
                 <div className="flex items-center gap-2 text-xs">
-                  <span className="text-void-subtle font-mono w-24 shrink-0">CERT NAME</span>
+                  <span className="text-void-subtle font-mono w-24 shrink-0">{t("verify_summary_cert_name")}</span>
                   <span className="text-signal font-mono font-semibold">{form.verificationName}</span>
                 </div>
               )}
               {form.bio && (
                 <div className="flex items-start gap-2 text-xs">
-                  <span className="text-void-subtle font-mono w-24 shrink-0">BIO</span>
+                  <span className="text-void-subtle font-mono w-24 shrink-0">{t("verify_bio")}</span>
                   <span className="text-void-fg font-mono line-clamp-2">{form.bio}</span>
                 </div>
               )}
@@ -940,12 +916,13 @@ export default function VerificationPage() {
             {/* ── 產品資訊卡 ──────────────────────────────────────────────── */}
             <div className="w-full bg-[#080808] border border-[#1a1a1a] rounded-2xl p-5">
               <div className="font-mono text-[8px] tracking-[0.5em] text-[#333] mb-3 uppercase">
-                HKAIIFF · CREATOR VERIFICATION
+                {t("verify_product_card_kicker")}
               </div>
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <p className="text-white font-black text-base" style={{ fontFamily: "Oswald, sans-serif" }}>
-                    {verifyProduct?.name_zh ?? (lang === "zh" ? "創作者身份認證" : "Creator Verification")}
+                    {(lang === "zh" ? verifyProduct?.name_zh : verifyProduct?.name_en) ||
+                      t("verify_product_name_creator_fallback")}
                   </p>
                   <p className="text-[#444] text-[10px] font-mono mt-0.5">
                     {verifyProduct?.name_en ?? "Identity Verification"}
@@ -969,11 +946,11 @@ export default function VerificationPage() {
               <div className="space-y-1.5 text-[10px] font-mono text-[#333]">
                 <div className="flex items-center gap-2">
                   <span className="w-1 h-1 rounded-full bg-[#CCFF00]/40 shrink-0" />
-                  {lang === "zh" ? "支持 Stripe 信用卡及 AIF 鏈上支付" : "Stripe credit card & AIF on-chain payment"}
+                  {t("verify_pay_support_hint")}
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-1 h-1 rounded-full bg-[#CCFF00]/40 shrink-0" />
-                  {lang === "zh" ? "支付完成後進入人工審核流程" : "Manual review begins after payment"}
+                  {t("verify_pay_review_after")}
                 </div>
               </div>
             </div>
@@ -992,7 +969,7 @@ export default function VerificationPage() {
                   : undefined
               }
               variant="primary"
-              label={lang === "zh" ? "SECURE PAY · 立即支付" : "SECURE PAY · VERIFY NOW"}
+              label={t("verify_secure_pay_cta")}
               className="w-full justify-center py-4 text-base rounded-2xl"
               successUrl={
                 typeof window !== "undefined"
@@ -1003,12 +980,7 @@ export default function VerificationPage() {
               onSuccess={async () => {
                 localStorage.removeItem("pending_verification");
                 setPageState("B");
-                showToast(
-                  lang === "zh"
-                    ? "支付成功！認證申請已提交，請等待審核。"
-                    : "Payment successful! Application submitted.",
-                  "success"
-                );
+                showToast(t("verify_checkout_success_toast"), "success");
                 scheduleRedirectToMeAfterVerify();
               }}
             />
@@ -1023,7 +995,7 @@ export default function VerificationPage() {
             </button>
 
             <p className="font-mono text-[8px] tracking-[0.3em] text-void-muted text-center">
-              SECURED BY STRIPE &amp; SOLANA · HKAIIFF 2026
+              {t("verify_footer_secured")}
             </p>
           </div>
         )}
@@ -1038,7 +1010,7 @@ export default function VerificationPage() {
               ))}
             </div>
             <p className="font-mono text-xs text-void-fg tracking-widest">
-              {lang === "zh" ? "處理中..." : "PROCESSING..."}
+              {t("verify_processing")}
             </p>
           </div>
         )}

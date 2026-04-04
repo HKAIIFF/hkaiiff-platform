@@ -42,7 +42,7 @@ function MePageContent() {
   const { createWallet } = useCreateWallet();
   const router = useRouter();
   const pathname = usePathname();
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const { showToast } = useToast();
 
   // ── 頁面級鑒權硬鎖 ────────────────────────────────────────────────────────
@@ -138,10 +138,10 @@ function MePageContent() {
     try {
       await navigator.clipboard.writeText(depositAddress);
       setIsCopied(true);
-      showToast(lang === 'en' ? 'Address copied!' : '地址已複製！', 'success');
+      showToast(t('me_toast_address_copied_short'), 'success');
       setTimeout(() => setIsCopied(false), 2000);
     } catch {
-      showToast(lang === 'en' ? 'Failed to copy' : '複製失敗', 'error');
+      showToast(t('me_toast_copy_failed'), 'error');
     }
   };
 
@@ -180,10 +180,10 @@ function MePageContent() {
       const address = await callAssignWalletApi(displaySolanaAddress);
       setDepositAddress(address);
       setDbProfile((prev) => prev ? { ...prev, deposit_address: address } : prev);
-      showToast(lang === 'en' ? 'Deposit address generated!' : '專屬充值地址已生成！', 'success');
+      showToast(t('me_toast_deposit_generated'), 'success');
     } catch (error) {
       console.error('[handleGenerateAddress] error:', error);
-      const msg = error instanceof Error ? error.message : (lang === 'en' ? 'Network error, please retry' : '網絡錯誤，請重試');
+      const msg = error instanceof Error ? error.message : t('me_toast_network_error');
       showToast(msg, 'error');
     } finally {
       setIsFetchingDepositAddress(false);
@@ -212,11 +212,11 @@ function MePageContent() {
         .then((address) => {
           setDepositAddress(address);
           setDbProfile((prev) => prev ? { ...prev, deposit_address: address } : prev);
-          showToast(lang === 'en' ? 'Deposit address ready!' : '專屬充值地址已就緒！', 'success');
+          showToast(t('me_toast_deposit_ready'), 'success');
         })
         .catch((err) => {
           console.error('[handleOpenTopUp] auto-assign error:', err);
-          const msg = err instanceof Error ? err.message : (lang === 'en' ? 'Network error, please retry' : '網絡錯誤，請重試');
+          const msg = err instanceof Error ? err.message : t('me_toast_network_error');
           showToast(msg, 'error');
         })
         .finally(() => setIsFetchingDepositAddress(false));
@@ -287,9 +287,7 @@ function MePageContent() {
           setTimeout(() => setAifFlash(false), 900);
           setIsTopUpOpen(false);
           showToast(
-            lang === 'en'
-              ? `+${data.aifAmount} AIF credited! Balance updated.`
-              : `+${data.aifAmount} AIF 已入帳！餘額已更新。`,
+            t('me_toast_aif_credited').replace('{amount}', String(data.aifAmount)),
             'success'
           );
         }
@@ -371,10 +369,10 @@ function MePageContent() {
     if (!displaySolanaAddress) return;
     try {
       await navigator.clipboard.writeText(displaySolanaAddress);
-      showToast(lang === 'en' ? 'Address copied to clipboard!' : '地址已複製！', 'success');
+      showToast(t('me_toast_address_copied_clipboard'), 'success');
     } catch (err) {
       console.error('Failed to copy:', err);
-      showToast(lang === 'en' ? 'Failed to copy address' : '複製失敗', 'error');
+      showToast(t('me_toast_copy_address_failed'), 'error');
     }
   };
 
@@ -974,37 +972,17 @@ function MePageContent() {
     router.replace('/me', { scroll: false });
 
     if (paymentParam === 'success') {
-      showToast(
-        lang === 'zh'
-          ? '支付成功！正在更新您的帳戶狀態...'
-          : 'Payment successful! Updating your account...',
-        'success'
-      );
+      showToast(t('me_toast_payment_success_updating'), 'success');
       // 強制刷新餘額與身份狀態 + 認證申請列表（Stripe 回到 /me?payment=success 場景）
       refreshBalance();
       setRefreshKey((k) => k + 1);
     } else if (paymentParam === 'cancelled' || paymentParam === 'canceled') {
-      showToast(
-        lang === 'zh' ? '支付已取消' : 'Payment cancelled',
-        'error'
-      );
+      showToast(t('me_toast_payment_cancelled'), 'error');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authenticated, user?.id]);
 
-  // ── 九國語言充值按鈕字典 ─────────────────────────────────────────────────
-  const topUpLabels: Record<string, string> = {
-    zh: '充值',
-    en: 'TOP UP / DEPOSIT',
-    ja: 'チャージ',
-    ko: '충전',
-    th: 'เติมเงิน',
-    fr: 'RECHARGER',
-    de: 'AUFLADEN',
-    es: 'RECARGAR',
-    ar: 'تعبئة الرصيد',
-  };
-  const topUpLabel = topUpLabels[lang] ?? 'TOP UP / DEPOSIT';
+  const topUpLabel = t('me_top_up');
 
   /** 頭像右側：top 與小花同一水平帶（grid self-end）；below 為到期/審核中等全寬次行 */
   const profileIdentityGrid = useMemo((): { top: React.ReactNode; below: React.ReactNode | null } => {
@@ -1021,12 +999,19 @@ function MePageContent() {
     const pendingApps = identityApplications.filter(
       (a) => a.status === 'pending' || a.status === 'awaiting_payment',
     );
+    const idTypeLabel = (ty: 'creator' | 'institution' | 'curator') =>
+      ({
+        creator: t('verify_type_creator'),
+        institution: t('verify_type_institution'),
+        curator: t('verify_type_curator'),
+      })[ty];
     const pendingPills = pendingApps.map((app) => {
-      const label = { creator: '創作人', institution: '機構', curator: '策展人' }[app.identity_type] ?? app.identity_type;
+      const label = idTypeLabel(app.identity_type);
       return (
         <span key={app.id} className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-neutral-800 text-yellow-400 border border-yellow-700/40 rounded-full px-3 py-1.5 whitespace-nowrap">
           <i className="fas fa-clock text-[8px]" />
-          {label} {lang === 'zh' ? '審核中' : 'Pending'}
+          {label}
+          {t('me_identity_pending_suffix')}
         </span>
       );
     });
@@ -1084,16 +1069,14 @@ function MePageContent() {
                   (new Date(app.expires_at!).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
                 );
                 if (daysLeft > 30 || daysLeft <= 0) return null;
-                const ty =
-                  ({ creator: '創作人', institution: '機構', curator: '策展人' } as const)[app.identity_type] ??
-                  app.identity_type;
+                const ty = idTypeLabel(app.identity_type);
                 return (
                   <span
                     key={`expire-${app.id}`}
                     className="text-[8px] text-amber-400 font-mono whitespace-nowrap"
                     title={app.expires_at ?? undefined}
                   >
-                    [{ty}] {daysLeft} {lang === 'zh' ? '天後到期' : 'days left'}
+                    [{ty}] {t('me_expires_in_days').replace('{n}', String(daysLeft))}
                   </span>
                 );
               })}
@@ -1107,7 +1090,7 @@ function MePageContent() {
                 className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-neutral-800/60 text-void-hint border border-gray-700/40 rounded-full px-4 py-1.5 opacity-50 cursor-not-allowed whitespace-nowrap"
               >
                 <i className="fas fa-lock text-[8px]" />
-                {lang === 'zh' ? '認證中' : 'In Review'}
+                {t('me_in_review')}
               </button>
             </div>
           ) : null}
@@ -1126,7 +1109,7 @@ function MePageContent() {
               className="inline-flex items-center gap-1.5 text-[9px] font-bold bg-neutral-800/60 text-void-hint border border-gray-700/40 rounded-full px-4 py-1.5 opacity-50 cursor-not-allowed whitespace-nowrap"
             >
               <i className="fas fa-lock text-[8px]" />
-              {lang === 'zh' ? '認證中' : 'In Review'}
+              {t('me_in_review')}
             </button>
           </div>
         ),
@@ -1138,7 +1121,7 @@ function MePageContent() {
         top: (
           <div className="flex flex-wrap items-center justify-end gap-2 w-full">
             <span className="text-[9px] text-void-fg font-mono tracking-wider uppercase">
-              {lang === 'zh' ? '普通用戶' : 'Standard user'}
+              {t('me_standard_user')}
             </span>
             <button
               type="button"
@@ -1146,7 +1129,7 @@ function MePageContent() {
               className="inline-flex items-center gap-1.5 text-[10px] font-bold bg-white text-black rounded-full px-4 py-1.5 hover:scale-105 transition-transform uppercase tracking-wider whitespace-nowrap shadow-[0_0_10px_rgba(255,255,255,0.15)]"
             >
               <i className="fas fa-shield-alt text-[9px]" />
-              {lang === 'zh' ? '立即認證' : t('verify_inline_verify')}
+              {t('verify_inline_verify')}
             </button>
           </div>
         ),
@@ -1154,7 +1137,7 @@ function MePageContent() {
       };
     }
     return { top: null, below: null };
-  }, [dbProfile, identityApplications, lang, t, router]);
+  }, [dbProfile, identityApplications, t, router]);
 
   /* ─── AUTH GUARD ─────────────────────────────────────────────────────────── */
   // Privy 尚未初始化完成時，渲染空白等待 redirect；已就緒未登錄同樣清空防閃爍
@@ -1172,16 +1155,16 @@ function MePageContent() {
   /* ─── AUTHENTICATED VIEW ──────────────────────────────────────────────────── */
   return (
     <div className="flex-1 h-full w-full bg-void flex flex-col relative overflow-y-auto md:overflow-hidden pt-28 md:pt-0 pwa-me-main-scroll-pt pb-bottom-nav-safe md:pb-0 min-h-screen md:min-h-0">
-      {isHistoryLoading && <CyberLoading text="LOADING PARALLEL UNIVERSE..." />}
+      {isHistoryLoading && <CyberLoading text={t('me_cyber_loading_text')} />}
 
       {/* ── Desktop Page Header (full-width banner) ──────────────────── */}
       <div className="hidden md:flex flex-shrink-0 z-10 bg-[#030303]/95 backdrop-blur border-b border-[#1a1a1a] px-6 py-4 items-center justify-between">
         <div className="hidden md:block">
           <h1 className="font-heavy text-2xl text-white tracking-wider leading-none">
-            USER CENTER
+            {t('me_page_title_desktop')}
           </h1>
           <div className="text-[9px] font-mono text-signal tracking-widest mt-1">
-            HKAIIFF · IDENTITY &amp; WALLET
+            {t('me_page_sub_desktop')}
           </div>
         </div>
         <button
@@ -1283,7 +1266,7 @@ function MePageContent() {
               <span className="font-mono ltr-force">
                 {displaySolanaAddress
                   ? `${displaySolanaAddress.slice(0, 4)}...${displaySolanaAddress.slice(-4)}`
-                  : 'NO SOL WALLET'}
+                  : t('me_no_sol_wallet')}
               </span>
               <i className="far fa-copy"></i>
             </button>
@@ -1298,7 +1281,7 @@ function MePageContent() {
           {onlineLbsNodes.length > 0 && (
             <div className="mb-3">
               <div className="text-[9px] font-mono text-[#FFC107]/50 tracking-widest uppercase mb-2 px-0.5">
-                {lang === 'zh' ? '已上线影展' : 'LIVE FESTIVALS'}
+                {t('me_live_festivals')}
               </div>
               <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
                 {onlineLbsNodes.map((node) => (
@@ -1336,7 +1319,7 @@ function MePageContent() {
             <div className="mb-3">
               <div className="text-[9px] font-mono text-green-400/60 tracking-widest uppercase mb-2 px-0.5 flex items-center gap-1.5">
                 <i className="fas fa-check-circle text-green-400/60" />
-                {lang === 'zh' ? '已通过影展' : 'APPROVED FESTIVALS'}
+                {t('me_approved_festivals')}
               </div>
               <div className="flex gap-3 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
                 {approvedLbsNodes.map((node) => (
@@ -1388,13 +1371,13 @@ function MePageContent() {
                 </div>
                 <div>
                   <div className="text-[9px] font-mono text-[#FFC107]/50 tracking-widest mb-0.5 uppercase">
-                    {lang === 'zh' ? '策展人 · 專屬通道' : 'CURATOR · EXCLUSIVE'}
+                    {t('me_curator_exclusive')}
                   </div>
                   <div className="font-heavy text-white text-sm tracking-wider">
-                    {lang === 'zh' ? 'LBS 影展/影院' : 'LBS FESTIVAL / CINEMA'}
+                    {t('me_lbs_festival_cinema')}
                   </div>
                   <div className="text-[10px] text-void-muted font-mono mt-0.5">
-                    {lang === 'zh' ? '新建/提交 LBS 地理位置展映節點申請' : 'New LBS Geolocation Screening Node'}
+                    {t('me_lbs_new_node_line')}
                   </div>
                 </div>
               </div>
@@ -1414,12 +1397,12 @@ function MePageContent() {
         {/* Label row */}
         <div className="text-[10px] text-signal font-mono tracking-widest flex items-center gap-2 mb-3">
           <i className="fas fa-wallet" />
-          FUNDING ACCOUNT
+          {t('me_funding_account')}
           {/* ── Realtime LIVE 狀態圓點 ── */}
           {!isProfileLoading && (
             <span
               className="flex items-center gap-1"
-              title={isRealtimeConnected ? 'Realtime connected · auto-updating' : 'Connecting to realtime...'}
+              title={isRealtimeConnected ? t('me_realtime_tooltip_live') : t('me_realtime_tooltip_connecting')}
             >
               <span
                 className={`w-1.5 h-1.5 rounded-full transition-colors duration-500
@@ -1430,7 +1413,7 @@ function MePageContent() {
               />
               <span className={`font-mono text-[8px] tracking-widest transition-colors duration-500
                 ${isRealtimeConnected ? 'text-signal/78' : 'text-void-muted'}`}>
-                {isRealtimeConnected ? 'LIVE' : 'CONNECTING'}
+                {isRealtimeConnected ? t('me_realtime_live') : t('me_realtime_connecting')}
               </span>
             </span>
           )}
@@ -1482,7 +1465,7 @@ function MePageContent() {
 
       {/* ── My Submissions ─────────────────────────────────────────────── */}
       <h3 className="font-heavy text-xl mb-4 border-b border-[#333] pb-2 text-white flex items-center gap-2">
-        <i className="fas fa-film text-void-muted" /> MY SUBMISSIONS
+        <i className="fas fa-film text-void-muted" /> {t('me_my_submissions')}
         {mySubmissions.length > 0 && (
           <span className="ml-auto text-[10px] font-mono text-signal bg-signal/10 border border-signal/30 px-2 py-0.5 rounded">
             {mySubmissions.length} FILM{mySubmissions.length > 1 ? 'S' : ''}
@@ -1501,11 +1484,11 @@ function MePageContent() {
               const filmStatus: string = film?.status || 'pending';
               const statusUI = getStatusUI(filmStatus);
               const STATUS_LABELS: Record<string, string> = {
-                approved: 'APPROVED',
-                rejected: 'REJECTED',
-                pending: 'PENDING',
+                approved: t('me_submission_approved'),
+                rejected: t('me_submission_rejected'),
+                pending: t('me_submission_pending'),
               };
-              const statusLabel = STATUS_LABELS[filmStatus] ?? 'PENDING';
+              const statusLabel = STATUS_LABELS[filmStatus] ?? t('me_submission_pending');
               return (
                 <div
                   key={film.id}
@@ -1519,7 +1502,7 @@ function MePageContent() {
                     {film?.poster_url ? (
                       <img
                         src={film.poster_url}
-                        alt={film?.title || 'FILM'}
+                        alt={film?.title || t('me_film_alt')}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
@@ -1542,7 +1525,7 @@ function MePageContent() {
                   <div className="p-2.5 space-y-1.5">
                     {/* 片名 */}
                     <div className="font-heavy text-[13px] text-white tracking-wide truncate uppercase leading-tight">
-                      {film?.title || 'UNTITLED'}
+                      {film?.title || t('me_untitled')}
                     </div>
 
                     {/* 創作者 */}
@@ -1565,15 +1548,15 @@ function MePageContent() {
                           e.stopPropagation();
                           navigator.clipboard.writeText(film.id ?? '').then(() => {
                             setCopiedFilmId(film.id);
-                            showToast(lang === 'en' ? 'Serial ID copied!' : '串號已複製！', 'success');
+                            showToast(t('me_toast_serial_copied'), 'success');
                             setTimeout(() => setCopiedFilmId(null), 2000);
                           }).catch(() => {
-                            showToast(lang === 'en' ? 'Copy failed' : '複製失敗', 'error');
+                            showToast(t('me_toast_copy_failed'), 'error');
                           });
                         }}
                         className="flex-shrink-0 w-5 h-5 flex items-center justify-center
                                    text-void-subtle hover:text-signal transition-colors rounded"
-                        title="Copy serial ID"
+                        title={t('me_copy_serial_title')}
                       >
                         {copiedFilmId === film.id ? (
                           <svg viewBox="0 0 16 16" className="w-3 h-3 text-signal" fill="currentColor">
@@ -1597,7 +1580,7 @@ function MePageContent() {
 
       {/* ── Interaction History ────────────────────────────────────────── */}
       <h3 className="font-heavy text-xl mb-4 border-b border-[#333] pb-2 text-white flex items-center gap-2">
-        <i className="fas fa-history text-void-muted" /> INTERACTION HISTORY
+        <i className="fas fa-history text-void-muted" /> {t('history')}
       </h3>
       <div className="space-y-3 pb-4">
         {interactionHistory.length > 0 ? (
@@ -1612,11 +1595,11 @@ function MePageContent() {
             >
               <img
                 src={item.film_cover_url || item.media_url || "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=200"}
-                alt={item.film_title || 'UNKNOWN PROTOCOL'}
+                alt={item.film_title || t('me_unknown_protocol')}
                 className="w-16 h-12 object-cover rounded border border-[#333]"
               />
               <div className="flex-1">
-                <div className="text-sm font-bold text-white tracking-wide">{item.film_title || 'UNKNOWN PROTOCOL'}</div>
+                <div className="text-sm font-bold text-white tracking-wide">{item.film_title || t('me_unknown_protocol')}</div>
                 <div className="text-[9px] text-signal font-mono mt-1 bg-signal/10 inline-block px-1.5 py-0.5 rounded">
                   Rendered via: {item.inject_type || 'Data'}
                 </div>
@@ -1706,7 +1689,7 @@ function MePageContent() {
                   >
                     <p className="text-void-fg text-sm">This is to certify that the AI-Native Film</p>
                     <p className="text-white text-xl font-bold my-3 uppercase tracking-wide leading-snug">
-                      {selectedFilm?.title || 'UNTITLED'}
+                      {selectedFilm?.title || t('me_untitled')}
                     </p>
                     <p className="text-void-fg text-sm">
                       submitted by{' '}
@@ -1816,7 +1799,7 @@ function MePageContent() {
                   {selectedFilm?.poster_url ? (
                     <img
                       src={selectedFilm.poster_url}
-                      alt={selectedFilm?.title || 'FILM'}
+                      alt={selectedFilm?.title || t('me_film_alt')}
                       className="w-full h-full object-cover opacity-60"
                     />
                   ) : (
@@ -1827,7 +1810,7 @@ function MePageContent() {
                   <div className="absolute inset-0 bg-gradient-to-t from-[#080808] via-black/30 to-transparent" />
                   <div className="absolute bottom-0 left-0 p-4">
                     <h2 className="font-heavy text-xl text-white leading-tight tracking-wide drop-shadow-lg uppercase">
-                      {selectedFilm?.title || 'UNTITLED'}
+                      {selectedFilm?.title || t('me_untitled')}
                     </h2>
                   </div>
                 </div>
@@ -1883,10 +1866,10 @@ function MePageContent() {
               <div>
                 <div className="font-heavy text-base text-white tracking-widest flex items-center gap-2">
                   <i className="fas fa-arrow-down text-signal text-sm" />
-                  TOP UP AIF
+                  {t('me_top_up_modal_title')}
                 </div>
                 <div className="text-[9px] font-mono text-signal/85 tracking-widest mt-0.5">
-                  DEPOSIT VIA SOLANA NETWORK
+                  {t('me_top_up_modal_sub')}
                 </div>
               </div>
               <button
@@ -1904,9 +1887,7 @@ function MePageContent() {
               <div className="flex items-start gap-3 bg-amber-500/10 border border-amber-500/40 rounded-xl px-4 py-3">
                 <i className="fas fa-exclamation-triangle text-amber-400 text-sm mt-0.5 flex-shrink-0" />
                 <p className="text-[11px] font-mono text-amber-300/90 leading-relaxed">
-                  Please send <span className="text-amber-300 font-bold">ONLY $AIF tokens</span> on the{' '}
-                  <span className="text-amber-300 font-bold">Solana network</span> to this address.
-                  Other assets will be <span className="text-red-400 font-bold">lost</span>.
+                  {t('me_deposit_aif_only')}
                 </p>
               </div>
 
@@ -1921,10 +1902,10 @@ function MePageContent() {
                         <div className="w-full bg-red-500/10 border border-red-500/40 rounded-xl px-4 py-5 flex flex-col items-center gap-2">
                           <i className="fas fa-exclamation-circle text-red-400 text-2xl" />
                           <div className="text-[11px] font-mono text-red-400 font-bold tracking-wider text-center">
-                            系統設定錯誤：缺少合約地址
+                            {t('me_deposit_config_error_title')}
                           </div>
                           <div className="text-[10px] font-mono text-red-400/70 text-center">
-                            SYSTEM CONFIG ERROR: Missing AIF_MINT_ADDRESS
+                            {t('me_deposit_config_error_sub')}
                           </div>
                         </div>
                       );
@@ -1942,7 +1923,7 @@ function MePageContent() {
                           />
                         </div>
                         <div className="text-[9px] font-mono text-void-muted tracking-wider">
-                          SCAN WITH PHANTOM / ANY SOLANA WALLET
+                          {t('me_deposit_scan_wallets')}
                         </div>
                       </>
                     );
@@ -1952,7 +1933,7 @@ function MePageContent() {
                   <div className="w-[186px] h-[186px] border-2 border-dashed border-signal/30 rounded-xl flex flex-col items-center justify-center gap-3 bg-signal/5">
                     <i className="fas fa-circle-notch fa-spin text-3xl text-signal/68" />
                     <span className="text-[10px] font-mono text-signal/78 tracking-wider text-center px-4">
-                      GENERATING ADDRESS...
+                      {t('me_deposit_generating_short')}
                     </span>
                   </div>
                 ) : (
@@ -1960,10 +1941,10 @@ function MePageContent() {
                   <div className="w-[186px] h-[186px] border-2 border-dashed border-signal/30 rounded-xl flex flex-col items-center justify-center gap-3 bg-signal/5">
                     <i className="fas fa-circle-notch fa-spin text-3xl text-signal/68" />
                     <span className="text-[10px] font-mono text-signal/78 tracking-wider text-center px-4">
-                      AUTO-GENERATING ADDRESS...
+                      {t('me_deposit_auto_generating')}
                     </span>
                     <span className="text-[9px] font-mono text-void-subtle text-center px-4">
-                      自動生成中，請稍候
+                      {t('me_deposit_auto_generating_wait')}
                     </span>
                   </div>
                 )}
@@ -1973,7 +1954,7 @@ function MePageContent() {
               {(depositAddress || isFetchingDepositAddress) && (
                 <div className="space-y-2">
                   <div className="text-[9px] font-mono text-void-subtle tracking-widest">
-                    DEPOSIT ADDRESS
+                    {t('me_deposit_address_label')}
                   </div>
                   <div className="bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl p-3 flex items-center gap-3">
                     {depositAddress ? (
@@ -1989,7 +1970,7 @@ function MePageContent() {
                                        ? 'bg-signal/20 border-signal text-signal shadow-[0_0_12px_rgba(204,255,0,0.3)]'
                                        : 'bg-[#111] border-[#333] text-void-fg hover:border-signal hover:text-signal'
                                      }`}
-                          title="Copy address"
+                          title={t('me_deposit_copy_title')}
                         >
                           <i className={`fas ${isCopied ? 'fa-check' : 'fa-copy'} text-xs`} />
                         </button>
@@ -1997,7 +1978,7 @@ function MePageContent() {
                     ) : (
                       <span className="text-[11px] font-mono text-void-subtle flex-1 flex items-center gap-2">
                         <i className="fas fa-circle-notch fa-spin text-[10px]" />
-                        GENERATING DEDICATED ADDRESS...
+                        {t('me_deposit_generating_line')}
                       </span>
                     )}
                   </div>
@@ -2015,15 +1996,15 @@ function MePageContent() {
                     <span className="w-1.5 h-1.5 rounded-full bg-signal inline-flex" />
                   </span>
                   <p className="text-[9px] font-mono text-void-subtle leading-relaxed tracking-wide">
-                    {lang === 'en' ? 'Auto-checking every 5s. Will credit ' : '每 5 秒自動查帳。入帳後'}
-                    <span className="text-signal/85">{lang === 'en' ? 'instantly.' : '立即自動關閉。'}</span>
+                    {t('me_deposit_footer_part1')}
+                    <span className="text-signal/85">{t('me_deposit_footer_part2')}</span>
                   </p>
                 </>
               ) : (
                 <>
                   <i className="fas fa-circle-notch fa-spin text-signal/68 text-[10px] flex-shrink-0" />
                   <p className="text-[9px] font-mono text-void-subtle leading-relaxed tracking-wide">
-                    {lang === 'en' ? 'Generating your dedicated deposit address...' : '正在自動生成您的專屬充值地址...'}
+                    {t('me_deposit_generating_footer')}
                   </p>
                 </>
               )}
@@ -2049,13 +2030,13 @@ function MePageContent() {
             {/* Modal Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#1a1a1a] flex-shrink-0">
               <div>
-                <div className="font-heavy text-base text-white tracking-wider">EDIT PROFILE</div>
+                <div className="font-heavy text-base text-white tracking-wider">{t('me_edit_profile_title')}</div>
                 <div className="text-[9px] font-mono text-signal tracking-widest mt-0.5">
                   {(dbProfile?.verified_identities?.length ?? 0) > 0
-                    ? <span className="text-yellow-500 flex items-center gap-1"><i className="fas fa-lock text-[8px]" />已認證用戶 — 名稱欄位已鎖定</span>
+                    ? <span className="text-yellow-500 flex items-center gap-1"><i className="fas fa-lock text-[8px]" />{t('me_edit_subtitle_verified_locked')}</span>
                     : identityApplications.some((a) => a.status === 'pending' || a.status === 'awaiting_payment')
-                      ? <span className="text-yellow-500 flex items-center gap-1"><i className="fas fa-clock text-[8px]" />認證審核中 — 名稱欄位已鎖定</span>
-                      : mySubmissions.length > 0 ? 'BASIC + CREATOR SETTINGS UNLOCKED' : 'BASIC SETTINGS'}
+                      ? <span className="text-yellow-500 flex items-center gap-1"><i className="fas fa-clock text-[8px]" />{t('me_edit_subtitle_pending_locked')}</span>
+                      : mySubmissions.length > 0 ? t('me_edit_subtitle_basic_creator') : t('me_edit_subtitle_basic')}
                 </div>
               </div>
               <button
@@ -2081,10 +2062,10 @@ function MePageContent() {
                     <i className="fas fa-lock text-yellow-400 text-base mt-0.5 flex-shrink-0" />
                     <div>
                       <div className="text-yellow-300 font-bold text-xs tracking-wide mb-1">
-                        🔒 核心资料已锁定，不可修改
+                        🔒 {t('me_edit_lock_banner_title')}
                       </div>
                       <p className="text-yellow-400/80 text-[11px] font-mono leading-relaxed">
-                        您的身份已{isVerified ? '认证' : '提交审核'}，用户名与头像等核心资料已锁定。如需变更，请重新提交身份认证。
+                        {isVerified ? t('me_edit_lock_banner_verified') : t('me_edit_lock_banner_pending')}
                       </p>
                     </div>
                   </div>
@@ -2095,7 +2076,7 @@ function MePageContent() {
               <div>
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-1 h-4 bg-signal rounded-full" />
-                  <span className="text-[10px] font-mono text-signal tracking-widest">BASIC SETTINGS</span>
+                  <span className="text-[10px] font-mono text-signal tracking-widest">{t('me_section_basic_settings')}</span>
                 </div>
 
                 {/* Avatar Preview + Randomize */}
@@ -2119,7 +2100,7 @@ function MePageContent() {
                         </div>
                       </div>
                       <div className="flex flex-col gap-2">
-                        <div className="text-[10px] font-mono text-void-muted">AVATAR SEED</div>
+                        <div className="text-[10px] font-mono text-void-muted">{t('me_avatar_seed')}</div>
                         <div className="flex items-center gap-2">
                           <div className={`font-mono text-xs px-2 py-1 rounded tracking-widest ${isAvatarLocked ? 'text-void-muted bg-gray-800/40 border border-gray-700/30' : 'text-signal bg-signal/10 border border-signal/20'}`}>
                             {editAvatarSeed.substring(0, 10)}
@@ -2134,7 +2115,7 @@ function MePageContent() {
                               }`}
                           >
                             <i className={`fas ${isAvatarLocked ? 'fa-lock' : 'fa-random'} mr-1`} />
-                            {isAvatarLocked ? 'LOCKED' : 'RANDOMIZE'}
+                            {isAvatarLocked ? t('me_btn_locked') : t('me_btn_randomize')}
                           </button>
                         </div>
                       </div>
@@ -2152,14 +2133,14 @@ function MePageContent() {
                       (a) => a.status === 'pending' || a.status === 'awaiting_payment'
                     );
                   const lockReason = isUsernameLocked
-                    ? '已認證，名稱已鎖定'
+                    ? t('me_lock_name_username')
                     : (dbProfile?.verified_identities?.length ?? 0) > 0
-                      ? '已認證，名稱由認證系統管理'
-                      : '認證審核中，暫不可修改';
+                      ? t('me_lock_name_verified_managed')
+                      : t('me_lock_name_pending_review');
                   return (
                     <div>
                       <label className="block text-[10px] font-mono text-void-muted tracking-widest mb-1.5 flex items-center gap-1.5">
-                        DISPLAY NAME
+                        {t('me_display_name_label')}
                         {isNameLocked && (
                           <span className="flex items-center gap-1 text-[9px] text-yellow-500">
                             <i className="fas fa-lock text-[8px]" />
@@ -2172,7 +2153,7 @@ function MePageContent() {
                         value={editName}
                         onChange={(e) => !isNameLocked && setEditName(e.target.value)}
                         maxLength={40}
-                        placeholder="Enter display name..."
+                        placeholder={t('me_ph_display_name')}
                         disabled={isNameLocked}
                         className={`w-full font-mono text-sm px-3 py-2.5 rounded-lg outline-none transition-all
                           ${isNameLocked
@@ -2191,32 +2172,32 @@ function MePageContent() {
                   <div className="w-10 h-10 bg-[#111] border border-[#333] rounded-full flex items-center justify-center mx-auto mb-3">
                     <i className="fas fa-lock text-void-subtle text-sm" />
                   </div>
-                  <div className="text-[11px] font-heavy text-void-muted tracking-widest mb-1">CREATOR PROFILE LOCKED</div>
+                  <div className="text-[11px] font-heavy text-void-muted tracking-widest mb-1">{t('me_creator_profile_locked_title')}</div>
                   <div className="text-[10px] font-mono text-void-muted leading-relaxed">
-                    Submit at least one film to unlock<br />advanced creator settings.
+                    {t('me_creator_profile_locked_line1')}<br />{t('me_creator_profile_locked_line2')}
                   </div>
                 </div>
               ) : (
                 <div>
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-1 h-4 bg-[#00F0FF] rounded-full" />
-                    <span className="text-[10px] font-mono text-[#00F0FF] tracking-widest">CREATOR PROFILE</span>
+                    <span className="text-[10px] font-mono text-[#00F0FF] tracking-widest">{t('me_creator_section')}</span>
                     <span className="text-[9px] font-mono text-signal bg-signal/10 border border-signal/30 px-1.5 py-0.5 rounded ml-auto">
-                      <i className="fas fa-unlock mr-1" />UNLOCKED
+                      <i className="fas fa-unlock mr-1" />{t('state_unlocked')}
                     </span>
                   </div>
 
                   {/* About Studio */}
                   <div className="mb-4">
                     <label className="block text-[10px] font-mono text-void-muted tracking-widest mb-1.5">
-                      <i className="fas fa-building mr-1 text-[#00F0FF]" />ABOUT STUDIO
+                      <i className="fas fa-building mr-1 text-[#00F0FF]" />{t('about')}
                     </label>
                     <textarea
                       value={editAboutStudio}
                       onChange={(e) => setEditAboutStudio(e.target.value)}
                       rows={3}
                       maxLength={400}
-                      placeholder="Describe your studio, vision, and creative process..."
+                      placeholder={t('me_ph_about_studio')}
                       className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
                                  outline-none focus:border-[#00F0FF] focus:shadow-[0_0_12px_rgba(0,240,255,0.12)]
                                  placeholder:text-void-subtle resize-none transition-all leading-relaxed"
@@ -2229,14 +2210,14 @@ function MePageContent() {
                   {/* Tech Stack */}
                   <div className="mb-5">
                     <label className="block text-[10px] font-mono text-void-muted tracking-widest mb-1.5">
-                      <i className="fas fa-microchip mr-1 text-signal" />TECH STACK
-                      <span className="text-void-subtle ml-2 normal-case tracking-normal">comma-separated</span>
+                      <i className="fas fa-microchip mr-1 text-signal" />{t('tech_stack')}
+                      <span className="text-void-subtle ml-2 normal-case tracking-normal">{t('me_tech_comma_hint')}</span>
                     </label>
                     <input
                       type="text"
                       value={editTechStack}
                       onChange={(e) => setEditTechStack(e.target.value)}
-                      placeholder="Sora, Midjourney, Suno, RunwayML..."
+                      placeholder={t('ph_tech')}
                       className="w-full bg-[#0d0d0d] border border-[#2a2a2a] text-white font-mono text-xs px-3 py-2.5 rounded-lg
                                  outline-none focus:border-signal focus:shadow-[0_0_12px_rgba(204,255,0,0.15)]
                                  placeholder:text-void-subtle transition-all"
@@ -2256,20 +2237,20 @@ function MePageContent() {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="text-[10px] font-mono text-void-muted tracking-widest">
-                        <i className="fas fa-users mr-1 text-[#9D00FF]" />CORE TEAM
+                        <i className="fas fa-users mr-1 text-[#9D00FF]" />{t('team')}
                       </label>
                       <button
                         onClick={addTeamMember}
                         className="flex items-center gap-1 text-[9px] font-mono text-signal border border-signal/40 bg-signal/10
                                    px-2 py-1 rounded tracking-widest hover:bg-signal/20 active:scale-95 transition-all"
                       >
-                        <i className="fas fa-plus text-[8px]" />ADD MEMBER
+                        <i className="fas fa-plus text-[8px]" />{t('me_add_member')}
                       </button>
                     </div>
 
                     {editCoreTeam.length === 0 ? (
                       <div className="border border-dashed border-[#222] rounded-lg py-4 text-center text-[10px] font-mono text-void-muted">
-                        No team members added yet.
+                        {t('me_team_empty')}
                       </div>
                     ) : (
                       <div className="space-y-2">
@@ -2280,7 +2261,7 @@ function MePageContent() {
                                 type="text"
                                 value={member.name}
                                 onChange={(e) => updateTeamMember(index, 'name', e.target.value)}
-                                placeholder="Name"
+                                placeholder={t('me_team_name_ph')}
                                 className="bg-black border border-[#2a2a2a] text-white font-mono text-xs px-2.5 py-1.5 rounded
                                            outline-none focus:border-[#9D00FF] focus:shadow-[0_0_8px_rgba(157,0,255,0.15)]
                                            placeholder:text-void-subtle transition-all w-full"
@@ -2289,7 +2270,7 @@ function MePageContent() {
                                 type="text"
                                 value={member.role}
                                 onChange={(e) => updateTeamMember(index, 'role', e.target.value)}
-                                placeholder="Role (e.g. Director, Sound Designer)"
+                                placeholder={t('me_team_role_ph')}
                                 className="bg-black border border-[#2a2a2a] text-white font-mono text-xs px-2.5 py-1.5 rounded
                                            outline-none focus:border-[#9D00FF] focus:shadow-[0_0_8px_rgba(157,0,255,0.15)]
                                            placeholder:text-void-subtle transition-all w-full"
@@ -2323,7 +2304,7 @@ function MePageContent() {
                            border border-[#333] hover:border-white hover:text-white active:scale-95 transition-all
                            disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                CANCEL
+                {t('btn_cancel')}
               </button>
               {(() => {
                 const isUsernameLocked = dbProfile?.username_locked === true;
@@ -2343,7 +2324,7 @@ function MePageContent() {
                                  border border-yellow-900/40 cursor-not-allowed opacity-70 flex items-center justify-center gap-1.5"
                     >
                       <i className="fas fa-lock text-yellow-600 text-[10px]" />
-                      {isUsernameLocked ? '🔒 已認證，名稱已鎖定' : isFullyVerified ? '🔒 身份已認證，資料已鎖定' : '🔒 審核中，資料已鎖定'}
+                      {isUsernameLocked ? `🔒 ${t('me_footer_lock_display_name')}` : isFullyVerified ? `🔒 ${t('me_footer_lock_identity_verified')}` : `🔒 ${t('me_footer_lock_under_review')}`}
                     </button>
                   );
                 }
@@ -2357,9 +2338,9 @@ function MePageContent() {
                                active:scale-95 transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                   >
                     {isSaving ? (
-                      <><i className="fas fa-spinner fa-spin mr-1.5" />SAVING...</>
+                      <><i className="fas fa-spinner fa-spin mr-1.5" />{t('me_saving')}</>
                     ) : (
-                      <><i className="fas fa-check mr-1.5" />SAVE PROFILE</>
+                      <><i className="fas fa-check mr-1.5" />{t('me_save_profile')}</>
                     )}
                   </button>
                 );
@@ -2372,9 +2353,18 @@ function MePageContent() {
   );
 }
 
+function MePageSuspenseFallback() {
+  const { t } = useI18n();
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center text-signal">
+      {t('me_loading_short')}
+    </div>
+  );
+}
+
 export default function MePage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center text-signal">Loading...</div>}>
+    <Suspense fallback={<MePageSuspenseFallback />}>
       <MePageContent />
     </Suspense>
   );

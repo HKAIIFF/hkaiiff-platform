@@ -76,14 +76,11 @@ function DataInjectionDrawer({
   onClose: () => void;
   filmTitle: string;
 }) {
-  const { lang } = useI18n();
+  const { t } = useI18n();
   const { showToast } = useToast();
 
   const handleInject = () => {
-    showToast(
-      lang === "en" ? "You are not on the invitation list." : "您不在邀請名單內。",
-      "error"
-    );
+    showToast(t("home_invite_not_on_list"), "error");
   };
 
   const injectTypes = [
@@ -210,7 +207,7 @@ function MobileFeedItem({
   const touchStartY = useRef(0);
 
   const { setActiveModal, setSelectedFilm, setSelectedCreator, setSelectedCreatorUserId } = useModal();
-  const { lang } = useI18n();
+  const { t } = useI18n();
   const { showToast } = useToast();
   const { authenticated } = usePrivy();
 
@@ -233,7 +230,7 @@ function MobileFeedItem({
         await navigator.share(shareData);
       } else {
         await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
-        showToast(lang === "en" ? "Link copied!" : "鏈接已複製！", "success");
+        showToast(t("home_link_copied"), "success");
       }
     } catch {}
   };
@@ -247,7 +244,7 @@ function MobileFeedItem({
   const handleMintToChain = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!authenticated) { setShowConsent(true); return; }
-    showToast(lang === "en" ? "Minting coming soon..." : "鏈上鑄造即將上線。", "info");
+    showToast(t("home_mint_coming_soon"), "info");
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {

@@ -237,12 +237,9 @@ export default function GlobalModals() {
 
   // INJECT & RENDER 主提交函數（功能暫時鎖定，僅顯示 ACCESS DENIED 提示）
   const submitConsoleInteract = useCallback(() => {
-    const msg = lang === "zh"
-      ? "ACCESS DENIED: 您未獲得邀請，暫時無法使用此功能。"
-      : "ACCESS DENIED: Invite only. Feature locked.";
-    showToast(msg, "error");
+    showToast(t("global_access_denied_console"), "error");
     close();
-  }, [lang, showToast, close]);
+  }, [t, showToast, close]);
 
   const film = selectedFilm;
 
@@ -258,7 +255,7 @@ export default function GlobalModals() {
         await navigator.share(shareData);
       } else {
         await navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
-        showToast(lang === "en" ? "Link copied to clipboard!" : "鏈接已複製到剪貼板！", "success");
+        showToast(t("global_link_copied_clipboard"), "success");
       }
     } catch (err) {
       console.log("Error sharing:", err);
