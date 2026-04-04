@@ -60,22 +60,21 @@ export async function GET(req: Request) {
     const senderIds = [...new Set(rows.map((m) => m.sender_id).filter(Boolean))] as string[];
     const allIds = [...new Set([...userIds, ...senderIds])];
 
-    let userMap: Record<string, string> = {};
+    const userMap: Record<string, string> = {};
     if (allIds.length > 0) {
       const { data: users } = await db
         .from('users')
         .select('id, display_name, email')
         .in('id', allIds);
       for (const u of users ?? []) {
-        const row = u as { id: string; display_name: string | null; email: string | null };
-        userMap[row.id] = row.display_name || row.email || row.id;
+        userMap[u.id] = (u.display_name as string | null)?.trim() || (u.email as string | null)?.trim() || u.id;
       }
     }
 
     const enriched = rows.map((m) => ({
       ...m,
-      user_display_name: m.user_id ? (userMap[m.user_id] ?? null) : null,
-      sender_display_name: m.sender_id ? (userMap[m.sender_id] ?? null) : null,
+      user_display_name: m.user_id ? (userMap[m.user_id as string] ?? null) : null,
+      sender_display_name: m.sender_id ? (userMap[m.sender_id as string] ?? null) : null,
     }));
 
     return NextResponse.json({ messages: enriched, total: enriched.length });

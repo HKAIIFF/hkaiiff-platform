@@ -65,8 +65,7 @@ export async function sendMessage({
 }: SendMessageParams): Promise<void> {
   const db = getAdminClient();
   const resolvedAudience = audience === 'admin_only' ? 'admin_only' : 'users';
-  const isBroadcast = userId == null && resolvedAudience === 'users';
-
+  const isBroadcast = userId == null || userId === '';
   const { error } = await db.from('messages').insert({
     user_id: userId,
     type,
@@ -76,7 +75,7 @@ export async function sendMessage({
     body: content,               // 向后兼容旧 body 列
     status: 'sent',
     audience: resolvedAudience,
-    is_broadcast: isBroadcast,
+    is_broadcast: isBroadcast && resolvedAudience === 'users',
     ...(actionLink != null ? { action_link: actionLink } : {}),
     ...(senderId != null ? { sender_id: senderId } : {}),
   });
@@ -92,9 +91,8 @@ export async function getUserMessages(userId: string): Promise<DbMessage[]> {
   const db = getAdminClient();
   const { data, error } = await db
     .from('messages')
-    .select('id, msg_id, user_id, type, msg_type, title, content, body, is_read, status, sender_id, action_link, created_at, deleted_at, audience, is_broadcast')
-    .eq('audience', 'users')
-    .or(`user_id.eq.${userId},and(user_id.is.null,is_broadcast.eq.true)`)
+    .select('id, msg_id, user_id, type, msg_type, title, content, body, is_read, status, sender_id, action_link, created_at, deleted_at, audience')
+    .or(`user_id.eq.${userId},and(user_id.is.null,audience.eq.users)`)
     .is('deleted_at', null)
     .order('created_at', { ascending: false });
 
