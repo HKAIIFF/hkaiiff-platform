@@ -998,7 +998,8 @@ export default function VerificationPage() {
               variant="primary"
               label={lang === "zh" ? "SECURE PAY · 立即支付" : "SECURE PAY · VERIFY NOW"}
               className="w-full justify-center py-4 text-base rounded-2xl"
-              successUrl=""
+              successUrl="/verification?stripe_success=1"
+              cancelUrl="/verification?stripe_cancelled=1"
               onSuccess={async () => {
                 localStorage.removeItem("pending_verification");
                 setPageState("B");

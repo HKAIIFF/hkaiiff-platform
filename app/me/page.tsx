@@ -118,8 +118,8 @@ function MePageContent() {
 
   /** 認證按鈕鎖定：有任何 pending 或 approved 未過期的記錄即鎖定 */
   const [isVerifyLocked, setIsVerifyLocked] = useState(false);
-  /** 強制重拉 creator_applications（支付回來 / 頁面可見 / ?verified=1） */
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  /** 強制重拉 creator_applications（支付回來 / 頁面可見 / Realtime / ?verified=1 / ?payment=） */
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const [displaySolanaAddress, setDisplaySolanaAddress] = useState<string | null>(null);
 
@@ -337,6 +337,7 @@ function MePageContent() {
   // ── Profile Edit Modal State ──────────────────────────────────────────────
   const searchParams = useSearchParams();
   const verifiedParam = searchParams?.get("verified");
+  const paymentQueryParam = searchParams?.get("payment");
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editName, setEditName] = useState('');
@@ -792,27 +793,33 @@ function MePageContent() {
 
     void (async () => {
       await refreshUserData();
-      if (verifiedParam) {
+      if (paymentQueryParam || verifiedParam) {
         router.replace("/me", { scroll: false });
       }
     })();
-  }, [pathname, authenticated, user?.id, refreshTrigger, verifiedParam, router]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pathname, authenticated, user?.id, refreshKey, paymentQueryParam, verifiedParam, router]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // 頁面重新可見 / 視窗獲焦時刷新認證狀態（從 verification 支付回 /me 同 path 不觸發 pathname effect）
+  // 認證狀態刷新（Web / PWA / 移動端：可見性、焦點、bfcache 恢復）
   useEffect(() => {
-    const handleVisibilityChange = () => {
+    const onVisible = () => {
       if (document.visibilityState === "visible") {
-        setRefreshTrigger((prev) => prev + 1);
+        setRefreshKey((k) => k + 1);
       }
     };
-    const handleFocus = () => {
-      setRefreshTrigger((prev) => prev + 1);
+    document.addEventListener("visibilitychange", onVisible);
+
+    const onFocus = () => setRefreshKey((k) => k + 1);
+    window.addEventListener("focus", onFocus);
+
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setRefreshKey((k) => k + 1);
     };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("focus", handleFocus);
+    window.addEventListener("pageshow", onPageShow);
+
     return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("pageshow", onPageShow);
     };
   }, []);
 
@@ -877,6 +884,18 @@ function MePageContent() {
               computeVerifyLocked(freshApps ?? [], newData.verification_status)
             );
           }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'creator_applications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          setRefreshKey((k) => k + 1);
         }
       )
       .subscribe((status) => {
@@ -959,8 +978,9 @@ function MePageContent() {
           : 'Payment successful! Updating your account...',
         'success'
       );
-      // 強制刷新餘額與身份狀態
+      // 強制刷新餘額與身份狀態 + 認證申請列表（Stripe 回到 /me?payment=success 場景）
       refreshBalance();
+      setRefreshKey((k) => k + 1);
     } else if (paymentParam === 'cancelled' || paymentParam === 'canceled') {
       showToast(
         lang === 'zh' ? '支付已取消' : 'Payment cancelled',

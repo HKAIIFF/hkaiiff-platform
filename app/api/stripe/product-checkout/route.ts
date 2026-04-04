@@ -100,10 +100,22 @@ export async function POST(req: Request) {
       || undefined;
 
     // 将 {CHECKOUT_SESSION_ID} 附加到 success_url，供客户端页面验证支付状态
-    const baseSuccessUrl = successUrl || `${siteUrl}/me?payment=success&product=${productCode}`;
+    // 相對路徑（以 / 開頭）拼到站點 origin，Stripe 要求絕對 URL（例如 /verification?stripe_success=1）
+    let baseSuccessUrl = (successUrl && successUrl.trim() !== '')
+      ? successUrl.trim()
+      : `${siteUrl}/me?payment=success&product=${productCode}`;
+    const originBase = siteUrl.replace(/\/$/, '');
+    if (baseSuccessUrl.startsWith('/')) {
+      baseSuccessUrl = `${originBase}${baseSuccessUrl}`;
+    }
     const finalSuccessUrl = baseSuccessUrl.includes('session_id')
       ? baseSuccessUrl
       : `${baseSuccessUrl}${baseSuccessUrl.includes('?') ? '&' : '?'}session_id={CHECKOUT_SESSION_ID}`;
+
+    let finalCancelUrl = cancelUrl && cancelUrl.trim() !== '' ? cancelUrl.trim() : `${siteUrl}/me?payment=cancelled`;
+    if (finalCancelUrl.startsWith('/')) {
+      finalCancelUrl = `${originBase}${finalCancelUrl}`;
+    }
 
     // Stripe metadata 只允许非空字符串值，空字符串/null/undefined 会导致 "missing string" 报错
     const safeMetadata: Record<string, string> = { userId: verifiedUserId, productCode, type: 'product_purchase' };
@@ -130,7 +142,7 @@ export async function POST(req: Request) {
         },
       ],
       success_url: finalSuccessUrl,
-      cancel_url: cancelUrl || `${siteUrl}/me?payment=cancelled`,
+      cancel_url: finalCancelUrl,
       metadata: safeMetadata,
     });
 
