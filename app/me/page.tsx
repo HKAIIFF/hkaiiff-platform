@@ -1051,8 +1051,8 @@ function MePageContent() {
         <div className="md:flex-1 md:border-r md:border-[#1a1a1a] md:overflow-y-auto md:h-full px-4 md:px-5 md:py-6 py-4">
 
       {/* ── Profile Card ───────────────────────────────────────────────── */}
-      {/* 移動端: flex-col（頭像在上，信息在下）；PC 端: flex-row（左右並排） */}
-      <div className="relative flex flex-col md:flex-row md:items-center gap-4 md:gap-5 mb-6 bg-[#111] p-5 rounded-xl border border-[#333] shadow-[0_0_20px_rgba(0,0,0,0.5)]">
+      {/* 頭像 + 小花徽章 + 身分膠囊同一橫排；用戶名與錢包地址區塊居中 */}
+      <div className="relative flex flex-col md:flex-row md:items-start gap-5 mb-6 bg-[#111] p-5 rounded-xl border border-[#333] shadow-[0_0_20px_rgba(0,0,0,0.5)]">
 
         {/* Edit / Logout controls — 絕對定位在右上角 */}
         <div className="absolute top-4 right-4 flex items-center space-x-2 z-10">
@@ -1074,10 +1074,9 @@ function MePageContent() {
           </button>
         </div>
 
-        {/* Avatar — 移動端水平居中，PC 端靠左 */}
-        <div className="flex flex-col items-center md:items-start gap-2 shrink-0 self-center md:self-auto">
-          <div className="relative">
-            {/* 頭像：邊框顏色根據最高優先身份決定 */}
+        {/* 頭像 + 小花徽章 + 身分類型膠囊：同一水平線（頭像與右側區域垂直居中對齊） */}
+        <div className="flex flex-row items-center justify-center md:justify-start gap-3 shrink-0 w-full md:w-auto pr-12 md:pr-0">
+          <div className="relative shrink-0">
             <img
               src={`https://api.dicebear.com/7.x/bottts/svg?seed=${dbProfile?.avatar_seed || user?.id || 'default'}`}
               alt="avatar"
@@ -1091,7 +1090,6 @@ function MePageContent() {
                       : 'border-[#444]'
                 }`}
             />
-            {/* 多重身份認證徽章：X 平台花型，絕對定位在頭像右下角 */}
             {(dbProfile?.verified_identities ?? []).length > 0 && (
               <div className="absolute -bottom-1 -right-1 z-10 flex gap-0.5">
                 {(['creator', 'curator', 'institution'] as const).map((id) => {
@@ -1111,24 +1109,16 @@ function MePageContent() {
               </div>
             )}
           </div>
-        </div>
-
-        {/* Info — flex-1 min-w-0 保证名字不被挤压 */}
-        <div className="flex-1 min-w-0">
-          {/* 用戶名與身份認證徽章同一行（可換行）；已移除用戶名旁藍色圓形勾選圖標 */}
-          <div className="flex flex-row flex-wrap items-center justify-center md:justify-start gap-x-2 gap-y-1.5 mb-0.5 pr-14 md:pr-20 w-full min-w-0">
-            <h2 className="font-heavy text-2xl text-white tracking-wide leading-snug m-0 max-w-full break-words [overflow-wrap:anywhere] text-center md:text-left shrink min-w-0">
-              {profileDisplayName}
-            </h2>
-            {((dbProfile?.verified_identities ?? []).length > 0 ||
-              identityApplications.some((a) => {
-                if (a.status !== 'approved' || !a.expires_at) return false;
-                const daysLeft = Math.ceil(
-                  (new Date(a.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
-                );
-                return daysLeft > 0 && daysLeft <= 30;
-              })) && (
-              <div className="flex flex-wrap items-center justify-center md:justify-start gap-x-2 gap-y-1 shrink-0">
+          {((dbProfile?.verified_identities ?? []).length > 0 ||
+            identityApplications.some((a) => {
+              if (a.status !== 'approved' || !a.expires_at) return false;
+              const daysLeft = Math.ceil(
+                (new Date(a.expires_at).getTime() - Date.now()) / (1000 * 60 * 60 * 24),
+              );
+              return daysLeft > 0 && daysLeft <= 30;
+            })) && (
+            <div className="flex flex-col justify-center items-start gap-1.5 min-w-0 flex-1 md:max-w-[220px]">
+              <div className="flex flex-wrap items-center justify-start gap-x-2 gap-y-1">
                 {(dbProfile?.verified_identities ?? []).map((identity) => {
                   const cfg = {
                     creator: { cls: 'bg-signal/20 text-signal border-signal/40', label: t('verify_badge_creator') },
@@ -1146,6 +1136,8 @@ function MePageContent() {
                     </span>
                   );
                 })}
+              </div>
+              <div className="flex flex-wrap gap-x-2 gap-y-0.5">
                 {identityApplications
                   .filter((a) => a.status === 'approved' && a.expires_at)
                   .map((app) => {
@@ -1167,18 +1159,24 @@ function MePageContent() {
                     );
                   })}
               </div>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
+
+        {/* 用戶名、錢包與操作：置中 */}
+        <div className="flex-1 min-w-0 flex flex-col items-center text-center w-full">
+          <h2 className="font-heavy text-2xl text-white tracking-wide leading-snug m-0 mb-1 max-w-full break-words [overflow-wrap:anywhere] px-1">
+            {profileDisplayName}
+          </h2>
           {(dbProfile?.verified_identities?.length ?? 0) === 0 && (
-            <div className="mb-2 pr-14">
+            <div className="mb-2">
               <span className="text-[9px] text-void-fg font-mono tracking-wider uppercase">普通用戶</span>
             </div>
           )}
-          {/* Wallet address + Verify button — full width, no padding constraint */}
-          <div className="flex flex-wrap items-center gap-2 mt-1">
+          <div className="flex flex-wrap items-center justify-center gap-2 mt-1 w-full max-w-md mx-auto">
             <button
               onClick={handleCopy}
-              className="flex items-center gap-2 bg-[#111] border border-[#333] px-3 py-1.5 rounded text-xs text-void-fg hover:text-signal transition-colors"
+              className="flex items-center justify-center gap-2 bg-[#111] border border-[#333] px-3 py-1.5 rounded text-xs text-void-fg hover:text-signal transition-colors"
             >
               <i className="fa-brands fa-solana text-signal" />
               <span className="font-mono ltr-force">
