@@ -55,7 +55,30 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ messages: data ?? [], total: data?.length ?? 0 });
+    const rows = data ?? [];
+    const userIds = [...new Set(rows.map((m) => m.user_id).filter(Boolean))] as string[];
+    const senderIds = [...new Set(rows.map((m) => m.sender_id).filter(Boolean))] as string[];
+    const allIds = [...new Set([...userIds, ...senderIds])];
+
+    let userMap: Record<string, string> = {};
+    if (allIds.length > 0) {
+      const { data: users } = await db
+        .from('users')
+        .select('id, display_name, email')
+        .in('id', allIds);
+      for (const u of users ?? []) {
+        const row = u as { id: string; display_name: string | null; email: string | null };
+        userMap[row.id] = row.display_name || row.email || row.id;
+      }
+    }
+
+    const enriched = rows.map((m) => ({
+      ...m,
+      user_display_name: m.user_id ? (userMap[m.user_id] ?? null) : null,
+      sender_display_name: m.sender_id ? (userMap[m.sender_id] ?? null) : null,
+    }));
+
+    return NextResponse.json({ messages: enriched, total: enriched.length });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json({ error: msg }, { status: 500 });

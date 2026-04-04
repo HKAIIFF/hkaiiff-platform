@@ -12,7 +12,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getPrivyServerClient } from '@/lib/privy-server';
-import { checkAdminAuth, privyUserIdIsAdmin } from '@/lib/auth/adminAuth';
+import {
+  privyUserIdIsAdmin,
+  verifyAdmin,
+  verifyAdminEmailOtp,
+} from '@/lib/auth/adminAuth';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -59,19 +63,22 @@ export async function GET(req: Request) {
     let query = adminSupabase
       .from('messages')
       .select(
-        'id, msg_id, type, msg_type, title, content, body, is_read, user_id, action_link, created_at, sender_id, status, audience',
+        'id, msg_id, type, msg_type, title, content, body, is_read, user_id, action_link, created_at, sender_id, status, audience, is_broadcast',
       )
       .is('deleted_at', null)
+      .eq('audience', 'users')
       .order('created_at', { ascending: false });
 
     if (userId) {
       const denied = await assertCanActAsUser(req, userId.trim());
       if (denied) return denied;
+      // 本人消息 + 標記為全站廣播的記錄（僅管理員發送的廣播會帶 is_broadcast）
       query = query.or(
-        `user_id.eq.${userId},and(user_id.is.null,audience.eq.users)`,
+        `user_id.eq.${userId.trim()},and(user_id.is.null,is_broadcast.eq.true)`,
       );
     } else {
-      query = query.is('user_id', null).eq('audience', 'users');
+      // 未登入：僅廣播
+      query = query.is('user_id', null).eq('is_broadcast', true);
     }
 
     const { data, error } = await query;
@@ -96,8 +103,8 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const authResult = await checkAdminAuth(req);
-    if (authResult instanceof NextResponse) return authResult;
+    const auth = await verifyAdmin(req);
+    if (!auth.authorized) return auth.response;
 
     const adminSupabase = getAdminClient();
     const body = await req.json() as {
@@ -109,9 +116,22 @@ export async function POST(req: Request) {
       actionLink?: string | null;
       senderId?: string | null;
       audience?: 'users' | 'admin_only';
+      adminEmail?: string;
+      otp?: string;
     };
 
-    const { userId, type, msgType, title, content, actionLink, senderId, audience } = body;
+    const {
+      userId,
+      type,
+      msgType,
+      title,
+      content,
+      actionLink,
+      senderId,
+      audience,
+      adminEmail,
+      otp,
+    } = body;
 
     if (!title || !content || (!type && !msgType)) {
       return NextResponse.json(
@@ -124,8 +144,27 @@ export async function POST(req: Request) {
     const resolvedAudience =
       audience === 'admin_only' ? 'admin_only' : 'users';
 
+    const rawTarget =
+      userId === undefined || userId === null || String(userId).trim() === ''
+        ? null
+        : String(userId).trim();
+
+    const isBroadcast = rawTarget === null && resolvedAudience === 'users';
+
+    // 全站廣播（user_id 為空且用戶可見）：郵箱 OTP 二次驗證
+    if (isBroadcast) {
+      if (!adminEmail?.trim() || !otp?.trim()) {
+        return NextResponse.json(
+          { error: '全站廣播需填寫管理員郵箱並通過郵箱驗證碼驗證' },
+          { status: 400 },
+        );
+      }
+      const otpErr = await verifyAdminEmailOtp(adminEmail, otp);
+      if (otpErr) return otpErr;
+    }
+
     const { error } = await adminSupabase.from('messages').insert({
-      user_id: userId ?? null,
+      user_id: rawTarget,
       type: resolvedMsgType,
       msg_type: resolvedMsgType,
       title,
@@ -133,8 +172,9 @@ export async function POST(req: Request) {
       body: content,
       status: 'sent',
       audience: resolvedAudience,
+      is_broadcast: isBroadcast,
       ...(actionLink != null ? { action_link: actionLink } : {}),
-      ...(senderId != null ? { sender_id: senderId } : {}),
+      sender_id: senderId ?? auth.userId,
     });
 
     if (error) {

@@ -23,6 +23,7 @@ interface DbMessage {
   user_id: string | null;
   action_link: string | null;
   created_at: string;
+  is_broadcast?: boolean | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -702,7 +703,9 @@ export default function MessagesPage() {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
         const newMsg = payload.new as DbMessage;
         const isPersonal = user?.id && newMsg.user_id === user.id;
-        const isBroadcast = newMsg.user_id === null;
+        const isBroadcast =
+          newMsg.user_id === null &&
+          (newMsg.is_broadcast === true || newMsg.is_broadcast === undefined);
         if (isPersonal || isBroadcast) {
           setMessages((prev) => prev.some((m) => m.id === newMsg.id) ? prev : [newMsg, ...prev]);
         }

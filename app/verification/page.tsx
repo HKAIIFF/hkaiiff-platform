@@ -697,15 +697,6 @@ export default function VerificationPage() {
         {/* ═══ STEP 1: Identity + Profile Info ══════════════════════════════ */}
         {step === 1 && (
           <div className="space-y-5 animate-in fade-in duration-300">
-            {statusApps.some((a) => a.status === "rejected") && (
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 text-sm text-amber-300">
-                <i className="fas fa-exclamation-triangle mr-2" />
-                {lang === "zh"
-                  ? "您的上次認證申請被退回，修改後可重新提交。重新提交需要再次支付認證費用。"
-                  : "Your previous application was rejected. You may resubmit after making changes. Resubmission requires a new payment."}
-              </div>
-            )}
-
             {/* Identity Type */}
             <div>
               <label className="block text-[10px] font-mono text-gray-300 tracking-widest mb-3">

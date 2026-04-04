@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
@@ -4959,13 +4959,23 @@ interface MsgHistoryRow {
   status: string;
   created_at: string;
   deleted_at: string | null;
+  user_display_name?: string | null;
+  sender_display_name?: string | null;
 }
+
+const TOWER_GRID_COLS = "160px 1fr 100px 200px 90px 140px";
 
 function OpsTowerTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: string, ok?: boolean) => void; adminFetch: (url: string, options?: RequestInit) => Promise<Response> }) {
   const [msg, setMsg] = useState<{ channel: "system" | "render" | "chain"; title: string; body: string }>({
     channel: "system", title: "", body: "",
   });
   const [sending, setSending] = useState(false);
+  const [sendTarget, setSendTarget] = useState<"user" | "broadcast">("broadcast");
+  const [targetUserId, setTargetUserId] = useState("");
+  const [broadcastFlow, setBroadcastFlow] = useState<null | "confirm" | "otp">(null);
+  const [adminEmail, setAdminEmail] = useState("");
+  const [otp, setOtp] = useState("");
+  const [otpCountdown, setOtpCountdown] = useState(0);
 
   // ── 历史发送记录 ────────────────────────────────────────────────────────────
   const [history, setHistory] = useState<MsgHistoryRow[]>([]);
@@ -4992,9 +5002,79 @@ function OpsTowerTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: string
 
   useEffect(() => { loadHistory(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleSend() {
+  useEffect(() => {
+    if (otpCountdown <= 0) return;
+    const timer = setTimeout(() => setOtpCountdown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [otpCountdown]);
+
+  function closeBroadcastFlow() {
+    setBroadcastFlow(null);
+    setOtp("");
+    setAdminEmail("");
+    setOtpCountdown(0);
+  }
+
+  async function handleSendOtp() {
+    if (!adminEmail.trim()) { pushToast("請填寫管理員郵箱", false); return; }
+    try {
+      const res = await adminFetch("/api/admin/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: adminEmail.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) { pushToast(data.error ?? "驗證碼發送失敗", false); return; }
+      setOtpCountdown(60);
+      pushToast("驗證碼已發送至您的登錄郵箱", true);
+    } catch {
+      pushToast("網絡錯誤", false);
+    }
+  }
+
+  async function submitDirected() {
     if (!msg.title.trim() || !msg.body.trim()) {
       pushToast("請填寫標題和內容", false);
+      return;
+    }
+    if (!targetUserId.trim()) {
+      pushToast("請填寫接收用戶 DID", false);
+      return;
+    }
+    setSending(true);
+    try {
+      const res = await adminFetch("/api/messages", {
+        method: "POST",
+        body: JSON.stringify({
+          userId: targetUserId.trim(),
+          type: msg.channel,
+          title: msg.title.trim(),
+          content: msg.body.trim(),
+        }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        pushToast(d.error ?? "發送失敗", false);
+        return;
+      }
+      pushToast(`✅ 已發送給指定用戶: [${msg.channel}] ${msg.title}`);
+      setMsg((p) => ({ ...p, title: "", body: "" }));
+      setTargetUserId("");
+      loadHistory();
+    } catch {
+      pushToast("網絡錯誤，請稍後重試", false);
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function submitBroadcastWithOtp() {
+    if (!msg.title.trim() || !msg.body.trim()) {
+      pushToast("請填寫標題和內容", false);
+      return;
+    }
+    if (!adminEmail.trim() || otp.length !== 8) {
+      pushToast("請填寫管理員郵箱與 8 位驗證碼", false);
       return;
     }
     setSending(true);
@@ -5006,6 +5086,8 @@ function OpsTowerTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: string
           type: msg.channel,
           title: msg.title.trim(),
           content: msg.body.trim(),
+          adminEmail: adminEmail.trim(),
+          otp: otp.trim(),
         }),
       });
       if (!res.ok) {
@@ -5015,13 +5097,25 @@ function OpsTowerTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: string
       }
       pushToast(`✅ 廣播發送成功: [${msg.channel}] ${msg.title}`);
       setMsg((p) => ({ ...p, title: "", body: "" }));
-      // 刷新历史记录
+      closeBroadcastFlow();
       loadHistory();
     } catch {
       pushToast("網絡錯誤，請稍後重試", false);
     } finally {
       setSending(false);
     }
+  }
+
+  function onPrimarySendClick() {
+    if (!msg.title.trim() || !msg.body.trim()) {
+      pushToast("請填寫標題和內容", false);
+      return;
+    }
+    if (sendTarget === "user") {
+      void submitDirected();
+      return;
+    }
+    setBroadcastFlow("confirm");
   }
 
   const CHANNEL_BADGE: Record<string, string> = {
@@ -5031,15 +5125,39 @@ function OpsTowerTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: string
     lbs: "bg-green-100 text-green-700",
   };
 
+  const towerTd = "py-2 pr-2 min-w-0 border-b border-neutral-100 align-top";
+
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-5xl">
       {/* ── 发送面板 ── */}
       <div className={`${CARD} p-5 space-y-4`}>
         <h3 className="font-bold text-neutral-900">📡 全局消息塔</h3>
-        <p className="text-sm text-neutral-500">向前台 MSG 模塊推送系統通知，選擇頻道後廣播全站</p>
+        <p className="text-sm text-neutral-500">向前台 MSG 模塊推送系統通知；全站廣播需二次確認與郵箱驗證碼</p>
+        <div>
+          <label className="text-xs font-semibold text-neutral-600 mb-1 block">發送對象</label>
+          <select
+            value={sendTarget}
+            onChange={(e) => setSendTarget(e.target.value as "user" | "broadcast")}
+            className={`${INPUT} text-sm max-w-md`}
+          >
+            <option value="user">發送給指定用戶</option>
+            <option value="broadcast">全站廣播（需二次確認）</option>
+          </select>
+        </div>
+        {sendTarget === "user" && (
+          <div>
+            <label className="text-xs font-semibold text-neutral-600 mb-1 block">接收用戶 DID</label>
+            <input
+              className={INPUT}
+              placeholder="did:privy:…"
+              value={targetUserId}
+              onChange={(e) => setTargetUserId(e.target.value)}
+            />
+          </div>
+        )}
         <div>
           <label className="text-xs font-semibold text-neutral-600 mb-2 block">推送頻道</label>
-          <div className="flex gap-4">
+          <div className="flex gap-4 flex-wrap">
             {TOWER_CHANNELS.map((ch) => (
               <label key={ch.value} className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -5073,10 +5191,91 @@ function OpsTowerTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: string
             onChange={(e) => setMsg((p) => ({ ...p, body: e.target.value }))}
           />
         </div>
-        <button className={BTN_PRIMARY} onClick={handleSend} disabled={sending}>
-          {sending ? "發送中…" : t.sendMsg}
+        <button className={BTN_PRIMARY} onClick={onPrimarySendClick} disabled={sending}>
+          {sending
+            ? "發送中…"
+            : sendTarget === "broadcast"
+              ? "發送廣播"
+              : t.sendMsg}
         </button>
       </div>
+
+      {broadcastFlow === "confirm" && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl border border-neutral-200 shadow-xl w-full max-w-lg p-6 space-y-4">
+            <h4 className="text-sm font-bold text-neutral-900">確認全站廣播</h4>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 font-medium">
+              此消息將發送給全站所有用戶，請確認內容無誤
+            </div>
+            <div className="space-y-1 text-xs">
+              <p className="text-neutral-500 font-semibold">標題</p>
+              <p className="text-neutral-800">{msg.title}</p>
+            </div>
+            <div className="space-y-1 text-xs">
+              <p className="text-neutral-500 font-semibold">內容預覽</p>
+              <p className="text-neutral-700 whitespace-pre-wrap max-h-32 overflow-y-auto border border-neutral-100 rounded-lg p-2 bg-neutral-50">
+                {msg.body}
+              </p>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" className={BTN_GHOST + " text-xs"} onClick={closeBroadcastFlow}>取消</button>
+              <button
+                type="button"
+                className={BTN_PRIMARY + " text-xs"}
+                onClick={() => { setBroadcastFlow("otp"); setOtp(""); }}
+              >
+                確認並繼續
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {broadcastFlow === "otp" && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl border border-neutral-200 shadow-xl w-full max-w-lg p-6 space-y-4">
+            <h4 className="text-sm font-bold text-neutral-900">郵箱驗證碼確認</h4>
+            <p className="text-xs text-neutral-500">請使用已配置的管理員郵箱接收 8 位驗證碼，完成後將發送廣播。</p>
+            <input
+              type="email"
+              value={adminEmail}
+              onChange={(e) => setAdminEmail(e.target.value)}
+              placeholder="管理員郵箱"
+              className={`${INPUT} text-xs`}
+              autoComplete="email"
+            />
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                maxLength={8}
+                value={otp}
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                placeholder="8 位驗證碼"
+                className={`${INPUT} text-xs flex-1`}
+              />
+              <button
+                type="button"
+                onClick={() => void handleSendOtp()}
+                disabled={otpCountdown > 0}
+                className="flex-shrink-0 rounded-xl border border-[#1a73e8] text-[#1a73e8] text-xs px-3 py-2 hover:bg-[#1a73e8]/5 disabled:opacity-50 whitespace-nowrap"
+              >
+                {otpCountdown > 0 ? `重新發送 (${otpCountdown}s)` : "獲取驗證碼"}
+              </button>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" className={BTN_GHOST + " text-xs"} onClick={() => { setBroadcastFlow("confirm"); setOtp(""); }}>上一步</button>
+              <button
+                type="button"
+                className={BTN_PRIMARY + " text-xs"}
+                disabled={sending}
+                onClick={() => void submitBroadcastWithOtp()}
+              >
+                {sending ? "發送中…" : "確認發送廣播"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── 历史发送记录 ── */}
       <div className={`${CARD} p-5 space-y-4`}>
@@ -5114,60 +5313,117 @@ function OpsTowerTab({ t, pushToast, adminFetch }: { t: T; pushToast: (s: string
           <div className="text-center py-8 text-neutral-400 text-sm">暫無發送記錄</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-neutral-200 text-neutral-500">
-                  <th className="text-left py-2 pr-3 font-semibold whitespace-nowrap">流水號</th>
-                  <th className="text-left py-2 pr-3 font-semibold whitespace-nowrap">發送頻道</th>
-                  <th className="text-left py-2 pr-3 font-semibold whitespace-nowrap">標題</th>
-                  <th className="text-left py-2 pr-3 font-semibold whitespace-nowrap">發送帳號</th>
-                  <th className="text-left py-2 pr-3 font-semibold whitespace-nowrap">接收對象</th>
-                  <th className="text-left py-2 pr-3 font-semibold whitespace-nowrap">送達狀態</th>
-                  <th className="text-left py-2 pr-3 font-semibold whitespace-nowrap">發送時間</th>
-                </tr>
-              </thead>
-              <tbody>
-                {history.map((row) => (
-                  <tr key={row.id} className="border-b border-neutral-100 hover:bg-neutral-50 transition-colors">
-                    <td className="py-2 pr-3 font-mono text-neutral-500 whitespace-nowrap">
-                      {row.msg_id ?? <span className="text-neutral-300">—</span>}
-                    </td>
-                    <td className="py-2 pr-3 whitespace-nowrap">
-                      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${CHANNEL_BADGE[row.msg_type ?? row.type] ?? "bg-neutral-100 text-neutral-500"}`}>
-                        {(row.msg_type ?? row.type ?? "—").toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="py-2 pr-3 max-w-[200px] truncate text-neutral-700">{row.title}</td>
-                    <td className="py-2 pr-3 font-mono text-neutral-400 whitespace-nowrap truncate max-w-[120px]">
-                      {row.sender_id ? row.sender_id.slice(0, 16) + "…" : <span className="text-blue-400">SYSTEM</span>}
-                    </td>
-                    <td className="py-2 pr-3 whitespace-nowrap">
-                      {row.user_id ? (
-                        <span className="font-mono text-neutral-500 truncate max-w-[100px] inline-block">{row.user_id.slice(0, 14)}…</span>
-                      ) : (
-                        <span className="text-orange-500 font-semibold">全站廣播</span>
-                      )}
-                    </td>
-                    <td className="py-2 pr-3 whitespace-nowrap">
-                      <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                        row.status === "sent" || row.status === "delivered"
-                          ? "bg-green-100 text-green-700"
-                          : row.status === "failed"
-                          ? "bg-red-100 text-red-600"
-                          : "bg-neutral-100 text-neutral-500"
-                      }`}>
-                        {row.status === "sent" || row.status === "delivered" ? "✓" : row.status === "failed" ? "✗" : "—"}
-                        {(row.status ?? "—").toUpperCase()}
-                        {row.deleted_at && <span className="ml-1 text-neutral-400">(已刪)</span>}
-                      </span>
-                    </td>
-                    <td className="py-2 pr-3 font-mono text-neutral-400 whitespace-nowrap">
-                      {new Date(row.created_at).toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong" })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div
+              className="grid text-xs w-full min-w-[860px]"
+              style={{ gridTemplateColumns: TOWER_GRID_COLS }}
+            >
+              <div className={`font-semibold text-neutral-500 border-b border-neutral-200 py-2 pr-2`}>發送時間</div>
+              <div className={`font-semibold text-neutral-500 border-b border-neutral-200 py-2 pr-2`}>標題</div>
+              <div className={`font-semibold text-neutral-500 border-b border-neutral-200 py-2 pr-2`}>發送頻道</div>
+              <div className={`font-semibold text-neutral-500 border-b border-neutral-200 py-2 pr-2`}>接收對象</div>
+              <div className={`font-semibold text-neutral-500 border-b border-neutral-200 py-2 pr-2`}>送達狀態</div>
+              <div className={`font-semibold text-neutral-500 border-b border-neutral-200 py-2 pr-2`}>發送帳號</div>
+
+              {history.map((row) => (
+                <Fragment key={row.id}>
+                  <div className={`${towerTd} font-mono text-neutral-400 whitespace-nowrap text-[10px]`}>
+                    {new Date(row.created_at).toLocaleString("zh-HK", { timeZone: "Asia/Hong_Kong" })}
+                  </div>
+                  <div className={`${towerTd} text-neutral-700 min-w-0`}>
+                    <span className="line-clamp-2 break-words">{row.title}</span>
+                  </div>
+                  <div className={towerTd}>
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-semibold ${CHANNEL_BADGE[row.msg_type ?? row.type] ?? "bg-neutral-100 text-neutral-500"}`}>
+                      {(row.msg_type ?? row.type ?? "—").toUpperCase()}
+                    </span>
+                  </div>
+                  <div className={towerTd}>
+                    {row.user_id ? (
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1">
+                          <span className="font-mono text-[10px] text-neutral-500 truncate max-w-[140px]">
+                            {row.user_id.startsWith("did:privy:")
+                              ? `${row.user_id.slice(0, 16)}…`
+                              : row.user_id}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void navigator.clipboard.writeText(row.user_id!);
+                              pushToast("已複製 DID", true);
+                            }}
+                            className="text-neutral-400 hover:text-neutral-600 text-[10px] shrink-0"
+                            title="複製 DID"
+                          >
+                            📋
+                          </button>
+                        </div>
+                        {row.user_display_name && (
+                          <div className="flex items-center gap-1">
+                            <span className="text-xs text-neutral-700 truncate max-w-[120px]">{row.user_display_name}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                void navigator.clipboard.writeText(row.user_display_name!);
+                                pushToast("已複製用戶名", true);
+                              }}
+                              className="text-neutral-400 hover:text-neutral-600 text-[10px] shrink-0"
+                              title="複製用戶名"
+                            >
+                              📋
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs font-semibold text-amber-600">📢 全站廣播</span>
+                    )}
+                  </div>
+                  <div className={towerTd}>
+                    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                      row.status === "sent" || row.status === "delivered"
+                        ? "bg-green-100 text-green-700"
+                        : row.status === "failed"
+                        ? "bg-red-100 text-red-600"
+                        : "bg-neutral-100 text-neutral-500"
+                    }`}>
+                      {row.status === "sent" || row.status === "delivered" ? "✓" : row.status === "failed" ? "✗" : "—"}
+                      {(row.status ?? "—").toUpperCase()}
+                      {row.deleted_at && <span className="ml-1 text-neutral-400">(已刪)</span>}
+                    </span>
+                  </div>
+                  <div className={`${towerTd} space-y-0.5`}>
+                    {row.sender_id ? (
+                      <>
+                        <div className="flex items-center gap-1">
+                          <span className="font-mono text-[10px] text-neutral-500 truncate max-w-[120px]">
+                            {row.sender_id.startsWith("did:privy:")
+                              ? `${row.sender_id.slice(0, 14)}…`
+                              : row.sender_id.slice(0, 16)}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void navigator.clipboard.writeText(row.sender_id!);
+                              pushToast("已複製發送者 DID", true);
+                            }}
+                            className="text-neutral-400 hover:text-neutral-600 text-[10px] shrink-0"
+                            title="複製 DID"
+                          >
+                            📋
+                          </button>
+                        </div>
+                        {row.sender_display_name && (
+                          <span className="text-[10px] text-neutral-600 truncate block max-w-[130px]">{row.sender_display_name}</span>
+                        )}
+                      </>
+                    ) : (
+                      <span className="text-blue-500 text-[10px] font-semibold">SYSTEM</span>
+                    )}
+                  </div>
+                </Fragment>
+              ))}
+            </div>
             <p className="text-[10px] text-neutral-400 mt-2">共 {history.length} 條記錄（最近 50 條）</p>
           </div>
         )}

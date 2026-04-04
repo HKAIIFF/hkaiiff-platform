@@ -1267,22 +1267,6 @@ function MePageContent() {
         </div>
       </div>
 
-      {/* ── 退回通知（每個被退回的身份都顯示） ──────────────────────────── */}
-      {identityApplications
-        .filter((app) => app.status === 'rejected' && app.rejection_reason)
-        .map((app) => {
-          const typeLabel = { creator: '創作人', institution: '機構', curator: '策展人' }[app.identity_type] ?? app.identity_type;
-          return (
-            <div key={app.id} className="mb-2 bg-red-500/5 border border-red-500/20 rounded-lg px-4 py-2.5 flex items-start gap-2">
-              <i className="fas fa-exclamation-circle text-red-400 mt-0.5 text-xs shrink-0" />
-              <p className="text-red-400 text-[11px] font-mono leading-relaxed">
-                <span className="font-bold">[{typeLabel}]</span> {app.rejection_reason}
-              </p>
-            </div>
-          );
-        })
-      }
-
       {/* ── LBS Curator Entry Banner ───────────────────────────────────── */}
       {(dbProfile?.verified_identities ?? []).some((id) => id === 'curator' || id === 'institution') && (
         <div className="mb-6">
