@@ -31,6 +31,7 @@ import { checkAdminAuth } from '@/lib/auth/adminAuth';
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  { auth: { persistSession: false } },
 );
 
 const VALID_REJECTION_REASONS = ['侵權風險', '通用詞語', '違規風險'] as const;
@@ -127,7 +128,7 @@ export async function POST(req: NextRequest) {
     const currentIdentities: string[] = userData?.verified_identities ?? [];
     const updatedIdentities = Array.from(new Set([...currentIdentities, identityType]));
 
-    await supabase
+    const { error: userUpdateErr } = await supabase
       .from('users')
       .update({
         verified_identities: updatedIdentities,
@@ -139,6 +140,33 @@ export async function POST(req: NextRequest) {
         ...(verificationName ? { display_name: verificationName } : {}),
       })
       .eq('id', userId);
+
+    if (userUpdateErr) {
+      console.error('[review] CRITICAL: users 表更新失敗:', userUpdateErr.message, 'userId:', userId);
+      return NextResponse.json(
+        { error: `審核通過但用戶狀態更新失敗: ${userUpdateErr.message}` },
+        { status: 500 },
+      );
+    }
+
+    const { data: verifyUser } = await supabase
+      .from('users')
+      .select('verified_identities, verification_status, username_locked')
+      .eq('id', userId)
+      .single();
+
+    console.log('[review] users 表更新後回讀:', JSON.stringify(verifyUser));
+
+    if (!verifyUser?.verified_identities?.includes(identityType)) {
+      console.error(
+        '[review] CRITICAL: users 表更新未生效! verified_identities:',
+        verifyUser?.verified_identities,
+      );
+      return NextResponse.json(
+        { error: '審核通過但 verified_identities 未寫入，請檢查 RLS 策略' },
+        { status: 500 },
+      );
+    }
 
     const typeLabelMap: Record<string, string> = { creator: '創作人', institution: '機構', curator: '策展人' };
     const typeLabel = typeLabelMap[identityType] ?? identityType;
@@ -185,7 +213,7 @@ export async function POST(req: NextRequest) {
     const currentIdentities: string[] = userData?.verified_identities ?? [];
     const updatedIdentities = currentIdentities.filter((i) => i !== identityType);
 
-    await supabase
+    const { error: userRejectErr } = await supabase
       .from('users')
       .update({
         verified_identities: updatedIdentities,
@@ -195,6 +223,14 @@ export async function POST(req: NextRequest) {
         rejection_reason: reason,
       })
       .eq('id', userId);
+
+    if (userRejectErr) {
+      console.error('[review] users 表退回更新失敗:', userRejectErr.message, 'userId:', userId);
+      return NextResponse.json(
+        { error: `退回成功但用戶狀態更新失敗: ${userRejectErr.message}` },
+        { status: 500 },
+      );
+    }
 
     await sendMessage({
       userId,
