@@ -23,6 +23,23 @@ function formatDateTime(dateStr: string): string {
   return `${year}${month}${day} ${hours}:${mins}`;
 }
 
+type AppLockRow = { status: string; expires_at?: string | null };
+
+function computeVerifyLocked(
+  apps: AppLockRow[] | null | undefined,
+  userVerificationStatus?: string | null,
+): boolean {
+  const nowTs = new Date().toISOString();
+  const lockedFromApps = (apps ?? []).some(
+    (a) =>
+      a.status === 'pending' ||
+      a.status === 'awaiting_payment' ||
+      (a.status === 'approved' && (!a.expires_at || a.expires_at > nowTs))
+  );
+  const lockedFromUser = userVerificationStatus === 'pending';
+  return lockedFromApps || lockedFromUser;
+}
+
 const getStatusUI = (status: string) => {
   switch (status) {
     case 'approved':
@@ -101,6 +118,8 @@ function MePageContent() {
 
   /** 認證按鈕鎖定：有任何 pending 或 approved 未過期的記錄即鎖定 */
   const [isVerifyLocked, setIsVerifyLocked] = useState(false);
+  /** 強制重拉 creator_applications（支付回來 / 頁面可見 / ?verified=1） */
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const [displaySolanaAddress, setDisplaySolanaAddress] = useState<string | null>(null);
 
@@ -317,6 +336,7 @@ function MePageContent() {
 
   // ── Profile Edit Modal State ──────────────────────────────────────────────
   const searchParams = useSearchParams();
+  const verifiedParam = searchParams?.get("verified");
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editName, setEditName] = useState('');
@@ -553,15 +573,9 @@ function MePageContent() {
           .order('submitted_at', { ascending: false });
         setIdentityApplications(apps ?? []);
 
-        // 計算認證按鈕鎖定狀態：有任何 pending 或 approved 未過期記錄即鎖定
-        const nowTs = new Date().toISOString();
-        const locked = (apps ?? []).some(
-          (a) =>
-            a.status === 'pending' ||
-            a.status === 'awaiting_payment' ||
-            (a.status === 'approved' && (!a.expires_at || a.expires_at > nowTs))
+        setIsVerifyLocked(
+          computeVerifyLocked(apps ?? [], profileData?.verification_status)
         );
-        setIsVerifyLocked(locked);
 
         // Step 2b: 鏈上地址分配（基於 Step 1 取得的 profileData）
         if (profileData) {
@@ -709,6 +723,7 @@ function MePageContent() {
     const userId = user.id;
 
     const refreshUserData = async () => {
+      let profileVerificationStatus: string | null | undefined;
       try {
         const { data: profileRow } = await supabase
           .from('users')
@@ -716,6 +731,7 @@ function MePageContent() {
           .eq('id', userId)
           .single();
         if (profileRow) {
+          profileVerificationStatus = profileRow.verification_status;
           setDbProfile((prev) => ({
             ...(prev ?? {
               agent_id: '', name: 'New Agent', display_name: null, role: 'human',
@@ -741,14 +757,9 @@ function MePageContent() {
           .in('status', ['pending', 'approved', 'rejected', 'awaiting_payment'])
           .order('submitted_at', { ascending: false });
         setIdentityApplications(apps ?? []);
-        const nowTs = new Date().toISOString();
-        const locked = (apps ?? []).some(
-          (a) =>
-            a.status === 'pending' ||
-            a.status === 'awaiting_payment' ||
-            (a.status === 'approved' && (!a.expires_at || a.expires_at > nowTs))
+        setIsVerifyLocked(
+          computeVerifyLocked(apps ?? [], profileVerificationStatus)
         );
-        setIsVerifyLocked(locked);
       } catch (err) {
         console.error('[me] refreshUserData apps error:', err);
       }
@@ -779,8 +790,31 @@ function MePageContent() {
       }
     };
 
-    refreshUserData();
-  }, [pathname, authenticated, user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    void (async () => {
+      await refreshUserData();
+      if (verifiedParam) {
+        router.replace("/me", { scroll: false });
+      }
+    })();
+  }, [pathname, authenticated, user?.id, refreshTrigger, verifiedParam, router]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 頁面重新可見 / 視窗獲焦時刷新認證狀態（從 verification 支付回 /me 同 path 不觸發 pathname effect）
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        setRefreshTrigger((prev) => prev + 1);
+      }
+    };
+    const handleFocus = () => {
+      setRefreshTrigger((prev) => prev + 1);
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
 
   useEffect(() => {
     if (!authenticated || !user?.id) return;
@@ -839,6 +873,9 @@ function MePageContent() {
               .in('status', ['pending', 'approved', 'rejected', 'awaiting_payment'])
               .order('submitted_at', { ascending: false });
             if (freshApps) setIdentityApplications(freshApps);
+            setIsVerifyLocked(
+              computeVerifyLocked(freshApps ?? [], newData.verification_status)
+            );
           }
         }
       )
@@ -1095,6 +1132,26 @@ function MePageContent() {
                 </span>
               );
             })}
+            {identityApplications
+              .filter((a) => a.status === 'approved' && a.expires_at)
+              .map((app) => {
+                const daysLeft = Math.ceil(
+                  (new Date(app.expires_at!).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+                );
+                if (daysLeft > 30 || daysLeft <= 0) return null;
+                const ty =
+                  ({ creator: '創作人', institution: '機構', curator: '策展人' } as const)[app.identity_type] ??
+                  app.identity_type;
+                return (
+                  <span
+                    key={`expire-${app.id}`}
+                    className="text-[8px] text-amber-400 font-mono whitespace-nowrap"
+                    title={app.expires_at ?? undefined}
+                  >
+                    [{ty}] {daysLeft} {lang === 'zh' ? '天後到期' : 'days left'}
+                  </span>
+                );
+              })}
           </div>
           {(dbProfile?.verified_identities?.length ?? 0) === 0 && (
             <div className="mb-2 pr-14">

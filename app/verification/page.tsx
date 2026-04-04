@@ -331,6 +331,13 @@ export default function VerificationPage() {
    * 提交認證申請（僅用於 Stripe fiat 支付回調）
    * AIF 支付由後端 /api/pay/internal-checkout 直接寫入，前端只需更新狀態。
    */
+  /** 支付 / 提交成功後延遲跳轉 /me，帶 verified=1 觸發個人頁重拉 creator_applications */
+  function scheduleRedirectToMeAfterVerify() {
+    setTimeout(() => {
+      router.push("/me?verified=1");
+    }, 2000);
+  }
+
   async function submitVerification(paymentMethod: "fiat" | "aif", token: string) {
     const res = await fetch("/api/verification/submit", {
       method: "POST",
@@ -353,6 +360,7 @@ export default function VerificationPage() {
     }
     showToast(t("verify_success"), "success");
     setPageState("B");
+    scheduleRedirectToMeAfterVerify();
   }
 
   /**
@@ -421,6 +429,7 @@ export default function VerificationPage() {
           "success"
         );
         setPageState("B");
+        scheduleRedirectToMeAfterVerify();
       }
     } else if (stripeCancelled === "1") {
       router.replace("/verification", { scroll: false });
@@ -683,6 +692,14 @@ export default function VerificationPage() {
         {/* ═══ STEP 1: Identity + Profile Info ══════════════════════════════ */}
         {step === 1 && (
           <div className="space-y-5 animate-in fade-in duration-300">
+            {statusApps.some((a) => a.status === "rejected") && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 text-sm text-amber-300">
+                <i className="fas fa-exclamation-triangle mr-2" />
+                {lang === "zh"
+                  ? "您的上次認證申請被退回，修改後可重新提交。重新提交需要再次支付認證費用。"
+                  : "Your previous application was rejected. You may resubmit after making changes. Resubmission requires a new payment."}
+              </div>
+            )}
 
             {/* Identity Type */}
             <div>
@@ -991,6 +1008,7 @@ export default function VerificationPage() {
                     : "Payment successful! Application submitted.",
                   "success"
                 );
+                scheduleRedirectToMeAfterVerify();
               }}
             />
 
