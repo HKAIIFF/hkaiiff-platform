@@ -164,11 +164,15 @@ export default function UniversalCheckout({
         }
         const res = await fetch('/api/user-balance', {
           headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
         });
         if (res.ok) {
-          const json = await res.json() as { aif_balance?: number };
-          console.log('[UniversalCheckout] AIF 余额加载成功:', json.aif_balance);
-          if (!cancelled) setAifBalance(json.aif_balance ?? 0);
+          const json = await res.json() as { aif_balance?: number | string };
+          const raw = json.aif_balance;
+          const n = typeof raw === 'number' ? raw : Number(raw);
+          const bal = Number.isFinite(n) ? n : 0;
+          console.log('[UniversalCheckout] AIF 余额加载成功:', bal);
+          if (!cancelled) setAifBalance(bal);
         } else {
           console.warn('[UniversalCheckout] /api/user-balance 返回非 200:', res.status);
           if (!cancelled) setAifBalance(0);

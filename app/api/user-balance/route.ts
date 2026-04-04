@@ -38,5 +38,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ aif_balance: 0 });
   }
 
-  return NextResponse.json({ aif_balance: data?.aif_balance ?? 0 });
+  const raw = data?.aif_balance;
+  const n = typeof raw === 'number' ? raw : Number(raw);
+  return NextResponse.json({ aif_balance: Number.isFinite(n) ? n : 0 });
 }

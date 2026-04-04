@@ -116,13 +116,34 @@ export async function POST(req: Request) {
     }
 
     // ── Step 5: Sweep 成功 → 記帳（原子 RPC，防止並發競態）─────────────────
-    // 使用 increment_aif_balance RPC 原子操作，避免 read-then-write 競態條件
+    // 與 Helius Webhook 共用 processed_webhook_sigs：若該筆歸集交易已被 Webhook 入帳，避免重複 +AIF（否則餘額會變成 2 倍）。
     const creditAmount = sweepResult.aifAmount;
-    const { error: updateError } = await adminSupabase
-      .rpc('increment_aif_balance', {
-        user_id_param: userId,
-        amount_to_add: creditAmount,
-      });
+    const sweepSig = sweepResult.txSignature;
+    if (sweepSig) {
+      const { data: alreadyCredited } = await adminSupabase
+        .from('processed_webhook_sigs')
+        .select('id')
+        .eq('signature', sweepSig)
+        .maybeSingle();
+      if (alreadyCredited) {
+        const { data: u } = await adminSupabase
+          .from('users')
+          .select('aif_balance')
+          .eq('id', userId)
+          .single();
+        return NextResponse.json({
+          synced: true,
+          aifAmount: creditAmount,
+          txSignature: sweepSig,
+          aif_balance: u?.aif_balance ?? 0,
+        });
+      }
+    }
+
+    const { error: updateError } = await adminSupabase.rpc('increment_aif_balance', {
+      user_id_param: userId,
+      amount_to_add: creditAmount,
+    });
 
     if (updateError) {
       // 嚴重：鏈上已歸集但資料庫記帳失敗 — 僅服務端日誌與監控告警，禁止寫入用戶可見 messages
@@ -145,6 +166,13 @@ export async function POST(req: Request) {
       `[sync-balance] ✅ 同步完成 | 用戶: ${userId} | ` +
       `歸集: ${creditAmount} AIF | 新餘額: ${(aif_balance ?? 0) + creditAmount} | tx: ${sweepResult.txSignature}`
     );
+
+    if (sweepResult.txSignature) {
+      await adminSupabase.from('processed_webhook_sigs').upsert({
+        signature: sweepResult.txSignature,
+        processed_at: new Date().toISOString(),
+      });
+    }
 
     return NextResponse.json({
       synced: true,

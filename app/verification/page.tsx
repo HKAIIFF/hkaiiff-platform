@@ -151,16 +151,28 @@ export default function VerificationPage() {
     const fetch_ = async () => {
       setIsLoadingBalance(true);
       try {
-        // 取得 AIF 餘額 + display_name + bio + about_studio + tech_stack
+        // 餘額：與 /upload、UniversalCheckout 一致，經 /api/user-balance（Service Role，繞過 RLS）
+        const token = await getAccessToken();
+        if (token) {
+          const balRes = await fetch("/api/user-balance", {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: "no-store",
+          });
+          if (balRes.ok) {
+            const balJson = await balRes.json() as { aif_balance?: number | string };
+            const raw = balJson.aif_balance;
+            const n = typeof raw === "number" ? raw : Number(raw);
+            setAifBalance(Number.isFinite(n) ? n : 0);
+          }
+        }
+
+        // 用戶資料：仍用 anon client（RLS 可讀的欄位）
         const { data: userData } = await supabase
           .from("users")
-          .select("aif_balance, verified_identities, display_name, bio, about_studio, tech_stack")
+          .select("verified_identities, display_name, bio, about_studio, tech_stack")
           .eq("id", user.id)
           .single();
 
-        setAifBalance(userData?.aif_balance ?? 0);
-
-        // 用 users 表資料預填表單（verificationName = display_name）
         setForm((prev) => ({
           ...prev,
           verificationName: userData?.display_name ?? "",

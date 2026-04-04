@@ -22,6 +22,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { PrivyClient } from '@privy-io/server-auth';
 import { sendMessage } from '@/lib/actions/message';
+import { interpretDeductAifRpc } from '@/lib/server/deduct-aif-rpc';
 
 const adminSupabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -272,14 +273,18 @@ export async function POST(req: Request) {
       deductSuccess = true;
       newBalance = atomicUpdate[0]?.aif_balance ?? null;
     } else {
-      if (!rpcData?.success) {
-        return NextResponse.json(
-          { error: rpcData?.error ?? 'Insufficient AIF balance' },
-          { status: 400 }
-        );
+      const interpreted = await interpretDeductAifRpc(adminSupabase, verifiedUserId, rpcData);
+      if (!interpreted.ok) {
+        if (interpreted.insufficient) {
+          return NextResponse.json(
+            { error: 'Insufficient AIF balance' },
+            { status: 400 }
+          );
+        }
+        return NextResponse.json({ error: 'AIF deduction failed unexpectedly' }, { status: 500 });
       }
       deductSuccess = true;
-      newBalance = rpcData.new_balance ?? null;
+      newBalance = interpreted.newBalance;
     }
 
     if (!deductSuccess) {
