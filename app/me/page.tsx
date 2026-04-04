@@ -744,6 +744,7 @@ function MePageContent() {
     const userId = user.id;
 
     const refreshUserData = async () => {
+      let profileVerificationStatus: string | null | undefined;
       try {
         const { data: profileRow } = await supabase
           .from('users')
@@ -751,6 +752,7 @@ function MePageContent() {
           .eq('id', userId)
           .single();
         if (profileRow) {
+          profileVerificationStatus = profileRow.verification_status;
           setDbProfile((prev) => ({
             ...(prev ?? {
               agent_id: '', name: 'New Agent', display_name: null, role: 'human',
@@ -778,14 +780,10 @@ function MePageContent() {
           if (verifyRes.ok) {
             const { applications: apps } = await verifyRes.json();
             setIdentityApplications(apps ?? []);
-            const nowTs = new Date().toISOString();
-            const locked = (apps ?? []).some(
-              (a: any) =>
-                a.status === 'pending' ||
-                a.status === 'awaiting_payment' ||
-                (a.status === 'approved' && (!a.expires_at || a.expires_at > nowTs))
-            );
-            setIsVerifyLocked(locked);
+            // 讀取當前 profile 的 verification_status 用於兜底（優先本次 refresh 拉取的行，避免 setState 異步導致 dbProfile 滯後）
+            const currentVerificationStatus =
+              profileVerificationStatus ?? dbProfile?.verification_status;
+            setIsVerifyLocked(computeVerifyLocked(apps ?? [], currentVerificationStatus));
           } else {
             console.error('[me] verification-status API error:', verifyRes.status);
           }
