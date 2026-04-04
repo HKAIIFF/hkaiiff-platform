@@ -5,6 +5,7 @@ import { usePrivy, useCreateWallet } from "@privy-io/react-auth";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useI18n } from "@/app/context/I18nContext";
 import { useToast } from "@/app/context/ToastContext";
+import { useModal } from "@/app/context/ModalContext";
 import CyberLoading from "@/app/components/CyberLoading";
 import { supabase } from "@/lib/supabase";
 import QRCode from "react-qr-code";
@@ -44,6 +45,7 @@ function MePageContent() {
   const pathname = usePathname();
   const { t, lang } = useI18n();
   const { showToast } = useToast();
+  const { setActiveModal } = useModal();
 
   // ── 頁面級鑒權硬鎖 ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1358,6 +1360,15 @@ function MePageContent() {
           </button>
         </div>
       </div>
+
+      <button
+        type="button"
+        onClick={() => setActiveModal("lang")}
+        className="flex items-center justify-center gap-2 w-full py-3 rounded-2xl bg-[#111] border border-[#222] text-gray-400 hover:text-signal hover:border-signal/40 transition-all text-sm font-mono tracking-wider mb-4"
+      >
+        <i className="fas fa-globe text-xs" />
+        {lang === "zh" ? "English" : "中文"}
+      </button>
         {/* end LEFT PANEL inner content */}
         </div>
 

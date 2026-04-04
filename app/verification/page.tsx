@@ -5,7 +5,6 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/app/context/I18nContext";
 import { useToast } from "@/app/context/ToastContext";
-import { useModal } from "@/app/context/ModalContext";
 import { supabase } from "@/lib/supabase";
 import UniversalCheckout from "@/app/components/UniversalCheckout";
 import { useProduct } from "@/lib/hooks/useProduct";
@@ -111,7 +110,6 @@ export default function VerificationPage() {
   const router = useRouter();
   const { t, lang } = useI18n();
   const { showToast } = useToast();
-  const { setActiveModal } = useModal();
   const docInputRef = useRef<HTMLInputElement>(null);
 
   const { product: verifyProduct } = useProduct("identity_verify");
@@ -472,12 +470,6 @@ export default function VerificationPage() {
             >
               <i className="fas fa-chevron-left text-sm" />
             </button>
-            <button
-              onClick={() => setActiveModal("lang")}
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-black/60 backdrop-blur border border-[#444] text-gray-100 hover:text-signal hover:border-signal transition-all shadow-lg"
-            >
-              <i className="fas fa-globe text-sm" />
-            </button>
           </div>
         </div>
         <div className="min-h-screen bg-void px-4 pt-28 pb-32 flex flex-col items-center">
@@ -569,12 +561,6 @@ export default function VerificationPage() {
             >
               <i className="fas fa-chevron-left text-sm" />
             </button>
-            <button
-              onClick={() => setActiveModal("lang")}
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-black/60 backdrop-blur border border-[#444] text-gray-100 hover:text-signal hover:border-signal transition-all shadow-lg"
-            >
-              <i className="fas fa-globe text-sm" />
-            </button>
           </div>
         </div>
         <div className="min-h-screen bg-void px-4 pt-28 pb-32 flex flex-col items-center">
@@ -661,12 +647,6 @@ export default function VerificationPage() {
           ) : (
             <div className="w-10" />
           )}
-          <button
-            onClick={() => setActiveModal("lang")}
-            className="w-10 h-10 flex items-center justify-center rounded-full bg-black/60 backdrop-blur border border-[#444] text-gray-100 hover:text-signal hover:border-signal transition-all shadow-lg"
-          >
-            <i className="fas fa-globe text-sm" />
-          </button>
         </div>
       </div>
 
