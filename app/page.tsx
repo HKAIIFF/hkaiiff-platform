@@ -175,7 +175,7 @@ function toModalFilm(f: SupabaseFilm): Film {
 
 function LoadingSkeleton() {
   return (
-    <div className="w-full flex-shrink-0 flex flex-col items-center justify-center bg-black" style={{ height: "100dvh" }}>
+    <div className="feed-loading-full w-full flex-shrink-0 flex flex-col items-center justify-center bg-black">
       <div className="w-8 h-8 border-2 border-[#CCFF00] border-t-transparent rounded-full animate-spin mb-4" />
       <span className="text-[#CCFF00] font-mono text-xs tracking-widest uppercase">Loading Feed</span>
     </div>
@@ -692,7 +692,6 @@ function FeedInner() {
       <div
         id="feed-scroll"
         className="md:hidden no-scrollbar"
-        style={{ height: "100dvh" }}
       >
         {films.map((film) => {
           // 防禦性渲染：跳過 id 或 title 缺失的損壞記錄，避免整個 Feed 白屏崩潰
