@@ -22,6 +22,8 @@ interface BatchItemRow {
   bio?: string;
   about_studio?: string;
   tech_stack?: string;
+  /** 作品連結或簡述；與 bio / about_studio 分開 */
+  portfolio?: string;
   project_title: string;
   conductor_studio?: string;
   film_tech_stack?: string;
@@ -494,6 +496,7 @@ export function BatchReleaseTab({
                 bio: item.bio,
                 about_studio: item.about_studio,
                 tech_stack: item.tech_stack,
+                portfolio: item.portfolio,
               },
               filmInfo: {
                 project_title: item.project_title,

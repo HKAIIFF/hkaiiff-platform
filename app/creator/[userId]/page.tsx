@@ -212,6 +212,11 @@ export default function CreatorPage() {
     (profile.name && profile.name !== "New Agent" ? profile.name : null) ||
     "ANONYMOUS STUDIO";
 
+  /** 批片曾錯誤把 bio 寫入 portfolio；與 bio 完全相同時不展示冗餘區塊 */
+  const portfolioStr = typeof profile.portfolio === "string" ? profile.portfolio.trim() : "";
+  const showPortfolioBlock =
+    portfolioStr.length > 0 && portfolioStr !== (profile.bio?.trim() ?? "");
+
   return (
     <div className="min-h-screen bg-[#050505] flex flex-col pb-bottom-nav-safe">
 
@@ -324,13 +329,13 @@ export default function CreatorPage() {
           )}
 
           {/* PORTFOLIO */}
-          {typeof profile.portfolio === 'string' && profile.portfolio.trim() && (
+          {showPortfolioBlock && (
             <section>
               <h2 className="font-bold text-sm text-white mb-2 border-l-4 border-blue-400/60 pl-3 uppercase tracking-widest">
                 Portfolio
               </h2>
               <div className="bg-[#0a0a0a] border border-[#1e1e1e] rounded-xl p-4">
-                <p className="text-xs text-void-muted font-mono leading-relaxed">{profile.portfolio}</p>
+                <p className="text-xs text-void-muted font-mono leading-relaxed">{portfolioStr}</p>
               </div>
             </section>
           )}

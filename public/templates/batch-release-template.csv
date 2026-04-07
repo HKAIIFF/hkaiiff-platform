@@ -1,2 +1,2 @@
-verification_name,email,role,bio,about_studio,tech_stack,project_title,conductor_studio,film_tech_stack,ai_contribution_ratio,synopsis,core_cast,region,country,language,year,lbs_festival_royalty,contact_email
-張三,zhangsan@example.com,creator,AI電影導演,張三工作室,Sora/Runway,我的AI電影,張三工作室,Sora + Runway Gen-3,85,一部探索AI與人類關係的電影,張三/李四,亞洲,中國,中文,2026,5,zhangsan@example.com
+verification_name,email,role,bio,about_studio,tech_stack,project_title,conductor_studio,film_tech_stack,ai_contribution_ratio,synopsis,core_cast,region,country,language,year,lbs_festival_royalty,contact_email,portfolio
+張三,zhangsan@example.com,creator,AI電影導演,張三工作室,Sora/Runway,我的AI電影,張三工作室,Sora + Runway Gen-3,85,一部探索AI與人類關係的電影,張三/李四,亞洲,中國,中文,2026,5,zhangsan@example.com,https://example.com/portfolio

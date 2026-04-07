@@ -299,8 +299,9 @@ export default function UserPage() {
             </section>
           )}
 
-          {/* Portfolio Link */}
-          {profile.portfolio?.trim() && (
+          {/* Portfolio Link（與簡介完全相同時視為錯誤重複，不展示） */}
+          {profile.portfolio?.trim() &&
+            profile.portfolio.trim() !== (profile.bio?.trim() ?? "") && (
             <section>
               <h2 className="font-bold text-sm text-white mb-2 border-l-4 border-blue-400/60 pl-3 uppercase tracking-widest">
                 相关链接

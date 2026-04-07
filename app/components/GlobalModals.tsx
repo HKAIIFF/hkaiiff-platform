@@ -993,8 +993,10 @@ export default function GlobalModals() {
                   </section>
                 )}
 
-                {/* PORTFOLIO */}
-                {creatorProfile.portfolio && creatorProfile.portfolio.trim() && (
+                {/* PORTFOLIO（與 bio 完全相同時不展示，避免批片舊資料重複） */}
+                {creatorProfile.portfolio &&
+                  creatorProfile.portfolio.trim() &&
+                  creatorProfile.portfolio.trim() !== (creatorProfile.bio?.trim() ?? "") && (
                   <section>
                     <h3 className="font-heavy text-xl text-white mb-3 border-l-4 border-blue-400 pl-3">
                       {t("verify_portfolio")}

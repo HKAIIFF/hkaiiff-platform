@@ -18,6 +18,8 @@ type BatchUserInsertInfo = {
   bio?: string | null;
   about_studio?: string | null;
   tech_stack?: string | null;
+  /** 作品／連結等；勿與 bio 混用。舊版曾錯誤寫入 bio，已移除。 */
+  portfolio?: string | null;
 };
 
 function getAdminClient() {
@@ -74,6 +76,7 @@ async function insertBatchCreatedUser(
   const bio = userInfo.bio ?? null;
   const aboutStudio = userInfo.about_studio?.trim() || null;
   const techStack = userInfo.tech_stack?.trim() || null;
+  const portfolio = userInfo.portfolio?.trim() || null;
 
   const tiers: Record<string, unknown>[] = [
     {
@@ -83,7 +86,7 @@ async function insertBatchCreatedUser(
       display_name: name ?? null,
       avatar_seed: name ?? userId,
       bio,
-      portfolio: bio,
+      ...(portfolio ? { portfolio } : {}),
       ...(aboutStudio ? { about_studio: aboutStudio } : {}),
       ...(techStack ? { tech_stack: techStack } : {}),
       verified_identities: [verificationType],
@@ -99,7 +102,7 @@ async function insertBatchCreatedUser(
       display_name: name ?? null,
       avatar_seed: name ?? userId,
       bio,
-      portfolio: bio,
+      ...(portfolio ? { portfolio } : {}),
       ...(techStack ? { tech_stack: techStack } : {}),
       verified_identities: [verificationType],
       last_sign_in_at: now,
